@@ -1,0 +1,225 @@
+/* Sidebar Styles */
+.sidebar {
+    width: 260px;
+    min-height: 100vh;
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #334155;
+    transition: transform 0.3s ease;
+}
+
+/* Header */
+.sidebar-header {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid #334155;
+}
+
+.sidebar-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin: 0 0 0.5rem 0;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.sidebar-user {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.sidebar-user-name {
+    font-size: 0.875rem;
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+.sidebar-user-role {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Company indicator */
+.sidebar-company {
+    padding: 0.75rem 1rem;
+    background: rgba(30, 41, 59, 0.5);
+    border-bottom: 1px solid #334155;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.sidebar-company-label {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sidebar-company-name {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+/* Navigation */
+.sidebar-nav {
+    flex: 1;
+    padding: 0.75rem 0;
+    overflow-y: auto;
+}
+
+/* Menu Item */
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.menu-item:hover {
+    background: rgba(51, 65, 85, 0.5);
+    color: #e2e8f0;
+}
+
+.menu-item.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60a5fa;
+    border-left-color: #60a5fa;
+}
+
+.menu-item-icon {
+    font-size: 1rem;
+    width: 1.25rem;
+    text-align: center;
+}
+
+.menu-item-label {
+    flex: 1;
+}
+
+/* Menu Group */
+.menu-group {
+    margin-bottom: 0.25rem;
+}
+
+.menu-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: none;
+    border: none;
+    color: #cbd5e1;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.menu-group-header:hover {
+    background: rgba(51, 65, 85, 0.3);
+    color: #f1f5f9;
+}
+
+.menu-group.has-active .menu-group-header {
+    color: #60a5fa;
+}
+
+.menu-group-icon {
+    font-size: 1.1rem;
+    width: 1.25rem;
+    text-align: center;
+}
+
+.menu-group-label {
+    flex: 1;
+}
+
+.menu-group-arrow {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+    color: #64748b;
+}
+
+.menu-group-arrow.expanded {
+    transform: rotate(180deg);
+}
+
+/* Group Children (collapsible) */
+.menu-group-children {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease-out;
+    background: rgba(15, 23, 42, 0.3);
+}
+
+.menu-group-children.expanded {
+    max-height: 500px;
+    transition: max-height 0.35s ease-in;
+}
+
+.menu-group-children .menu-item {
+    padding-left: 2.5rem;
+    font-size: 0.8125rem;
+}
+
+.menu-group-children .menu-item-icon {
+    font-size: 0.875rem;
+}
+
+/* Footer */
+.sidebar-footer {
+    padding: 1rem;
+    border-top: 1px solid #334155;
+    margin-top: auto;
+}
+
+.sidebar-logout {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.sidebar-logout:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 1000;
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.open {
+        transform: translateX(0);
+    }
+}

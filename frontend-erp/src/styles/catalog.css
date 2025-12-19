@@ -1,0 +1,209 @@
+/* Catalog Printing Styles (A4 Professional) */
+
+@media screen {
+    .catalog-container {
+        padding: 2rem;
+        background: #0f172a;
+        min-height: 100vh;
+        color: white;
+    }
+
+    .catalog-page {
+        background: white;
+        color: black;
+        width: 210mm;
+        min-height: 297mm;
+        padding: 20mm;
+        margin: 2rem auto;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        position: relative;
+        overflow: hidden;
+    }
+}
+
+@media print {
+    @page {
+        size: A4;
+        margin: 0;
+    }
+
+    body {
+        background: white;
+    }
+
+    .app-container,
+    .sidebar,
+    .sidebar-toggle,
+    .nav-link,
+    .no-print {
+        display: none !important;
+    }
+
+    .catalog-page {
+        width: 210mm;
+        height: 297mm;
+        padding: 15mm;
+        margin: 0;
+        box-shadow: none;
+        page-break-after: always;
+        overflow: hidden;
+    }
+
+    .no-break {
+        page-break-inside: avoid;
+    }
+}
+
+/* Introduction Page */
+.intro-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.intro-logo {
+    max-width: 150px;
+    margin-bottom: 3rem;
+}
+
+.intro-title {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: #1e293b;
+}
+
+/* Type Separator Page */
+.type-separator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1e293b !important;
+    color: white !important;
+}
+
+.type-title {
+    font-size: 4rem;
+    text-transform: uppercase;
+    border-bottom: 5px solid #3b82f6;
+    padding-bottom: 2rem;
+}
+
+/* Product Grid & Cards */
+.product-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10mm;
+}
+
+.product-card {
+    height: 55mm;
+    border: 1px solid #e2e8f0;
+    padding: 3.5mm;
+    border-radius: 1.5mm;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 2mm;
+}
+
+.card-header {
+    background: #f1f5f9;
+    padding: 1.5mm 3mm;
+    margin-bottom: 2mm;
+    border-radius: 1mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sku-text {
+    font-size: 14pt;
+    font-weight: 900;
+    color: #0f172a;
+    letter-spacing: -0.5px;
+}
+
+.card-body {
+    display: flex;
+    gap: 4mm;
+    flex: 1;
+}
+
+.product-image-container {
+    width: 40mm;
+    height: 32mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.product-image-container img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.info-column {
+    flex: 1;
+    font-size: 7.5pt;
+    line-height: 1.1;
+    color: #334155;
+    overflow: hidden;
+}
+
+.info-section-title {
+    font-weight: 700;
+    margin-top: 1mm;
+    margin-bottom: 0.5mm;
+    color: #0f172a;
+}
+
+.specs-footer {
+    display: flex;
+    gap: 4mm;
+    justify-content: center;
+    padding-top: 2mm;
+    margin-top: auto;
+    font-weight: 600;
+    font-size: 10pt;
+    color: #0f172a;
+    border-top: 0.5px solid #e2e8f0;
+}
+
+.spec-item {
+    display: flex;
+    gap: 1mm;
+}
+
+.spec-item span:first-child {
+    font-weight: 900;
+}
+
+.novedad-badge {
+    background: #059669;
+    color: white;
+    font-size: 6pt;
+    padding: 0.5mm 1.5mm;
+    border-radius: 0.5mm;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+/* Watermark */
+.watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 80pt;
+    color: rgba(226, 232, 240, 0.4);
+    pointer-events: none;
+    z-index: -1;
+    white-space: nowrap;
+    font-weight: 900;
+}
