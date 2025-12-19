@@ -2,6 +2,7 @@ services:
   # Backend Web Service
   - type: web
     name: erp-api
+    plan: free
     runtime: python
     rootDirectory: backend
     buildCommand: pip install -r requirements.txt
@@ -19,21 +20,25 @@ services:
         sync: false
 
   # Frontend ERP Static Site
-  - type: static
+  - type: web
     name: erp-admin
+    plan: free
+    runtime: static
     rootDirectory: frontend-erp
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         sync: false
 
   # Frontend Shop Static Site
-  - type: static
+  - type: web
     name: erp-shop
+    plan: free
+    runtime: static
     rootDirectory: frontend-shop
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         sync: false
