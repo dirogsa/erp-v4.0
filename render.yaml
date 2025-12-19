@@ -1,0 +1,45 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: erp-api
+    runtime: python
+    rootDirectory: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+  # Frontend ERP Static Site
+  - type: static
+    name: erp-admin
+    rootDirectory: frontend-erp
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: erp-api
+          type: web
+          property: host
+
+  # Frontend Shop Static Site
+  - type: static
+    name: erp-shop
+    rootDirectory: frontend-shop
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: erp-api
+          type: web
+          property: host
