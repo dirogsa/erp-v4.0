@@ -65,7 +65,7 @@ cp .env.example .env
 
 **⚠️ IMPORTANTE**: Edita el archivo `.env` con tus credenciales reales de MongoDB:
 ```
-MONGODB_URI=mongodb+srv://tu_usuario:tu_password@tu_cluster.mongodb.net/?retryWrites=true&w=majority
+MONGODB_URI=REEMPLAZAR_CON_TU_URI_DE_MONGODB_ATLAS
 MONGO_DB_NAME=nombre_de_tu_base_de_datos
 ```
 

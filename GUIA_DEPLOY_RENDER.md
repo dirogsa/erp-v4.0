@@ -22,7 +22,7 @@ Esta guía te llevará paso a paso para publicar tu sistema ERP en Render. Neces
 3. Ve a **Security → Database Access** y crea un usuario con contraseña
 4. Ve a **Security → Network Access** y agrega `0.0.0.0/0` para permitir acceso desde Render
 5. Ve a **Database → Connect** y copia tu **Connection String**
-   - Ejemplo: `mongodb+srv://usuario:password@cluster.mongodb.net/?retryWrites=true&w=majority`
+   - Ejemplo: `mongodb+srv://USUARIO:CONTRASENA@TU_CLUSTER.mongodb.net/`
 
 ---
 
