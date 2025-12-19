@@ -24,7 +24,7 @@ services:
     runtime: static
     rootDirectory: frontend-erp
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         fromService:
@@ -38,7 +38,7 @@ services:
     runtime: static
     rootDirectory: frontend-shop
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         fromService:
