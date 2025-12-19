@@ -186,6 +186,7 @@ class Customer(Document):
     address: Optional[str] = None  # Dirección principal (retrocompatibilidad)
     phone: Optional[str] = None
     email: Optional[str] = None
+    custom_discount_percent: float = 0.0 # Descuento base acordado con la empresa
     branches: List[CustomerBranch] = []  # Sucursales del cliente
     created_at: datetime = datetime.now()
 

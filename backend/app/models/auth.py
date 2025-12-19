@@ -19,6 +19,7 @@ class User(Document):
     role: UserRole = UserRole.CUSTOMER_B2C
     full_name: str
     ruc_linked: Optional[str] = None
+    custom_discount_percent: float = 0.0 # Descuento adicional por ser cliente especial
     is_active: bool = True
     
     # Loyalty & Sales Stats

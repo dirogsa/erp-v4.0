@@ -109,6 +109,12 @@ class Product(Document):
     # Precios y Stock
     price_retail: float = 0.0
     price_wholesale: float = 0.0
+    
+    # Descuentos por volumen (Porcentaje)
+    discount_6_pct: float = 0.0
+    discount_12_pct: float = 0.0
+    discount_24_pct: float = 0.0
+
     cost: float = 0.0
     stock_current: int = 0
     loyalty_points: int = 0
@@ -123,7 +129,7 @@ class Product(Document):
     
     created_at: datetime = datetime.now()
 
-    @field_validator('price_retail', 'cost', 'price_wholesale')
+    @field_validator('price_retail', 'cost', 'price_wholesale', 'discount_6_pct', 'discount_12_pct', 'discount_24_pct')
     @classmethod
     def round_amounts(cls, v):
         """Redondear a 3 decimales"""

@@ -35,7 +35,10 @@ async def update_product_price(
     price_type: PriceListType,
     new_price: float,
     reason: Optional[str] = None,
-    changed_by: Optional[str] = None
+    changed_by: Optional[str] = None,
+    discount_6_pct: Optional[float] = None,
+    discount_12_pct: Optional[float] = None,
+    discount_24_pct: Optional[float] = None
 ) -> Product:
     product = await Product.find_one(Product.sku == sku)
     if not product:
@@ -70,6 +73,13 @@ async def update_product_price(
         product.price_retail = round(new_price, 3)
     else:
         product.price_wholesale = round(new_price, 3)
+    
+    if discount_6_pct is not None:
+        product.discount_6_pct = round(discount_6_pct, 3)
+    if discount_12_pct is not None:
+        product.discount_12_pct = round(discount_12_pct, 3)
+    if discount_24_pct is not None:
+        product.discount_24_pct = round(discount_24_pct, 3)
     
     await product.save()
     return product

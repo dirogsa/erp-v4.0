@@ -86,6 +86,9 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None) 
     # Pricing
     product.price_retail = update_data.price_retail
     product.price_wholesale = update_data.price_wholesale
+    product.discount_6_pct = update_data.discount_6_pct
+    product.discount_12_pct = update_data.discount_12_pct
+    product.discount_24_pct = update_data.discount_24_pct
     product.cost = update_data.cost
     product.loyalty_points = update_data.loyalty_points
     

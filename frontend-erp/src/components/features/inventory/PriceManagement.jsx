@@ -14,6 +14,9 @@ const PriceManagement = () => {
     const [editingProduct, setEditingProduct] = useState(null);
     const [newRetailPrice, setNewRetailPrice] = useState(0);
     const [newWholesalePrice, setNewWholesalePrice] = useState(0);
+    const [newDisc6, setNewDisc6] = useState(0);
+    const [newDisc12, setNewDisc12] = useState(0);
+    const [newDisc24, setNewDisc24] = useState(0);
     const [priceReason, setPriceReason] = useState('');
 
     const [showImportModal, setShowImportModal] = useState(false);
@@ -30,6 +33,9 @@ const PriceManagement = () => {
         setEditingProduct(product);
         setNewRetailPrice(product.price_retail || 0);
         setNewWholesalePrice(product.price_wholesale || 0);
+        setNewDisc6(product.discount_6_pct || 0);
+        setNewDisc12(product.discount_12_pct || 0);
+        setNewDisc24(product.discount_24_pct || 0);
         setPriceReason('');
     };
 
@@ -38,19 +44,24 @@ const PriceManagement = () => {
 
         try {
             // Update retail
-            if (newRetailPrice !== editingProduct.price_retail) {
+            if (newRetailPrice !== editingProduct.price_retail || newDisc6 !== editingProduct.discount_6_pct || newDisc12 !== editingProduct.discount_12_pct || newDisc24 !== editingProduct.discount_24_pct) {
                 await updatePrice(editingProduct.sku, {
                     new_price: newRetailPrice,
                     price_type: 'RETAIL',
-                    reason: priceReason || 'Actualización manual'
+                    reason: priceReason || 'Actualización manual',
+                    discount_6_pct: newDisc6,
+                    discount_12_pct: newDisc12,
+                    discount_24_pct: newDisc24
                 });
-            }
-            // Update wholesale
-            if (newWholesalePrice !== editingProduct.price_wholesale) {
+            } else if (newWholesalePrice !== editingProduct.price_wholesale) {
+                // If only wholesale changed
                 await updatePrice(editingProduct.sku, {
                     new_price: newWholesalePrice,
                     price_type: 'WHOLESALE',
-                    reason: priceReason || 'Actualización manual'
+                    reason: priceReason || 'Actualización manual',
+                    discount_6_pct: newDisc6,
+                    discount_12_pct: newDisc12,
+                    discount_24_pct: newDisc24
                 });
             }
             setEditingProduct(null);
@@ -72,6 +83,9 @@ const PriceManagement = () => {
         { label: 'Nombre', key: 'name' },
         { label: 'P. Minorista', key: 'price_retail', align: 'right', render: (val) => formatCurrency(val) },
         { label: 'P. Mayorista', key: 'price_wholesale', align: 'right', render: (val) => formatCurrency(val || 0) },
+        { label: '% D.6', key: 'discount_6_pct', align: 'center', render: (val) => `${val || 0}%` },
+        { label: '% D.12', key: 'discount_12_pct', align: 'center', render: (val) => `${val || 0}%` },
+        { label: '% D.24', key: 'discount_24_pct', align: 'center', render: (val) => `${val || 0}%` },
         { label: 'Costo Prom.', key: 'cost', align: 'right', render: (val) => formatCurrency(val) },
         {
             label: 'Acciones', key: 'actions', align: 'center',
@@ -131,6 +145,12 @@ const PriceManagement = () => {
                         <Input label="Precio Minorista (S/)" type="number" value={newRetailPrice} onChange={(e) => setNewRetailPrice(parseFloat(e.target.value))} step="0.01" />
                         <div style={{ marginTop: '1rem' }}>
                             <Input label="Precio Mayorista (S/)" type="number" value={newWholesalePrice} onChange={(e) => setNewWholesalePrice(parseFloat(e.target.value))} step="0.01" />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '1rem' }}>
+                            <Input label="% Desc. 6" type="number" value={newDisc6} onChange={(e) => setNewDisc6(parseFloat(e.target.value))} />
+                            <Input label="% Desc. 12" type="number" value={newDisc12} onChange={(e) => setNewDisc12(parseFloat(e.target.value))} />
+                            <Input label="% Desc. 24" type="number" value={newDisc24} onChange={(e) => setNewDisc24(parseFloat(e.target.value))} />
                         </div>
                         <div style={{ marginTop: '1rem' }}>
                             <Input label="Razón del cambio" value={priceReason} onChange={(e) => setPriceReason(e.target.value)} placeholder="Ej: Actualización mensual" />

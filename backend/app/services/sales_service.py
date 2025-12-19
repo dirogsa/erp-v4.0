@@ -459,8 +459,17 @@ async def update_customer(id: PydanticObjectId, customer_data: Customer) -> Cust
     customer.phone = customer_data.phone
     customer.email = customer_data.email
     customer.branches = customer_data.branches
+    customer.custom_discount_percent = customer_data.custom_discount_percent
     
     await customer.save()
+
+    # Sync with linked User (Shop) if exists
+    from app.models.auth import User
+    linked_user = await User.find_one(User.ruc_linked == customer.ruc)
+    if linked_user:
+        linked_user.custom_discount_percent = customer.custom_discount_percent
+        await linked_user.save()
+
     return customer
 
 async def delete_customer(id: PydanticObjectId) -> bool:

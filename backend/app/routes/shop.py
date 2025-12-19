@@ -12,6 +12,27 @@ from pydantic import BaseModel
 
 router = APIRouter(prefix="/shop", tags=["Shop"])
 
+def calculate_item_price(product: Product, quantity: int, role: UserRole, user_discount: float = 0.0) -> float:
+    """Calcula el precio final aplicando descuentos por volumen y descuento de usuario"""
+    # 1. Precio base por rol
+    base_price = product.price_wholesale if role == UserRole.CUSTOMER_B2B else product.price_retail
+    
+    # 2. Descuento por volumen (máximo aplicable)
+    vol_discount_pct = 0.0
+    if quantity >= 24:
+        vol_discount_pct = product.discount_24_pct
+    elif quantity >= 12:
+        vol_discount_pct = product.discount_12_pct
+    elif quantity >= 6:
+        vol_discount_pct = product.discount_6_pct
+    
+    # 3. Aplicar descuentos de forma multiplicativa
+    # Price = Base * (1 - VolDisc) * (1 - UserDisc)
+    price_after_vol = base_price * (1 - (vol_discount_pct / 100))
+    final_price = price_after_vol * (1 - (user_discount / 100))
+    
+    return round(final_price, 3)
+
 @router.get("/profile")
 async def get_shop_profile(current_user: User = Depends(get_current_user)):
     """Returns the authenticated user's profile with stats"""
@@ -95,9 +116,8 @@ async def get_shop_products(
     
     response_items = []
     for p in products:
-        price = p.price_retail
-        if role == UserRole.CUSTOMER_B2B:
-            price = p.price_wholesale
+        # For list, we show base price (quantity=1)
+        price = calculate_item_price(p, 1, role, current_user.custom_discount_percent if current_user else 0.0)
         
         response_items.append(ShopProductResponse(
             sku=p.sku,
@@ -132,9 +152,7 @@ async def get_shop_product_detail(
         raise HTTPException(status_code=404, detail="Product not found or not available in shop")
 
     role = current_user.role if current_user else UserRole.CUSTOMER_B2C
-    price = p.price_retail
-    if role == UserRole.CUSTOMER_B2B:
-        price = p.price_wholesale
+    price = calculate_item_price(p, 1, role, current_user.custom_discount_percent if current_user else 0.0)
 
     return ShopProductDetailResponse(
         sku=p.sku,
@@ -171,9 +189,12 @@ async def checkout(
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {item.sku} not found")
         
-        price = product.price_retail
-        if role == UserRole.CUSTOMER_B2B:
-            price = product.price_wholesale
+        price = calculate_item_price(
+            product, 
+            item.quantity, 
+            role, 
+            current_user.custom_discount_percent if current_user else 0.0
+        )
         
         order_items.append(OrderItem(
             product_sku=item.sku,

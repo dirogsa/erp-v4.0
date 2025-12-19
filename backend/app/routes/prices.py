@@ -12,6 +12,9 @@ class PriceUpdateRequest(BaseModel):
     new_price: float
     price_type: PriceListType = PriceListType.RETAIL
     reason: Optional[str] = None
+    discount_6_pct: Optional[float] = None
+    discount_12_pct: Optional[float] = None
+    discount_24_pct: Optional[float] = None
 
 class BulkPriceUpdateRequest(BaseModel):
     updates: List[dict]  # [{sku, price, price_wholesale}, ...]
@@ -36,7 +39,10 @@ async def update_product_price(
             sku=sku,
             price_type=request.price_type,
             new_price=request.new_price,
-            reason=request.reason
+            reason=request.reason,
+            discount_6_pct=request.discount_6_pct,
+            discount_12_pct=request.discount_12_pct,
+            discount_24_pct=request.discount_24_pct
         )
         return {"message": "Price updated successfully", "product": product}
     except BusinessException as e:

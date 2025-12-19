@@ -18,6 +18,7 @@ const CustomerForm = ({
         email: '',
         phone: '',
         address: '',
+        custom_discount_percent: 0,
         branches: [],
         ...initialData
     });
@@ -122,6 +123,13 @@ const CustomerForm = ({
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     placeholder="Av. Principal 123"
+                />
+                <Input
+                    label="% Descuento Especial (B2B)"
+                    type="number"
+                    value={formData.custom_discount_percent}
+                    onChange={(e) => setFormData({ ...formData, custom_discount_percent: parseFloat(e.target.value) || 0 })}
+                    placeholder="0"
                 />
 
                 {/* Sección de Sucursales */}
