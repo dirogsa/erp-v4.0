@@ -19,29 +19,21 @@ services:
         sync: false
 
   # Frontend ERP Static Site
-  - type: web
+  - type: static
     name: erp-admin
-    runtime: static
     rootDirectory: frontend-erp
     buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    publishDir: dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: erp-api
-          type: web
-          property: host
+        sync: false
 
   # Frontend Shop Static Site
-  - type: web
+  - type: static
     name: erp-shop
-    runtime: static
     rootDirectory: frontend-shop
     buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    publishDir: dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: erp-api
-          type: web
-          property: host
+        sync: false
