@@ -22,7 +22,6 @@ services:
   # Frontend ERP Static Site
   - type: web
     name: erp-admin
-    plan: free
     runtime: static
     rootDir: frontend-erp
     buildCommand: npm install && npm run build
@@ -34,7 +33,6 @@ services:
   # Frontend Shop Static Site
   - type: web
     name: erp-shop
-    plan: free
     runtime: static
     rootDir: frontend-shop
     buildCommand: npm install && npm run build
