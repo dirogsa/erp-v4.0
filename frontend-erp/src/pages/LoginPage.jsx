@@ -25,7 +25,16 @@ const LoginPage = () => {
             navigate(from, { replace: true });
         } catch (error) {
             console.error("Login component error:", error);
-            const msg = error.response?.data?.detail || 'Credenciales incorrectas';
+            let msg = 'Error de conexión con el servidor';
+            
+            if (error.response) {
+                // El servidor respondió con un status fuera del rango 2xx
+                msg = error.response.data?.detail || 'Credenciales incorrectas';
+            } else if (error.request) {
+                // La petición se hizo pero no hubo respuesta (ej. CORS o Servidor caído)
+                msg = 'No se pudo conectar con el servidor. Verifique la configuración de CORS o su conexión.';
+            }
+
             showNotification(msg, 'error');
         } finally {
             setLoading(false);
