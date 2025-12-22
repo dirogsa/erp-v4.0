@@ -2,6 +2,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from app.models.inventory import Product, StockMovement, MovementType, Warehouse
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, InsufficientStockException, DuplicateEntityException
+from app.services.brand_service import ensure_brands_exist
 
 from app.schemas.common import PaginatedResponse
 
@@ -66,6 +67,10 @@ async def create_product(product_data: Product, initial_stock: int = 0) -> Produ
         )
         await movement.insert()
         
+    # Auto-register vehicle brands from applications
+    if product_data.applications:
+        await ensure_brands_exist([app.make for app in product_data.applications])
+        
     return product_data
 
 async def update_product(sku: str, update_data: Product, new_stock: int = None) -> Product:
@@ -102,6 +107,10 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None) 
     product.is_active_in_shop = update_data.is_active_in_shop
     
     await product.save()
+    
+    # Auto-register/sync vehicle brands from applications
+    if product.applications:
+        await ensure_brands_exist([app.make for app in product.applications])
     
     if new_stock is not None and new_stock != product.stock_current:
         product = await adjust_stock(sku, new_stock, "Ajuste desde edición de producto")

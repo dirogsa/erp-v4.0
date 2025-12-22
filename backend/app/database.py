@@ -34,6 +34,8 @@ async def init_db():
             database=client[db_name], 
             document_models=[
                 "app.models.inventory.Product",
+                "app.models.inventory.VehicleBrand",
+                "app.models.inventory.SearchLog",
                 "app.models.inventory.ProductCategory",
                 "app.models.inventory.PriceHistory",
                 "app.models.inventory.StockMovement",

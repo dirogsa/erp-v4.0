@@ -21,8 +21,17 @@ export const authService = {
   login: (username, password) => api.post('/auth/login', { username, password }),
   getMe: () => api.get('/auth/me'),
   getB2BApplications: () => api.get('/auth/b2b-applications'),
-  processB2BApplication: (appId, status, adminNotes = '') =>
-    api.post(`/auth/b2b-applications/${appId}/process`, { status, admin_notes: adminNotes }),
+  updateB2BApplication: (appId, data) => api.put(`/auth/b2b-applications/${appId}`, data),
+  processB2BApplication: (appId, status, adminNotes = '', targetUser = null, targetPass = null) => {
+    let url = `/auth/b2b-applications/${appId}/process`;
+    const params = new URLSearchParams();
+    if (targetUser) params.append('target_username', targetUser);
+    if (targetPass) params.append('target_password', targetPass);
+    const queryString = params.toString();
+    if (queryString) url += `?${queryString}`;
+
+    return api.post(url, { status, admin_notes: adminNotes });
+  },
 };
 
 export const inventoryService = {
@@ -189,6 +198,13 @@ export const categoryService = {
   createCategory: (category) => api.post('/categories', category),
   updateCategory: (id, category) => api.put(`/categories/${id}`, category),
   deleteCategory: (id) => api.delete(`/categories/${id}`),
+};
+
+export const brandService = {
+  getBrands: (origin = '') => api.get('/brands', { params: { origin: origin || undefined } }),
+  syncBrands: () => api.post('/brands/sync'),
+  updateBrand: (name, data) => api.put(`/brands/${name}`, data),
+  deleteBrand: (name) => api.delete(`/brands/${name}`),
 };
 
 export const dataExchangeService = {

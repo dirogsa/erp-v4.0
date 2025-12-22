@@ -142,15 +142,15 @@ const PriceManagement = () => {
                         <h2 style={{ color: 'white', marginBottom: '1rem' }}>Editar Precios: {editingProduct.name}</h2>
                         <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>SKU: {editingProduct.sku}</p>
 
-                        <Input label="Precio Minorista (S/)" type="number" value={newRetailPrice} onChange={(e) => setNewRetailPrice(parseFloat(e.target.value))} step="0.01" />
+                        <Input label="Precio Minorista (S/)" type="number" value={newRetailPrice} onChange={(e) => setNewRetailPrice(e.target.value === '' ? '' : parseFloat(e.target.value))} step="0.01" />
                         <div style={{ marginTop: '1rem' }}>
-                            <Input label="Precio Mayorista (S/)" type="number" value={newWholesalePrice} onChange={(e) => setNewWholesalePrice(parseFloat(e.target.value))} step="0.01" />
+                            <Input label="Precio Mayorista (S/)" type="number" value={newWholesalePrice} onChange={(e) => setNewWholesalePrice(e.target.value === '' ? '' : parseFloat(e.target.value))} step="0.01" />
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '1rem' }}>
-                            <Input label="% Desc. 6" type="number" value={newDisc6} onChange={(e) => setNewDisc6(parseFloat(e.target.value))} />
-                            <Input label="% Desc. 12" type="number" value={newDisc12} onChange={(e) => setNewDisc12(parseFloat(e.target.value))} />
-                            <Input label="% Desc. 24" type="number" value={newDisc24} onChange={(e) => setNewDisc24(parseFloat(e.target.value))} />
+                            <Input label="% Desc. 6" type="number" value={newDisc6} onChange={(e) => setNewDisc6(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                            <Input label="% Desc. 12" type="number" value={newDisc12} onChange={(e) => setNewDisc12(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                            <Input label="% Desc. 24" type="number" value={newDisc24} onChange={(e) => setNewDisc24(e.target.value === '' ? '' : parseFloat(e.target.value))} />
                         </div>
                         <div style={{ marginTop: '1rem' }}>
                             <Input label="Razón del cambio" value={priceReason} onChange={(e) => setPriceReason(e.target.value)} placeholder="Ej: Actualización mensual" />

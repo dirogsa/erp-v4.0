@@ -30,7 +30,7 @@ const Navbar = () => {
 
                         {/* Logo */}
                         <Link to="/" className="text-3xl font-black text-primary-600 tracking-tighter hover:opacity-80 transition-opacity">
-                            FILTROS<span className="text-slate-400">SHOP</span>
+                            DIROGSA <span className="text-slate-400">filtros</span>
                         </Link>
                     </div>
 

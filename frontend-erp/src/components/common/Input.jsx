@@ -26,7 +26,7 @@ const Input = ({
             )}
             <input
                 type={type}
-                value={value}
+                value={Number.isNaN(value) ? '' : (value ?? '')}
                 onChange={onChange}
                 placeholder={placeholder}
                 required={required}

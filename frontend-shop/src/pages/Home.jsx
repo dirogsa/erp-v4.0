@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { shopService } from '../services/api';
 
 const Home = () => {
+    const [brands, setBrands] = useState([]);
+
+    useEffect(() => {
+        shopService.getVehicleBrands().then(res => {
+            setBrands(res.data.filter(b => b.is_popular).slice(0, 8));
+        });
+    }, []);
+
     return (
         <div>
             {/* Hero Section */}
@@ -57,6 +66,36 @@ const Home = () => {
                     <p className="text-slate-500 leading-relaxed">Gana puntos en cada compra y canjéalos por productos exclusivos o descuentos.</p>
                 </div>
             </section>
+
+            {/* Trusted Brands Carousel */}
+            {brands.length > 0 && (
+                <section className="py-20 border-y border-slate-100 bg-slate-50/30">
+                    <div className="max-w-7xl mx-auto px-4">
+                        <div className="text-center mb-12">
+                            <span className="text-primary-600 font-black text-xs uppercase tracking-[0.2em] mb-4 block">PRESENCIA GLOBAL</span>
+                            <h2 className="text-3xl font-black text-slate-900">Marcas Compatibles</h2>
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-8 md:gap-16 items-center opacity-60 hover:opacity-100 transition-opacity grayscale hover:grayscale-0 duration-500">
+                            {brands.map(brand => (
+                                <Link
+                                    key={brand.name}
+                                    to={`/catalog?brand=${brand.name}`}
+                                    className="flex flex-col items-center gap-4 group"
+                                >
+                                    <div className="w-20 h-20 md:w-28 md:h-28 bg-white rounded-3xl shadow-sm border border-slate-100 flex items-center justify-center p-4 group-hover:shadow-xl group-hover:-translate-y-2 transition-all">
+                                        {brand.logo_url ? (
+                                            <img src={brand.logo_url} alt={brand.name} className="w-full h-full object-contain" />
+                                        ) : (
+                                            <span className="text-2xl font-black text-slate-300">{brand.name[0]}</span>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] font-black uppercase text-slate-400 group-hover:text-primary-600 tracking-widest">{brand.name}</span>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            )}
 
             {/* B2B Banner (Prominent) */}
             <section className="max-w-7xl mx-auto px-4 mb-24">

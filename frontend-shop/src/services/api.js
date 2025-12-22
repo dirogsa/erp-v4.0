@@ -20,6 +20,7 @@ export const shopService = {
     getProducts: (params = {}) => api.get('/shop/products', { params }),
     getProductBySku: (sku) => api.get(`/shop/products/${sku}`),
     getCategories: () => api.get('/categories'),
+    getVehicleBrands: () => api.get('/shop/brands'),
     checkout: (orderData) => api.post('/shop/checkout', orderData),
     getProfile: () => api.get('/shop/profile'),
     getOrders: () => api.get('/shop/orders'),

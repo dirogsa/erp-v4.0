@@ -18,26 +18,30 @@ const LoginPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        console.log("LoginPage: Form submitted with username:", username);
         setLoading(true);
         try {
+            console.log("LoginPage: Calling login function from context...");
             await login(username, password);
+            console.log("LoginPage: Login successful, navigating to:", from);
             showNotification('¡Bienvenido al sistema!', 'success');
             navigate(from, { replace: true });
         } catch (error) {
-            console.error("Login component error:", error);
+            console.error("LoginPage: Login caught error:", error);
             let msg = 'Error de conexión con el servidor';
-            
+
             if (error.response) {
-                // El servidor respondió con un status fuera del rango 2xx
+                console.log("LoginPage: Server responded with error status:", error.response.status);
                 msg = error.response.data?.detail || 'Credenciales incorrectas';
             } else if (error.request) {
-                // La petición se hizo pero no hubo respuesta (ej. CORS o Servidor caído)
+                console.log("LoginPage: No response received from server (network error/CORS)");
                 msg = 'No se pudo conectar con el servidor. Verifique la configuración de CORS o su conexión.';
             }
 
             showNotification(msg, 'error');
         } finally {
             setLoading(false);
+            console.log("LoginPage: Loading state set to false");
         }
     };
 

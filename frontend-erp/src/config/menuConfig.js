@@ -55,6 +55,7 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'inventory', label: 'Productos', path: '/inventory', icon: '📦' },
+            { id: 'brands', label: 'Marcas de Vehículos', path: '/brands', icon: '🏎️' },
             { id: 'categories', label: 'Categorías', path: '/categories', icon: '🏷️' },
             { id: 'warehouses', label: 'Almacenes', path: '/warehouses', icon: '🏢' },
             { id: 'losses', label: 'Mermas', path: '/losses', icon: '⚠️' },

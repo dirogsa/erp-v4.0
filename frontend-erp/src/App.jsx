@@ -24,6 +24,7 @@ import Categories from './pages/Categories';
 import CatalogConfig from './pages/CatalogConfig';
 import CatalogView from './pages/CatalogView';
 import B2BManagement from './pages/B2BManagement';
+import BrandManagement from './pages/BrandManagement';
 
 
 const queryClient = new QueryClient({
@@ -74,6 +75,7 @@ function App() {
                         <Route path="/transfers" element={<Transfers />} />
                         <Route path="/catalog" element={<CatalogConfig />} />
                         <Route path="/catalog/view" element={<CatalogView />} />
+                        <Route path="/brands" element={<BrandManagement />} />
                         <Route path="/b2b" element={<B2BManagement />} />
                       </Routes>
                     </Layout>

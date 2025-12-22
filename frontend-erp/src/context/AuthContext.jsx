@@ -36,14 +36,23 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = async (username, password) => {
-        const response = await authService.login(username, password);
-        const { access_token } = response.data;
-        localStorage.setItem('erp_token', access_token);
+        console.log("AuthProvider: login initiated for", username);
+        try {
+            const response = await authService.login(username, password);
+            console.log("AuthProvider: login response received", response.status);
+            const { access_token } = response.data;
+            localStorage.setItem('erp_token', access_token);
 
-        const userRes = await authService.getMe();
-        setUser(userRes.data);
-        setIsAuthenticated(true);
-        return userRes.data;
+            console.log("AuthProvider: fetching user data...");
+            const userRes = await authService.getMe();
+            console.log("AuthProvider: user data fetched", userRes.data);
+            setUser(userRes.data);
+            setIsAuthenticated(true);
+            return userRes.data;
+        } catch (error) {
+            console.error("AuthProvider: Login error", error);
+            throw error;
+        }
     };
 
     const logout = () => {

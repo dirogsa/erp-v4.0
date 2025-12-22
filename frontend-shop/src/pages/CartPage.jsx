@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { TrashIcon, ShoppingBagIcon, ArrowLeftIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline';
 
 const CartPage = () => {
-    const { cart, removeFromCart, updateQuantity, cartTotal, cartCount } = useCart();
+    const { cart, removeFromCart, updateQuantity, cartTotal, cartCount, getItemPrice } = useCart();
 
     if (cart.length === 0) {
         return (
@@ -56,8 +56,20 @@ const CartPage = () => {
                                 </button>
                             </div>
 
-                            <div className="text-2xl font-black text-slate-900 min-w-[120px] text-right">
-                                S/ {(item.price * item.quantity).toFixed(2)}
+                            <div className="text-right flex flex-col items-end min-w-[150px]">
+                                {getItemPrice(item) < item.price && (
+                                    <span className="text-xs text-slate-400 line-through">
+                                        S/ {(item.price * item.quantity).toFixed(2)}
+                                    </span>
+                                )}
+                                <div className="text-2xl font-black text-slate-900">
+                                    S/ {(getItemPrice(item) * item.quantity).toFixed(2)}
+                                </div>
+                                {getItemPrice(item) < item.price && (
+                                    <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full mt-1">
+                                        ¡Ahorraste S/ {((item.price - getItemPrice(item)) * item.quantity).toFixed(2)}!
+                                    </span>
+                                )}
                             </div>
 
                             <button

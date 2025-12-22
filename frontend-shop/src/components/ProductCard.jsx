@@ -47,6 +47,27 @@ const ProductCard = ({ product }) => {
                             <StarIcon className="h-3 w-3" /> {product.loyalty_points || 0} pts
                         </span>
                     </div>
+
+                    {/* Volume Discounts */}
+                    {(product.discount_6_pct > 0 || product.discount_12_pct > 0 || product.discount_24_pct > 0) && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                            {product.discount_6_pct > 0 && (
+                                <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                                    6 unid: -{product.discount_6_pct}%
+                                </span>
+                            )}
+                            {product.discount_12_pct > 0 && (
+                                <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                    12 unid: -{product.discount_12_pct}%
+                                </span>
+                            )}
+                            {product.discount_24_pct > 0 && (
+                                <span className="text-[9px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
+                                    24 unid: -{product.discount_24_pct}%
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <button

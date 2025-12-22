@@ -2,7 +2,7 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime
 from enum import Enum
 from beanie import Document, Indexed
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 
 class IssuerInfo(BaseModel):
     """Información de la empresa emisora al momento de la creación"""
@@ -52,6 +52,31 @@ class MeasureType(str, Enum):
     INCH = "inch" # pulgada
     THREAD = "thread" # rosca
     OTHER = "other"
+
+class BrandOrigin(str, Enum):
+    EUROPE = "EUROPE"
+    ASIA = "ASIA"
+    USA = "USA"
+    OTHER = "OTHER"
+
+class VehicleBrand(Document):
+    name: Indexed(str, unique=True)
+    origin: BrandOrigin = BrandOrigin.OTHER
+    logo_url: Optional[str] = None
+    is_popular: bool = False
+    
+    class Settings:
+        name = "vehicle_brands"
+
+class SearchLog(Document):
+    query: str
+    mode: str
+    results_count: int
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    user_id: Optional[str] = None # Si está logueado
+    
+    class Settings:
+        name = "search_logs"
 
 class TechnicalSpec(BaseModel):
     """Especificación técnica unitaria (Ej: A, mm, 120)"""

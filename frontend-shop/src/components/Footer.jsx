@@ -27,13 +27,13 @@ const Footer = () => {
                     <h4 className="text-white font-bold mb-6">Contacto</h4>
                     <ul className="space-y-4">
                         <li>Lima, Perú</li>
-                        <li>soporte@filtroshop.pe</li>
-                        <li>+51 900 000 000</li>
+                        <li>soporte@dirogsa.pe</li>
+                        <li>+51 14742827</li>
                     </ul>
                 </div>
             </div>
             <div className="max-w-7xl mx-auto border-t border-slate-800 mt-16 pt-8 text-sm text-center">
-                <p>&copy; {new Date().getFullYear()} FILTROS SHOP. Todos los derechos reservados.</p>
+                <p>&copy; {new Date().getFullYear()} Dirogsa. Todos los derechos reservados.</p>
             </div>
         </footer>
     );

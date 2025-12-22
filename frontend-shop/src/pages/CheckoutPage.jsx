@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const CheckoutPage = () => {
-    const { cart, cartTotal, clearCart } = useCart();
+    const { cart, cartTotal, clearCart, getItemPrice } = useCart();
     const { user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
 
@@ -203,16 +203,31 @@ const CheckoutPage = () => {
                     <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
                         <h3 className="text-2xl font-black mb-10">Tu Pedido</h3>
 
-                        <div className="space-y-4 mb-10 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                            {cart.map((item) => (
-                                <div key={item.sku} className="flex justify-between items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
-                                    <div className="flex-grow">
-                                        <h4 className="font-bold text-sm line-clamp-1">{item.name}</h4>
-                                        <p className="text-[10px] text-slate-400 font-mono">x{item.quantity} · S/ {item.price.toFixed(2)}</p>
+                        <div className="space-y-4 mb-10 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                            {cart.map((item) => {
+                                const unitPrice = getItemPrice(item);
+                                const isDiscounted = unitPrice < item.price;
+                                return (
+                                    <div key={item.sku} className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div className="flex-grow">
+                                                <h4 className="font-bold text-sm line-clamp-2">{item.name}</h4>
+                                                <p className="text-[10px] text-slate-400 font-mono mt-1">{item.sku}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-black text-primary-500">S/ {(unitPrice * item.quantity).toFixed(2)}</div>
+                                                {isDiscounted && (
+                                                    <div className="text-[10px] text-slate-500 line-through">S/ {(item.price * item.quantity).toFixed(2)}</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                                            <span className="text-[10px] font-black text-slate-500 uppercase">Cantidad: {item.quantity}</span>
+                                            <span className="text-[10px] font-bold text-slate-400">P.U. S/ {unitPrice.toFixed(2)}</span>
+                                        </div>
                                     </div>
-                                    <span className="font-black text-primary-500">S/ {(item.price * item.quantity).toFixed(2)}</span>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         <div className="space-y-3 mb-10 pt-6 border-t border-white/10">
@@ -226,8 +241,8 @@ const CheckoutPage = () => {
                             type="submit"
                             disabled={loading}
                             className={`w-full py-6 rounded-[2rem] font-black text-xl transition-all shadow-2xl flex items-center justify-center gap-3 ${loading
-                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                    : 'bg-primary-600 text-white hover:bg-primary-500 shadow-primary-600/30'
+                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                : 'bg-primary-600 text-white hover:bg-primary-500 shadow-primary-600/30'
                                 }`}
                         >
                             {loading ? 'PROCESANDO...' : 'FINALIZAR PEDIDO'}

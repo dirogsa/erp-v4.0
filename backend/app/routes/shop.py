@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import List, Optional
-from ..models.inventory import Product, TechnicalSpec, CrossReference, Application
+from ..models.inventory import Product, TechnicalSpec, CrossReference, Application, VehicleBrand, SearchLog
 from app.models.auth import User, UserRole
 from app.models.sales import SalesOrder, OrderItem, IssuerInfo
 from app.routes.auth import get_optional_user, get_current_user
@@ -11,6 +11,11 @@ from datetime import datetime
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/shop", tags=["Shop"])
+
+@router.get("/brands", response_model=List[VehicleBrand])
+async def get_shop_brands():
+    """Returns all vehicle brands for the shop frontend"""
+    return await VehicleBrand.find_all().to_list()
 
 def calculate_item_price(product: Product, quantity: int, role: UserRole, user_discount: float = 0.0) -> float:
     """Calcula el precio final aplicando descuentos por volumen y descuento de usuario"""
@@ -63,6 +68,9 @@ class ShopProductResponse(BaseModel):
     stock_current: int
     category_id: Optional[str] = None
     is_new: bool = False
+    discount_6_pct: float = 0.0
+    discount_12_pct: float = 0.0
+    discount_24_pct: float = 0.0
 
 class ShopProductDetailResponse(ShopProductResponse):
     specs: List[TechnicalSpec] = []
@@ -89,19 +97,37 @@ async def get_shop_products(
     limit: int = 20,
     search: Optional[str] = None,
     category: Optional[str] = None,
+    mode: Optional[str] = "all",
+    vehicle_brand: Optional[str] = None,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
     print(f"[SHOP] GET /products called - search: {search}, category: {category}")
     
     query = {"is_active_in_shop": True}
     if search:
-        query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"sku": {"$regex": search, "$options": "i"}},
-            {"brand": {"$regex": search, "$options": "i"}}
-        ]
+        if mode == "vehicle":
+            query["$or"] = [
+                {"applications.make": {"$regex": search, "$options": "i"}},
+                {"applications.model": {"$regex": search, "$options": "i"}}
+            ]
+        elif mode == "specs":
+            query["specs.value"] = {"$regex": search, "$options": "i"}
+        elif mode == "equivalence":
+            query["equivalences.code"] = {"$regex": search, "$options": "i"}
+        else: # "all" or others
+            query["$or"] = [
+                {"name": {"$regex": search, "$options": "i"}},
+                {"sku": {"$regex": search, "$options": "i"}},
+                {"brand": {"$regex": search, "$options": "i"}},
+                {"equivalences.code": {"$regex": search, "$options": "i"}},
+                {"applications.make": {"$regex": search, "$options": "i"}},
+                {"applications.model": {"$regex": search, "$options": "i"}},
+                {"specs.value": {"$regex": search, "$options": "i"}}
+            ]
     if category:
         query["category_id"] = category
+    if vehicle_brand:
+        query["applications.make"] = {"$regex": f"^{vehicle_brand}$", "$options": "i"}
 
     print(f"[SHOP] Query: {query}")
     
@@ -129,10 +155,26 @@ async def get_shop_products(
             loyalty_points=p.loyalty_points,
             stock_current=p.stock_current,
             category_id=p.category_id,
-            is_new=p.is_new
+            is_new=p.is_new,
+            discount_6_pct=p.discount_6_pct,
+            discount_12_pct=p.discount_12_pct,
+            discount_24_pct=p.discount_24_pct
         ))
 
     print(f"[SHOP] Returning {len(response_items)} items to frontend")
+    
+    # Record search analytics (Async/Background-like)
+    if search:
+        try:
+            log = SearchLog(
+                query=search,
+                mode=mode or "all",
+                results_count=total,
+                user_id=str(current_user.id) if current_user else None
+            )
+            await log.insert()
+        except:
+            pass # Analytics should never break the request
     
     return PaginatedResponse(
         items=response_items,
@@ -169,7 +211,10 @@ async def get_shop_product_detail(
         equivalences=p.equivalences,
         applications=p.applications,
         weight_g=p.weight_g,
-        features=p.features
+        features=p.features,
+        discount_6_pct=p.discount_6_pct,
+        discount_12_pct=p.discount_12_pct,
+        discount_24_pct=p.discount_24_pct
     )
 
 @router.post("/checkout")

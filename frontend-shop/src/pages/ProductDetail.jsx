@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { shopService } from '../services/api';
 import { useCart } from '../context/CartContext';
-import { ShoppingCartIcon, ArrowLeftIcon, StarIcon, CheckBadgeIcon } from '@heroicons/react/24/outline';
+import LoadingSpinner from '../components/LoadingSpinner';
+import { ShoppingCartIcon, ArrowLeftIcon, StarIcon, CheckBadgeIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline';
 
 const ProductDetail = () => {
     const { sku } = useParams();
@@ -10,6 +11,7 @@ const ProductDetail = () => {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('specs');
+    const [quantity, setQuantity] = useState(1);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -25,11 +27,7 @@ const ProductDetail = () => {
         fetchProduct();
     }, [sku]);
 
-    if (loading) return (
-        <div className="flex justify-center items-center h-screen">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-        </div>
-    );
+    if (loading) return <LoadingSpinner message="Cargando detalles..." fullScreen={true} />;
 
     if (!product) return (
         <div className="max-w-7xl mx-auto px-4 py-20 text-center">
@@ -88,17 +86,68 @@ const ProductDetail = () => {
                     <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 mb-8 shadow-2xl relative overflow-hidden">
                         <div className="relative z-10">
                             <span className="text-slate-400 font-bold mb-1 block uppercase tracking-wider text-xs">Precio del Producto</span>
-                            <div className="flex items-baseline gap-2">
+                            <div className="flex items-baseline gap-2 mb-6">
                                 <span className="text-5xl font-black">S/ {product.price.toFixed(2)}</span>
                                 <span className="text-slate-400 font-medium">Inc. IGV</span>
                             </div>
+
+                            {/* Offers for quantity */}
+                            {(product.discount_6_pct > 0 || product.discount_12_pct > 0 || product.discount_24_pct > 0) && (
+                                <div className="space-y-3 pt-4 border-t border-white/10">
+                                    <p className="text-[10px] font-black text-primary-400 uppercase tracking-[0.2em]">Ofertas por Volumen</p>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {product.discount_6_pct > 0 && (
+                                            <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                                                <span className="text-sm font-bold">Lleva 6 o más</span>
+                                                <div className="text-right">
+                                                    <span className="block text-xs text-slate-400 line-through">S/ {product.price.toFixed(2)}</span>
+                                                    <span className="text-emerald-400 font-black">S/ {(product.price * (1 - product.discount_6_pct / 100)).toFixed(2)} u.</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {product.discount_12_pct > 0 && (
+                                            <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                                                <span className="text-sm font-bold">Lleva 12 o más</span>
+                                                <div className="text-right">
+                                                    <span className="block text-xs text-slate-400 line-through">S/ {product.price.toFixed(2)}</span>
+                                                    <span className="text-emerald-400 font-black">S/ {(product.price * (1 - product.discount_12_pct / 100)).toFixed(2)} u.</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {product.discount_24_pct > 0 && (
+                                            <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                                                <span className="text-sm font-bold">Lleva 24 o más</span>
+                                                <div className="text-right">
+                                                    <span className="block text-xs text-slate-400 line-through">S/ {product.price.toFixed(2)}</span>
+                                                    <span className="text-emerald-400 font-black">S/ {(product.price * (1 - product.discount_24_pct / 100)).toFixed(2)} u.</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500 opacity-10 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                     </div>
 
-                    <div className="flex gap-4">
+                    <div className="flex gap-4 items-center">
+                        <div className="flex items-center gap-4 bg-slate-100 p-2 rounded-2xl border border-slate-200">
+                            <button
+                                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                className="p-3 bg-white rounded-xl shadow-sm hover:text-primary-600 transition-colors"
+                            >
+                                <MinusIcon className="h-6 w-6" />
+                            </button>
+                            <span className="font-black text-2xl w-12 text-center text-slate-900">{quantity}</span>
+                            <button
+                                onClick={() => setQuantity(quantity + 1)}
+                                className="p-3 bg-white rounded-xl shadow-sm hover:text-primary-600 transition-colors"
+                            >
+                                <PlusIcon className="h-6 w-6" />
+                            </button>
+                        </div>
                         <button
-                            onClick={() => addToCart(product)}
+                            onClick={() => addToCart(product, quantity)}
                             className="flex-1 bg-primary-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-primary-500 transition-all shadow-xl shadow-primary-600/20 active:scale-95 flex items-center justify-center gap-3"
                         >
                             <ShoppingCartIcon className="h-7 w-7" /> AÑADIR AL CARRITO

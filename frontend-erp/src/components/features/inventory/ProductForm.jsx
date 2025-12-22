@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { categoryService } from '../../../services/api';
+import { categoryService, brandService } from '../../../services/api';
 import Input from '../../common/Input';
 import Button from '../../common/Button';
 import Select from '../../common/Select';
@@ -38,9 +38,11 @@ const ProductForm = ({
 
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [vehicleBrands, setVehicleBrands] = useState([]);
 
     useEffect(() => {
         loadCategories();
+        loadVehicleBrands();
     }, []);
 
     // Effect to set selected category object when formData.category_id changes (e.g. edit mode)
@@ -57,6 +59,15 @@ const ProductForm = ({
             setCategories(res.data);
         } catch (error) {
             console.error("Error loading categories", error);
+        }
+    };
+
+    const loadVehicleBrands = async () => {
+        try {
+            const res = await brandService.getBrands();
+            setVehicleBrands(res.data);
+        } catch (error) {
+            console.error("Error loading brands", error);
         }
     };
 
@@ -105,6 +116,21 @@ const ProductForm = ({
             return;
         }
 
+        // Check for new vehicle brands in applications
+        const newBrands = formData.applications
+            .map(app => (app.make || '').trim().toUpperCase())
+            .filter(make => make && !vehicleBrands.find(b => b.name === make));
+
+        const uniqueNewBrands = [...new Set(newBrands)];
+
+        if (uniqueNewBrands.length > 0) {
+            const confirmNew = window.confirm(
+                `Estás por registrar las siguientes marcas NUEVAS: ${uniqueNewBrands.join(', ')}.\n\n` +
+                `¿Confirmas que los nombres son correctos? (Un error aquí afectará la búsqueda en la tienda)`
+            );
+            if (!confirmNew) return;
+        }
+
         onSubmit(formData);
     };
 
@@ -126,7 +152,14 @@ const ProductForm = ({
 
     const updateItem = (field, index, subField, value) => {
         const newItems = [...(formData[field] || [])];
-        newItems[index] = { ...newItems[index], [subField]: value };
+        let finalValue = value;
+
+        // Auto-uppercase for brands/makes
+        if (subField === 'make' || subField === 'brand') {
+            finalValue = value.toUpperCase();
+        }
+
+        newItems[index] = { ...newItems[index], [subField]: finalValue };
         setFormData(prev => ({ ...prev, [field]: newItems }));
     };
 
@@ -275,7 +308,7 @@ const ProductForm = ({
                         onChange={(e) => setFormData({ ...formData, loyalty_points: parseInt(e.target.value) || 0 })}
                         placeholder="0"
                     />
-                    
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', background: '#0f172a', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #334155' }}>
                         <Input
                             label="% Desc. 6 Unid."
@@ -300,10 +333,10 @@ const ProductForm = ({
                         />
                     </div>
                     <Input
-                        label="Marca"
+                        label="Marca del Producto (Fabricante)"
                         value={formData.brand}
-                        onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                        placeholder="Ej: Samsung, LG"
+                        onChange={(e) => setFormData({ ...formData, brand: e.target.value.toUpperCase() })}
+                        placeholder="Ej: BOSCH, TOYOTA, MANN"
                     />
                     <Input
                         label="URL de Imagen"
@@ -470,12 +503,31 @@ const ProductForm = ({
 
                 {formData.applications?.map((app, index) => (
                     <div key={index} style={{ ...rowStyle, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
-                            <Input
-                                placeholder="Marca (Ej: Toyota)"
-                                value={app.make}
-                                onChange={(e) => updateItem('applications', index, 'make', e.target.value)}
-                            />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '0.5rem' }}>
+                            <div style={{ position: 'relative' }}>
+                                <Input
+                                    placeholder="Marca (Ej: TOYOTA)"
+                                    value={app.make}
+                                    onChange={(e) => updateItem('applications', index, 'make', e.target.value)}
+                                    list="vehicle-brands-list"
+                                />
+                                {app.make && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        right: '10px',
+                                        top: '32px',
+                                        fontSize: '0.7rem',
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        background: vehicleBrands.find(b => b.name === app.make.toUpperCase()) ? '#059669' : '#f59e0b',
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        pointerEvents: 'none'
+                                    }}>
+                                        {vehicleBrands.find(b => b.name === app.make.toUpperCase()) ? '✓' : 'NUEVA'}
+                                    </div>
+                                )}
+                            </div>
                             <Input
                                 placeholder="Modelo (Ej: Corolla)"
                                 value={app.model}
@@ -510,6 +562,13 @@ const ProductForm = ({
                     </div>
                 ))}
             </div>
+
+            {/* DataList for vehicle brands */}
+            <datalist id="vehicle-brands-list">
+                {vehicleBrands.map(b => (
+                    <option key={b.name} value={b.name} />
+                ))}
+            </datalist>
 
             {/* --- Stock Helper --- */}
             {!isEditMode && (
