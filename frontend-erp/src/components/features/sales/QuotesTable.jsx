@@ -32,6 +32,25 @@ const QuotesTable = ({
             render: (val) => <Badge status={val}>{formatStatus(val)}</Badge>
         },
         {
+            label: 'Origen',
+            key: 'source',
+            align: 'center',
+            render: (val) => (
+                <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '0.5rem',
+                    backgroundColor: val === 'SHOP' ? '#10b98122' : '#3b82f622',
+                    color: val === 'SHOP' ? '#10b981' : '#3b82f6',
+                    border: `1px solid ${val === 'SHOP' ? '#10b981' : '#3b82f6'}`
+                }}>
+                    {val === 'SHOP' ? '🛒 TIENDA' : '🏢 ERP'}
+                </span>
+            )
+        },
+
+        {
             label: 'Acciones',
             key: 'actions',
             align: 'center',

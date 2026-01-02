@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from app.models.sales import SalesOrder, SalesInvoice, PaymentStatus, OrderStatus, OrderItem
 from app.models.inventory import Product, StockMovement, MovementType
 from app.models.purchasing import PurchaseOrder
+from app.models.auth import B2BApplication, B2BStatus
 from app.schemas.common import PaginatedResponse
 
 async def get_dashboard_summary() -> Dict[str, Any]:
@@ -23,12 +24,23 @@ async def get_dashboard_summary() -> Dict[str, Any]:
     
     # 4. Recent Activity (Last 5 Sales Orders)
     recent_orders = await SalesOrder.find().sort("-date").limit(5).to_list()
-    
+
+    # 5. Pending B2B Applications
+    pending_b2b = await B2BApplication.find(B2BApplication.status == B2BStatus.PENDING).count()
+
+    # 6. Recent Shop Orders (Last 48h)
+    recent_shop_orders = await SalesOrder.find(
+        SalesOrder.source == "SHOP",
+        SalesOrder.date >= (now - timedelta(hours=48))
+    ).count()
+
     return {
         "sales_month": round(sales_month_amount, 2),
         "pending_orders": pending_count,
         "low_stock_items": low_stock_count,
-        "recent_orders": recent_orders
+        "recent_orders": recent_orders,
+        "pending_b2b": pending_b2b,
+        "recent_shop_orders": recent_shop_orders
     }
 
 async def get_debtors_report(customer_id: Optional[str] = None, status_filter: str = 'pending') -> Dict[str, Any]:

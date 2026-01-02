@@ -12,6 +12,13 @@ class UserRole(str, Enum):
     CUSTOMER_B2C = "CUSTOMER_B2C"
     CUSTOMER_B2B = "CUSTOMER_B2B"
 
+class UserTier(str, Enum):
+    STANDARD = "STANDARD"
+    BRONCE = "BRONCE"
+    PLATA = "PLATA"
+    ORO = "ORO"
+    DIAMANTE = "DIAMANTE"
+
 class User(Document):
     username: Optional[Indexed(str, unique=True)] = None
     email: Optional[Indexed(EmailStr, unique=True)] = None
@@ -19,6 +26,7 @@ class User(Document):
     role: UserRole = UserRole.CUSTOMER_B2C
     full_name: str
     ruc_linked: Optional[str] = None
+    classification: UserTier = UserTier.STANDARD
     custom_discount_percent: float = 0.0 # Descuento adicional por ser cliente especial
     is_active: bool = True
     
@@ -49,6 +57,8 @@ class B2BApplication(Document):
     processed_at: Optional[datetime] = None
     processed_by: Optional[str] = None # Admin email
     admin_notes: Optional[str] = None
+    linked_username: Optional[str] = None
+
 
     class Settings:
         name = "b2b_applications"

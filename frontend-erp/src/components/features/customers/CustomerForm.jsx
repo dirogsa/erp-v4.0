@@ -18,6 +18,7 @@ const CustomerForm = ({
         email: '',
         phone: '',
         address: '',
+        classification: 'STANDARD',
         custom_discount_percent: 0,
         branches: [],
         ...initialData
@@ -124,13 +125,37 @@ const CustomerForm = ({
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     placeholder="Av. Principal 123"
                 />
-                <Input
-                    label="% Descuento Especial (B2B)"
-                    type="number"
-                    value={formData.custom_discount_percent}
-                    onChange={(e) => setFormData({ ...formData, custom_discount_percent: parseFloat(e.target.value) || 0 })}
-                    placeholder="0"
-                />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                        <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Clasificación de Cliente (Tier)</label>
+                        <select
+                            value={formData.classification}
+                            onChange={(e) => setFormData({ ...formData, classification: e.target.value })}
+                            style={{
+                                width: '100%',
+                                padding: '0.625rem',
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #334155',
+                                borderRadius: '0.375rem',
+                                color: 'white',
+                                outline: 'none'
+                            }}
+                        >
+                            <option value="STANDARD">STANDARD (General)</option>
+                            <option value="BRONCE">BRONCE</option>
+                            <option value="PLATA">PLATA</option>
+                            <option value="ORO">ORO</option>
+                            <option value="DIAMANTE">DIAMANTE</option>
+                        </select>
+                    </div>
+                    <Input
+                        label="% Desc. Adicional (Opcional)"
+                        type="number"
+                        value={formData.custom_discount_percent}
+                        onChange={(e) => setFormData({ ...formData, custom_discount_percent: parseFloat(e.target.value) || 0 })}
+                        placeholder="0"
+                    />
+                </div>
 
                 {/* Sección de Sucursales */}
                 <div style={{ marginTop: '1rem', padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>

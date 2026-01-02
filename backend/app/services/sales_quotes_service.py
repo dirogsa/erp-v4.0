@@ -11,9 +11,11 @@ async def get_quotes(
     limit: int = 50,
     search: Optional[str] = None,
     status: Optional[str] = None,
+    source: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None
 ) -> PaginatedResponse[SalesQuote]:
+
     query = {}
     
     if search:
@@ -24,7 +26,10 @@ async def get_quotes(
     
     if status:
         query["status"] = status
-        
+    
+    if source:
+        query["source"] = source
+
     if date_from or date_to:
         query["date"] = {}
         if date_from:

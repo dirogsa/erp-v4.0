@@ -81,7 +81,8 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'companies', label: 'Empresas', path: '/companies', icon: '🏢' },
-            { id: 'b2b', label: 'Socios B2B', path: '/b2b', icon: '🤝' }
+            { id: 'b2b', label: 'Socios B2B', path: '/b2b', icon: '🤝' },
+            { id: 'pricing', label: 'Precios Especiales B2B', path: '/pricing', icon: '🏷️' }
         ]
     }
 ];

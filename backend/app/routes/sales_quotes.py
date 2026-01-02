@@ -12,10 +12,12 @@ async def get_quotes(
     limit: int = Query(50, ge=1, le=100),
     search: str = None,
     status: str = None,
+    source: str = None,
     date_from: str = None,
     date_to: str = None
 ):
-    return await sales_quotes_service.get_quotes(skip, limit, search, status, date_from, date_to)
+    return await sales_quotes_service.get_quotes(skip, limit, search, status, source, date_from, date_to)
+
 
 @router.post("", response_model=SalesQuote)
 async def create_quote(quote: SalesQuote):

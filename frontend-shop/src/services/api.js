@@ -24,7 +24,9 @@ export const shopService = {
     checkout: (orderData) => api.post('/shop/checkout', orderData),
     getProfile: () => api.get('/shop/profile'),
     getOrders: () => api.get('/shop/orders'),
+    getQuotes: () => api.get('/shop/quotes'),
 };
+
 
 export const authService = {
     login: (credentials) => api.post('/auth/login', credentials),

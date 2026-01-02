@@ -2,13 +2,14 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import List, Optional
 from ..models.inventory import Product, TechnicalSpec, CrossReference, Application, VehicleBrand, SearchLog
 from app.models.auth import User, UserRole
-from app.models.sales import SalesOrder, OrderItem, IssuerInfo
+from app.models.sales import SalesOrder, OrderItem, IssuerInfo, SalesQuote
 from app.routes.auth import get_optional_user, get_current_user
 from ..schemas.common import PaginatedResponse
 from app.models.company import Company
-from app.services import sales_service
+from app.services import sales_service, sales_quotes_service
 from datetime import datetime
 from pydantic import BaseModel
+from ..services.pricing_service import get_product_price_for_user
 
 router = APIRouter(prefix="/shop", tags=["Shop"])
 
@@ -17,26 +18,7 @@ async def get_shop_brands():
     """Returns all vehicle brands for the shop frontend"""
     return await VehicleBrand.find_all().to_list()
 
-def calculate_item_price(product: Product, quantity: int, role: UserRole, user_discount: float = 0.0) -> float:
-    """Calcula el precio final aplicando descuentos por volumen y descuento de usuario"""
-    # 1. Precio base por rol
-    base_price = product.price_wholesale if role == UserRole.CUSTOMER_B2B else product.price_retail
-    
-    # 2. Descuento por volumen (máximo aplicable)
-    vol_discount_pct = 0.0
-    if quantity >= 24:
-        vol_discount_pct = product.discount_24_pct
-    elif quantity >= 12:
-        vol_discount_pct = product.discount_12_pct
-    elif quantity >= 6:
-        vol_discount_pct = product.discount_6_pct
-    
-    # 3. Aplicar descuentos de forma multiplicativa
-    # Price = Base * (1 - VolDisc) * (1 - UserDisc)
-    price_after_vol = base_price * (1 - (vol_discount_pct / 100))
-    final_price = price_after_vol * (1 - (user_discount / 100))
-    
-    return round(final_price, 3)
+# Removed local calculate_item_price in favor of services.pricing_service.get_product_price_for_user
 
 @router.get("/profile")
 async def get_shop_profile(current_user: User = Depends(get_current_user)):
@@ -56,6 +38,13 @@ async def get_shop_orders(current_user: User = Depends(get_current_user)):
     # Find orders by customer email
     orders = await SalesOrder.find(SalesOrder.customer_email == current_user.email).to_list()
     return sorted(orders, key=lambda x: x.date, reverse=True)
+
+@router.get("/quotes", response_model=List[SalesQuote])
+async def get_shop_quotes(current_user: User = Depends(get_current_user)):
+    """Returns the history of quotations for the current user"""
+    quotes = await SalesQuote.find(SalesQuote.customer_email == current_user.email).to_list()
+    return sorted(quotes, key=lambda x: x.date, reverse=True)
+
 
 class ShopProductResponse(BaseModel):
     sku: str
@@ -143,7 +132,7 @@ async def get_shop_products(
     response_items = []
     for p in products:
         # For list, we show base price (quantity=1)
-        price = calculate_item_price(p, 1, role, current_user.custom_discount_percent if current_user else 0.0)
+        price = await get_product_price_for_user(p, 1, current_user)
         
         response_items.append(ShopProductResponse(
             sku=p.sku,
@@ -193,8 +182,7 @@ async def get_shop_product_detail(
     if not p:
         raise HTTPException(status_code=404, detail="Product not found or not available in shop")
 
-    role = current_user.role if current_user else UserRole.CUSTOMER_B2C
-    price = calculate_item_price(p, 1, role, current_user.custom_discount_percent if current_user else 0.0)
+    price = await get_product_price_for_user(p, 1, current_user)
 
     return ShopProductDetailResponse(
         sku=p.sku,
@@ -234,18 +222,19 @@ async def checkout(
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {item.sku} not found")
         
-        price = calculate_item_price(
+        price = await get_product_price_for_user(
             product, 
             item.quantity, 
-            role, 
-            current_user.custom_discount_percent if current_user else 0.0
+            current_user
         )
         
         order_items.append(OrderItem(
             product_sku=item.sku,
+            product_name=product.name,
             quantity=item.quantity,
             unit_price=price
         ))
+
 
     # Get Company Snapshot
     company = await Company.find_one({}) # Get first company or default
@@ -264,8 +253,8 @@ async def checkout(
             account_dollars=company.account_dollars
         )
 
-    # Create SalesOrder
-    new_order = SalesOrder(
+    # Create SalesQuote (Architecture change: Quotation first, then fulfillment)
+    new_quote = SalesQuote(
         customer_name=req.customer_name,
         customer_email=current_user.email if current_user else None,
         customer_ruc=req.customer_ruc,
@@ -274,26 +263,14 @@ async def checkout(
         delivery_branch_name=req.delivery_branch_name,
         issuer_info=issuer_info,
         date=datetime.now(),
-        source="SHOP"
+        source="SHOP",
+        notes=req.notes
     )
 
-    created_order = await sales_service.create_order(new_order)
-
-    # Accumulate loyalty points and sales if user is logged in
-    if current_user:
-        # Calculate points from current inventory data to be accurate
-        points_earned = 0
-        for item in req.items:
-            product = await Product.find_one(Product.sku == item.sku)
-            if product:
-                points_earned += product.loyalty_points * item.quantity
-        
-        current_user.loyalty_points += points_earned
-        current_user.cumulative_sales += float(created_order.total_amount)
-        await current_user.save()
+    created_quote = await sales_quotes_service.create_quote(new_quote)
     
     return {
-        "message": "Order placed successfully",
-        "order_number": created_order.order_number,
-        "total_amount": created_order.total_amount
+        "message": "Quotation submitted successfully. Review it in the ERP to finalize your order.",
+        "quote_number": created_quote.quote_number,
+        "total_amount": created_quote.total_amount
     }

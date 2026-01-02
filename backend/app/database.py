@@ -52,7 +52,8 @@ async def init_db():
                 "app.models.sales.SalesNote",
                 "app.models.company.Company",
                 "app.models.auth.User",
-                "app.models.auth.B2BApplication"
+                "app.models.auth.B2BApplication",
+                "app.models.pricing.PricingRule"
             ]
         )
         print("DB: [DEBUG] init_db completed successfully.")

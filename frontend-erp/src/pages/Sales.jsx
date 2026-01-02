@@ -64,6 +64,8 @@ const Sales = () => {
     const [showGuideReceipt, setShowGuideReceipt] = useState(false);
     const [selectedGuide, setSelectedGuide] = useState(null);
 
+    const [sourceFilter, setSourceFilter] = useState('');
+
     // Hooks
     const {
         orders,
@@ -91,7 +93,13 @@ const Sales = () => {
         deleteQuote,
         updateQuote,
         convertQuote
-    } = useSalesQuotes({ page, limit, search });
+    } = useSalesQuotes({
+        page,
+        limit,
+        search,
+        source: sourceFilter
+    });
+
 
     const {
         notes,
@@ -269,6 +277,7 @@ const Sales = () => {
                 >
                     🔄 Backorders
                 </button>
+
                 <button
                     onClick={() => setActiveTab('completed')}
                     style={{
@@ -328,44 +337,9 @@ const Sales = () => {
                 </button>
             </div>
 
-            {activeTab === 'shop' ? (
-                <>
-                    <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
-                        <Input
-                            placeholder="Buscar pedidos de la tienda..."
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setPage(1);
-                            }}
-                        />
-                    </div>
+            {activeTab === 'orders' ? (
 
-                    <OrdersTable
-                        orders={orders.filter(o => o.source === 'SHOP')}
-                        loading={ordersLoading}
-                        onView={(order) => {
-                            setSelectedOrder(order);
-                            setShowOrderReceipt(true);
-                        }}
-                        onCreateInvoice={(order) => {
-                            setSelectedOrder(order);
-                            setShowInvoiceModal(true);
-                        }}
-                    />
 
-                    <Pagination
-                        current={pagination.current}
-                        total={pagination.total}
-                        onChange={setPage}
-                        pageSize={limit}
-                        onPageSizeChange={(newSize) => {
-                            setLimit(newSize);
-                            setPage(1);
-                        }}
-                    />
-                </>
-            ) : activeTab === 'orders' ? (
                 <>
                     <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
                         <Input
@@ -379,7 +353,7 @@ const Sales = () => {
                     </div>
 
                     <OrdersTable
-                        orders={orders.filter(o => o.status !== 'BACKORDER' && o.status !== 'CONVERTED')}
+                        orders={orders.filter(o => o.status !== 'BACKORDER' && o.status !== 'CONVERTED' && o.source !== 'SHOP')}
                         loading={ordersLoading}
                         onView={(order) => {
                             setSelectedOrder(order);
@@ -491,18 +465,69 @@ const Sales = () => {
                 </>
             ) : activeTab === 'quotes' ? (
                 <>
-                    <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
-                        <Input
-                            placeholder="Buscar cotización o cliente..."
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setPage(1);
-                            }}
-                        />
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+                        <div style={{ maxWidth: '400px', flex: 1 }}>
+                            <Input
+                                placeholder="Buscar cotización o cliente..."
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    setPage(1);
+                                }}
+                                style={{ marginBottom: 0 }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', backgroundColor: '#1e293b', padding: '0.25rem', borderRadius: '0.5rem', border: '1px solid #334155' }}>
+                            <button
+                                onClick={() => setSourceFilter('')}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.4rem',
+                                    border: 'none',
+                                    backgroundColor: sourceFilter === '' ? '#3b82f6' : 'transparent',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                Todos
+                            </button>
+                            <button
+                                onClick={() => setSourceFilter('ERP')}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.4rem',
+                                    border: 'none',
+                                    backgroundColor: sourceFilter === 'ERP' ? '#3b82f6' : 'transparent',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                🏢 ERP
+                            </button>
+                            <button
+                                onClick={() => setSourceFilter('SHOP')}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '0.4rem',
+                                    border: 'none',
+                                    backgroundColor: sourceFilter === 'SHOP' ? '#10b981' : 'transparent',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600'
+                                }}
+                            >
+                                🛒 Tienda
+                            </button>
+                        </div>
                     </div>
                     <QuotesTable
                         quotes={quotes}
+
                         loading={quotesLoading}
                         onView={(quote) => {
                             setSelectedQuote(quote);

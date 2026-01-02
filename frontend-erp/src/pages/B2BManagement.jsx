@@ -17,12 +17,19 @@ const B2BManagement = () => {
     // Form states for credentials
     const [targetUser, setTargetUser] = useState('');
     const [targetPass, setTargetPass] = useState('');
+    const [classification, setClassification] = useState('STANDARD');
+
+    const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'approved', 'rejected', 'all'
 
     const fetchApplications = async () => {
         setLoading(true);
         try {
             const response = await authService.getB2BApplications();
-            setApplications(response.data);
+            // Sort by date latest first
+            const sorted = response.data.sort((a, b) =>
+                new Date(b.submitted_at || b.created_at) - new Date(a.submitted_at || a.created_at)
+            );
+            setApplications(sorted);
         } catch (error) {
             console.error("Error fetching B2B applications", error);
             showNotification('Error al cargar las solicitudes B2B', 'error');
@@ -31,10 +38,23 @@ const B2BManagement = () => {
         }
     };
 
+    const filteredApplications = applications.filter(app => {
+        if (activeTab === 'all') return true;
+        return (app.status || 'pending') === activeTab;
+    });
+
+    const stats = {
+        total: applications.length,
+        pending: applications.filter(a => (a.status || 'pending') === 'pending').length,
+        approved: applications.filter(a => a.status === 'approved').length,
+        rejected: applications.filter(a => a.status === 'rejected').length
+    };
+
     useEffect(() => {
         fetchApplications();
     }, []);
 
+    // ... (rest of the handle functions remain same)
     const handleUpdateApplication = async (e) => {
         e.preventDefault();
         try {
@@ -58,12 +78,14 @@ const B2BManagement = () => {
                 'approved',
                 notes,
                 targetUser,
-                targetPass
+                targetPass,
+                classification
             );
             showNotification('Cuenta B2B creada y activada con éxito', 'success');
             setApproveModalApp(null);
             setTargetUser('');
             setTargetPass('');
+            setClassification('STANDARD');
             fetchApplications();
         } catch (error) {
             showNotification('Error al crear la cuenta B2B', 'error');
@@ -88,17 +110,161 @@ const B2BManagement = () => {
         }
     };
 
+    const handleResetPassword = async (app) => {
+        const newPass = window.prompt(`Ingresa la nueva contraseña temporal para ${app.company_name}:`);
+        if (!newPass) return;
+
+        setProcessingId(app.id || app._id);
+        try {
+            // We use linked_username if available, else fallback to email
+            const identifier = app.linked_username || app.email;
+            await authService.resetUserPassword(identifier, null, newPass);
+            showNotification(`Contraseña restablecida con éxito para ${identifier}`, 'success');
+        } catch (error) {
+            console.error(error);
+            showNotification('Error al restablecer contraseña. ¿Existe el usuario?', 'error');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleDeleteApplication = async (app) => {
+        if (!window.confirm(`¿Estás seguro de que deseas eliminar permanentemente la solicitud de ${app.company_name}? Esta acción no se puede deshacer.`)) {
+            return;
+        }
+
+        setProcessingId(app.id || app._id);
+        try {
+            await authService.deleteB2BApplication(app.id || app._id);
+            showNotification('Solicitud eliminada correctamente', 'success');
+            fetchApplications();
+        } catch (error) {
+            console.error(error);
+            showNotification('Error al eliminar la solicitud', 'error');
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
     if (loading) return <div className="loading">Cargando solicitudes...</div>;
 
     return (
         <div className="page-container">
-            <header className="page-header">
-                <h2>Gestión de Socios B2B</h2>
-                <p className="subtitle">Revisa, contacta y activa cuentas empresariales verificadas</p>
+            <header className="page-header" style={{ marginBottom: '2rem' }}>
+                <div>
+                    <h2 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>Gestión de Socios B2B</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Revisa, contacta y activa cuentas empresariales verificadas</p>
+                </div>
             </header>
 
-            <div className="card">
+            {/* KPI Cards - Modified for No-Tailwind environment */}
+            <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                marginBottom: '2rem'
+            }}>
+                <div className="card" style={{ flex: '1', minWidth: '150px', padding: '1.25rem', textAlign: 'center', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>RECIBIDAS</span>
+                    <span style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--text-color)' }}>{stats.total}</span>
+                </div>
+
+                <div
+                    className="card"
+                    style={{
+                        flex: '1',
+                        minWidth: '150px',
+                        padding: '1.25rem',
+                        textAlign: 'center',
+                        margin: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        borderBottom: activeTab === 'pending' ? '4px solid #f59e0b' : '4px solid #78350f44',
+                        backgroundColor: activeTab === 'pending' ? 'rgba(245, 158, 11, 0.1)' : 'var(--glass-bg)'
+                    }}
+                    onClick={() => setActiveTab('pending')}
+                >
+                    <span style={{ fontSize: '0.7rem', fontWeight: '800', color: activeTab === 'pending' ? '#fbbf24' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>PENDIENTES</span>
+                    <span style={{ fontSize: '2rem', fontWeight: '900', color: activeTab === 'pending' ? '#fbbf24' : 'var(--text-color)' }}>{stats.pending}</span>
+                </div>
+
+                <div
+                    className="card"
+                    style={{
+                        flex: '1',
+                        minWidth: '150px',
+                        padding: '1.25rem',
+                        textAlign: 'center',
+                        margin: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        borderBottom: activeTab === 'approved' ? '4px solid #10b981' : '4px solid #064e3b44',
+                        backgroundColor: activeTab === 'approved' ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass-bg)'
+                    }}
+                    onClick={() => setActiveTab('approved')}
+                >
+                    <span style={{ fontSize: '0.7rem', fontWeight: '800', color: activeTab === 'approved' ? '#34d399' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>APROBADAS</span>
+                    <span style={{ fontSize: '2rem', fontWeight: '900', color: activeTab === 'approved' ? '#34d399' : 'var(--text-color)' }}>{stats.approved}</span>
+                </div>
+
+                <div
+                    className="card"
+                    style={{
+                        flex: '1',
+                        minWidth: '150px',
+                        padding: '1.25rem',
+                        textAlign: 'center',
+                        margin: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        borderBottom: activeTab === 'rejected' ? '4px solid #f43f5e' : '4px solid #88133744',
+                        backgroundColor: activeTab === 'rejected' ? 'rgba(244, 63, 94, 0.1)' : 'var(--glass-bg)'
+                    }}
+                    onClick={() => setActiveTab('rejected')}
+                >
+                    <span style={{ fontSize: '0.7rem', fontWeight: '800', color: activeTab === 'rejected' ? '#fb7185' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>RECHAZADAS</span>
+                    <span style={{ fontSize: '2rem', fontWeight: '900', color: activeTab === 'rejected' ? '#fb7185' : 'var(--text-color)' }}>{stats.rejected}</span>
+                </div>
+            </div>
+
+            {/* Tabs Navigation using CSS class from index.css */}
+            <div className="tabs" style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                {[
+                    { id: 'pending', label: '⏳ Pendientes' },
+                    { id: 'approved', label: '✅ Aprobados' },
+                    { id: 'rejected', label: '❌ Rechazados' },
+                    { id: 'all', label: '📋 Todos' }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        className={activeTab === tab.id ? 'active' : ''}
+                        style={{
+                            padding: '0.75rem 1.5rem',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            color: activeTab === tab.id ? 'var(--primary-color)' : 'var(--text-secondary)',
+                            borderBottom: activeTab === tab.id ? '2px solid var(--primary-color)' : 'none',
+                            backgroundColor: 'transparent'
+                        }}
+                        onClick={() => setActiveTab(tab.id)}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                 <table className="data-table">
+
                     <thead>
                         <tr>
                             <th>RUC / Empresa</th>
@@ -110,14 +276,15 @@ const B2BManagement = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {applications.length === 0 ? (
+                        {filteredApplications.length === 0 ? (
                             <tr>
                                 <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>
-                                    No hay solicitudes registradas.
+                                    No hay solicitudes en esta categoría.
                                 </td>
                             </tr>
                         ) : (
-                            applications.map((app) => (
+                            filteredApplications.map((app) => (
+
                                 <tr key={app.id || app._id}>
                                     <td>
                                         <div className="font-mono text-xs text-slate-400">{app.ruc}</div>
@@ -168,14 +335,35 @@ const B2BManagement = () => {
                                                         Rechazar
                                                     </button>
                                                 )}
+                                                <button
+                                                    className="btn btn-sm"
+                                                    style={{ backgroundColor: '#fff1f2', color: '#e11d48', border: '1px solid #ffe4e6' }}
+                                                    onClick={() => handleDeleteApplication(app)}
+                                                    disabled={processingId === (app.id || app._id)}
+                                                >
+                                                    🗑️ Eliminar
+                                                </button>
                                             </div>
+                                            {app.status === 'approved' && (
+
+                                                <button
+                                                    className="btn btn-sm"
+                                                    style={{ backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5' }}
+                                                    onClick={() => handleResetPassword(app)}
+                                                    disabled={processingId === (app.id || app._id)}
+                                                >
+                                                    🔑 Reset Contraseña
+                                                </button>
+                                            )}
                                             {app.status !== 'pending' && (
                                                 <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
                                                     Procesado por: {app.processed_by || 'Sistema'}
+                                                    {app.linked_username && <span> ({app.linked_username})</span>}
                                                 </div>
                                             )}
                                         </div>
                                     </td>
+
                                 </tr>
                             ))
                         )}
@@ -236,6 +424,22 @@ const B2BManagement = () => {
                                 onChange={e => setTargetPass(e.target.value)}
                                 required
                             />
+
+                            <div className="form-group mb-4">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Clasificación Inicial</label>
+                                <select
+                                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500"
+                                    value={classification}
+                                    onChange={e => setClassification(e.target.value)}
+                                >
+                                    <option value="STANDARD">STANDARD</option>
+                                    <option value="BRONCE">BRONCE</option>
+                                    <option value="PLATA">PLATA</option>
+                                    <option value="ORO">ORO</option>
+                                    <option value="DIAMANTE">DIAMANTE</option>
+                                </select>
+                                <p className="text-[10px] text-slate-400 mt-1">Define qué reglas de descuento se aplicarán de inmediato.</p>
+                            </div>
 
                             <div className="flex justify-end gap-3 mt-4">
                                 <Button type="button" variant="secondary" onClick={() => { setApproveModalApp(null); setTargetUser(''); setTargetPass(''); }}>Cancelar</Button>

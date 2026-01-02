@@ -132,6 +132,11 @@ const Customers = () => {
                                 <p><strong>Email:</strong> {selectedCustomer.email}</p>
                                 <p><strong>Teléfono:</strong> {selectedCustomer.phone}</p>
                                 <p><strong>Dirección Principal:</strong> {selectedCustomer.address}</p>
+                                <p><strong>Clasificación:</strong> <span style={{
+                                    background: selectedCustomer.classification === 'ORO' ? '#fef3c7' : '#f1f5f9',
+                                    color: selectedCustomer.classification === 'ORO' ? '#92400e' : '#475569',
+                                    padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold'
+                                }}>{selectedCustomer.classification || 'STANDARD'}</span></p>
 
                                 {selectedCustomer.branches && selectedCustomer.branches.length > 0 && (
                                     <div style={{ marginTop: '1.5rem' }}>

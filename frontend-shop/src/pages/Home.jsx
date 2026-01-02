@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { shopService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const Home = () => {
     const [brands, setBrands] = useState([]);
+    const { isB2B } = useAuth();
 
     useEffect(() => {
         shopService.getVehicleBrands().then(res => {
@@ -21,7 +23,7 @@ const Home = () => {
                     </span>
                     <h1 className="text-5xl md:text-7xl font-black mb-8 tracking-tighter leading-tight">
                         Encuentra el filtro perfecto <br className="hidden md:block" />
-                        <span className="text-primary-500">para tu vehículo</span>
+                        <span className="text-primary-500">{isB2B ? 'con tus precios de socio' : 'para tu vehículo'}</span>
                     </h1>
                     <p className="text-slate-400 text-lg md:text-2xl max-w-3xl mx-auto mb-12">
                         Accede a nuestro catálogo completo con más de 5,000 aplicaciones.
@@ -31,9 +33,15 @@ const Home = () => {
                         <Link to="/catalog" className="bg-primary-600 text-white px-10 py-5 rounded-2xl font-black text-xl hover:bg-primary-500 transition-all shadow-xl shadow-primary-600/20 active:scale-95">
                             Explorar Catálogo
                         </Link>
-                        <Link to="/b2b" className="bg-white/10 backdrop-blur-xl text-white border border-white/20 px-10 py-5 rounded-2xl font-black text-xl hover:bg-white/20 transition-all">
-                            Solicitar Cuenta B2B
-                        </Link>
+                        {isB2B ? (
+                            <Link to="/profile" className="bg-white/10 backdrop-blur-xl text-white border border-white/20 px-10 py-5 rounded-2xl font-black text-xl hover:bg-white/20 transition-all">
+                                Ver Mi Perfil
+                            </Link>
+                        ) : (
+                            <Link to="/b2b" className="bg-white/10 backdrop-blur-xl text-white border border-white/20 px-10 py-5 rounded-2xl font-black text-xl hover:bg-white/20 transition-all">
+                                Solicitar Cuenta B2B
+                            </Link>
+                        )}
                     </div>
                 </div>
 
@@ -102,14 +110,15 @@ const Home = () => {
                 <div className="bg-slate-900 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden">
                     <div className="relative z-10">
                         <h2 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">
-                            ¿Tienes un taller o negocio?
+                            {isB2B ? "Tu cuenta B2B está activa" : "¿Tienes un taller o negocio?"}
                         </h2>
                         <p className="text-slate-400 text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-                            Únete a nuestro programa exclusivo **B2B FILTROS** y accede a precios de mayorista,
-                            crédito empresarial y soporte técnico especializado.
+                            {isB2B
+                                ? "Ahora disfrutas de precios especiales y beneficios exclusivos de socio. Revisa tu catálogo actualizado."
+                                : "Únete a nuestro programa exclusivo B2B FILTROS y accede a precios de mayorista, crédito empresarial y soporte técnico especializado."}
                         </p>
-                        <Link to="/b2b" className="inline-block bg-primary-600 text-white px-12 py-5 rounded-2xl font-black text-xl hover:bg-primary-500 transition-all shadow-2xl shadow-primary-600/40">
-                            SOLICITAR CUENTA EMPRESARIAL
+                        <Link to={isB2B ? "/catalog" : "/b2b"} className="inline-block bg-primary-600 text-white px-12 py-5 rounded-2xl font-black text-xl hover:bg-primary-500 transition-all shadow-2xl shadow-primary-600/40">
+                            {isB2B ? "VER MI CATÁLOGO" : "SOLICITAR CUENTA EMPRESARIAL"}
                         </Link>
                     </div>
 

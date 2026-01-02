@@ -1,30 +1,44 @@
-# Environment variables
+# Dependencies
+**/node_modules/
+node_modules/
+pnpm-lock.yaml
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+.env/
+backend/venv/
+backend/env/
+
+# Python Cache
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Build Outputs
+dist/
+build/
+**/dist/
+**/build/
+.next/
+out/
+*.egg-info/
+
+# Environment Variables
 .env
 .env.local
 .env.*.local
 .env.*
+.env copy*
+*.env
+**/.env*
 !.env.example
-
-# Dependencies
-node_modules/
-backend/venv/
-backend/env/
-
-# Python
-**/__pycache__/
-*.py[cod]
-*$py.class
-venv/
-env/
-.venv/
-.env/
-
-# Build outputs
-dist/
-build/
-*.egg-info/
-.next/
-out/
 
 # Logs
 *.log
@@ -33,28 +47,29 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# IDE
+# IDE / Editor
 .vscode/
 .idea/
 *.swp
 *.swo
+.DS_Store
+Thumbs.db
+desktop.ini
 .project
 .pydevproject
 .settings/
 
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Testing
-.coverage
-.pytest_cache/
-htmlcov/
-.eslintcache
+# Agentic / AI
+.gemini/
 
 # Project Specific
 backend/scripts/
 *.db
 *.sqlite
 *.sqlite3
+backend/app/static/uploads/*
+!backend/app/static/uploads/.gitkeep
+
+# Testing / Linting
+.eslintcache
+.stylelintcache

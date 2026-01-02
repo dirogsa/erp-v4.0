@@ -11,7 +11,9 @@ const Dashboard = () => {
         sales_month: 0,
         pending_orders: 0,
         low_stock_items: 0,
-        recent_orders: []
+        recent_orders: [],
+        pending_b2b: 0,
+        recent_shop_orders: 0
     });
 
     useEffect(() => {
@@ -47,6 +49,7 @@ const Dashboard = () => {
 
     const recentOrdersColumns = [
         { label: 'Orden', key: 'order_number' },
+        { label: 'Canal', key: 'source', render: (val) => val === 'SHOP' ? '🛒 Web' : '🏢 Local' },
         { label: 'Cliente', key: 'customer_name' },
         { label: 'Total', key: 'total_amount', render: (val) => formatCurrency(val) },
         { label: 'Estado', key: 'status' }
@@ -76,6 +79,16 @@ const Dashboard = () => {
                     title="Stock Crítico"
                     value={data.low_stock_items}
                     color="#ef4444"
+                />
+                <KpiCard
+                    title="Socios Pendientes"
+                    value={data.pending_b2b}
+                    color="#8b5cf6"
+                />
+                <KpiCard
+                    title="Cotizaciones Web (48h)"
+                    value={data.recent_shop_orders}
+                    color="#06b6d4"
                 />
             </div>
 

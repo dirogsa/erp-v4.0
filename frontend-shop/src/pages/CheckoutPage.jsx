@@ -30,6 +30,7 @@ const CheckoutPage = () => {
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState('idle'); // idle, loading, success, error
     const [orderInfo, setOrderInfo] = useState(null);
+    const [checkoutSummary, setCheckoutSummary] = useState({ items: [], total: 0 });
 
     useEffect(() => {
         if (isAuthenticated && user) {
@@ -65,6 +66,10 @@ const CheckoutPage = () => {
             };
             const response = await shopService.checkout(orderData);
             setOrderInfo(response.data);
+            setCheckoutSummary({
+                items: [...cart],
+                total: cartTotal
+            });
             setStatus('success');
             clearCart();
         } catch (error) {
@@ -81,25 +86,47 @@ const CheckoutPage = () => {
                 <div className="bg-emerald-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8">
                     <CheckCircleIcon className="h-16 w-16 text-emerald-600" />
                 </div>
-                <h1 className="text-4xl font-black text-slate-900 mb-4">¡Pedido Recibido!</h1>
+                <h1 className="text-4xl font-black text-slate-900 mb-4">¡Cotización Enviada!</h1>
                 <p className="text-slate-500 text-lg mb-8">
-                    Tu orden <span className="font-black text-slate-900">#{orderInfo?.order_number}</span> ha sido registrada exitosamente.
+                    Tu solicitud de cotización <span className="font-black text-slate-900">#{orderInfo?.quote_number}</span> ha sido recibida correctamente.
                 </p>
                 <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-xl mb-10 text-left">
-                    <div className="flex justify-between items-center pb-4 border-b border-slate-50 mb-4">
-                        <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">Total del Pedido</span>
-                        <span className="text-2xl font-black text-primary-600">S/ {orderInfo?.total_amount?.toFixed(2)}</span>
+                    <div className="mb-6 pb-6 border-b border-slate-50">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Resumen de Cotización</p>
+                        <div className="space-y-3">
+                            {checkoutSummary.items.map((item) => (
+                                <div key={item.sku} className="flex justify-between items-center text-sm">
+                                    <span className="text-slate-600 font-medium">
+                                        {item.name} <span className="text-slate-400 font-bold ml-2">x{item.quantity}</span>
+                                    </span>
+                                    <span className="font-bold text-slate-900">S/ {(getItemPrice(item) * item.quantity).toFixed(2)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex justify-between items-center mb-4">
+                        <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">Total Estimado</span>
+                        <span className="text-3xl font-black text-primary-600">S/ {checkoutSummary.total.toFixed(2)}</span>
                     </div>
                     <p className="text-slate-500 text-sm italic">
-                        Un asesor se pondrá en contacto contigo pronto para coordinar el pago y la entrega.
+                        Un asesor de **DIROGSA** revisará tu pedido pronto. Puedes hacer seguimiento desde tu panel de cliente.
                     </p>
                 </div>
-                <Link
-                    to="/catalog"
-                    className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-lg hover:bg-slate-800 transition-all shadow-xl"
-                >
-                    SEGUIR COMPRANDO
-                </Link>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Link
+                        to="/profile"
+                        className="bg-primary-600 text-white px-10 py-4 rounded-2xl font-black text-lg hover:bg-primary-500 transition-all shadow-xl shadow-primary-500/20"
+                    >
+                        VER MI PANEL
+                    </Link>
+                    <Link
+                        to="/catalog"
+                        className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black text-lg hover:bg-slate-800 transition-all shadow-xl"
+                    >
+                        SEGUIR COMPRANDO
+                    </Link>
+                </div>
+
             </div>
         );
     }
@@ -110,7 +137,7 @@ const CheckoutPage = () => {
                 <Link to="/cart" className="p-3 bg-white rounded-2xl shadow-sm hover:text-primary-600 transition-all">
                     <ArrowLeftIcon className="h-6 w-6" />
                 </Link>
-                <h1 className="text-5xl font-black text-slate-900 tracking-tighter">Finalizar Compra</h1>
+                <h1 className="text-5xl font-black text-slate-900 tracking-tighter">Enviar Cotización</h1>
             </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-16">
@@ -245,7 +272,7 @@ const CheckoutPage = () => {
                                 : 'bg-primary-600 text-white hover:bg-primary-500 shadow-primary-600/30'
                                 }`}
                         >
-                            {loading ? 'PROCESANDO...' : 'FINALIZAR PEDIDO'}
+                            {loading ? 'PROCESANDO...' : 'ENVIAR COTIZACIÓN'}
                         </button>
 
                         <div className="mt-8 flex items-center justify-center gap-2 text-slate-500">

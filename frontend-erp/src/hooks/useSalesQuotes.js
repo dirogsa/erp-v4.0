@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { salesQuotesService } from '../services/api';
 import { useNotification } from './useNotification';
 
-export const useSalesQuotes = ({ page = 1, limit = 50, search = '', status = '', date_from = '', date_to = '' } = {}) => {
+export const useSalesQuotes = ({ page = 1, limit = 50, search = '', status = '', source = '', date_from = '', date_to = '' } = {}) => {
     const queryClient = useQueryClient();
     const { showNotification } = useNotification();
 
@@ -12,10 +12,11 @@ export const useSalesQuotes = ({ page = 1, limit = 50, search = '', status = '',
         error,
         refetch
     } = useQuery({
-        queryKey: ['sales-quotes', { page, limit, search, status, date_from, date_to }],
+        queryKey: ['sales-quotes', { page, limit, search, status, source, date_from, date_to }],
         queryFn: async () => {
             try {
-                const response = await salesQuotesService.getQuotes(page, limit, search, status, date_from, date_to);
+                const response = await salesQuotesService.getQuotes(page, limit, search, status, source, date_from, date_to);
+
                 return response.data;
             } catch (err) {
                 console.error('Error fetching sales quotes:', err);

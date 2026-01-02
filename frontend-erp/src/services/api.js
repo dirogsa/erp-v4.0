@@ -22,7 +22,7 @@ export const authService = {
   getMe: () => api.get('/auth/me'),
   getB2BApplications: () => api.get('/auth/b2b-applications'),
   updateB2BApplication: (appId, data) => api.put(`/auth/b2b-applications/${appId}`, data),
-  processB2BApplication: (appId, status, adminNotes = '', targetUser = null, targetPass = null) => {
+  processB2BApplication: (appId, status, adminNotes = '', targetUser = null, targetPass = null, classification = 'STANDARD') => {
     let url = `/auth/b2b-applications/${appId}/process`;
     const params = new URLSearchParams();
     if (targetUser) params.append('target_username', targetUser);
@@ -30,9 +30,13 @@ export const authService = {
     const queryString = params.toString();
     if (queryString) url += `?${queryString}`;
 
-    return api.post(url, { status, admin_notes: adminNotes });
+    return api.post(url, { status, admin_notes: adminNotes, classification });
   },
+  resetUserPassword: (username, email, new_password) => api.post('/auth/reset-password', { username, email, new_password }),
+  deleteB2BApplication: (appId) => api.delete(`/auth/b2b-applications/${appId}`),
 };
+
+
 
 export const inventoryService = {
   getProducts: (page = 1, limit = 50, search = '', category = '') =>
@@ -119,8 +123,15 @@ export const purchaseQuotesService = {
 
 export const salesQuotesService = {
   createQuote: (quote) => api.post('/sales/quotes', quote),
-  getQuotes: (page = 1, limit = 50, search = '', status = '', date_from = '', date_to = '') =>
-    api.get('/sales/quotes', { params: { skip: (page - 1) * limit, limit, search, status, date_from, date_to } }),
+  getQuotes: (page = 1, limit = 50, search = '', status = '', source = '', date_from = '', date_to = '') => {
+    let url = `/sales/quotes?skip=${(page - 1) * limit}&limit=${limit}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    if (status) url += `&status=${status}`;
+    if (source) url += `&source=${source}`;
+    if (date_from) url += `&date_from=${date_from}`;
+    if (date_to) url += `&date_to=${date_to}`;
+    return api.get(url);
+  },
   getQuote: (quoteNumber) => api.get(`/sales/quotes/${quoteNumber}`),
   updateQuote: (quoteNumber, quote) => api.put(`/sales/quotes/${quoteNumber}`, quote),
   deleteQuote: (quoteNumber) => api.delete(`/sales/quotes/${quoteNumber}`),
@@ -205,6 +216,13 @@ export const brandService = {
   syncBrands: () => api.post('/brands/sync'),
   updateBrand: (name, data) => api.put(`/brands/${name}`, data),
   deleteBrand: (name) => api.delete(`/brands/${name}`),
+};
+
+export const pricingService = {
+  getRules: () => api.get('/pricing/rules'),
+  createRule: (rule) => api.post('/pricing/rules', rule),
+  updateRule: (id, rule) => api.put(`/pricing/rules/${id}`, rule),
+  deleteRule: (id) => api.delete(`/pricing/rules/${id}`),
 };
 
 export const dataExchangeService = {

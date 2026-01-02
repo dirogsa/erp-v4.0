@@ -25,6 +25,7 @@ import CatalogConfig from './pages/CatalogConfig';
 import CatalogView from './pages/CatalogView';
 import B2BManagement from './pages/B2BManagement';
 import BrandManagement from './pages/BrandManagement';
+import PricingManagement from './pages/PricingManagement';
 
 
 const queryClient = new QueryClient({
@@ -77,6 +78,7 @@ function App() {
                         <Route path="/catalog/view" element={<CatalogView />} />
                         <Route path="/brands" element={<BrandManagement />} />
                         <Route path="/b2b" element={<B2BManagement />} />
+                        <Route path="/pricing" element={<PricingManagement />} />
                       </Routes>
                     </Layout>
                   </ProtectedRoute>

@@ -71,7 +71,17 @@ const Navbar = () => {
                                         <UserIcon className="h-5 w-5" />
                                     </div>
                                     <div className="hidden lg:block text-left leading-tight">
-                                        <div className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Mi Perfil</div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Mi Perfil</div>
+                                            {isB2B && (
+                                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black text-white ${user?.classification === 'ORO' ? 'bg-amber-500' :
+                                                    user?.classification === 'DIAMANTE' ? 'bg-indigo-600' :
+                                                        'bg-slate-400'
+                                                    }`}>
+                                                    Socio {user?.classification}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="text-sm truncate max-w-[120px]">{user?.full_name?.split(' ')[0]}</div>
                                     </div>
                                 </Link>

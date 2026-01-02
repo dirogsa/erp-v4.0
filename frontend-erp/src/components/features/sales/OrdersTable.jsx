@@ -66,7 +66,7 @@ const OrdersTable = ({
                                 variant="success"
                                 onClick={(e) => { e.stopPropagation(); onCreateInvoice(order); }}
                             >
-                                Facturar
+                                {order.source === 'SHOP' ? '📝 Procesar Web' : 'Facturar'}
                             </Button>
                             {onDelete && (
                                 <Button

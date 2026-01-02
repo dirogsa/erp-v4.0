@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from ..models.auth import UserRole, B2BStatus
+from ..models.auth import UserRole, B2BStatus, UserTier
 
 class Token(BaseModel):
     access_token: str
@@ -9,6 +9,7 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
     role: Optional[UserRole] = None
+    classification: Optional[UserTier] = None
 
 class UserLogin(BaseModel):
     username: Optional[str] = None
@@ -26,6 +27,7 @@ class UserResponse(BaseModel):
     email: Optional[EmailStr] = None
     full_name: str
     role: UserRole
+    classification: UserTier
     ruc_linked: Optional[str] = None
 
 class B2BApplicationCreate(BaseModel):
@@ -39,3 +41,10 @@ class B2BApplicationCreate(BaseModel):
 class B2BApplicationProcess(BaseModel):
     status: B2BStatus
     admin_notes: Optional[str] = None
+    classification: Optional[UserTier] = UserTier.STANDARD
+
+class PasswordReset(BaseModel):
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    new_password: str
+

@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import Enum
 from beanie import Document, Indexed
 from pydantic import BaseModel, field_validator
+from .auth import UserTier
 
 class OrderStatus(str, Enum):
     PENDING = "PENDING"      # Orden creada, sin facturar
@@ -40,8 +41,10 @@ class IssuerInfo(BaseModel):
 
 class OrderItem(BaseModel):
     product_sku: str
+    product_name: Optional[str] = None
     quantity: int
     unit_price: float
+
 
     @field_validator('unit_price')
     @classmethod
@@ -102,6 +105,7 @@ class SalesQuote(Document):
     quote_number: Optional[str] = None
     customer_name: str
     customer_ruc: str
+    customer_email: Optional[str] = None
     date: datetime = datetime.now()
     valid_until: Optional[datetime] = None
     items: List[OrderItem]
@@ -111,9 +115,13 @@ class SalesQuote(Document):
     delivery_branch_name: Optional[str] = None
     delivery_address: Optional[str] = None
     notes: Optional[str] = None
+    
+    # Origen del pedido
+    source: str = "ERP"
 
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
+
 
     @field_validator('total_amount')
     @classmethod
@@ -186,7 +194,8 @@ class Customer(Document):
     address: Optional[str] = None  # Dirección principal (retrocompatibilidad)
     phone: Optional[str] = None
     email: Optional[str] = None
-    custom_discount_percent: float = 0.0 # Descuento base acordado con la empresa
+    classification: UserTier = UserTier.STANDARD
+    custom_discount_percent: float = 0.0 # Descuento adicional (opcional)
     branches: List[CustomerBranch] = []  # Sucursales del cliente
     created_at: datetime = datetime.now()
 

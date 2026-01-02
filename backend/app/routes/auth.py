@@ -3,8 +3,8 @@ from typing import List, Optional
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from beanie.operators import Or
-from ..models.auth import User, UserRole, B2BApplication, B2BStatus
-from ..schemas.auth import UserCreate, UserLogin, Token, UserResponse, B2BApplicationCreate, B2BApplicationProcess
+from ..models.auth import User, UserRole, B2BApplication, B2BStatus, UserTier
+from ..schemas.auth import UserCreate, UserLogin, Token, UserResponse, B2BApplicationCreate, B2BApplicationProcess, PasswordReset
 from ..services.auth_service import AuthService, SECRET_KEY, ALGORITHM
 from datetime import datetime
 
@@ -183,7 +183,10 @@ async def process_b2b_application(
             user_exists.role = UserRole.CUSTOMER_B2B
             user_exists.ruc_linked = application.ruc
             user_exists.full_name = application.company_name
+            user_exists.classification = process_in.classification or UserTier.STANDARD
             await user_exists.save()
+            application.linked_username = user_exists.username or user_exists.email
+            await application.save()
             return {"message": "Existing user promoted to B2B"}
         else:
             # Create a brand new B2B User
@@ -193,9 +196,47 @@ async def process_b2b_application(
                 password_hash=AuthService.get_password_hash(target_password),
                 full_name=application.company_name,
                 role=UserRole.CUSTOMER_B2B,
-                ruc_linked=application.ruc
+                ruc_linked=application.ruc,
+                classification=process_in.classification or UserTier.STANDARD
             )
             await new_user.insert()
+            application.linked_username = target_username
+            await application.save()
             return {"message": "New B2B user account created successfully"}
 
+
     return {"message": f"Application {process_in.status}"}
+
+@router.post("/reset-password")
+async def reset_password(
+    reset_in: PasswordReset,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    user = None
+    identifier = reset_in.username or reset_in.email
+    
+    if identifier:
+        user = await User.find_one(Or(User.username == identifier, User.email == identifier))
+
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.password_hash = AuthService.get_password_hash(reset_in.new_password)
+    await user.save()
+    
+    return {"message": f"Password reset successfully for {user.username or user.email}"}
+
+@router.delete("/b2b-applications/{app_id}")
+async def delete_b2b_application(
+    app_id: str,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    application = await B2BApplication.get(app_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    await application.delete()
+    return {"message": "Application deleted successfully"}
+
+
