@@ -17,6 +17,8 @@ class CompanyCreate(BaseModel):
     bank_name: Optional[str] = None
     account_soles: Optional[str] = None
     account_dollars: Optional[str] = None
+    is_active_local: bool = False
+    is_active_web: bool = False
 
 class CompanyUpdate(BaseModel):
     name: Optional[str] = None
@@ -29,6 +31,8 @@ class CompanyUpdate(BaseModel):
     bank_name: Optional[str] = None
     account_soles: Optional[str] = None
     account_dollars: Optional[str] = None
+    is_active_local: Optional[bool] = None
+    is_active_web: Optional[bool] = None
 
 @router.get("/", response_model=List[Company])
 async def get_companies():
@@ -51,6 +55,15 @@ async def update_company(company_id: str, data: CompanyUpdate):
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
     
+    # Handle exclusivity for active flags
+    if data.is_active_local:
+        # Deactivate all other companies for local
+        await Company.find(Company.id != company.id).set({"is_active_local": False})
+    
+    if data.is_active_web:
+        # Deactivate all other companies for web
+        await Company.find(Company.id != company.id).set({"is_active_web": False})
+
     update_data = {k: v for k, v in data.dict().items() if v is not None}
     update_data['updated_at'] = datetime.now()
     

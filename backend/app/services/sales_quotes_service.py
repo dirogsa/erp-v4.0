@@ -156,8 +156,12 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             status=OrderStatus.PENDING,
             delivery_address=quote.delivery_address or "TBD",
             delivery_branch_name=quote.delivery_branch_name,
-            related_quote_number=quote.quote_number
+            customer_email=quote.customer_email,
+            related_quote_number=quote.quote_number,
+            issuer_info=quote.issuer_info,
+            source=quote.source
         )
+
         
         saved_order = await sales_service.create_order(order)
         created_orders.append({"type": "STANDARD", "order_number": saved_order.order_number})
@@ -179,8 +183,12 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             status=OrderStatus.BACKORDER,
             delivery_address=quote.delivery_address or "TBD",
             delivery_branch_name=quote.delivery_branch_name,
-            related_quote_number=quote.quote_number
+            customer_email=quote.customer_email,
+            related_quote_number=quote.quote_number,
+            issuer_info=quote.issuer_info,
+            source=quote.source
         )
+
         
         saved_order = await sales_service.create_order(order)
         created_orders.append({"type": "BACKORDER", "order_number": saved_order.order_number})

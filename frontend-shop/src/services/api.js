@@ -25,7 +25,10 @@ export const shopService = {
     getProfile: () => api.get('/shop/profile'),
     getOrders: () => api.get('/shop/orders'),
     getQuotes: () => api.get('/shop/quotes'),
+    getPrizes: (params = {}) => api.get('/shop/prizes', { params }),
+    redeemPrize: (redemptionData) => api.post('/shop/redeem', redemptionData),
 };
+
 
 
 export const authService = {

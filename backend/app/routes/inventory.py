@@ -17,9 +17,16 @@ async def get_products(
     skip: int = 0, 
     limit: int = 50, 
     search: Optional[str] = None, 
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    redeemable_only: Optional[bool] = None,
+    product_type: Optional[str] = None
 ):
-    return await inventory_service.get_products(skip, limit, search, category)
+    return await inventory_service.get_products(skip, limit, search, category, redeemable_only, product_type)
+
+@router.get("/generate-marketing-sku")
+async def generate_marketing_sku():
+    sku = await inventory_service.generate_marketing_sku()
+    return {"sku": sku}
 
 @router.post("/products", response_model=Product)
 async def create_product(product: Product, initial_stock: int = 0):

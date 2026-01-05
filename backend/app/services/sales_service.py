@@ -2,7 +2,11 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from beanie import PydanticObjectId
 from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, OrderStatus, Payment, CustomerBranch, SalesQuote, QuoteStatus
-from app.models.inventory import DeliveryGuide, GuideType, GuideStatus, GuideItem, MovementType, StockMovement
+from app.models.inventory import Product, DeliveryGuide, GuideType, GuideStatus, GuideItem, MovementType, StockMovement
+from app.models.auth import User
+from app.models.marketing import LoyaltyConfig
+
+
 from app.services import inventory_service
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, DuplicateEntityException
 from app.schemas.common import PaginatedResponse
@@ -95,8 +99,83 @@ async def create_order(order: SalesOrder) -> SalesOrder:
     order.order_number = f"{prefix}-{new_num:04d}"
     order.total_amount = round(sum(item.quantity * item.unit_price for item in order.items), 3)
     
+    # Calculate Points Spent (Redemption)
+    points_spent = 0
+    # Store fetched products to avoid re-fetching later
+    fetched_products = {}
+    
+    for item in order.items:
+        # Fetch product to check points_cost
+        if item.product_sku not in fetched_products:
+            prod = await Product.find_one(Product.sku == item.product_sku)
+            fetched_products[item.product_sku] = prod
+        
+        product = fetched_products.get(item.product_sku)
+        
+        if product and getattr(product, 'points_cost', 0) > 0:
+            points_spent += product.points_cost * item.quantity
+    
+    order.loyalty_points_spent = points_spent
+    
+    # Verify User Balance if points are spent
+    user = None
+    if points_spent > 0:
+        if not order.customer_email:
+             # Try to find user by RUC if email not provided (less robust but helpful fallback)
+             # But usually frontend sends customer_email if linked.
+             # If no email, we can't deduct points from a user account clearly.
+             # Assume customer_email is populated if user logged in.
+             print("Warning: Redemption order without customer_email")
+        else:
+             user = await User.find_one(User.email == order.customer_email)
+             if not user:
+                 raise ValidationException(f"User not found for email {order.customer_email}")
+             
+             if (user.loyalty_points or 0) < points_spent:
+                 raise ValidationException(f"Insufficient points. Required: {points_spent}, Available: {user.loyalty_points}")
+
+    # Loyalty Points Logic (Gaining Points)
+    loyalty_config = await LoyaltyConfig.find_one({})
+    if not loyalty_config:
+        loyalty_config = LoyaltyConfig()
+    
+    total_points_gained = 0
+    if loyalty_config.is_active:
+        for item in order.items:
+            product = fetched_products.get(item.product_sku)
+            if not product:
+                product = await Product.find_one(Product.sku == item.product_sku)
+                
+            if product:
+                if product.loyalty_points > 0:
+                    total_points_gained += product.loyalty_points * item.quantity
+                else:
+                    total_points_gained += int(item.unit_price * item.quantity * loyalty_config.points_per_sole)
+    
+    order.loyalty_points_granted = total_points_gained
+    
     await order.insert()
+
+    # Update User Points if linked (Gain and Spend)
+    if order.customer_email:
+        if not user:
+             user = await User.find_one(User.email == order.customer_email)
+             
+        if user:
+            # Deduct spent points
+            if points_spent > 0:
+                user.loyalty_points = (user.loyalty_points or 0) - points_spent
+                
+            # Add gained points
+            if total_points_gained > 0:
+                user.loyalty_points = (user.loyalty_points or 0) + total_points_gained
+                
+            if total_points_gained > 0 or points_spent > 0:
+                user.cumulative_sales = (user.cumulative_sales or 0) + order.total_amount
+                await user.save()
+
     return order
+
 
 async def convert_backorder(order_number: str) -> Dict[str, Any]:
     """

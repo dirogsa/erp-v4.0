@@ -5,7 +5,8 @@ const CompanyContext = createContext();
 
 export const CompanyProvider = ({ children }) => {
     const [companies, setCompanies] = useState([]);
-    const [activeCompany, setActiveCompany] = useState(null);
+    const [activeLocalCompany, setActiveLocalCompany] = useState(null);
+    const [activeWebCompany, setActiveWebCompany] = useState(null);
     const [loading, setLoading] = useState(true);
 
     // Initialize: Load companies and set active
@@ -19,23 +20,13 @@ export const CompanyProvider = ({ children }) => {
             const fetchedCompanies = res.data;
             setCompanies(fetchedCompanies);
 
-            // Logic to determine active company
-            const savedCompanyId = localStorage.getItem('activeCompanyId');
+            // Determine active local and web companies from backend flags
+            const local = fetchedCompanies.find(c => c.is_active_local);
+            const web = fetchedCompanies.find(c => c.is_active_web);
 
-            if (savedCompanyId) {
-                const found = fetchedCompanies.find(c => c._id === savedCompanyId);
-                if (found) {
-                    setActiveCompany(found);
-                } else if (fetchedCompanies.length > 0) {
-                    // Fallback if saved ID not found
-                    setActiveCompany(fetchedCompanies[0]);
-                    localStorage.setItem('activeCompanyId', fetchedCompanies[0]._id);
-                }
-            } else if (fetchedCompanies.length > 0) {
-                // Default to first
-                setActiveCompany(fetchedCompanies[0]);
-                localStorage.setItem('activeCompanyId', fetchedCompanies[0]._id);
-            }
+            setActiveLocalCompany(local || fetchedCompanies[0] || null);
+            setActiveWebCompany(web || fetchedCompanies[0] || null);
+
         } catch (err) {
             console.error("CompanyContext: Error loading companies", err);
         } finally {
@@ -43,11 +34,13 @@ export const CompanyProvider = ({ children }) => {
         }
     };
 
-    const switchCompany = (companyId) => {
-        const company = companies.find(c => c._id === companyId);
-        if (company) {
-            setActiveCompany(company);
-            localStorage.setItem('activeCompanyId', company._id);
+    const switchCompany = async (companyId, type = 'local') => {
+        try {
+            const data = type === 'local' ? { is_active_local: true } : { is_active_web: true };
+            await companyService.updateCompany(companyId, data);
+            await loadCompanies();
+        } catch (err) {
+            console.error(`Error switching ${type} company:`, err);
         }
     };
 
@@ -58,7 +51,9 @@ export const CompanyProvider = ({ children }) => {
     return (
         <CompanyContext.Provider value={{
             companies,
-            activeCompany,
+            activeCompany: activeLocalCompany, // Backward compatibility
+            activeLocalCompany,
+            activeWebCompany,
             switchCompany,
             loading,
             refreshCompanies

@@ -39,9 +39,10 @@ export const authService = {
 
 
 export const inventoryService = {
-  getProducts: (page = 1, limit = 50, search = '', category = '') =>
-    api.get('/inventory/products', { params: { skip: (page - 1) * limit, limit, search, category } }),
+  getProducts: (page = 1, limit = 50, search = '', category = '', product_type = '') =>
+    api.get('/inventory/products', { params: { skip: (page - 1) * limit, limit, search, category, product_type } }),
   createProduct: (product, initial_stock = 0) => api.post(`/inventory/products?initial_stock=${initial_stock}`, product),
+  generateMarketingSku: () => api.get('/inventory/generate-marketing-sku'),
   deleteProduct: (sku) => api.delete(`/inventory/products/${sku}`),
   updateProduct: (sku, product, new_stock = null) => {
     const params = new_stock !== null ? `?new_stock=${new_stock}` : '';
@@ -236,4 +237,11 @@ export const dataExchangeService = {
   }
 };
 
+
+export const marketingService = {
+  getLoyaltyConfig: () => api.get('/marketing/loyalty/config'),
+  updateLoyaltyConfig: (data) => api.put('/marketing/loyalty/config', data),
+};
+
 export default api;
+

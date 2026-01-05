@@ -3,10 +3,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
 
-from app.routes import inventory, purchasing, sales, sales_quotes, purchase_quotes, financial, analytics, prices, delivery, companies, categories, io, auth, shop, brands, pricing
+from app.routes import inventory, purchasing, sales, sales_quotes, purchase_quotes, financial, analytics, prices, delivery, companies, categories, io, auth, shop, brands, pricing, marketing
+
 
 from app.exceptions.business_exceptions import BusinessException
 from app.exceptions.handlers import business_exception_handler
+from app.core.config import settings
 
 app = FastAPI(title="ERP System API", version="1.0.0")
 
@@ -19,10 +21,9 @@ origins = [
     "http://localhost:3000",
 ]
 
-# Agregar URLs de producción desde variable de entorno (formato: url1,url2,url3)
-env_origins = os.getenv("ALLOWED_ORIGINS")
-if env_origins:
-    origins.extend([o.strip() for o in env_origins.split(",") if o.strip()])
+# Agregar URLs de producción desde configuraciones
+if settings.ALLOWED_ORIGINS:
+    origins.extend([o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()])
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +49,8 @@ app.include_router(auth.router)
 app.include_router(shop.router)
 app.include_router(brands.router)
 app.include_router(pricing.router)
+app.include_router(marketing.router)
+
 
 @app.on_event("startup")
 async def start_db():

@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import List, Optional
 from ..models.inventory import Product, TechnicalSpec, CrossReference, Application, VehicleBrand, SearchLog
 from app.models.auth import User, UserRole
-from app.models.sales import SalesOrder, OrderItem, IssuerInfo, SalesQuote
+from app.models.sales import SalesOrder, OrderItem, IssuerInfo, SalesQuote, OrderStatus
 from app.routes.auth import get_optional_user, get_current_user
 from ..schemas.common import PaginatedResponse
 from app.models.company import Company
-from app.services import sales_service, sales_quotes_service
 from datetime import datetime
+
 from pydantic import BaseModel
 from ..services.pricing_service import get_product_price_for_user
 
@@ -46,6 +46,7 @@ async def get_shop_quotes(current_user: User = Depends(get_current_user)):
     return sorted(quotes, key=lambda x: x.date, reverse=True)
 
 
+
 class ShopProductResponse(BaseModel):
     sku: str
     name: str
@@ -54,12 +55,15 @@ class ShopProductResponse(BaseModel):
     image_url: Optional[str] = None
     price: float
     loyalty_points: int
+    points_cost: int
     stock_current: int
+
     category_id: Optional[str] = None
     is_new: bool = False
     discount_6_pct: float = 0.0
     discount_12_pct: float = 0.0
     discount_24_pct: float = 0.0
+    type: Optional[str] = "COMMERCIAL"
 
 class ShopProductDetailResponse(ShopProductResponse):
     specs: List[TechnicalSpec] = []
@@ -67,6 +71,130 @@ class ShopProductDetailResponse(ShopProductResponse):
     applications: List[Application] = []
     weight_g: float = 0.0
     features: List[str] = []
+
+
+class RedemptionRequest(BaseModel):
+    sku: str
+    quantity: int = 1
+    delivery_address: str
+
+@router.get("/prizes", response_model=PaginatedResponse[ShopProductResponse])
+async def get_redeemable_prizes(
+    skip: int = 0,
+    limit: int = 20
+):
+    """Returns products that can be redeemed with points"""
+    # Filter: Points cost > 0, Active in Shop, Type MARKETING
+    query = {
+        "points_cost": {"$gt": 0}, 
+        "is_active_in_shop": True,
+        "type": "MARKETING"
+    }
+    
+    total = await Product.find(query).count()
+    prizes = await Product.find(query).skip(skip).limit(limit).to_list()
+    
+    items = [
+        ShopProductResponse(
+            sku=p.sku,
+            name=p.name,
+            brand=p.brand,
+            description=p.description,
+            image_url=p.image_url,
+            price=0.0,
+            loyalty_points=0,
+            points_cost=p.points_cost,
+            stock_current=p.stock_current,
+            category_id=p.category_id,
+            is_new=p.is_new,
+            type=p.type
+        ) for p in prizes
+    ]
+    
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=skip // limit + 1,
+        pages=(total + limit - 1) // limit,
+        size=limit
+    )
+
+@router.post("/redeem")
+async def redeem_prize(
+    req: RedemptionRequest,
+    current_user: User = Depends(get_current_user)
+):
+    product = await Product.find_one(Product.sku == req.sku)
+    if not product or product.points_cost <= 0:
+        raise HTTPException(status_code=404, detail="Prize not found or not redeemable")
+    
+    if product.stock_current < req.quantity:
+        raise HTTPException(status_code=400, detail="Insufficient stock")
+    
+    total_points_needed = product.points_cost * req.quantity
+    if (current_user.loyalty_points or 0) < total_points_needed:
+        raise HTTPException(status_code=400, detail="Insufficient loyalty points")
+    
+    # Create a direct SalesOrder for the redemption
+    order_item = OrderItem(
+        product_sku=product.sku,
+        product_name=product.name,
+        quantity=req.quantity,
+        unit_price=0.0
+    )
+    
+    # Snapshot company info
+    # Get the designated active web company
+    company = await Company.find_one(Company.is_active_web == True)
+    if not company:
+        # Fallback to the first company found if no web company is explicitly marked
+        company = await Company.find_one({})
+    issuer_info = None
+    if company:
+        issuer_info = IssuerInfo(
+            name=company.name,
+            ruc=company.ruc,
+            address=company.address or "",
+            phone=company.phone,
+            email=company.email,
+            website=company.website,
+            logo_url=company.logo_url,
+            bank_name=company.bank_name,
+            account_soles=company.account_soles,
+            account_dollars=company.account_dollars
+        )
+
+    redeem_order = SalesOrder(
+        customer_name=current_user.full_name,
+        customer_email=current_user.email,
+        customer_ruc=current_user.ruc_linked or "CANJE",
+        items=[order_item],
+        status=OrderStatus.PENDING,
+        delivery_address=req.delivery_address,
+        issuer_info=issuer_info,
+        source="SHOP_REDEMPTION",
+        notes=f"CANJE DE PREMIO: {total_points_needed} puntos"
+    )
+    
+    # We bypass the normal create_order to avoid re-adding points
+    # Wait, create_order handles sequences. Let's use it but ensure points granted is 0.
+    from app.services import sales_service
+    saved_order = await sales_service.create_order(redeem_order)
+
+    
+    # Fix the points granted and deduct from user
+    saved_order.loyalty_points_granted = 0
+    await saved_order.save()
+    
+    current_user.loyalty_points -= total_points_needed
+    await current_user.save()
+    
+    return {
+        "message": "Redemption successful",
+        "order_number": saved_order.order_number,
+        "points_deducted": total_points_needed,
+        "remaining_points": current_user.loyalty_points
+    }
 
 class CheckoutItem(BaseModel):
     sku: str
@@ -92,7 +220,7 @@ async def get_shop_products(
 ):
     print(f"[SHOP] GET /products called - search: {search}, category: {category}")
     
-    query = {"is_active_in_shop": True}
+    query = {"is_active_in_shop": True, "type": "COMMERCIAL"}
     if search:
         if mode == "vehicle":
             query["$or"] = [
@@ -142,7 +270,9 @@ async def get_shop_products(
             image_url=p.image_url,
             price=price,
             loyalty_points=p.loyalty_points,
+            points_cost=p.points_cost,
             stock_current=p.stock_current,
+
             category_id=p.category_id,
             is_new=p.is_new,
             discount_6_pct=p.discount_6_pct,
@@ -192,7 +322,9 @@ async def get_shop_product_detail(
         image_url=p.image_url,
         price=price,
         loyalty_points=p.loyalty_points,
+        points_cost=p.points_cost,
         stock_current=p.stock_current,
+
         category_id=p.category_id,
         is_new=p.is_new,
         specs=p.specs,
@@ -237,7 +369,11 @@ async def checkout(
 
 
     # Get Company Snapshot
-    company = await Company.find_one({}) # Get first company or default
+    # Get the designated active web company
+    company = await Company.find_one(Company.is_active_web == True)
+    if not company:
+        # Fallback to the first company found if no web company is explicitly marked
+        company = await Company.find_one({}) # Get first company or default
     issuer_info = None
     if company:
         issuer_info = IssuerInfo(
@@ -267,7 +403,11 @@ async def checkout(
         notes=req.notes
     )
 
+    from app.services import sales_quotes_service
+    from app.services import sales_quotes_service
     created_quote = await sales_quotes_service.create_quote(new_quote)
+
+
     
     return {
         "message": "Quotation submitted successfully. Review it in the ERP to finalize your order.",

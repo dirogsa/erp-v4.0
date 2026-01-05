@@ -17,6 +17,9 @@ class Company(Document):
     account_soles: Optional[str] = None
     account_dollars: Optional[str] = None
     
+    is_active_local: bool = False
+    is_active_web: bool = False
+    
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
 

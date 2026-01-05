@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../services/api';
 import { useNotification } from './useNotification';
 
-export const useProducts = ({ page = 1, limit = 50, search = '', category = '' } = {}) => {
+export const useProducts = ({ page = 1, limit = 50, search = '', category = '', type = '' } = {}) => {
     const queryClient = useQueryClient();
     const { showNotification } = useNotification();
 
@@ -12,9 +12,9 @@ export const useProducts = ({ page = 1, limit = 50, search = '', category = '' }
         error,
         refetch
     } = useQuery({
-        queryKey: ['products', { page, limit, search, category }],
+        queryKey: ['products', { page, limit, search, category, type }],
         queryFn: async () => {
-            const response = await inventoryService.getProducts(page, limit, search, category);
+            const response = await inventoryService.getProducts(page, limit, search, category, type);
             return response.data;
         },
         placeholderData: (previousData) => previousData, // React Query v5 replacement for keepPreviousData

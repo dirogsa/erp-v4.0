@@ -12,12 +12,14 @@ const LoyaltyManagement = () => {
 
     const [editingProduct, setEditingProduct] = useState(null);
     const [newPoints, setNewPoints] = useState(0);
+    const [newPointsCost, setNewPointsCost] = useState(0);
 
     const { products, pagination, loading, updateProduct } = useProducts({ page, limit, search });
 
     const handleEditClick = (product) => {
         setEditingProduct(product);
         setNewPoints(product.loyalty_points || 0);
+        setNewPointsCost(product.points_cost || 0);
     };
 
     const handleSavePoints = async () => {
@@ -26,7 +28,8 @@ const LoyaltyManagement = () => {
         try {
             await updateProduct(editingProduct.sku, {
                 ...editingProduct,
-                loyalty_points: newPoints
+                loyalty_points: newPoints,
+                points_cost: newPointsCost
             });
             setEditingProduct(null);
         } catch (e) {
@@ -38,7 +41,7 @@ const LoyaltyManagement = () => {
         { label: 'SKU', key: 'sku' },
         { label: 'Nombre', key: 'name' },
         {
-            label: 'Puntos de Fidelidad',
+            label: 'Puntos Ganados',
             key: 'loyalty_points',
             align: 'center',
             render: (val) => (
@@ -51,6 +54,23 @@ const LoyaltyManagement = () => {
                     border: '1px solid #fbbf24'
                 }}>
                     ⭐ {val || 0} pts
+                </span>
+            )
+        },
+        {
+            label: 'Costo Canje',
+            key: 'points_cost',
+            align: 'center',
+            render: (val) => (
+                <span style={{
+                    background: val > 0 ? '#064e3b' : '#1e293b',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '1rem',
+                    color: val > 0 ? '#34d399' : '#64748b',
+                    fontWeight: 'bold',
+                    border: `1px solid ${val > 0 ? '#34d399' : '#334155'}`
+                }}>
+                    🎁 {val || 0} pts
                 </span>
             )
         },
@@ -95,12 +115,22 @@ const LoyaltyManagement = () => {
                         <h2 style={{ color: 'white', marginBottom: '1rem' }}>Ajustar Puntos: {editingProduct.name}</h2>
                         <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>SKU: {editingProduct.sku}</p>
 
-                        <Input
-                            label="Puntos de Fidelidad"
-                            type="number"
-                            value={newPoints}
-                            onChange={(e) => setNewPoints(parseInt(e.target.value) || 0)}
-                        />
+                        <div style={{ display: 'grid', gap: '1rem' }}>
+                            <Input
+                                label="Puntos Ganados por Compra"
+                                type="number"
+                                value={newPoints}
+                                onChange={(e) => setNewPoints(parseInt(e.target.value) || 0)}
+                            />
+
+                            <Input
+                                label="Costo en Puntos para Canje"
+                                type="number"
+                                value={newPointsCost}
+                                onChange={(e) => setNewPointsCost(parseInt(e.target.value) || 0)}
+                                placeholder="0 para no canjeable"
+                            />
+                        </div>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
                             <Button variant="secondary" onClick={() => setEditingProduct(null)}>Cancelar</Button>

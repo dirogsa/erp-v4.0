@@ -16,7 +16,8 @@ const Categories = () => {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        features_schema: []
+        features_schema: [],
+        attributes_schema: [] // New field for dynamic attributes
     });
 
     useEffect(() => {
@@ -40,7 +41,8 @@ const Categories = () => {
         setFormData({
             name: category.name,
             description: category.description || '',
-            features_schema: category.features_schema || []
+            features_schema: category.features_schema || [],
+            attributes_schema: category.attributes_schema || []
         });
         setModalVisible(true);
     };
@@ -50,7 +52,8 @@ const Categories = () => {
         setFormData({
             name: '',
             description: '',
-            features_schema: []
+            features_schema: [],
+            attributes_schema: []
         });
         setModalVisible(true);
     };
@@ -104,6 +107,37 @@ const Categories = () => {
         }));
     };
 
+    // --- Attributes Handlers ---
+    const addAttribute = () => {
+        setFormData(prev => ({
+            ...prev,
+            attributes_schema: [...prev.attributes_schema, { key: '', label: '', type: 'text', options: [] }]
+        }));
+    };
+
+    const updateAttribute = (index, field, value) => {
+        const newAttrs = [...formData.attributes_schema];
+        newAttrs[index] = { ...newAttrs[index], [field]: value };
+        // Auto-generate key from label if key is empty
+        if (field === 'label' && !newAttrs[index].key) {
+            newAttrs[index].key = value.toLowerCase().replace(/\s+/g, '_');
+        }
+        setFormData({ ...formData, attributes_schema: newAttrs });
+    };
+
+    const updateAttributeOptions = (index, optionsStr) => {
+        const newAttrs = [...formData.attributes_schema];
+        newAttrs[index].options = optionsStr.split(',').map(s => s.trim());
+        setFormData({ ...formData, attributes_schema: newAttrs });
+    };
+
+    const removeAttribute = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            attributes_schema: prev.attributes_schema.filter((_, i) => i !== index)
+        }));
+    };
+
     return (
         <div style={{ padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
@@ -131,7 +165,10 @@ const Categories = () => {
                         </p>
 
                         <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
-                            <strong>Características (Checks):</strong> {cat.features_schema?.join(', ') || 'Ninguno'}
+                            <strong>Checks:</strong> {cat.features_schema?.join(', ') || 'Ninguno'}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginTop: '0.5rem' }}>
+                            <strong>Atributos:</strong> {cat.attributes_schema?.map(a => a.label).join(', ') || 'Ninguno'}
                         </div>
                     </div>
                 ))}
@@ -173,6 +210,71 @@ const Categories = () => {
                                         style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', fontSize: '0.85rem', width: '120px' }}
                                     />
                                     <button type="button" onClick={() => removeFeature(index)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>✕</button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* SECCIÓN ATRIBUTOS DINÁMICOS (Key-Value) */}
+                    <div style={{ borderTop: '1px solid #334155', paddingTop: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <div>
+                                <h4 style={{ color: '#e2e8f0', margin: 0 }}>Atributos Avanzados (Filtros)</h4>
+                                <small style={{ color: '#94a3b8' }}>Define campos como Forma, Material, Color...</small>
+                            </div>
+                            <Button type="button" size="sm" variant="secondary" onClick={addAttribute}>+ Agregar Atributo</Button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {formData.attributes_schema.map((attr, index) => (
+                                <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '0.5rem', alignItems: 'start', background: '#0f172a', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #334155' }}>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                        <label style={{ fontSize: '0.7rem', color: '#64748b' }}>Etiqueta (Label)</label>
+                                        <input
+                                            value={attr.label}
+                                            placeholder="Ej: Forma"
+                                            onChange={(e) => updateAttribute(index, 'label', e.target.value)}
+                                            style={{ background: '#1e293b', border: '1px solid #334155', color: 'white', padding: '0.4rem', borderRadius: '0.25rem', fontSize: '0.85rem' }}
+                                        />
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                        <label style={{ fontSize: '0.7rem', color: '#64748b' }}>Clave (Key)</label>
+                                        <input
+                                            value={attr.key}
+                                            placeholder="Ej: shape"
+                                            onChange={(e) => updateAttribute(index, 'key', e.target.value)}
+                                            style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.4rem', borderRadius: '0.25rem', fontSize: '0.85rem' }}
+                                        />
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                        <label style={{ fontSize: '0.7rem', color: '#64748b' }}>Tipo</label>
+                                        <select
+                                            value={attr.type}
+                                            onChange={(e) => updateAttribute(index, 'type', e.target.value)}
+                                            style={{ background: '#1e293b', border: '1px solid #334155', color: 'white', padding: '0.4rem', borderRadius: '0.25rem', fontSize: '0.85rem' }}
+                                        >
+                                            <option value="text">Texto Libre</option>
+                                            <option value="number">Número</option>
+                                            <option value="select">Selección (Lista)</option>
+                                            <option value="boolean">Si/No</option>
+                                        </select>
+                                    </div>
+
+                                    {attr.type === 'select' ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                            <label style={{ fontSize: '0.7rem', color: '#64748b' }}>Opciones (CSV)</label>
+                                            <input
+                                                value={attr.options?.join(',')}
+                                                placeholder="Redondo, Cuadrado..."
+                                                onChange={(e) => updateAttributeOptions(index, e.target.value)}
+                                                style={{ background: '#1e293b', border: '1px solid #334155', color: 'white', padding: '0.4rem', borderRadius: '0.25rem', fontSize: '0.85rem' }}
+                                            />
+                                        </div>
+                                    ) : <div></div>}
+
+                                    <button type="button" onClick={() => removeAttribute(index)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', marginTop: '1.5rem' }}>🗑️</button>
                                 </div>
                             ))}
                         </div>

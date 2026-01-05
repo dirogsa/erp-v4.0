@@ -8,6 +8,7 @@ import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import Inventory from './pages/Inventory';
+import MarketingInventory from './pages/MarketingInventory';
 import Purchasing from './pages/Purchasing';
 import Sales from './pages/Sales';
 import Suppliers from './pages/Suppliers';
@@ -26,6 +27,8 @@ import CatalogView from './pages/CatalogView';
 import B2BManagement from './pages/B2BManagement';
 import BrandManagement from './pages/BrandManagement';
 import PricingManagement from './pages/PricingManagement';
+import Marketing from './pages/Marketing';
+
 
 
 const queryClient = new QueryClient({
@@ -65,6 +68,7 @@ function App() {
                         <Route path="/companies" element={<Companies />} />
                         <Route path="/reports" element={<Reports />} />
                         <Route path="/inventory" element={<Inventory />} />
+                        <Route path="/inventory/marketing" element={<MarketingInventory />} />
                         <Route path="/categories" element={<Categories />} />
                         <Route path="/suppliers" element={<Suppliers />} />
                         <Route path="/purchasing" element={<Purchasing />} />
@@ -79,7 +83,9 @@ function App() {
                         <Route path="/brands" element={<BrandManagement />} />
                         <Route path="/b2b" element={<B2BManagement />} />
                         <Route path="/pricing" element={<PricingManagement />} />
+                        <Route path="/marketing" element={<Marketing />} />
                       </Routes>
+
                     </Layout>
                   </ProtectedRoute>
                 } />

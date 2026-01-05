@@ -8,6 +8,7 @@ const Button = ({
     type = 'button',
     size = 'medium',
     fullWidth = false,
+    loading = false,
     ...props
 }) => {
     const baseStyle = {
@@ -60,10 +61,11 @@ const Button = ({
             type={type}
             style={style}
             onClick={onClick}
-            disabled={disabled}
+            disabled={disabled || loading}
             className="btn"
             {...props}
         >
+            {loading && <span style={{ marginRight: '0.5rem' }}>⏳</span>}
             {children}
         </button>
     );

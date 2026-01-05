@@ -1,16 +1,13 @@
-import os
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 import bcrypt
-from dotenv import load_dotenv
-
-load_dotenv()
+from app.core.config import settings
 
 # Configuration
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_secret_for_dev_only")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+SECRET_KEY = settings.JWT_SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 class AuthService:
     @staticmethod

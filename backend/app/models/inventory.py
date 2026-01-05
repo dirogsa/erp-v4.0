@@ -59,6 +59,10 @@ class BrandOrigin(str, Enum):
     USA = "USA"
     OTHER = "OTHER"
 
+class ProductType(str, Enum):
+    COMMERCIAL = "COMMERCIAL" # Productos para venta (ej. Filtros)
+    MARKETING = "MARKETING"   # Artículos de publicidad/regalos (ej. Polos, Paneles)
+
 class VehicleBrand(Document):
     name: Indexed(str, unique=True)
     origin: BrandOrigin = BrandOrigin.OTHER
@@ -115,6 +119,7 @@ class ProductCategory(Document):
     name: str
     description: Optional[str] = None
     features_schema: List[str] = [] # List of labels for checkboxes (e.g. ["Cuerpo Metálico", "Tiene Prefiltro"])
+    attributes_schema: List[AttributeDefinition] = [] # Typed KV attributes
     
     class Settings:
         name = "product_categories"
@@ -126,6 +131,7 @@ class Product(Document):
     description: Optional[str] = None
     image_url: Optional[str] = None
     weight_g: float = 0.0
+    type: ProductType = ProductType.COMMERCIAL
     
     # Category & Attributes
     category_id: Optional[str] = None
@@ -142,7 +148,9 @@ class Product(Document):
 
     cost: float = 0.0
     stock_current: int = 0
-    loyalty_points: int = 0
+    loyalty_points: int = 0 # Puntos que otorga al comprar
+    points_cost: int = 0    # Puntos necesarios para canje (0 = no canjeable)
+
     
     # Nuevos campos para Filtros Automotrices
     specs: List[TechnicalSpec] = []

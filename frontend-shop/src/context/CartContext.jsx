@@ -54,6 +54,7 @@ export const CartProvider = ({ children }) => {
     };
 
     const cartTotal = cart.reduce((sum, item) => sum + (getItemPrice(item) * item.quantity), 0);
+    const cartPointsTotal = cart.reduce((sum, item) => sum + ((item.points_cost || 0) * item.quantity), 0);
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
     return (
@@ -64,6 +65,7 @@ export const CartProvider = ({ children }) => {
             updateQuantity,
             clearCart,
             cartTotal,
+            cartPointsTotal,
             cartCount,
             getItemPrice
         }}>

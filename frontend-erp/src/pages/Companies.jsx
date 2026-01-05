@@ -60,18 +60,30 @@ const Companies = () => {
 
     const columns = [
         {
-            label: 'Estado',
-            key: 'active',
-            render: (_, row) => row._id === activeCompany?._id ? (
-                <span style={{ color: 'green', fontWeight: 'bold' }}>✓ ACTIVA</span>
+            label: 'Estado Local',
+            key: 'is_active_local',
+            render: (_, row) => row.is_active_local ? (
+                <span style={{ color: '#3b82f6', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🏠</span> ACTIVA LOCAL
+                </span>
             ) : (
-                <Button size="small" variant="secondary" onClick={() => switchCompany(row._id)}>Seleccionar</Button>
+                <Button size="small" variant="secondary" onClick={() => switchCompany(row._id, 'local')}>Activar Local</Button>
+            )
+        },
+        {
+            label: 'Estado Web',
+            key: 'is_active_web',
+            render: (_, row) => row.is_active_web ? (
+                <span style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>🌐</span> ACTIVA WEB
+                </span>
+            ) : (
+                <Button size="small" variant="secondary" onClick={() => switchCompany(row._id, 'web')}>Activar Web</Button>
             )
         },
         { label: 'Razón Social', key: 'name' },
         { label: 'RUC', key: 'ruc' },
         { label: 'Dirección', key: 'address' },
-        { label: 'Banco', key: 'bank_name' },
         {
             label: 'Acciones',
             key: 'actions',

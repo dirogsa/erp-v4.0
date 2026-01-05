@@ -1,8 +1,32 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from app.models.inventory import Product, StockMovement, MovementType, Warehouse
+from app.models.inventory import Product, StockMovement, MovementType, Warehouse, ProductType
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, InsufficientStockException, DuplicateEntityException
 from app.services.brand_service import ensure_brands_exist
+import re
+
+async def generate_marketing_sku() -> str:
+    now = datetime.now()
+    prefix = f"PUB-{now.strftime('%y%m')}-"
+    
+    # Find products that start with this prefix, sorted by SKU descending
+    # We use regex to find matching SKUs
+    pattern = re.compile(f"^{prefix}\\d{{4}}$")
+    products = await Product.find({"sku": {"$regex": f"^{prefix}"}}).to_list()
+    
+    max_num = 0
+    for p in products:
+        try:
+            # Extract the last 4 digits
+            num_part = p.sku.split('-')[-1]
+            num = int(num_part)
+            if num > max_num:
+                max_num = num
+        except (ValueError, IndexError):
+            continue
+            
+    next_num = max_num + 1
+    return f"{prefix}{next_num:04d}"
 
 from app.schemas.common import PaginatedResponse
 
@@ -10,7 +34,9 @@ async def get_products(
     skip: int = 0, 
     limit: int = 50, 
     search: Optional[str] = None, 
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    redeemable_only: Optional[bool] = None,
+    product_type: Optional[str] = None
 ) -> PaginatedResponse[Product]:
     query = {}
     
@@ -28,9 +54,15 @@ async def get_products(
         
     if category:
         query["category_id"] = category
+
+    if redeemable_only:
+        query["points_cost"] = {"$gt": 0}
+
+    if product_type:
+        query["type"] = product_type
         
     total = await Product.find(query).count()
-    items = await Product.find(query).skip(skip).limit(limit).to_list()
+    items = await Product.find(query).sort('sku').skip(skip).limit(limit).to_list()
     
     return PaginatedResponse(
         items=items,
@@ -82,6 +114,7 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None) 
     product.description = update_data.description
     product.image_url = update_data.image_url
     product.weight_g = update_data.weight_g
+    product.type = update_data.type
     
     # Category & Attributes
     product.category_id = update_data.category_id
@@ -96,6 +129,7 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None) 
     product.discount_24_pct = update_data.discount_24_pct
     product.cost = update_data.cost
     product.loyalty_points = update_data.loyalty_points
+    product.points_cost = update_data.points_cost
     
     # Technical data
     product.specs = update_data.specs

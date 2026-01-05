@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const CheckoutPage = () => {
-    const { cart, cartTotal, clearCart, getItemPrice } = useCart();
+    const { cart, cartTotal, cartPointsTotal, clearCart, getItemPrice } = useCart();
     const { user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
 
@@ -58,6 +58,13 @@ const CheckoutPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Validate points
+        if (cartPointsTotal > (user?.loyalty_points || 0)) {
+            alert(`No tienes suficientes puntos. Necesitas ${cartPointsTotal} pero tienes ${user?.loyalty_points || 0}.`);
+            return;
+        }
+
         setLoading(true);
         try {
             const orderData = {
@@ -68,7 +75,8 @@ const CheckoutPage = () => {
             setOrderInfo(response.data);
             setCheckoutSummary({
                 items: [...cart],
-                total: cartTotal
+                total: cartTotal,
+                points: cartPointsTotal
             });
             setStatus('success');
             clearCart();
@@ -99,14 +107,23 @@ const CheckoutPage = () => {
                                     <span className="text-slate-600 font-medium">
                                         {item.name} <span className="text-slate-400 font-bold ml-2">x{item.quantity}</span>
                                     </span>
-                                    <span className="font-bold text-slate-900">S/ {(getItemPrice(item) * item.quantity).toFixed(2)}</span>
+                                    {item.points_cost > 0 ? (
+                                        <span className="font-bold text-amber-500">🎁 {item.points_cost * item.quantity} pts</span>
+                                    ) : (
+                                        <span className="font-bold text-slate-900">S/ {(getItemPrice(item) * item.quantity).toFixed(2)}</span>
+                                    )}
                                 </div>
                             ))}
                         </div>
                     </div>
                     <div className="flex justify-between items-center mb-4">
                         <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">Total Estimado</span>
-                        <span className="text-3xl font-black text-primary-600">S/ {checkoutSummary.total.toFixed(2)}</span>
+                        <div className="text-right">
+                            <span className="block text-3xl font-black text-primary-600">S/ {checkoutSummary.total.toFixed(2)}</span>
+                            {checkoutSummary.points > 0 && (
+                                <span className="block text-xl font-black text-amber-500">+ {checkoutSummary.points} pts</span>
+                            )}
+                        </div>
                     </div>
                     <p className="text-slate-500 text-sm italic">
                         Un asesor de **DIROGSA** revisará tu pedido pronto. Puedes hacer seguimiento desde tu panel de cliente.
@@ -242,15 +259,25 @@ const CheckoutPage = () => {
                                                 <p className="text-[10px] text-slate-400 font-mono mt-1">{item.sku}</p>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-black text-primary-500">S/ {(unitPrice * item.quantity).toFixed(2)}</div>
-                                                {isDiscounted && (
-                                                    <div className="text-[10px] text-slate-500 line-through">S/ {(item.price * item.quantity).toFixed(2)}</div>
+                                                {item.points_cost > 0 ? (
+                                                    <div className="font-black text-amber-500">🎁 {item.points_cost * item.quantity} pts</div>
+                                                ) : (
+                                                    <>
+                                                        <div className="font-black text-primary-500">S/ {(unitPrice * item.quantity).toFixed(2)}</div>
+                                                        {isDiscounted && (
+                                                            <div className="text-[10px] text-slate-500 line-through">S/ {(item.price * item.quantity).toFixed(2)}</div>
+                                                        )}
+                                                    </>
                                                 )}
                                             </div>
                                         </div>
                                         <div className="flex justify-between items-center pt-2 border-t border-white/5">
                                             <span className="text-[10px] font-black text-slate-500 uppercase">Cantidad: {item.quantity}</span>
-                                            <span className="text-[10px] font-bold text-slate-400">P.U. S/ {unitPrice.toFixed(2)}</span>
+                                            {item.points_cost > 0 ? (
+                                                <span className="text-[10px] font-bold text-slate-400">P.U. {item.points_cost} pts</span>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-slate-400">P.U. S/ {unitPrice.toFixed(2)}</span>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -260,7 +287,12 @@ const CheckoutPage = () => {
                         <div className="space-y-3 mb-10 pt-6 border-t border-white/10">
                             <div className="flex justify-between items-center">
                                 <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Total Final</span>
-                                <span className="text-4xl font-black text-primary-500">S/ {cartTotal.toFixed(2)}</span>
+                                <div className="text-right">
+                                    <span className="block text-4xl font-black text-primary-500">S/ {cartTotal.toFixed(2)}</span>
+                                    {cartPointsTotal > 0 && (
+                                        <span className="block text-2xl font-black text-amber-500">+ {cartPointsTotal} pts</span>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

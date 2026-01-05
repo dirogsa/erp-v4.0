@@ -8,12 +8,22 @@ const ProductsTable = ({
     loading = false,
     onView,
     onEdit,
-    onDelete
+    onDelete,
+    isMarketing = false
 }) => {
     const columns = [
         { label: 'SKU', key: 'sku' },
         { label: 'Nombre', key: 'name' },
         { label: 'Marca', key: 'brand' },
+        {
+            label: 'Tipo',
+            key: 'type',
+            render: (val) => val === 'MARKETING' ? (
+                <span className="status-badge warning" style={{ fontSize: '0.7rem' }}>🎁 Premio</span>
+            ) : (
+                <span className="status-badge info" style={{ fontSize: '0.7rem' }}>📦 Comercial</span>
+            )
+        },
         {
             label: 'Tienda',
             key: 'is_active_in_shop',
@@ -25,24 +35,47 @@ const ProductsTable = ({
             )
         },
         { label: 'Stock', key: 'stock_current', align: 'center' },
-        {
-            label: 'P. Minorista',
-            key: 'price_retail',
-            align: 'right',
-            render: (val) => formatCurrency(val)
-        },
-        {
-            label: 'P. Mayorista',
-            key: 'price_wholesale',
-            align: 'right',
-            render: (val) => formatCurrency(val)
-        },
-        {
-            label: 'Costo Prom.',
-            key: 'cost',
-            align: 'right',
-            render: (val) => formatCurrency(val)
-        },
+        // Marketing Columns (replacing prices)
+        ...(isMarketing ? [
+            {
+                label: 'Costo Puntos',
+                key: 'points_cost',
+                align: 'center',
+                render: (val) => (
+                    <span style={{ fontWeight: 'bold', color: '#ed630f' }}>
+                        🎁 {val || 0} pts
+                    </span>
+                )
+            },
+            {
+                label: 'Imagen',
+                key: 'image_url',
+                align: 'center',
+                render: (val) => val ? (
+                    <img src={val} alt="tb" style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }} />
+                ) : '-'
+            }
+        ] : [
+            // Commercial Columns
+            {
+                label: 'P. Minorista',
+                key: 'price_retail',
+                align: 'right',
+                render: (val) => formatCurrency(val)
+            },
+            {
+                label: 'P. Mayorista',
+                key: 'price_wholesale',
+                align: 'right',
+                render: (val) => formatCurrency(val)
+            },
+            {
+                label: 'Costo Prom.',
+                key: 'cost',
+                align: 'right',
+                render: (val) => formatCurrency(val)
+            }
+        ]),
         {
             label: 'Acciones',
             key: 'actions',

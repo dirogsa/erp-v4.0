@@ -46,6 +46,16 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
     };
 
+    const refreshProfile = async () => {
+        try {
+            const response = await authService.getMe();
+            setUser(response.data);
+            return response.data;
+        } catch (error) {
+            console.error("Error refreshing profile", error);
+        }
+    };
+
     const isB2B = user?.role === 'CUSTOMER_B2B';
     const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
 
@@ -56,6 +66,7 @@ export const AuthProvider = ({ children }) => {
             isAuthenticated,
             login,
             logout,
+            refreshProfile,
             isB2B,
             isAdmin
         }}>

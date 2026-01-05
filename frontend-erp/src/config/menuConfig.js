@@ -55,6 +55,7 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'inventory', label: 'Productos', path: '/inventory', icon: '📦' },
+            { id: 'marketing-inventory', label: 'Publicidad', path: '/inventory/marketing', icon: '🎁' },
             { id: 'brands', label: 'Marcas de Vehículos', path: '/brands', icon: '🏎️' },
             { id: 'categories', label: 'Categorías', path: '/categories', icon: '🏷️' },
             { id: 'warehouses', label: 'Almacenes', path: '/warehouses', icon: '🏢' },
@@ -82,7 +83,9 @@ export const MENU_CONFIG = [
         children: [
             { id: 'companies', label: 'Empresas', path: '/companies', icon: '🏢' },
             { id: 'b2b', label: 'Socios B2B', path: '/b2b', icon: '🤝' },
-            { id: 'pricing', label: 'Precios Especiales B2B', path: '/pricing', icon: '🏷️' }
+            { id: 'pricing', label: 'Precios Especiales B2B', path: '/pricing', icon: '🏷️' },
+            { id: 'marketing', label: 'Lealtad y Puntos', path: '/marketing', icon: '🎁' }
         ]
+
     }
 ];

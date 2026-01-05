@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { TrashIcon, ShoppingBagIcon, ArrowLeftIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline';
 
 const CartPage = () => {
-    const { cart, removeFromCart, updateQuantity, cartTotal, cartCount, getItemPrice } = useCart();
+    const { cart, removeFromCart, updateQuantity, cartTotal, cartPointsTotal, cartCount, getItemPrice } = useCart();
 
     if (cart.length === 0) {
         return (
@@ -63,7 +63,13 @@ const CartPage = () => {
                                     </span>
                                 )}
                                 <div className="text-2xl font-black text-slate-900">
-                                    S/ {(getItemPrice(item) * item.quantity).toFixed(2)}
+                                    {item.points_cost > 0 ? (
+                                        <span className="text-amber-500">
+                                            🎁 {(item.points_cost * item.quantity)} pts
+                                        </span>
+                                    ) : (
+                                        `S/ ${(getItemPrice(item) * item.quantity).toFixed(2)}`
+                                    )}
                                 </div>
                                 {getItemPrice(item) < item.price && (
                                     <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full mt-1">
@@ -101,7 +107,16 @@ const CartPage = () => {
                         </div>
                         <div className="border-t border-slate-800 pt-4 flex justify-between items-end">
                             <span className="text-lg font-bold">Total</span>
-                            <span className="text-4xl font-black text-primary-500">S/ {cartTotal.toFixed(2)}</span>
+                            <div className="text-right">
+                                {cartTotal > 0 && (
+                                    <div className="text-4xl font-black text-primary-500">S/ {cartTotal.toFixed(2)}</div>
+                                )}
+                                {cartPointsTotal > 0 && (
+                                    <div className="text-2xl font-black text-amber-500 mt-1">
+                                        + {cartPointsTotal} pts
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 

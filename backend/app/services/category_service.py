@@ -26,7 +26,7 @@ async def update_category(id: str, update_data: ProductCategory) -> ProductCateg
             
     category.name = update_data.name
     category.description = update_data.description
-    category.features_schema = update_data.features_schema
+    category.attributes_schema = update_data.attributes_schema
     
     await category.save()
     return category

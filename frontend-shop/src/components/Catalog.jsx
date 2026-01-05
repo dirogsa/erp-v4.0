@@ -8,7 +8,8 @@ import {
     TruckIcon,
     ArrowsRightLeftIcon,
     AdjustmentsVerticalIcon,
-    XMarkIcon
+    XMarkIcon,
+    SparklesIcon
 } from '@heroicons/react/24/outline';
 
 const Catalog = () => {
@@ -22,32 +23,60 @@ const Catalog = () => {
     const [brands, setBrands] = useState([]);
     const [selectedVehicleBrand, setSelectedVehicleBrand] = useState('');
     const [selectedOrigin, setSelectedOrigin] = useState('ALL');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const LIMIT = 20;
 
     useEffect(() => {
-        loadData();
-    }, [selectedCategory, searchMode, selectedVehicleBrand]);
+        setProducts([]); // Clear on filter change
+        setPage(1);
+        setHasMore(true);
+        loadData(1, true);
+    }, [selectedCategory, searchMode, selectedVehicleBrand, selectedOrigin]);
 
-    const loadData = async () => {
+    const loadData = async (pageNum = 1, isFresh = false) => {
         setLoading(true);
         try {
             const params = {
                 search,
                 category: selectedCategory,
                 mode: searchMode,
-                vehicle_brand: selectedVehicleBrand || undefined
+                vehicle_brand: selectedVehicleBrand || undefined,
+                page: pageNum,
+                limit: LIMIT,
+                skip: (pageNum - 1) * LIMIT
             };
-            const [prodRes, catRes, brandRes] = await Promise.all([
-                shopService.getProducts(params),
-                shopService.getCategories(),
-                shopService.getVehicleBrands()
-            ]);
-            setProducts(prodRes.data.items || []);
-            setCategories(catRes.data || []);
-            setBrands(brandRes.data || []);
+
+            // Only fetch filters on initial load to save bandwidth, or just once. 
+            // Ideally separation of concerns, but for now:
+            const promises = [shopService.getProducts(params)];
+
+            // Should probably only load metadata once, but keeping logic simple for now
+            if (isFresh && categories.length === 0) {
+                promises.push(shopService.getCategories());
+                promises.push(shopService.getVehicleBrands());
+            }
+
+            const [prodRes, catRes, brandRes] = await Promise.all(promises);
+
+            const newItems = prodRes.data.items || [];
+            if (isFresh) {
+                setProducts(newItems);
+            } else {
+                setProducts(prev => [...prev, ...newItems]);
+            }
+
+            // Update metadata if fetched
+            if (catRes) setCategories(catRes.data || []);
+            if (brandRes) setBrands(brandRes.data || []);
+
+            // Check if we reached the end
+            const total = prodRes.data.total || 0;
+            const currentCount = isFresh ? newItems.length : products.length + newItems.length;
+            setHasMore(currentCount < total);
+
         } catch (error) {
             console.error("[Catalog] Error loading catalog:", error);
-            console.error("[Catalog] Error response:", error.response?.data);
-            console.error("[Catalog] Error status:", error.response?.status);
         } finally {
             setLoading(false);
         }
@@ -55,7 +84,15 @@ const Catalog = () => {
 
     const handleSearch = (e) => {
         e.preventDefault();
-        loadData();
+        setProducts([]);
+        setPage(1);
+        loadData(1, true);
+    };
+
+    const handleLoadMore = () => {
+        const nextPage = page + 1;
+        setPage(nextPage);
+        loadData(nextPage, false);
     };
 
     const filteredBrands = brands.filter(b => selectedOrigin === 'ALL' || b.origin === selectedOrigin);
@@ -116,38 +153,43 @@ const Catalog = () => {
                     </div>
                 </div>
 
-                {/* Brands Browser UI */}
+                {/* New Arrivals Section */}
                 <div className="mb-10">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="h-1 w-8 bg-primary-600 rounded-full"></div>
-                        <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">Explorar por Marca</h3>
+                        <div className="h-1 w-8 bg-amber-400 rounded-full"></div>
+                        <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                            <SparklesIcon className="h-4 w-4 text-amber-500" /> Novedades
+                        </h3>
                     </div>
-                    <div className="flex gap-4 overflow-x-auto pb-6 -mx-2 px-2 no-scrollbar scroll-smooth">
-                        {filteredBrands.length > 0 ? (
-                            filteredBrands.map(brand => (
+
+                    <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden group hover:shadow-primary-900/20 transition-all">
+                        {/* Decorative background elements */}
+                        <div className="absolute top-0 right-0 w-96 h-96 bg-primary-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary-600/20 transition-all duration-700"></div>
+                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+
+                        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+                            <div className="space-y-4 max-w-lg">
+                                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-white border border-white/5 backdrop-blur-md text-xs font-black uppercase tracking-wider">
+                                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                                    Recién Llegado
+                                </div>
+                                <h2 className="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight">
+                                    Nuevos Ingresos <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-amber-400">2025</span>
+                                </h2>
+                                <p className="text-slate-400 text-lg font-medium">
+                                    Descubre la última tecnología en filtración y repuestos de alto rendimiento para tu flota.
+                                </p>
+                            </div>
+
+                            <div className="flex gap-4">
                                 <button
-                                    key={brand.name}
-                                    onClick={() => setSelectedVehicleBrand(selectedVehicleBrand === brand.name ? '' : brand.name)}
-                                    className={`flex-shrink-0 flex flex-col items-center gap-3 p-4 rounded-[2rem] border-2 transition-all w-28 ${selectedVehicleBrand === brand.name
-                                        ? 'border-primary-600 bg-primary-50 ring-4 ring-primary-100'
-                                        : 'border-slate-50 bg-white hover:border-slate-200'
-                                        }`}
+                                    onClick={() => document.getElementById('catalog-grid').scrollIntoView({ behavior: 'smooth' })}
+                                    className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black hover:bg-slate-50 transition-all shadow-xl shadow-white/5 hover:scale-105 active:scale-95 duration-300"
                                 >
-                                    <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 group-hover:scale-105 transition-transform">
-                                        {brand.logo_url ? (
-                                            <img src={brand.logo_url} alt={brand.name} className="w-10 h-10 object-contain" />
-                                        ) : (
-                                            <span className="text-xl font-black text-slate-300">{brand.name[0]}</span>
-                                        )}
-                                    </div>
-                                    <span className={`text-[10px] font-black uppercase text-center ${selectedVehicleBrand === brand.name ? 'text-primary-700' : 'text-slate-500'}`}>
-                                        {brand.name}
-                                    </span>
+                                    Ver Lo Nuevo
                                 </button>
-                            ))
-                        ) : (
-                            <p className="text-slate-400 italic text-sm py-4">No hay marcas registradas para este origen aún.</p>
-                        )}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -268,7 +310,7 @@ const Catalog = () => {
             {loading ? (
                 <LoadingSpinner />
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div id="catalog-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                     {products.length > 0 ? (
                         products.map((product) => (
                             <ProductCard key={product.sku} product={product} onAddToCart={() => { }} />
@@ -278,6 +320,18 @@ const Catalog = () => {
                             <p className="text-slate-500">No se encontraron productos.</p>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Load More Button */}
+            {!loading && hasMore && products.length > 0 && (
+                <div className="mt-12 text-center">
+                    <button
+                        onClick={handleLoadMore}
+                        className="px-8 py-4 bg-white border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                    >
+                        Cargar más productos
+                    </button>
                 </div>
             )}
         </section>

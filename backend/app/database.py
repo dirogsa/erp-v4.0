@@ -1,16 +1,11 @@
-import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+from app.core.config import settings
 
 async def init_db():
-    # Retrieve the MongoDB URI from environment variables
-    # Default to a local instance for development if not set, but user specified Atlas
+    # Retrieve the MongoDB URI from settings
     print("DB: [DEBUG] Starting init_db...")
-    mongo_uri = os.getenv("MONGODB_URI")
+    mongo_uri = settings.MONGODB_URI
     
     if not mongo_uri:
         print("DB: [ERROR] MONGODB_URI not set. Database connection will fail.")
@@ -24,7 +19,7 @@ async def init_db():
         connectTimeoutMS=5000,
         socketTimeoutMS=5000
     )
-    db_name = os.getenv("MONGO_DB_NAME", "erp_db")
+    db_name = settings.MONGO_DB_NAME
     print(f"DB: [DEBUG] Using database: {db_name}")
     
     try:
@@ -53,8 +48,12 @@ async def init_db():
                 "app.models.company.Company",
                 "app.models.auth.User",
                 "app.models.auth.B2BApplication",
-                "app.models.pricing.PricingRule"
+                "app.models.pricing.PricingRule",
+                "app.models.marketing.LoyaltyConfig"
             ]
+
+
+
         )
         print("DB: [DEBUG] init_db completed successfully.")
     except Exception as e:

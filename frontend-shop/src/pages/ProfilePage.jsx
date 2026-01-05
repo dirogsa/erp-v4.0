@@ -11,35 +11,42 @@ import {
     CheckCircleIcon,
     XCircleIcon,
     ArrowRightIcon,
-    CurrencyDollarIcon
+    CurrencyDollarIcon,
+    GiftIcon
 } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 
+
 const ProfilePage = () => {
     const { user } = useAuth();
+
     const [profileData, setProfileData] = useState(null);
     const [orders, setOrders] = useState([]);
     const [quotes, setQuotes] = useState([]);
+    const [prizes, setPrizes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('quotes');
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [profileRes, ordersRes, quotesRes] = await Promise.all([
+                const [profileRes, ordersRes, quotesRes, prizesRes] = await Promise.all([
                     shopService.getProfile(),
                     shopService.getOrders(),
-                    shopService.getQuotes()
+                    shopService.getQuotes(),
+                    shopService.getPrizes()
                 ]);
                 setProfileData(profileRes.data);
                 setOrders(ordersRes.data);
                 setQuotes(quotesRes.data);
+                setPrizes(prizesRes.data);
             } catch (error) {
                 console.error("Error fetching dashboard data", error);
             } finally {
                 setLoading(false);
             }
         };
+
 
         fetchData();
     }, []);
@@ -81,6 +88,38 @@ const ProfilePage = () => {
         setSelectedItem(item);
         setShowDetailModal(true);
     };
+
+    const handleRedeem = async (prize) => {
+        const confirmRedeem = window.confirm(`¿Deseas canjear ${prize.name} por ${prize.points_cost} puntos?`);
+        if (!confirmRedeem) return;
+
+        const address = window.prompt("Por favor ingresa la dirección de entrega:", profileData?.address || "");
+        if (!address) return;
+
+        try {
+            const res = await shopService.redeemPrize({
+                sku: prize.sku,
+                quantity: 1,
+                delivery_address: address
+            });
+            alert(`¡Canje exitoso! Se ha generado el pedido ${res.data.order_number}`);
+
+
+            // Refresh data
+            const [profileRes, ordersRes] = await Promise.all([
+                shopService.getProfile(),
+                shopService.getOrders()
+            ]);
+            setProfileData(profileRes.data);
+            setOrders(ordersRes.data);
+            setActiveTab('orders');
+        } catch (error) {
+            console.error("Redemption error", error);
+            alert(error.response?.data?.detail || "Error al procesar el canje");
+        }
+
+    };
+
 
     if (loading) {
         return (
@@ -164,6 +203,18 @@ const ProfilePage = () => {
                             </div>
                             {orders.length > 0 && <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'orders' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{orders.length}</span>}
                         </button>
+
+                        <button
+                            onClick={() => setActiveTab('prizes')}
+                            className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all ${activeTab === 'prizes' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 translate-x-1' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'}`}
+                        >
+                            <div className="flex items-center gap-3 font-bold">
+                                <GiftIcon className="h-5 w-5" />
+                                <span>Canje de Premios</span>
+                            </div>
+                            {prizes.length > 0 && <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'prizes' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{prizes.length}</span>}
+                        </button>
+
 
                         <div className="p-6 bg-gradient-to-br from-gray-900 to-blue-900 rounded-3xl text-white mt-8 overflow-hidden relative group">
                             <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
@@ -284,6 +335,70 @@ const ProfilePage = () => {
                                     )}
                                 </div>
                             )}
+
+                            {/* Prizes Tab */}
+                            {activeTab === 'prizes' && (
+                                <div className="p-0">
+                                    <div className="p-8 border-b border-gray-50 flex justify-between items-center">
+                                        <h3 className="text-xl font-black text-gray-900">Centro de Canje</h3>
+                                        <div className="text-right">
+                                            <p className="text-sm text-gray-400 font-medium">Tus Puntos Disponibles</p>
+                                            <p className="text-xl font-black text-emerald-600">★ {(profileData?.loyalty_points || 0).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+
+                                    {prizes.length === 0 ? (
+                                        <div className="py-20 text-center">
+                                            <GiftIcon className="h-16 w-16 text-gray-200 mx-auto mb-4" />
+                                            <p className="text-gray-500 font-medium">No hay premios disponibles por el momento.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-8 bg-gray-50/30 overflow-y-auto max-h-[600px] custom-scrollbar">
+                                            {prizes.map((prize) => {
+                                                const canAfford = (profileData?.loyalty_points || 0) >= prize.points_cost;
+                                                return (
+                                                    <div key={prize.sku} className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col">
+                                                        <div className="relative h-40 overflow-hidden bg-gray-100">
+                                                            {prize.image_url ? (
+                                                                <img
+                                                                    src={prize.image_url}
+                                                                    alt={prize.name}
+                                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center">
+                                                                    <GiftIcon className="h-12 w-12 text-gray-300" />
+                                                                </div>
+                                                            )}
+                                                            <div className="absolute top-3 right-3 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-black shadow-lg">
+                                                                ★ {prize.points_cost} pts
+                                                            </div>
+                                                        </div>
+                                                        <div className="p-5 flex-1 flex flex-col">
+                                                            <h4 className="font-bold text-gray-900 mb-1 line-clamp-1">{prize.name}</h4>
+                                                            <p className="text-[10px] text-gray-400 font-black tracking-widest uppercase mb-3">{prize.brand || 'Premium'}</p>
+
+                                                            <div className="mt-auto">
+                                                                <button
+                                                                    disabled={!canAfford}
+                                                                    onClick={() => handleRedeem(prize)}
+                                                                    className={`w-full py-3 rounded-2xl font-black text-sm uppercase tracking-tighter transition-all ${canAfford
+                                                                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700 active:scale-95'
+                                                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed text-[10px]'
+                                                                        }`}
+                                                                >
+                                                                    {canAfford ? 'Canjear Ahora' : `Faltan ${(prize.points_cost - (profileData?.loyalty_points || 0)).toLocaleString()} pts`}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
 
                         </div>
                     </div>

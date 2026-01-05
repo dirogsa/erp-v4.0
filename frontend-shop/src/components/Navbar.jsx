@@ -38,6 +38,9 @@ const Navbar = () => {
                     <div className="hidden md:flex items-center gap-8">
                         <Link to="/" className="font-bold text-slate-600 hover:text-primary-600 transition-colors">Inicio</Link>
                         <Link to="/catalog" className="font-bold text-slate-600 hover:text-primary-600 transition-colors">Catálogo</Link>
+                        <Link to="/redeem" className="font-bold text-slate-600 hover:text-primary-600 transition-colors flex items-center gap-2">
+                            🎁 <span className="hidden lg:inline">Club de</span> Premios
+                        </Link>
                         <Link to="/b2b" className="font-bold text-primary-600 bg-primary-50 px-4 py-2 rounded-xl border border-primary-100">B2B Empresas</Link>
                     </div>
 
@@ -135,6 +138,13 @@ const Navbar = () => {
                                     className="block py-4 px-6 text-lg font-bold text-slate-700 hover:bg-slate-50 hover:text-primary-600 rounded-2xl transition-all"
                                 >
                                     📦 Catálogo
+                                </Link>
+                                <Link
+                                    to="/redeem"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="block py-4 px-6 text-lg font-bold text-slate-700 hover:bg-slate-50 hover:text-primary-600 rounded-2xl transition-all"
+                                >
+                                    🎁 Club de Premios
                                 </Link>
                                 <Link
                                     to="/b2b"

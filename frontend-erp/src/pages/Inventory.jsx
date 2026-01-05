@@ -10,8 +10,9 @@ import LoyaltyManagement from '../components/features/inventory/LoyaltyManagemen
 import Pagination from '../components/common/Table/Pagination';
 import { useProducts } from '../hooks/useProducts';
 
-const Inventory = () => {
-    const [activeTab, setActiveTab] = useState('products');
+const Inventory = ({ forcedType = null }) => {
+    const defaultTab = forcedType === 'MARKETING' ? 'marketing' : 'products';
+    const [activeTab, setActiveTab] = useState(defaultTab);
     const [showProductModal, setShowProductModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
@@ -28,7 +29,12 @@ const Inventory = () => {
         createProduct,
         updateProduct,
         deleteProduct
-    } = useProducts({ page, limit, search });
+    } = useProducts({
+        page,
+        limit,
+        search,
+        type: forcedType || (activeTab === 'products' ? 'COMMERCIAL' : '')
+    });
 
     const handleCreate = async (data) => {
         try {
@@ -48,98 +54,104 @@ const Inventory = () => {
         <div style={{ padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
-                    <h1 style={{ color: 'white', marginBottom: '0.5rem' }}>Gestión de Inventario</h1>
-                    <p style={{ color: '#94a3b8' }}>Control de productos, transferencias y ajustes</p>
+                    <h1 style={{ color: 'white', marginBottom: '0.5rem' }}>
+                        {forcedType === 'MARKETING' ? 'Gestión de Publicidad' : 'Gestión de Inventario'}
+                    </h1>
+                    <p style={{ color: '#94a3b8' }}>
+                        {forcedType === 'MARKETING' ? 'Control de artículos y premios publicitarios' : 'Control de productos, transferencias y ajustes'}
+                    </p>
                 </div>
-                {activeTab === 'products' && (
+                {(activeTab === 'products' || activeTab === 'marketing') && (
                     <Button onClick={() => {
                         setSelectedProduct(null);
                         setIsViewMode(false);
                         setShowProductModal(true);
                     }}>
-                        + Nuevo Producto
+                        {forcedType === 'MARKETING' || activeTab === 'marketing' ? '+ Nuevo Artículo Publicitario' : '+ Nuevo Producto'}
                     </Button>
                 )}
             </div>
 
-            <div style={{ marginBottom: '2rem', borderBottom: '1px solid #334155' }}>
-                <button
-                    onClick={() => setActiveTab('products')}
-                    style={{
-                        padding: '1rem 2rem',
-                        background: 'none',
-                        border: 'none',
-                        borderBottom: activeTab === 'products' ? '2px solid #3b82f6' : 'none',
-                        color: activeTab === 'products' ? '#3b82f6' : '#94a3b8',
-                        cursor: 'pointer',
-                        fontWeight: '500'
-                    }}
-                >
-                    📦 Productos
-                </button>
-                <button
-                    onClick={() => setActiveTab('transfers')}
-                    style={{
-                        padding: '1rem 2rem',
-                        background: 'none',
-                        border: 'none',
-                        borderBottom: activeTab === 'transfers' ? '2px solid #3b82f6' : 'none',
-                        color: activeTab === 'transfers' ? '#3b82f6' : '#94a3b8',
-                        cursor: 'pointer',
-                        fontWeight: '500'
-                    }}
-                >
-                    🚚 Transferencias
-                </button>
-                <button
-                    onClick={() => setActiveTab('losses')}
-                    style={{
-                        padding: '1rem 2rem',
-                        background: 'none',
-                        border: 'none',
-                        borderBottom: activeTab === 'losses' ? '2px solid #3b82f6' : 'none',
-                        color: activeTab === 'losses' ? '#3b82f6' : '#94a3b8',
-                        cursor: 'pointer',
-                        fontWeight: '500'
-                    }}
-                >
-                    ⚖️ Ajustes
-                </button>
-                <button
-                    onClick={() => setActiveTab('prices')}
-                    style={{
-                        padding: '1rem 2rem',
-                        background: 'none',
-                        border: 'none',
-                        borderBottom: activeTab === 'prices' ? '2px solid #3b82f6' : 'none',
-                        color: activeTab === 'prices' ? '#3b82f6' : '#94a3b8',
-                        cursor: 'pointer',
-                        fontWeight: '500'
-                    }}
-                >
-                    💲 Precios
-                </button>
-                <button
-                    onClick={() => setActiveTab('loyalty')}
-                    style={{
-                        padding: '1rem 2rem',
-                        background: 'none',
-                        border: 'none',
-                        borderBottom: activeTab === 'loyalty' ? '2px solid #3b82f6' : 'none',
-                        color: activeTab === 'loyalty' ? '#3b82f6' : '#94a3b8',
-                        cursor: 'pointer',
-                        fontWeight: '500'
-                    }}
-                >
-                    ⭐ Fidelización
-                </button>
-            </div>
+            {!forcedType && (
+                <div style={{ marginBottom: '2rem', borderBottom: '1px solid #334155' }}>
+                    <button
+                        onClick={() => { setActiveTab('products'); setPage(1); }}
+                        style={{
+                            padding: '1rem 2rem',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: activeTab === 'products' ? '2px solid #3b82f6' : 'none',
+                            color: activeTab === 'products' ? '#3b82f6' : '#94a3b8',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        📦 Productos
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('transfers')}
+                        style={{
+                            padding: '1rem 2rem',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: activeTab === 'transfers' ? '2px solid #3b82f6' : 'none',
+                            color: activeTab === 'transfers' ? '#3b82f6' : '#94a3b8',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        🚚 Transferencias
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('losses')}
+                        style={{
+                            padding: '1rem 2rem',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: activeTab === 'losses' ? '2px solid #3b82f6' : 'none',
+                            color: activeTab === 'losses' ? '#3b82f6' : '#94a3b8',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        ⚖️ Ajustes
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('prices')}
+                        style={{
+                            padding: '1rem 2rem',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: activeTab === 'prices' ? '2px solid #3b82f6' : 'none',
+                            color: activeTab === 'prices' ? '#3b82f6' : '#94a3b8',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        💲 Precios
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('loyalty')}
+                        style={{
+                            padding: '1rem 2rem',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: activeTab === 'loyalty' ? '2px solid #3b82f6' : 'none',
+                            color: activeTab === 'loyalty' ? '#3b82f6' : '#94a3b8',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        ⭐ Fidelización
+                    </button>
+                </div>
+            )}
 
-            {activeTab === 'products' && (
+            {(activeTab === 'products' || activeTab === 'marketing') && (
                 <>
                     <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
                         <Input
-                            placeholder="Buscar por nombre o SKU..."
+                            placeholder={forcedType === 'MARKETING' || activeTab === 'marketing' ? "Buscar premios..." : "Buscar por filtros..."}
                             value={search}
                             onChange={(e) => {
                                 setSearch(e.target.value);
@@ -151,6 +163,7 @@ const Inventory = () => {
                     <ProductsTable
                         products={products}
                         loading={loading}
+                        isMarketing={forcedType === 'MARKETING' || activeTab === 'marketing'}
                         onView={(product) => {
                             setSelectedProduct(product);
                             setIsViewMode(true);
@@ -162,7 +175,7 @@ const Inventory = () => {
                             setShowProductModal(true);
                         }}
                         onDelete={(product) => {
-                            if (window.confirm('¿Está seguro de eliminar este producto?')) {
+                            if (window.confirm('¿Está seguro de eliminar este ítem?')) {
                                 deleteProduct(product.sku);
                             }
                         }}
@@ -202,10 +215,12 @@ const Inventory = () => {
                             <button onClick={() => setShowProductModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
                         </div>
                         <ProductForm
-                            initialData={selectedProduct}
+                            initialData={selectedProduct || { type: forcedType || (activeTab === 'marketing' ? 'MARKETING' : 'COMMERCIAL') }}
                             onSubmit={selectedProduct ? handleUpdate : handleCreate}
                             onCancel={() => setShowProductModal(false)}
                             loading={loading}
+                            isViewMode={isViewMode}
+                            fixedType={forcedType || (activeTab === 'products' ? 'COMMERCIAL' : 'MARKETING')}
                         />
                     </div>
                 </div>

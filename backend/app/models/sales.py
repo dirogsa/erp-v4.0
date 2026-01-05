@@ -74,8 +74,12 @@ class SalesOrder(Document):
     items: List[OrderItem]
     status: OrderStatus = OrderStatus.PENDING
     total_amount: float = 0.0
+    customer_email: Optional[str] = None
+    loyalty_points_granted: int = 0  # Puntos que se otorgaron al confirmar esta orden
+    loyalty_points_spent: int = 0    # Puntos canjeados en esta orden
     
     # Términos de pago (Opcional, para créditos)
+
     payment_terms: Optional[dict] = None
     
     # Referencia a cotización origen
