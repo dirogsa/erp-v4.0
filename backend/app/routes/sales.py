@@ -91,7 +91,7 @@ async def register_payment(invoice_number: str, payment_data: PaymentRegistratio
 
 # ==================== CUSTOMERS ====================
 
-@router.get("/customers", response_model=List[Customer])
+@router.get("/customers")
 async def get_customers():
     return await sales_service.get_customers()
 

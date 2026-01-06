@@ -31,7 +31,8 @@ class User(Document):
     is_active: bool = True
     
     # Loyalty & Sales Stats
-    loyalty_points: int = 0
+    loyalty_points: int = 0 # Puntos Web (Públicos)
+    internal_points_local: int = 0 # Puntos Locales (Internos)
     cumulative_sales: float = 0.0
     
     created_at: datetime = Field(default_factory=datetime.utcnow)

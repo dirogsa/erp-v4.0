@@ -68,67 +68,30 @@ const RedeemPage = () => {
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             {/* Header Section */}
-            <div className="relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 md:p-12 mb-12 shadow-2xl">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary-600 opacity-10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="text-center md:text-left">
-                        <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">
-                            Club de <span className="text-primary-400">Premios</span>
-                        </h1>
-                        <p className="text-slate-400 text-lg font-medium max-w-xl">
-                            Canjea tus puntos acumulados por productos exclusivos. ¡Tu fidelidad tiene recompensa!
-                        </p>
-                    </div>
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-12">
+                <div className="text-center md:text-left">
+                    <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-2 tracking-tight">
+                        Premios
+                    </h1>
+                    <p className="text-slate-500 font-medium">
+                        Canjea tus puntos acumulados por productos exclusivos.
+                    </p>
+                </div>
 
-                    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 text-center min-w-[200px]">
-                        <TrophyIcon className="h-8 w-8 text-amber-400 mx-auto mb-2" />
-                        <div className="text-xs text-slate-400 uppercase font-black tracking-widest mb-1">Tus Puntos</div>
-                        <div className="text-4xl font-black text-white">
+                <div className="bg-slate-900 rounded-[2rem] px-8 py-5 flex items-center gap-4 shadow-xl shadow-slate-900/10">
+                    <div className="w-12 h-12 bg-amber-400/20 rounded-xl flex items-center justify-center">
+                        <TrophyIcon className="h-6 w-6 text-amber-400" />
+                    </div>
+                    <div>
+                        <div className="text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Tus Puntos</div>
+                        <div className="text-3xl font-black text-white leading-none">
                             {user?.loyalty_points?.toLocaleString() || 0}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* New Arrivals Section */}
-            <div className="mb-12">
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="h-1 w-8 bg-amber-400 rounded-full"></div>
-                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                        <SparklesIcon className="h-4 w-4 text-amber-500" /> Novedades
-                    </h3>
-                </div>
 
-                <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden group hover:shadow-primary-900/20 transition-all">
-                    {/* Decorative background elements */}
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-primary-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary-600/20 transition-all duration-700"></div>
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-
-                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
-                        <div className="space-y-4 max-w-lg">
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-white border border-white/5 backdrop-blur-md text-xs font-black uppercase tracking-wider">
-                                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                                Club de Premios
-                            </div>
-                            <h2 className="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight">
-                                Nuevos Canjes <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-amber-400">2025</span>
-                            </h2>
-                            <p className="text-slate-400 text-lg font-medium">
-                                Aprovecha tus puntos al máximo con los nuevos artículos exclusivos que tenemos para ti.
-                            </p>
-                        </div>
-
-                        <div className="flex gap-4">
-                            <button
-                                onClick={() => document.getElementById('prizes-grid').scrollIntoView({ behavior: 'smooth' })}
-                                className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black hover:bg-slate-50 transition-all shadow-xl shadow-white/5 hover:scale-105 active:scale-95 duration-300"
-                            >
-                                Ver Premios
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* Address Selection */}
 

@@ -24,6 +24,33 @@ const CustomerForm = ({
         ...initialData
     });
 
+    const branches = formData.branches || [];
+
+    // Reset form when initialData ID changes (crucial for React modal reuse)
+    useEffect(() => {
+        const resetData = initialData ? {
+            name: '',
+            ruc: '',
+            email: '',
+            phone: '',
+            address: '',
+            classification: 'STANDARD',
+            custom_discount_percent: 0,
+            branches: [],
+            ...initialData
+        } : {
+            name: '',
+            ruc: '',
+            email: '',
+            phone: '',
+            address: '',
+            classification: 'STANDARD',
+            custom_discount_percent: 0,
+            branches: []
+        };
+        setFormData(resetData);
+    }, [initialData?._id]);
+
     const [newBranch, setNewBranch] = useState({
         branch_name: '',
         address: '',
@@ -40,14 +67,17 @@ const CustomerForm = ({
         }
 
         const branch = { ...newBranch };
-        // Si es la primera sucursal, marcarla como principal
-        if (formData.branches.length === 0) {
-            branch.is_main = true;
-        }
 
-        setFormData({
-            ...formData,
-            branches: [...formData.branches, branch]
+        setFormData(prev => {
+            const currentBranches = prev.branches || [];
+            // Si es la primera sucursal, marcarla como principal
+            if (currentBranches.length === 0) {
+                branch.is_main = true;
+            }
+            return {
+                ...prev,
+                branches: [...currentBranches, branch]
+            };
         });
 
         setNewBranch({
@@ -61,22 +91,20 @@ const CustomerForm = ({
     };
 
     const handleRemoveBranch = (index) => {
-        const updatedBranches = formData.branches.filter((_, i) => i !== index);
-        setFormData({
-            ...formData,
-            branches: updatedBranches
-        });
+        setFormData(prev => ({
+            ...prev,
+            branches: (prev.branches || []).filter((_, i) => i !== index)
+        }));
     };
 
     const handleToggleMainBranch = (index) => {
-        const updatedBranches = formData.branches.map((b, i) => ({
-            ...b,
-            is_main: i === index
+        setFormData(prev => ({
+            ...prev,
+            branches: (prev.branches || []).map((b, i) => ({
+                ...b,
+                is_main: i === index
+            }))
         }));
-        setFormData({
-            ...formData,
-            branches: updatedBranches
-        });
     };
 
     const handleSubmit = (e) => {
@@ -162,9 +190,9 @@ const CustomerForm = ({
                     <h4 style={{ marginBottom: '1rem', color: '#e2e8f0' }}>Sucursales</h4>
 
                     {/* Lista de sucursales */}
-                    {formData.branches.length > 0 && (
+                    {branches.length > 0 && (
                         <div style={{ marginBottom: '1rem' }}>
-                            {formData.branches.map((branch, index) => (
+                            {branches.map((branch, index) => (
                                 <div key={index} style={{
                                     padding: '0.75rem',
                                     background: '#0f172a',

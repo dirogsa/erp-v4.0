@@ -109,7 +109,7 @@ export const purchasingService = {
   createSupplier: (supplier) => api.post('/purchasing/suppliers', supplier),
   deleteSupplier: (id) => api.delete(`/purchasing/suppliers/${id}`),
   updateSupplier: (id, supplier) => api.put(`/purchasing/suppliers/${id}`, supplier),
-  updateSupplier: (id, supplier) => api.put(`/purchasing/suppliers/${id}`, supplier),
+
 };
 
 export const purchaseQuotesService = {
@@ -241,6 +241,7 @@ export const dataExchangeService = {
 export const marketingService = {
   getLoyaltyConfig: () => api.get('/marketing/loyalty/config'),
   updateLoyaltyConfig: (data) => api.put('/marketing/loyalty/config', data),
+  convertPoints: (data) => api.post('/marketing/loyalty/convert-points', data),
 };
 
 export default api;

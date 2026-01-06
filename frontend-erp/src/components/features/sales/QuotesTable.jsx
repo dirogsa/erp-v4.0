@@ -8,6 +8,7 @@ const QuotesTable = ({
     quotes = [],
     loading = false,
     onView,
+    onEdit,
     onConvert,
     onDelete
 }) => {
@@ -64,13 +65,22 @@ const QuotesTable = ({
                         Ver
                     </Button>
                     {quote.status !== 'CONVERTED' && quote.status !== 'REJECTED' && (
-                        <Button
-                            size="small"
-                            variant="success"
-                            onClick={(e) => { e.stopPropagation(); onConvert(quote); }}
-                        >
-                            Convertir
-                        </Button>
+                        <>
+                            <Button
+                                size="small"
+                                variant="warning"
+                                onClick={(e) => { e.stopPropagation(); onEdit(quote); }}
+                            >
+                                Editar
+                            </Button>
+                            <Button
+                                size="small"
+                                variant="success"
+                                onClick={(e) => { e.stopPropagation(); onConvert(quote); }}
+                            >
+                                Convertir
+                            </Button>
+                        </>
                     )}
                     <Button
                         size="small"

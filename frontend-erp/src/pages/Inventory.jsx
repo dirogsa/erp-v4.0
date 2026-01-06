@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import ProductsTable from '../components/features/inventory/ProductsTable';
@@ -9,6 +9,7 @@ import PriceManagement from '../components/features/inventory/PriceManagement';
 import LoyaltyManagement from '../components/features/inventory/LoyaltyManagement';
 import Pagination from '../components/common/Table/Pagination';
 import { useProducts } from '../hooks/useProducts';
+import { categoryService } from '../services/api';
 
 const Inventory = ({ forcedType = null }) => {
     const defaultTab = forcedType === 'MARKETING' ? 'marketing' : 'products';
@@ -16,11 +17,24 @@ const Inventory = ({ forcedType = null }) => {
     const [showProductModal, setShowProductModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
+    const [categories, setCategories] = useState([]);
 
     // Pagination & Search State
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [search, setSearch] = useState('');
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const res = await categoryService.getCategories();
+                setCategories(res.data);
+            } catch (error) {
+                console.error("Error loading categories", error);
+            }
+        };
+        fetchCategories();
+    }, []);
 
     const {
         products,
@@ -164,6 +178,7 @@ const Inventory = ({ forcedType = null }) => {
                         products={products}
                         loading={loading}
                         isMarketing={forcedType === 'MARKETING' || activeTab === 'marketing'}
+                        categories={categories}
                         onView={(product) => {
                             setSelectedProduct(product);
                             setIsViewMode(true);

@@ -16,7 +16,7 @@ export const usePurchaseOrders = ({ page = 1, limit = 50, search = '', status = 
         queryFn: async () => {
             try {
                 const response = await purchasingService.getOrders(page, limit, search, status, date_from, date_to);
-                console.log('Purchase Orders API Response:', response.data);
+
                 return response.data;
             } catch (err) {
                 console.error('Error fetching purchase orders:', err);

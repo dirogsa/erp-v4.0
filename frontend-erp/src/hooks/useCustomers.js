@@ -17,7 +17,6 @@ export const useCustomers = () => {
         } catch (err) {
             setError(err);
             showNotification('Error al cargar clientes', 'error');
-            console.error('Error fetching customers:', err);
         } finally {
             setLoading(false);
         }

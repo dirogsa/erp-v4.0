@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 import Loading from '../components/common/Loading';
-import Table from '../components/common/Table';
 
 const Dashboard = () => {
     const [loading, setLoading] = useState(true);
@@ -11,9 +9,10 @@ const Dashboard = () => {
         sales_month: 0,
         pending_orders: 0,
         low_stock_items: 0,
-        recent_orders: [],
+        backorder_count: 0,
         pending_b2b: 0,
-        recent_shop_orders: 0
+        recent_shop_orders: 0,
+        invoiced_not_dispatched: 0
     });
 
     useEffect(() => {
@@ -23,84 +22,164 @@ const Dashboard = () => {
                 setData(response.data);
             } catch (error) {
                 console.error("Dashboard: Error fetching dashboard data:", error);
-                // Fallback / Mock for dev if backend not ready
             } finally {
                 setLoading(false);
             }
         };
-
         fetchDashboardData();
     }, []);
 
     if (loading) return <Loading />;
 
-    const KpiCard = ({ title, value, color, icon }) => (
+    const MetricTile = ({ label, value, subtext, color, icon }) => (
         <div style={{
-            backgroundColor: '#1e293b',
-            padding: '1.5rem',
-            borderRadius: '0.5rem',
-            borderLeft: `4px solid ${color}`,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            padding: '1.25rem',
+            borderRight: '1px solid #334155',
+            borderBottom: '1px solid #334155',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            backgroundColor: '#1e293b'
         }}>
-            <h3 style={{ color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem', textTransform: 'uppercase' }}>{title}</h3>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'white' }}>{value}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '1rem' }}>{icon}</span>
+                <span style={{
+                    color: '#94a3b8',
+                    fontSize: '0.65rem',
+                    fontWeight: '800',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em'
+                }}>
+                    {label}
+                </span>
+            </div>
+            <div style={{
+                fontSize: '1.75rem',
+                fontWeight: '900',
+                color: 'white',
+                lineHeight: '1.2',
+                marginBottom: '0.25rem',
+                letterSpacing: '-0.02em'
+            }}>
+                {value}
+            </div>
+            <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontSize: '0.7rem',
+                color: '#64748b',
+                fontWeight: '500'
+            }}>
+                <div style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: color }}></div>
+                {subtext}
+            </div>
         </div>
     );
 
-    const recentOrdersColumns = [
-        { label: 'Orden', key: 'order_number' },
-        { label: 'Canal', key: 'source', render: (val) => val === 'SHOP' ? '🛒 Web' : '🏢 Local' },
-        { label: 'Cliente', key: 'customer_name' },
-        { label: 'Total', key: 'total_amount', render: (val) => formatCurrency(val) },
-        { label: 'Estado', key: 'status' }
-    ];
-
     return (
-        <div style={{ padding: '2rem' }}>
-            <h1 style={{ color: 'white', marginBottom: '2rem' }}>Panel de Control</h1>
-
+        <div style={{ padding: '0', maxWidth: '1200px', margin: '0 auto' }}>
+            {/* Compact Header */}
             <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                gap: '1.5rem',
-                marginBottom: '2rem'
+                padding: '1.5rem 2rem',
+                borderBottom: '1px solid #334155',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
             }}>
-                <KpiCard
-                    title="Ventas del Mes"
-                    value={formatCurrency(data.sales_month)}
-                    color="#22c55e"
-                />
-                <KpiCard
-                    title="Órdenes Pendientes"
-                    value={data.pending_orders}
-                    color="#f59e0b"
-                />
-                <KpiCard
-                    title="Stock Crítico"
-                    value={data.low_stock_items}
-                    color="#ef4444"
-                />
-                <KpiCard
-                    title="Socios Pendientes"
-                    value={data.pending_b2b}
-                    color="#8b5cf6"
-                />
-                <KpiCard
-                    title="Cotizaciones Web (48h)"
-                    value={data.recent_shop_orders}
-                    color="#06b6d4"
-                />
+                <div>
+                    <h1 style={{ color: 'white', fontSize: '1.2rem', fontWeight: '900', margin: 0 }}>Dashboard Resumen</h1>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: '700' }}>
+                        {new Date().toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }).toUpperCase()}
+                    </div>
+                </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
-                <div style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '0.5rem' }}>
-                    <h2 style={{ color: 'white', marginBottom: '1rem', fontSize: '1.1rem' }}>Actividad Reciente</h2>
-                    <Table
-                        columns={recentOrdersColumns}
-                        data={data.recent_orders}
-                        emptyMessage="No hay actividad reciente"
-                    />
+            {/* Grid Layout */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                width: '100%',
+                borderLeft: '1px solid #334155',
+                borderTop: '1px solid #334155'
+            }}>
+                {/* Main Billing Cell - Slightly larger */}
+                <div style={{
+                    gridColumn: 'span 2',
+                    gridRow: 'span 1',
+                    padding: '2rem',
+                    backgroundColor: '#0f172a',
+                    borderRight: '1px solid #334155',
+                    borderBottom: '1px solid #334155',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center'
+                }}>
+                    <span style={{ color: '#3b82f6', fontSize: '0.65rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem' }}>
+                        Ventas del Mes
+                    </span>
+                    <h2 style={{ color: 'white', fontSize: '2.5rem', fontWeight: '900', margin: 0, letterSpacing: '-0.04em' }}>
+                        {formatCurrency(data.sales_month)}
+                    </h2>
                 </div>
+
+                <MetricTile
+                    label="Backorders"
+                    value={data.backorder_count}
+                    subtext="Retenidas"
+                    color="#ec4899"
+                    icon="⏳"
+                />
+
+                <MetricTile
+                    label="Por Despachar"
+                    value={data.invoiced_not_dispatched}
+                    subtext="Pendiente Almacén"
+                    color="#8b5cf6"
+                    icon="📦"
+                />
+
+                <MetricTile
+                    label="Órdenes"
+                    value={data.pending_orders}
+                    subtext="Por Facturar"
+                    color="#f59e0b"
+                    icon="📝"
+                />
+
+                <MetricTile
+                    label="Stock Crítico"
+                    value={data.low_stock_items}
+                    subtext="Bajo Mínimo"
+                    color="#ef4444"
+                    icon="⚠️"
+                />
+
+                <MetricTile
+                    label="Web (48h)"
+                    value={data.recent_shop_orders}
+                    subtext="Cotizaciones"
+                    color="#06b6d4"
+                    icon="🌐"
+                />
+
+                {/* Empty spacer cell to complete the 4-column grid if needed */}
+                <div style={{ backgroundColor: '#1e293b', borderRight: '1px solid #334155', borderBottom: '1px solid #334155' }}></div>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+                padding: '0.75rem 2rem',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                fontSize: '0.65rem',
+                color: '#475569',
+                fontWeight: '700',
+                textTransform: 'uppercase'
+            }}>
+                Actualizado: {new Date().toLocaleTimeString()}
             </div>
         </div>
     );

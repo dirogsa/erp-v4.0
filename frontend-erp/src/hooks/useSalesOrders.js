@@ -16,7 +16,7 @@ export const useSalesOrders = ({ page = 1, limit = 50, search = '', status = '',
         queryFn: async () => {
             try {
                 const response = await salesService.getSales(page, limit, search, status, date_from, date_to);
-                console.log('Sales Orders API Response:', response.data);
+
                 return response.data;
             } catch (err) {
                 console.error('Error fetching sales orders:', err);

@@ -2,7 +2,8 @@ import React from 'react';
 import Button from '../Button';
 
 const Pagination = ({ current, total, onChange, pageSize, onPageSizeChange }) => {
-    if (total <= 1) return null;
+    // We only hide everything if there's truly no data and no selector
+    if (total <= 0 && !onPageSizeChange) return null;
 
     const getPageNumbers = () => {
         const pages = [];
@@ -65,44 +66,46 @@ const Pagination = ({ current, total, onChange, pageSize, onPageSizeChange }) =>
                 )}
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <Button
-                    variant="secondary"
-                    onClick={() => onChange(current - 1)}
-                    disabled={current === 1}
-                    style={{ padding: '0.25rem 0.75rem' }}
-                >
-                    Anterior
-                </Button>
-
-                {getPageNumbers().map((page, index) => (
-                    <button
-                        key={index}
-                        onClick={() => typeof page === 'number' ? onChange(page) : null}
-                        disabled={page === '...'}
-                        style={{
-                            backgroundColor: page === current ? '#3b82f6' : 'transparent',
-                            color: page === current ? 'white' : '#94a3b8',
-                            border: page === current ? 'none' : '1px solid #334155',
-                            borderRadius: '0.25rem',
-                            padding: '0.25rem 0.75rem',
-                            cursor: page === '...' ? 'default' : 'pointer',
-                            transition: 'all 0.2s'
-                        }}
+            {total > 1 && (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <Button
+                        variant="secondary"
+                        onClick={() => onChange(current - 1)}
+                        disabled={current === 1}
+                        style={{ padding: '0.25rem 0.75rem' }}
                     >
-                        {page}
-                    </button>
-                ))}
+                        Anterior
+                    </Button>
 
-                <Button
-                    variant="secondary"
-                    onClick={() => onChange(current + 1)}
-                    disabled={current === total}
-                    style={{ padding: '0.25rem 0.75rem' }}
-                >
-                    Siguiente
-                </Button>
-            </div>
+                    {getPageNumbers().map((page, index) => (
+                        <button
+                            key={index}
+                            onClick={() => typeof page === 'number' ? onChange(page) : null}
+                            disabled={page === '...'}
+                            style={{
+                                backgroundColor: page === current ? '#3b82f6' : 'transparent',
+                                color: page === current ? 'white' : '#94a3b8',
+                                border: page === current ? 'none' : '1px solid #334155',
+                                borderRadius: '0.25rem',
+                                padding: '0.25rem 0.75rem',
+                                cursor: page === '...' ? 'default' : 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {page}
+                        </button>
+                    ))}
+
+                    <Button
+                        variant="secondary"
+                        onClick={() => onChange(current + 1)}
+                        disabled={current === total}
+                        style={{ padding: '0.25rem 0.75rem' }}
+                    >
+                        Siguiente
+                    </Button>
+                </div>
+            )}
         </div>
     );
 };

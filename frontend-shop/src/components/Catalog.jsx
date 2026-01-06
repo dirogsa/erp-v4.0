@@ -23,6 +23,7 @@ const Catalog = () => {
     const [brands, setBrands] = useState([]);
     const [selectedVehicleBrand, setSelectedVehicleBrand] = useState('');
     const [selectedOrigin, setSelectedOrigin] = useState('ALL');
+    const [isNewOnly, setIsNewOnly] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const LIMIT = 20;
@@ -32,7 +33,7 @@ const Catalog = () => {
         setPage(1);
         setHasMore(true);
         loadData(1, true);
-    }, [selectedCategory, searchMode, selectedVehicleBrand, selectedOrigin]);
+    }, [selectedCategory, searchMode, selectedVehicleBrand, selectedOrigin, isNewOnly]);
 
     const loadData = async (pageNum = 1, isFresh = false) => {
         setLoading(true);
@@ -42,6 +43,7 @@ const Catalog = () => {
                 category: selectedCategory,
                 mode: searchMode,
                 vehicle_brand: selectedVehicleBrand || undefined,
+                is_new: isNewOnly || undefined,
                 page: pageNum,
                 limit: LIMIT,
                 skip: (pageNum - 1) * LIMIT
@@ -129,6 +131,17 @@ const Catalog = () => {
 
                         <div className="flex w-full md:w-auto gap-3">
                             <button
+                                onClick={() => setIsNewOnly(!isNewOnly)}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all border ${isNewOnly
+                                    ? 'bg-amber-500 text-white border-amber-500 shadow-xl shadow-amber-500/20'
+                                    : 'bg-white text-amber-600 border-slate-200 hover:border-amber-500'
+                                    }`}
+                            >
+                                <SparklesIcon className="h-5 w-5" />
+                                {isNewOnly ? 'Ver Todo' : 'Novedades'}
+                            </button>
+
+                            <button
                                 onClick={() => setShowAdvanced(!showAdvanced)}
                                 className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all border ${showAdvanced
                                     ? 'bg-slate-900 text-white border-slate-900 shadow-xl'
@@ -153,45 +166,7 @@ const Catalog = () => {
                     </div>
                 </div>
 
-                {/* New Arrivals Section */}
-                <div className="mb-10">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="h-1 w-8 bg-amber-400 rounded-full"></div>
-                        <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                            <SparklesIcon className="h-4 w-4 text-amber-500" /> Novedades
-                        </h3>
-                    </div>
 
-                    <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden group hover:shadow-primary-900/20 transition-all">
-                        {/* Decorative background elements */}
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-primary-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary-600/20 transition-all duration-700"></div>
-                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-
-                        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
-                            <div className="space-y-4 max-w-lg">
-                                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-white border border-white/5 backdrop-blur-md text-xs font-black uppercase tracking-wider">
-                                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                                    Recién Llegado
-                                </div>
-                                <h2 className="text-3xl md:text-5xl font-black text-white leading-tight tracking-tight">
-                                    Nuevos Ingresos <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-amber-400">2025</span>
-                                </h2>
-                                <p className="text-slate-400 text-lg font-medium">
-                                    Descubre la última tecnología en filtración y repuestos de alto rendimiento para tu flota.
-                                </p>
-                            </div>
-
-                            <div className="flex gap-4">
-                                <button
-                                    onClick={() => document.getElementById('catalog-grid').scrollIntoView({ behavior: 'smooth' })}
-                                    className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black hover:bg-slate-50 transition-all shadow-xl shadow-white/5 hover:scale-105 active:scale-95 duration-300"
-                                >
-                                    Ver Lo Nuevo
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Advanced Search Panel */}
                 <div className={`transition-all duration-500 overflow-hidden ${showAdvanced ? 'max-h-[500px] opacity-100 mb-8' : 'max-h-0 opacity-0'}`}>

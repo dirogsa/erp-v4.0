@@ -9,29 +9,52 @@ const ProductsTable = ({
     onView,
     onEdit,
     onDelete,
-    isMarketing = false
+    isMarketing = false,
+    categories = []
 }) => {
     const columns = [
         { label: 'SKU', key: 'sku' },
-        { label: 'Nombre', key: 'name' },
-        { label: 'Marca', key: 'brand' },
         {
-            label: 'Tipo',
-            key: 'type',
-            render: (val) => val === 'MARKETING' ? (
-                <span className="status-badge warning" style={{ fontSize: '0.7rem' }}>🎁 Premio</span>
-            ) : (
-                <span className="status-badge info" style={{ fontSize: '0.7rem' }}>📦 Comercial</span>
-            )
+            label: 'Categoría',
+            key: 'category_id',
+            render: (val) => {
+                const cat = categories.find(c => c._id === val);
+                return cat ? cat.name : '-';
+            }
         },
+        {
+            label: 'Forma',
+            key: 'custom_attributes',
+            render: (val, row) => {
+                // Try to find 'forma' in custom_attributes or in specs
+                const forma = val?.forma || val?.shape;
+                if (forma) return forma;
+
+                // Fallback to specs if not in custom_attributes
+                const formaSpec = row.specs?.find(s => s.label.toUpperCase() === 'FORMA');
+                return formaSpec ? formaSpec.value : '-';
+            }
+        },
+        { label: 'Marca', key: 'brand' },
         {
             label: 'Tienda',
             key: 'is_active_in_shop',
             align: 'center',
             render: (val) => val ? (
-                <span className="status-badge approved" style={{ fontSize: '0.7rem' }}>SINC</span>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    color: '#10b981',
+                    fontSize: '0.75rem',
+                    fontWeight: '600'
+                }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
+                    VISIBLE
+                </div>
             ) : (
-                <span className="status-badge draft" style={{ fontSize: '0.7rem', opacity: 0.5 }}>-</span>
+                <span style={{ color: '#475569', fontSize: '0.75rem' }}>Oculto</span>
             )
         },
         { label: 'Stock', key: 'stock_current', align: 'center' },

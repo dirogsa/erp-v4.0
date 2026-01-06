@@ -11,7 +11,7 @@ export const useDeliveryGuides = ({ page = 1, limit = 50, search = '', status = 
         queryKey: ['deliveryGuides', page, limit, search, status, guideType],
         queryFn: async () => {
             const response = await deliveryService.getGuides(page, limit, search, status, guideType);
-            console.log('Delivery Guides API Response:', response.data);
+
             return response.data;
         }
     });

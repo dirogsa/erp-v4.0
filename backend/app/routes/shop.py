@@ -216,11 +216,14 @@ async def get_shop_products(
     category: Optional[str] = None,
     mode: Optional[str] = "all",
     vehicle_brand: Optional[str] = None,
+    is_new: Optional[bool] = None,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
-    print(f"[SHOP] GET /products called - search: {search}, category: {category}")
+    print(f"[SHOP] GET /products called - search: {search}, category: {category}, is_new: {is_new}")
     
     query = {"is_active_in_shop": True, "type": "COMMERCIAL"}
+    if is_new is not None:
+        query["is_new"] = is_new
     if search:
         if mode == "vehicle":
             query["$or"] = [

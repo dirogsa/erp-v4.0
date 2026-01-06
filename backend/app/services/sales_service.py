@@ -162,13 +162,23 @@ async def create_order(order: SalesOrder) -> SalesOrder:
              user = await User.find_one(User.email == order.customer_email)
              
         if user:
-            # Deduct spent points
+            # Deduct spent points (Always from public loyalty_points as it's for Shop redemptions)
             if points_spent > 0:
                 user.loyalty_points = (user.loyalty_points or 0) - points_spent
                 
-            # Add gained points
+            # Add gained points based on source
             if total_points_gained > 0:
-                user.loyalty_points = (user.loyalty_points or 0) + total_points_gained
+                if order.source == "SHOP":
+                    user.loyalty_points = (user.loyalty_points or 0) + total_points_gained
+                else: # source == "ERP" or other
+                    if not loyalty_config.only_web_accumulation:
+                        # If not only web, do they go to public or internal? 
+                        # Based on user request: Physical sales go to internal points.
+                        user.internal_points_local = (user.internal_points_local or 0) + total_points_gained
+                    else:
+                        # If only web is active, ERP sales don't even update internal points? 
+                        # Actually he said "local sales are internal", so let's keep them in internal.
+                        user.internal_points_local = (user.internal_points_local or 0) + total_points_gained
                 
             if total_points_gained > 0 or points_spent > 0:
                 user.cumulative_sales = (user.cumulative_sales or 0) + order.total_amount
@@ -511,8 +521,56 @@ async def register_payment(invoice_number: str, amount: float, payment_date: str
 
 # ==================== CUSTOMERS ====================
 
-async def get_customers() -> List[Customer]:
-    return await Customer.find_all().to_list()
+async def get_customers() -> List[Dict[str, Any]]:
+    customers = await Customer.find_all().to_list()
+    
+    # Pre-fetch all linked users to avoid N+1 queries
+    users = await User.find(User.ruc_linked != None).to_list()
+    user_map = {u.ruc_linked: u for u in users}
+    
+    results = []
+    for c in customers:
+        try:
+            # Use model_dump if available (Pydantic v2), otherwise dict()
+            if hasattr(c, "model_dump"):
+                data = c.model_dump()
+            else:
+                data = c.dict()
+            
+            # CRITICAL: Convert all PydanticObjectId to strings to avoid serialization errors
+            # Beanie models have 'id' which Pydantic includes in dict/model_dump
+            if "id" in data:
+                data["id"] = str(data["id"])
+            
+            # The frontend specifically looks for _id
+            data["_id"] = str(c.id)
+            
+            # Manually convert datetime fields to ISO strings
+            if isinstance(data.get("created_at"), datetime):
+                data["created_at"] = data["created_at"].isoformat()
+            
+            # Convert branches IDs if they exist
+            if "branches" in data and data["branches"]:
+                for branch in data["branches"]:
+                    # If branch is a dict (from model_dump), check for id
+                    if isinstance(branch, dict) and "id" in branch:
+                         branch["id"] = str(branch["id"])
+            
+            linked_user = user_map.get(c.ruc)
+            if linked_user:
+                data["loyalty_points"] = getattr(linked_user, 'loyalty_points', 0)
+                data["internal_points_local"] = getattr(linked_user, 'internal_points_local', 0)
+                data["linked_user_id"] = str(linked_user.id)
+            else:
+                data["loyalty_points"] = 0
+                data["internal_points_local"] = 0
+                data["linked_user_id"] = None
+                
+            results.append(data)
+        except Exception as e:
+            continue
+        
+    return results
 
 async def get_customer_by_ruc(ruc: str) -> Customer:
     customer = await Customer.find_one(Customer.ruc == ruc)
@@ -537,8 +595,11 @@ async def update_customer(id: PydanticObjectId, customer_data: Customer) -> Cust
     customer.address = customer_data.address
     customer.phone = customer_data.phone
     customer.email = customer_data.email
-    customer.branches = customer_data.branches
+    customer.classification = customer_data.classification
     customer.custom_discount_percent = customer_data.custom_discount_percent
+    
+    # Ensure branches is at least an empty list
+    customer.branches = customer_data.branches if customer_data.branches is not None else []
     
     await customer.save()
 

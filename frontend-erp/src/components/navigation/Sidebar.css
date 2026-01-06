@@ -1,12 +1,13 @@
 /* Sidebar Styles */
 .sidebar {
     width: 260px;
-    min-height: 100vh;
+    height: 100vh;
     background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
     display: flex;
     flex-direction: column;
     border-right: 1px solid #334155;
     transition: transform 0.3s ease;
+    overflow: hidden;
 }
 
 /* Header */
@@ -183,7 +184,7 @@
 
 /* Footer */
 .sidebar-footer {
-    padding: 1rem;
+    padding: 1.25rem 1rem;
     border-top: 1px solid #334155;
     margin-top: auto;
 }
@@ -218,7 +219,7 @@
         z-index: 1000;
         transform: translateX(-100%);
     }
-    
+
     .sidebar.open {
         transform: translateX(0);
     }

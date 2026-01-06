@@ -8,6 +8,8 @@ const Marketing = () => {
     const { showNotification } = useNotification();
     const [config, setConfig] = useState({
         points_per_sole: 1,
+        local_to_web_rate: 1.0,
+        only_web_accumulation: false,
         is_active: true
     });
     const [loading, setLoading] = useState(true);
@@ -23,110 +25,266 @@ const Marketing = () => {
             setConfig(res.data);
         } catch (error) {
             console.error("Error loading loyalty config", error);
-            showNotification("Error al cargar configuración de lealtad", "error");
+            showNotification("Error al cargar configuración", "error");
         } finally {
             setLoading(false);
         }
     };
 
     const handleSave = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         setSaving(true);
         try {
             await marketingService.updateLoyaltyConfig(config);
-            showNotification("Configuración actualizada correctamente", "success");
+            showNotification("Configuración de marketing guardada", "success");
         } catch (error) {
-            console.error("Error saving loyalty config", error);
-            showNotification("Error al guardar configuración", "error");
+            showNotification("Error al guardar cambios", "error");
         } finally {
             setSaving(false);
         }
     };
 
-    if (loading) return <div className="p-8">Cargando configuración...</div>;
+    const styles = {
+        container: {
+            padding: '2rem',
+            maxWidth: '1200px',
+            margin: '0 auto',
+            color: '#e2e8f0',
+        },
+        header: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            paddingBottom: '1.5rem',
+            marginBottom: '2rem'
+        },
+        badge: (active) => ({
+            padding: '0.4rem 1rem',
+            borderRadius: '99px',
+            fontSize: '0.75rem',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            backgroundColor: active ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            color: active ? '#10b981' : '#ef4444',
+            border: `1px solid ${active ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+        }),
+        grid: {
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr) 350px',
+            gap: '2rem',
+        },
+        card: {
+            background: '#111827',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '1rem',
+            overflow: 'hidden',
+        },
+        cardHeader: {
+            padding: '1.25rem 1.5rem',
+            background: 'rgba(255,255,255,0.03)',
+            borderBottom: '1px solid rgba(255,255,255,0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            fontWeight: 'bold'
+        },
+        cardBody: {
+            padding: '2rem'
+        },
+        inputGrid: {
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '1.5rem',
+            marginBottom: '2rem'
+        },
+        toggleCard: (active, color) => ({
+            padding: '1.25rem',
+            borderRadius: '0.75rem',
+            border: `1px solid ${active ? color : 'transparent'}`,
+            background: active ? `${color}10` : 'rgba(255,255,255,0.05)',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start'
+        }),
+        tipBox: {
+            background: 'rgba(59, 130, 246, 0.1)',
+            padding: '1rem',
+            borderRadius: '0.75rem',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            marginTop: '2rem'
+        },
+        simulator: {
+            background: 'linear-gradient(135deg, #2563eb, #1e40af)',
+            padding: '1.5rem',
+            borderRadius: '1rem',
+            color: 'white',
+        },
+        simBox: {
+            background: 'rgba(255,255,255,0.1)',
+            padding: '1rem',
+            borderRadius: '0.75rem',
+            border: '1px solid rgba(255,255,255,0.1)',
+            marginTop: '1rem'
+        }
+    };
+
+    if (loading) return (
+        <div style={{ padding: '4rem', textAlign: 'center', color: 'white' }}>
+            <span style={{ fontSize: '2rem' }}>⌛</span>
+            <p>Cargando configuración...</p>
+        </div>
+    );
 
     return (
-        <div className="p-8 max-w-4xl">
-            <h1 className="text-2xl font-bold mb-6">Marketing y Fidelización</h1>
+        <div style={styles.container}>
+            <header style={styles.header}>
+                <div>
+                    <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '800', color: 'white' }}>Marketing & Fidelización</h1>
+                    <p style={{ margin: '0.5rem 0 0', color: '#94a3b8' }}>Estrategia de crecimiento y retención bimodal.</p>
+                </div>
+                <div style={styles.badge(config.is_active)}>
+                    {config.is_active ? '● Sistema Activo' : '○ Sistema Pausado'}
+                </div>
+            </header>
 
-            <div className="card bg-surface p-6 rounded-xl border border-border shadow-sm">
-                <h2 className="text-xl font-semibold mb-4 text-primary">Configuración Global de Puntos</h2>
-                <p className="text-sm text-gray-500 mb-6">
-                    Define las reglas básicas de cómo tus clientes ganan puntos por sus compras.
-                </p>
+            <div style={styles.grid}>
+                {/* Panel Principal */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    <div style={styles.card}>
+                        <div style={styles.cardHeader}>
+                            <span style={{ padding: '4px 8px', background: 'rgba(59, 130, 246, 0.2)', borderRadius: '6px', fontSize: '0.8rem' }}>⚙️</span>
+                            Motor de Puntos
+                        </div>
+                        <div style={styles.cardBody}>
+                            <div style={styles.inputGrid}>
+                                <div>
+                                    <Input
+                                        label="Ratio de Ganancia (Global)"
+                                        type="number"
+                                        step="0.1"
+                                        value={config.points_per_sole}
+                                        onChange={(e) => setConfig({ ...config, points_per_sole: parseFloat(e.target.value) || 0 })}
+                                    />
+                                    <small style={{ color: '#64748b' }}>Puntos por cada S/ 1.00</small>
+                                </div>
+                                <div>
+                                    <Input
+                                        label="Tasa de Conversión (L ➜ W)"
+                                        type="number"
+                                        step="0.1"
+                                        value={config.local_to_web_rate}
+                                        onChange={(e) => setConfig({ ...config, local_to_web_rate: parseFloat(e.target.value) || 0 })}
+                                    />
+                                    <small style={{ color: '#64748b' }}>1 Pto Local = X Puntos Web</small>
+                                </div>
+                            </div>
 
-                <form onSubmit={handleSave} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Input
-                            label="Puntos por cada Sol (S/) gastado"
-                            type="number"
-                            step="0.1"
-                            value={config.points_per_sole}
-                            onChange={(e) => setConfig({ ...config, points_per_sole: parseFloat(e.target.value) || 0 })}
-                            placeholder="1.0"
-                            helperText="Ej: Si es 1.0, por una compra de S/ 100 el cliente gana 100 puntos."
-                        />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div
+                                    style={styles.toggleCard(config.only_web_accumulation, '#3b82f6')}
+                                    onClick={() => setConfig({ ...config, only_web_accumulation: !config.only_web_accumulation })}
+                                >
+                                    <div>
+                                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.9rem', color: 'white' }}>Exclusividad Web</h4>
+                                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>
+                                            {config.only_web_accumulation ? "Solo ventas web suman puntos." : "Ventas mixtas permitidas."}
+                                        </p>
+                                    </div>
+                                    <div style={{ fontSize: '1.2rem' }}>{config.only_web_accumulation ? '🟦' : '⬜'}</div>
+                                </div>
 
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-medium text-gray-700">Estado del Programa de Lealtad</label>
-                            <label className="flex items-center gap-2 cursor-pointer mt-2">
-                                <input
-                                    type="checkbox"
-                                    className="w-5 h-5"
-                                    checked={config.is_active}
-                                    onChange={(e) => setConfig({ ...config, is_active: e.target.checked })}
-                                />
-                                <span className={config.is_active ? 'text-green-600 font-bold' : 'text-gray-400'}>
-                                    {config.is_active ? '✅ Activo' : '❌ Desactivado'}
-                                </span>
-                            </label>
-                            <p className="text-[10px] text-gray-400 mt-1">
-                                Si se desactiva, no se acumularán puntos nuevos en las ventas.
-                            </p>
+                                <div
+                                    style={styles.toggleCard(config.is_active, '#10b981')}
+                                    onClick={() => setConfig({ ...config, is_active: !config.is_active })}
+                                >
+                                    <div>
+                                        <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.9rem', color: 'white' }}>Estado Global</h4>
+                                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>
+                                            {config.is_active ? "Programa encendido." : "Programa apagado."}
+                                        </p>
+                                    </div>
+                                    <div style={{ fontSize: '1.2rem' }}>{config.is_active ? '✅' : '⏹️'}</div>
+                                </div>
+                            </div>
+
+                            <div style={styles.tipBox}>
+                                <h5 style={{ color: '#60a5fa', margin: '0 0 0.5rem', fontSize: '0.85rem' }}>💡 Estrategia Híbrida</h5>
+                                <p style={{ margin: 0, fontSize: '0.75rem', color: '#93c5fd', lineHeight: '1.4' }}>
+                                    Los puntos de ventas locales se guardan en una "Bóveda Interna". Utiliza la Tasa de Conversión para premiar a clientes que migran a la tienda digital.
+                                </p>
+                            </div>
+
+                            <div style={{ marginTop: '2.5rem', textAlign: 'right', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1.5rem' }}>
+                                <Button
+                                    onClick={handleSave}
+                                    variant="primary"
+                                    loading={saving}
+                                    style={{ padding: '0.8rem 2.5rem', borderRadius: '10px' }}
+                                >
+                                    Guardar Cambios
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                        <h4 className="text-blue-800 font-bold text-sm mb-1 italic">💡 Tip de Estrategia:</h4>
-                        <p className="text-blue-700 text-xs">
-                            Recuerda que también puedes asignar puntos específicos a cada producto en el Inventario.
-                            Si un producto tiene puntos asignados manualmente, esos tendrán prioridad sobre esta regla global.
-                        </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                        {[
+                            { icon: '🎁', title: 'Premios', desc: 'Canjes en web' },
+                            { icon: '📊', title: 'Ranking', desc: 'Próximamente' },
+                            { icon: '⚡', title: 'Boosts', desc: 'Próximamente' }
+                        ].map((item, i) => (
+                            <div key={i} style={{ padding: '1rem', background: '#111827', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{item.icon}</div>
+                                <h5 style={{ margin: '0 0 0.25rem', fontSize: '0.8rem', color: 'white' }}>{item.title}</h5>
+                                <p style={{ margin: 0, fontSize: '0.7rem', color: '#64748b' }}>{item.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Sidebar */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <div style={styles.simulator}>
+                        <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span>🎮</span> Simulador
+                        </h3>
+                        <div style={styles.simBox}>
+                            <p style={{ margin: '0 0 0.5rem', fontSize: '0.7rem', opacity: 0.8, textTransform: 'uppercase' }}>Venta de S/ 500</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{Math.floor(500 * config.points_per_sole)}</span>
+                                <span style={{ fontSize: '0.8rem', opacity: 0.9 }}>Puntos</span>
+                            </div>
+                        </div>
+                        <div style={styles.simBox}>
+                            <p style={{ margin: '0 0 0.5rem', fontSize: '0.7rem', opacity: 0.8, textTransform: 'uppercase' }}>Conversión Local</p>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.85rem' }}>
+                                <b>100 Local</b> ➜ <b>{Math.floor(100 * config.local_to_web_rate)} Web</b>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="flex justify-end pt-4 border-t border-border">
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            loading={saving}
-                        >
-                            {saving ? 'Guardando...' : 'Aplicar Configuración'}
-                        </Button>
+                    <div style={{ padding: '1.5rem', background: '#111827', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <h4 style={{ margin: '0 0 1rem', fontSize: '0.8rem', textTransform: 'uppercase', color: '#94a3b8', textAlign: 'center' }}>Flujos de Valor</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <span style={{ color: '#3b82f6' }}>🌐</span>
+                                <div>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 'bold', color: 'white' }}>Cisterna Web</p>
+                                    <p style={{ margin: 0, fontSize: '0.7rem', color: '#64748b' }}>Saldo líquido de canje inmediato.</p>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <span style={{ color: '#a855f7' }}>🏢</span>
+                                <div>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 'bold', color: 'white' }}>Bóveda ERP</p>
+                                    <p style={{ margin: 0, fontSize: '0.7rem', color: '#64748b' }}>Saldo interno acumulado en tienda.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </form>
-            </div>
-
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="card p-4 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-center">
-                    <div className="text-3xl mb-2">🎁</div>
-                    <h3 className="font-bold text-gray-700">Premios de Canje</h3>
-                    <p className="text-xs text-gray-500">
-                        Marca productos en el Inventario con un "Costo en Puntos" para que aparezcan como canjeables.
-                    </p>
-                </div>
-                <div className="card p-4 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-center">
-                    <div className="text-3xl mb-2">📊</div>
-                    <h3 className="font-bold text-gray-700">Líderes de Puntos</h3>
-                    <p className="text-xs text-gray-500">
-                        Próximamente: Ranking de clientes con más fidelidad.
-                    </p>
-                </div>
-                <div className="card p-4 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-center">
-                    <div className="text-3xl mb-2">💌</div>
-                    <h3 className="font-bold text-gray-700">Campañas</h3>
-                    <p className="text-xs text-gray-500">
-                        Próximamente: Multiplicadores de puntos por tiempo limitado.
-                    </p>
                 </div>
             </div>
         </div>

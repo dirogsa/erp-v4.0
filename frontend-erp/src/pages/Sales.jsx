@@ -130,6 +130,17 @@ const Sales = () => {
         try {
             await createQuote(quoteData);
             setShowCreateQuote(false);
+            setSelectedQuote(null);
+        } catch (error) {
+            // Error handled by hook
+        }
+    };
+
+    const handleUpdateQuote = async (quoteData) => {
+        try {
+            await updateQuote(selectedQuote.quote_number, quoteData);
+            setShowCreateQuote(false);
+            setSelectedQuote(null);
         } catch (error) {
             // Error handled by hook
         }
@@ -199,8 +210,12 @@ const Sales = () => {
                 </div>
                 <div style={{ backgroundColor: '#1e293b', padding: '2rem', borderRadius: '0.5rem' }}>
                     <QuoteForm
-                        onSubmit={handleCreateQuote}
-                        onCancel={() => setShowCreateQuote(false)}
+                        initialData={selectedQuote}
+                        onSubmit={selectedQuote ? handleUpdateQuote : handleCreateQuote}
+                        onCancel={() => {
+                            setShowCreateQuote(false);
+                            setSelectedQuote(null);
+                        }}
                         loading={quotesLoading}
                     />
                 </div>
@@ -533,6 +548,10 @@ const Sales = () => {
                             setSelectedQuote(quote);
                             setShowQuoteReceipt(true);
                         }}
+                        onEdit={(quote) => {
+                            setSelectedQuote(quote);
+                            setShowCreateQuote(true);
+                        }}
                         onConvert={(quote) => {
                             setSelectedQuote(quote);
                             setShowConversionModal(true);
@@ -580,7 +599,7 @@ const Sales = () => {
                         setShowNoteEmissionModal(true);
                     }}
                 />
-            ) : (
+            ) : activeTab === 'notes' ? (
                 <>
                     <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
                         <Input
@@ -607,7 +626,58 @@ const Sales = () => {
                         }}
                     />
                 </>
-            )}
+            ) : activeTab === 'guides' ? (
+                <>
+                    <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
+                        <Input
+                            placeholder="Buscar guía o cliente..."
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setPage(1);
+                            }}
+                        />
+                    </div>
+                    <GuidesTable
+                        guides={guides}
+                        loading={guidesLoading}
+                        onView={(guide) => {
+                            setSelectedGuide(guide);
+                            setShowGuideReceipt(true);
+                        }}
+                        onDispatch={async (guideNumber) => {
+                            if (window.confirm('¿Despachar guía? Esto descontará el stock.')) {
+                                await dispatchGuide(guideNumber);
+                            }
+                        }}
+                        onDeliver={(guide) => {
+                            const receivedBy = window.prompt('Nombre de quien recibe:');
+                            if (receivedBy !== null) {
+                                deliverGuide(guide.guide_number, receivedBy);
+                            }
+                        }}
+                        onCancel={async (guideNumber) => {
+                            if (window.confirm('¿Anular guía? Esto devolverá el stock si fue despachada.')) {
+                                await cancelGuide(guideNumber);
+                            }
+                        }}
+                        onPrint={(guide) => {
+                            setSelectedGuide(guide);
+                            setShowGuideReceipt(true);
+                        }}
+                    />
+                    <Pagination
+                        current={pagination.current}
+                        total={pagination.total}
+                        onChange={setPage}
+                        pageSize={limit}
+                        onPageSizeChange={(newSize) => {
+                            setLimit(newSize);
+                            setPage(1);
+                        }}
+                    />
+                </>
+            ) : null}
 
             {/* Modals */}
             <OrderDetailModal
@@ -706,49 +776,7 @@ const Sales = () => {
                 onClose={() => setShowQuoteReceipt(false)}
             />
 
-            {/* Guides Tab Content - moved here because it needs to be outside the conditional */}
-            {activeTab === 'guides' && (
-                <>
-                    <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
-                        <Input
-                            placeholder="Buscar guía..."
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setPage(1);
-                            }}
-                        />
-                    </div>
-                    <GuidesTable
-                        guides={guides}
-                        loading={guidesLoading}
-                        onView={(guide) => {
-                            setSelectedGuide(guide);
-                            setShowGuideReceipt(true);
-                        }}
-                        onDispatch={async (guideNumber) => {
-                            if (window.confirm('¿Despachar guía? Esto descontará el stock.')) {
-                                await dispatchGuide(guideNumber);
-                            }
-                        }}
-                        onDeliver={(guide) => {
-                            const receivedBy = window.prompt('Nombre de quien recibe:');
-                            if (receivedBy !== null) {
-                                deliverGuide(guide.guide_number, receivedBy);
-                            }
-                        }}
-                        onCancel={async (guideNumber) => {
-                            if (window.confirm('¿Anular guía? Esto devolverá el stock si fue despachada.')) {
-                                await cancelGuide(guideNumber);
-                            }
-                        }}
-                        onPrint={(guide) => {
-                            setSelectedGuide(guide);
-                            setShowGuideReceipt(true);
-                        }}
-                    />
-                </>
-            )}
+
 
             {/* Guide Modals */}
             <GuideFormModal

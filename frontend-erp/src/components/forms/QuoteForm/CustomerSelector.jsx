@@ -50,13 +50,20 @@ const CustomerSelector = ({
 
     const handleBranchChange = (e) => {
         const branchName = e.target.value;
-        const branch = value.branches?.find(b => b.name === branchName);
-
-        onChange({
-            ...value,
-            delivery_branch_name: branchName,
-            delivery_address: branch ? branch.address : value.address
-        });
+        if (branchName === 'MAIN' || !branchName) {
+            onChange({
+                ...value,
+                delivery_branch_name: '',
+                delivery_address: value.address
+            });
+        } else {
+            const branch = value.branches?.find(b => b.branch_name === branchName);
+            onChange({
+                ...value,
+                delivery_branch_name: branchName,
+                delivery_address: branch ? branch.address : value.address
+            });
+        }
     };
 
     return (
@@ -104,39 +111,48 @@ const CustomerSelector = ({
                     required={required}
                 />
 
-                {/* Selector de Sucursal si existen sucursales */}
+                <Input
+                    label="Dirección Fiscal (SUNAT)"
+                    value={value?.address || ''}
+                    placeholder="Dirección principal"
+                    disabled={true}
+                />
+
                 {value?.branches && value.branches.length > 0 ? (
                     <Select
-                        label="Sucursal de Entrega"
-                        value={value.delivery_branch_name || ''}
+                        label="Punto de Entrega"
+                        value={value.delivery_branch_name || 'MAIN'}
                         onChange={handleBranchChange}
-                        options={value.branches.map(b => ({
-                            value: b.name,
-                            label: b.name
-                        }))}
+                        options={[
+                            { value: 'MAIN', label: 'Dirección Fiscal (Principal)' },
+                            ...value.branches.map(b => ({
+                                value: b.branch_name,
+                                label: b.branch_name
+                            }))
+                        ]}
                         disabled={readOnly}
-                        placeholder="Seleccione sucursal (Principal por defecto)"
                     />
                 ) : (
-                    <Input
-                        label="Dirección"
-                        value={value?.address || ''}
-                        onChange={(e) => onChange({ ...value, address: e.target.value })}
-                        placeholder="Dirección fiscal"
-                        disabled={readOnly}
-                        required={required}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'center', color: '#64748b', fontSize: '0.8rem', padding: '1rem' }}>
+                        ℹ️ Cliente sin sucursales registradas.
+                    </div>
                 )}
 
-                {/* Mostrar dirección de entrega específica si se seleccionó sucursal */}
-                {value?.delivery_branch_name && (
+                <div style={{ gridColumn: 'span 2' }}>
                     <Input
-                        label="Dirección de Entrega"
-                        value={value?.delivery_address || ''}
-                        disabled={true}
-                        placeholder="Dirección de la sucursal"
+                        label="Dirección de Entrega Final"
+                        value={value?.delivery_address || value?.address || ''}
+                        onChange={(e) => onChange({ ...value, delivery_address: e.target.value })}
+                        disabled={readOnly || (!!value?.delivery_branch_name && value.delivery_branch_name !== 'MAIN')}
+                        placeholder="Especifique dirección de envío"
+                        required={required}
                     />
-                )}
+                    {value?.delivery_branch_name && (
+                        <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '-0.5rem' }}>
+                            * Usando dirección vinculada a la sucursal {value.delivery_branch_name}
+                        </p>
+                    )}
+                </div>
             </div>
         </div>
     );

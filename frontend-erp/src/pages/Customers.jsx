@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import Button from '../components/common/Button';
 import Table from '../components/common/Table';
+import Input from '../components/common/Input';
 import CustomerForm from '../components/features/customers/CustomerForm';
 import { useCustomers } from '../hooks/useCustomers';
+import { marketingService } from '../services/api';
 
 const Customers = () => {
     const {
@@ -10,12 +12,15 @@ const Customers = () => {
         loading,
         createCustomer,
         updateCustomer,
-        deleteCustomer
+        deleteCustomer,
+        fetchCustomers
     } = useCustomers();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
+    const [converting, setConverting] = useState(false);
+    const [pointsToConvert, setPointsToConvert] = useState(0);
 
     const handleCreate = async (data) => {
         try {
@@ -35,6 +40,18 @@ const Customers = () => {
         { label: 'Razón Social', key: 'name' },
         { label: 'RUC', key: 'ruc' },
         { label: 'Teléfono', key: 'phone' },
+        {
+            label: 'Puntos Web',
+            key: 'loyalty_points',
+            align: 'center',
+            render: (val) => <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>{val || 0}</span>
+        },
+        {
+            label: 'Puntos Local (Interno)',
+            key: 'internal_points_local',
+            align: 'center',
+            render: (val) => <span style={{ color: '#94a3b8' }}>{val || 0}</span>
+        },
         {
             label: 'Sucursales',
             key: 'branches',
@@ -137,6 +154,74 @@ const Customers = () => {
                                     color: selectedCustomer.classification === 'ORO' ? '#92400e' : '#475569',
                                     padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold'
                                 }}>{selectedCustomer.classification || 'STANDARD'}</span></p>
+
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: '1rem',
+                                    marginTop: '1.5rem',
+                                    padding: '1rem',
+                                    background: '#1e293b',
+                                    borderRadius: '8px',
+                                    border: '1px solid #334155'
+                                }}>
+                                    <div>
+                                        <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Puntos Web (Visibles al Cliente)</p>
+                                        <p style={{ color: '#3b82f6', fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>{selectedCustomer.loyalty_points || 0}</p>
+                                    </div>
+                                    <div>
+                                        <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Puntos Local (Internos)</p>
+                                        <p style={{ color: '#a855f7', fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>{selectedCustomer.internal_points_local || 0}</p>
+                                    </div>
+                                </div>
+
+                                {selectedCustomer.linked_user_id && selectedCustomer.internal_points_local > 0 && (
+                                    <div style={{ marginTop: '1rem', padding: '1rem', background: '#0f172a', borderRadius: '8px', border: '1px border-dashed #334155' }}>
+                                        <h4 style={{ color: '#e2e8f0', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Convertir Puntos Locales a Web</h4>
+                                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <Input
+                                                    label="Cantidad a convertir"
+                                                    type="number"
+                                                    value={pointsToConvert}
+                                                    onChange={(e) => setPointsToConvert(parseInt(e.target.value) || 0)}
+                                                    max={selectedCustomer.internal_points_local}
+                                                />
+                                            </div>
+                                            <Button
+                                                variant="success"
+                                                size="small"
+                                                onClick={async () => {
+                                                    if (pointsToConvert <= 0 || pointsToConvert > selectedCustomer.internal_points_local) {
+                                                        showNotification("Cantidad inválida", "warning");
+                                                        return;
+                                                    }
+                                                    setConverting(true);
+                                                    try {
+                                                        await marketingService.convertPoints({
+                                                            user_id: selectedCustomer.linked_user_id,
+                                                            points_to_convert: pointsToConvert
+                                                        });
+                                                        showNotification("Puntos convertidos con éxito", "success");
+                                                        setPointsToConvert(0);
+                                                        await fetchCustomers();
+                                                        setIsModalOpen(false);
+                                                    } catch (error) {
+                                                        showNotification("Error al convertir puntos", "error");
+                                                    } finally {
+                                                        setConverting(false);
+                                                    }
+                                                }}
+                                                loading={converting}
+                                            >
+                                                Convertir
+                                            </Button>
+                                        </div>
+                                        <p style={{ color: '#64748b', fontSize: '0.7rem', marginTop: '0.5rem' }}>
+                                            * Esta acción es irreversible. Se aplicará la tasa de conversión definida en Marketing.
+                                        </p>
+                                    </div>
+                                )}
 
                                 {selectedCustomer.branches && selectedCustomer.branches.length > 0 && (
                                     <div style={{ marginTop: '1.5rem' }}>

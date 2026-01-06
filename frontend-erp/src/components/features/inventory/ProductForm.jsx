@@ -496,10 +496,7 @@ const ProductForm = ({
                                                         label={attr.label}
                                                         value={formData.custom_attributes?.[attr.key] || ''}
                                                         onChange={(e) => handleAttributeChange(attr.key, e.target.value)}
-                                                        options={[
-                                                            { value: '', label: 'Seleccionar...' },
-                                                            ...(attr.options || []).map(opt => ({ value: opt, label: opt }))
-                                                        ]}
+                                                        options={(attr.options || []).map(opt => ({ value: opt, label: opt }))}
                                                     />
                                                 ) : attr.type === 'boolean' ? (
                                                     <Select
