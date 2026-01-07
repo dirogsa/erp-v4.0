@@ -10,6 +10,7 @@ import LoyaltyManagement from '../components/features/inventory/LoyaltyManagemen
 import Pagination from '../components/common/Table/Pagination';
 import { useProducts } from '../hooks/useProducts';
 import { categoryService } from '../services/api';
+import ProductDetailsView from '../components/features/inventory/ProductDetailsView';
 
 const Inventory = ({ forcedType = null }) => {
     const defaultTab = forcedType === 'MARKETING' ? 'marketing' : 'products';
@@ -221,22 +222,47 @@ const Inventory = ({ forcedType = null }) => {
             {showProductModal && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000,
-                    display: 'flex', justifyContent: 'center', alignItems: 'center'
+                    backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1000,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center',
+                    backdropFilter: 'blur(5px)'
                 }}>
-                    <div style={{ backgroundColor: '#0f172a', borderRadius: '0.5rem', width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
-                        <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h2 style={{ color: 'white', margin: 0 }}>{selectedProduct ? 'Editar Producto' : 'Nuevo Producto'}</h2>
-                            <button onClick={() => setShowProductModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
-                        </div>
-                        <ProductForm
-                            initialData={selectedProduct || { type: forcedType || (activeTab === 'marketing' ? 'MARKETING' : 'COMMERCIAL') }}
-                            onSubmit={selectedProduct ? handleUpdate : handleCreate}
-                            onCancel={() => setShowProductModal(false)}
-                            loading={loading}
-                            isViewMode={isViewMode}
-                            fixedType={forcedType || (activeTab === 'products' ? 'COMMERCIAL' : 'MARKETING')}
-                        />
+                    <div style={{
+                        backgroundColor: '#0f172a',
+                        borderRadius: '1rem',
+                        width: '100%',
+                        maxWidth: isViewMode ? '900px' : '800px', // Wider for view mode
+                        height: isViewMode ? '85vh' : 'auto',
+                        maxHeight: '95vh',
+                        overflow: 'hidden', // Let children handle scroll
+                        overflowY: isViewMode ? 'hidden' : 'auto',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                        border: '1px solid #334155'
+                    }}>
+                        {isViewMode && selectedProduct ? (
+                            <ProductDetailsView
+                                product={selectedProduct}
+                                onClose={() => setShowProductModal(false)}
+                            />
+                        ) : (
+                            <>
+                                <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h2 style={{ color: 'white', margin: 0 }}>
+                                        {selectedProduct ? 'Editar Producto' : 'Nuevo Producto'}
+                                    </h2>
+                                    <button onClick={() => setShowProductModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+                                </div>
+                                <div style={{ overflowY: 'auto', maxHeight: 'calc(95vh - 80px)' }}>
+                                    <ProductForm
+                                        initialData={selectedProduct || { type: forcedType || (activeTab === 'marketing' ? 'MARKETING' : 'COMMERCIAL') }}
+                                        onSubmit={selectedProduct ? handleUpdate : handleCreate}
+                                        onCancel={() => setShowProductModal(false)}
+                                        loading={loading}
+                                        isViewMode={isViewMode}
+                                        fixedType={forcedType || (activeTab === 'products' ? 'COMMERCIAL' : 'MARKETING')}
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}

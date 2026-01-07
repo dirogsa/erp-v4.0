@@ -56,9 +56,9 @@ export const formatDateTime = (date) => {
 };
 
 // Formateo de moneda
-export const formatCurrency = (amount) => {
-    if (amount === null || amount === undefined) return 'S/ 0.00';
-    return `S/ ${parseFloat(amount).toFixed(2)}`;
+export const formatCurrency = (amount, symbol = 'S/') => {
+    if (amount === null || amount === undefined) return `${symbol} 0.00`;
+    return `${symbol} ${parseFloat(amount).toFixed(2)}`;
 };
 
 // Formateo de números

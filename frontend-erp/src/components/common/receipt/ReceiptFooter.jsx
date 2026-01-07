@@ -7,7 +7,8 @@ const ReceiptFooter = ({
     payments = [],
     notes,
     showPaymentDetails = false,
-    paymentTerms = null
+    paymentTerms = null,
+    currencySymbol = 'S/'
 }) => {
     const pendingAmount = totalAmount - amountPaid;
 
@@ -22,11 +23,11 @@ const ReceiptFooter = ({
             <div className="receipt-totals">
                 <div className="receipt-total-row">
                     <span className="receipt-total-label">Subtotal (sin IGV):</span>
-                    <span className="receipt-total-value">{formatCurrency(subtotal)}</span>
+                    <span className="receipt-total-value">{formatCurrency(subtotal, currencySymbol)}</span>
                 </div>
                 <div className="receipt-total-row">
                     <span className="receipt-total-label">IGV (18%):</span>
-                    <span className="receipt-total-value">{formatCurrency(igv)}</span>
+                    <span className="receipt-total-value">{formatCurrency(igv, currencySymbol)}</span>
                 </div>
                 <div className="receipt-total-row grand-total" style={{
                     borderTop: '2px solid #333',
@@ -36,20 +37,20 @@ const ReceiptFooter = ({
                     fontSize: '14px'
                 }}>
                     <span className="receipt-total-label">TOTAL:</span>
-                    <span className="receipt-total-value">{formatCurrency(totalAmount)}</span>
+                    <span className="receipt-total-value">{formatCurrency(totalAmount, currencySymbol)}</span>
                 </div>
 
                 {showPaymentDetails && (
                     <>
                         <div className="receipt-total-row" style={{ marginTop: '10px' }}>
                             <span className="receipt-total-label">Pagado:</span>
-                            <span className="receipt-total-value">{formatCurrency(amountPaid)}</span>
+                            <span className="receipt-total-value">{formatCurrency(amountPaid, currencySymbol)}</span>
                         </div>
                         <div className="receipt-total-row" style={{ color: pendingAmount > 0 ? '#dc2626' : '#059669' }}>
                             <span className="receipt-total-label">
                                 {pendingAmount > 0 ? 'Pendiente:' : 'Cancelado'}
                             </span>
-                            <span className="receipt-total-value">{formatCurrency(Math.abs(pendingAmount))}</span>
+                            <span className="receipt-total-value">{formatCurrency(Math.abs(pendingAmount), currencySymbol)}</span>
                         </div>
                     </>
                 )}
@@ -72,7 +73,7 @@ const ReceiptFooter = ({
                                 <tr key={index}>
                                     <td>{formatDate(payment.date)}</td>
                                     <td>{payment.notes || '-'}</td>
-                                    <td className="text-right">{formatCurrency(payment.amount)}</td>
+                                    <td className="text-right">{formatCurrency(payment.amount, currencySymbol)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -97,7 +98,7 @@ const ReceiptFooter = ({
                                 <tr key={index}>
                                     <td>#{inst.number || index + 1}</td>
                                     <td>{formatDate(inst.date)}</td>
-                                    <td className="text-right">{formatCurrency(inst.amount)}</td>
+                                    <td className="text-right">{formatCurrency(inst.amount, currencySymbol)}</td>
                                 </tr>
                             ))}
                         </tbody>

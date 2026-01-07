@@ -4,7 +4,8 @@ import { formatCurrency } from '../../../utils/formatters';
 const ReceiptBody = ({
     partyInfo,
     items = [],
-    partyType = "Cliente" // "Cliente" or "Proveedor"
+    partyType = "Cliente", // "Cliente" or "Proveedor"
+    currencySymbol = 'S/'
 }) => {
     return (
         <div className="receipt-body">
@@ -28,8 +29,8 @@ const ReceiptBody = ({
                                 )}
                             </td>
                             <td className="text-center">{item.quantity}</td>
-                            <td className="text-right">{formatCurrency(item.unit_price)}</td>
-                            <td className="text-right">{formatCurrency(item.subtotal)}</td>
+                            <td className="text-right">{formatCurrency(item.unit_price, currencySymbol)}</td>
+                            <td className="text-right">{formatCurrency(item.subtotal, currencySymbol)}</td>
                         </tr>
                     ))}
                 </tbody>

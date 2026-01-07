@@ -645,8 +645,11 @@
     }
 
     .watermark-text {
-        font-size: 70px !important;
-        opacity: 0.1 !important;
-        color: rgba(0, 0, 0, 0.05) !important;
+        font-size: 90px !important;
+        opacity: 1 !important;
+        color: #f3f4f6 !important;
+        text-shadow: none !important;
+        position: absolute !important;
+        z-index: 0 !important;
     }
 }

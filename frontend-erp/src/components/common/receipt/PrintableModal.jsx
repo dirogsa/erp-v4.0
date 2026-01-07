@@ -9,7 +9,16 @@ const PrintableModal = ({
     children,
     title = "Recibo"
 }) => {
-    const [printFormat, setPrintFormat] = useState('A4_DUAL'); // 'A4_DUAL' or 'A5_SINGLE'
+    const [printFormat, setPrintFormat] = useState('A5_SINGLE'); // 'A4_DUAL' or 'A5_SINGLE'
+    const [isCargo, setIsCargo] = useState(false);
+
+    // UI State for inputs
+    const [targetCurrency, setTargetCurrency] = useState('PEN');
+    const [inputRate, setInputRate] = useState('3.75');
+
+    // Applied State (passed to children)
+    const [appliedConversion, setAppliedConversion] = useState({ currency: 'PEN', rate: 1 });
+
     const receiptRef = useRef(null);
 
     const handlePrint = useReactToPrint({
@@ -82,22 +91,6 @@ const PrintableModal = ({
                             border: '1px solid #334155'
                         }}>
                             <button
-                                onClick={() => setPrintFormat('A4_DUAL')}
-                                style={{
-                                    padding: '5px 15px',
-                                    borderRadius: '17px',
-                                    border: 'none',
-                                    fontSize: '0.75rem',
-                                    fontWeight: '600',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s',
-                                    backgroundColor: printFormat === 'A4_DUAL' ? '#3b82f6' : 'transparent',
-                                    color: printFormat === 'A4_DUAL' ? 'white' : '#94a3b8'
-                                }}
-                            >
-                                A4 (2 Copias)
-                            </button>
-                            <button
                                 onClick={() => setPrintFormat('A5_SINGLE')}
                                 style={{
                                     padding: '5px 15px',
@@ -113,6 +106,113 @@ const PrintableModal = ({
                             >
                                 A5 (1 Copia)
                             </button>
+                            <button
+                                onClick={() => setPrintFormat('A4_DUAL')}
+                                style={{
+                                    padding: '5px 15px',
+                                    borderRadius: '17px',
+                                    border: 'none',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    backgroundColor: printFormat === 'A4_DUAL' ? '#3b82f6' : 'transparent',
+                                    color: printFormat === 'A4_DUAL' ? 'white' : '#94a3b8'
+                                }}
+                            >
+                                A4 (2 Copias)
+                            </button>
+                        </div>
+
+                        {/* Checkbox 'Es Cargo' solo para A5 */}
+                        {printFormat === 'A5_SINGLE' && (
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', color: '#cbd5e1', fontSize: '0.8rem' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={isCargo}
+                                    onChange={(e) => setIsCargo(e.target.checked)}
+                                    style={{ cursor: 'pointer' }}
+                                />
+                                Es Cargo
+                            </label>
+                        )}
+
+                        {/* Currency Selector & Exchange Rate */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            backgroundColor: '#1e293b',
+                            padding: '3px 10px',
+                            borderRadius: '20px',
+                            border: '1px solid #334155'
+                        }}>
+                            <select
+                                value={targetCurrency}
+                                onChange={(e) => {
+                                    setTargetCurrency(e.target.value);
+                                    // Si cambia a PEN, aplicamos inmediato. Si es USD, espera confirmación.
+                                    if (e.target.value === 'PEN') {
+                                        setAppliedConversion({ currency: 'PEN', rate: 1 });
+                                    }
+                                }}
+                                style={{
+                                    backgroundColor: 'transparent',
+                                    color: 'white',
+                                    border: 'none',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    outline: 'none'
+                                }}
+                            >
+                                <option value="PEN" style={{ color: 'black' }}>S/ Soles</option>
+                                <option value="USD" style={{ color: 'black' }}>$ Dólares</option>
+                            </select>
+
+                            {targetCurrency === 'USD' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>T.C.</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        value={inputRate}
+                                        onChange={(e) => setInputRate(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                setAppliedConversion({ currency: 'USD', rate: parseFloat(inputRate) });
+                                            }
+                                        }}
+                                        style={{
+                                            width: '60px',
+                                            padding: '2px 5px',
+                                            borderRadius: '4px',
+                                            border: '1px solid #475569',
+                                            backgroundColor: '#0f172a',
+                                            color: 'white',
+                                            fontSize: '0.85rem',
+                                            textAlign: 'right'
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => setAppliedConversion({ currency: 'USD', rate: parseFloat(inputRate) })}
+                                        title="Aplicar cambio"
+                                        style={{
+                                            backgroundColor: '#10b981',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            color: 'white',
+                                            cursor: 'pointer',
+                                            padding: '2px 6px',
+                                            fontSize: '0.75rem',
+                                            display: 'flex',
+                                            alignItems: 'center'
+                                        }}
+                                    >
+                                        ✓
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <Button onClick={handlePrint} variant="success">
@@ -145,7 +245,12 @@ const PrintableModal = ({
                     <div ref={receiptRef}>
                         {React.Children.map(children, child => {
                             if (React.isValidElement(child)) {
-                                return React.cloneElement(child, { format: printFormat });
+                                return React.cloneElement(child, {
+                                    format: printFormat,
+                                    isCargo, // Pass cargo state down
+                                    targetCurrency: appliedConversion.currency,
+                                    exchangeRate: appliedConversion.rate
+                                });
                             }
                             return child;
                         })}
