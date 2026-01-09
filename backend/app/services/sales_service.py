@@ -142,15 +142,30 @@ async def create_order(order: SalesOrder) -> SalesOrder:
     total_points_gained = 0
     if loyalty_config.is_active:
         for item in order.items:
+            # If points are already snapshotted (e.g. from Quote), use them
+            if item.loyalty_points is not None and item.loyalty_points > 0:
+                total_points_gained += item.loyalty_points * item.quantity
+                continue
+            
+            # Otherwise allow 0 if explicitly set?
+            # If it is 0, it might mean "no points".
+            if item.loyalty_points is not None and item.loyalty_points == 0:
+                 continue
+
+            # If not set (None/null), calculate it
             product = fetched_products.get(item.product_sku)
             if not product:
                 product = await Product.find_one(Product.sku == item.product_sku)
                 
             if product:
+                points = 0
                 if product.loyalty_points > 0:
-                    total_points_gained += product.loyalty_points * item.quantity
-                else:
-                    total_points_gained += int(item.unit_price * item.quantity * loyalty_config.points_per_sole)
+                    points = product.loyalty_points
+                elif loyalty_config.points_per_sole > 0:
+                    points = int(item.unit_price * loyalty_config.points_per_sole)
+                
+                item.loyalty_points = points
+                total_points_gained += points * item.quantity
     
     order.loyalty_points_granted = total_points_gained
     
@@ -217,12 +232,14 @@ async def convert_backorder(order_number: str) -> Dict[str, Any]:
             available_items.append(OrderItem(
                 product_sku=item.product_sku,
                 quantity=product.stock_current,
-                unit_price=item.unit_price
+                unit_price=item.unit_price,
+                loyalty_points=item.loyalty_points
             ))
             pending_items.append(OrderItem(
                 product_sku=item.product_sku,
                 quantity=item.quantity - product.stock_current,
-                unit_price=item.unit_price
+                unit_price=item.unit_price,
+                loyalty_points=item.loyalty_points
             ))
         else:
             # No stock available

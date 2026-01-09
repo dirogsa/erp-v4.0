@@ -3,6 +3,8 @@ from datetime import datetime
 from beanie import PydanticObjectId
 from app.models.sales import SalesQuote, QuoteStatus, SalesOrder, OrderStatus, OrderItem
 from app.services import sales_service, inventory_service
+from app.models.inventory import Product
+from app.models.marketing import LoyaltyConfig
 from app.exceptions.business_exceptions import NotFoundException, ValidationException
 from app.schemas.common import PaginatedResponse
 
@@ -77,6 +79,25 @@ async def create_quote(quote: SalesQuote) -> SalesQuote:
     quote.quote_number = f"{prefix}-{new_num:04d}"
     quote.total_amount = round(sum(item.quantity * item.unit_price for item in quote.items), 3)
     quote.status = QuoteStatus.DRAFT
+
+    # Snapshot loyalty points
+    loyalty_config = await LoyaltyConfig.find_one({})
+    if not loyalty_config:
+        loyalty_config = LoyaltyConfig()
+
+    for item in quote.items:
+        # Check if points are already set (e.g. from frontend)? usually strictly backend.
+        # We re-fetch product to be sure of current value at creation time.
+        try:
+            product = await inventory_service.get_product_by_sku(item.product_sku)
+            if product.loyalty_points > 0:
+                item.loyalty_points = product.loyalty_points
+            elif loyalty_config.is_active and loyalty_config.points_per_sole > 0:
+                item.loyalty_points = int(item.unit_price * loyalty_config.points_per_sole)
+            else:
+                item.loyalty_points = 0
+        except Exception:
+             item.loyalty_points = 0
     
     await quote.insert()
     return quote
@@ -94,6 +115,27 @@ async def update_quote(quote_number: str, quote_data: SalesQuote) -> SalesQuote:
     quote.delivery_address = quote_data.delivery_address
     quote.notes = quote_data.notes
     quote.total_amount = round(sum(item.quantity * item.unit_price for item in quote_data.items), 3)
+
+    # Recalculate/Ensure points for updated items
+    loyalty_config = await LoyaltyConfig.find_one({})
+    if not loyalty_config:
+        loyalty_config = LoyaltyConfig()
+
+    for item in quote.items:
+        # If points are missing (new item) or we want to refresh draft:
+        # For simplicity and consistency in Drafts, we might refresh all, or only 0s.
+        # Let's refresh if 0/None to ensure data integrity.
+        if not item.loyalty_points: 
+            try:
+                product = await inventory_service.get_product_by_sku(item.product_sku)
+                if product.loyalty_points > 0:
+                    item.loyalty_points = product.loyalty_points
+                elif loyalty_config.is_active and loyalty_config.points_per_sole > 0:
+                    item.loyalty_points = int(item.unit_price * loyalty_config.points_per_sole)
+                else:
+                    item.loyalty_points = 0
+            except Exception:
+                item.loyalty_points = 0
     
     await quote.save()
     return quote
@@ -128,6 +170,9 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
         for item in quote.items
     ]
     
+    # Map sku -> points from quote items to preserve snapshot
+    sku_points_map = {item.product_sku: item.loyalty_points for item in quote.items}
+
     stock_check = await inventory_service.check_stock_availability(check_items)
     
     if preview:
@@ -145,7 +190,8 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             OrderItem(
                 product_sku=i["product_sku"],
                 quantity=i["quantity"],
-                unit_price=i["unit_price"]
+                unit_price=i["unit_price"],
+                loyalty_points=sku_points_map.get(i["product_sku"], 0)
             ) for i in stock_check["available_items"]
         ]
         
@@ -172,7 +218,8 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             OrderItem(
                 product_sku=i["product_sku"],
                 quantity=i["missing_quantity"], # Create order for the MISSING amount
-                unit_price=i["unit_price"]
+                unit_price=i["unit_price"],
+                loyalty_points=sku_points_map.get(i["product_sku"], 0)
             ) for i in stock_check["missing_items"]
         ]
         

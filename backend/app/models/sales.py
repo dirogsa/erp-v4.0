@@ -44,6 +44,7 @@ class OrderItem(BaseModel):
     product_name: Optional[str] = None
     quantity: int
     unit_price: float
+    loyalty_points: Optional[int] = None # Snapshot of points per unit. None = Legacy/Calc needed.
 
 
     @field_validator('unit_price')
