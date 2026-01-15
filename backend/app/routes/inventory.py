@@ -1,16 +1,15 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from pydantic import BaseModel
 from app.models.inventory import Product, Warehouse, MovementType
+from app.models.auth import User, UserRole
 from app.services import inventory_service
 from app.schemas.inventory_schemas import LossRegistration, TransferRequest
-import csv
-import io
+from app.schemas.common import PaginatedResponse
+from .auth import get_current_user, check_role
 
 router = APIRouter(prefix="/inventory", tags=["Inventory"])
-
-from app.schemas.common import PaginatedResponse
 
 @router.get("/products", response_model=PaginatedResponse[Product])
 async def get_products(
@@ -29,16 +28,28 @@ async def generate_marketing_sku():
     return {"sku": sku}
 
 @router.post("/products", response_model=Product)
-async def create_product(product: Product, initial_stock: int = 0):
-    return await inventory_service.create_product(product, initial_stock)
+async def create_product(
+    product: Product, 
+    initial_stock: int = 0,
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    return await inventory_service.create_product(product, initial_stock, user=current_user)
 
 @router.put("/products/{sku}", response_model=Product)
-async def update_product(sku: str, product_data: Product, new_stock: int = None):
-    return await inventory_service.update_product(sku, product_data, new_stock)
+async def update_product(
+    sku: str, 
+    product_data: Product, 
+    new_stock: int = None,
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    return await inventory_service.update_product(sku, product_data, new_stock, user=current_user)
 
 @router.delete("/products/{sku}")
-async def delete_product(sku: str):
-    await inventory_service.delete_product(sku)
+async def delete_product(
+    sku: str,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    await inventory_service.delete_product(sku, user=current_user)
     return {"message": "Product deleted successfully"}
 
 @router.get("/warehouses", response_model=List[Warehouse])

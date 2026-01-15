@@ -1,83 +1,69 @@
 # Plan de Optimización y Evolución: ERP Antigravity v4.0
 
-Este plan detalla la hoja de ruta para transformar el sistema actual en un ERP robusto dividido por áreas funcionales, preparado para Control de Acceso Basado en Roles (RBAC).
+Este documento detalla la estrategia de arquitectura para la implementación de un **Motor de Precios Avanzado** y un **Módulo de Control de Riesgos**, asegurando la omnicanalidad entre el ERP y la Shop Online.
 
 ---
 
-## 1. Análisis del Estado Actual
-El sistema cuenta con cimientos sólidos en **Ventas, Compras e Inventario**. Sin embargo, las funciones están mezcladas en menús generales y los modelos de datos aún no reflejan la autonomía total de cada área.
+## 1. Centro de Control de Políticas Comerciales (Editable)
+Como arquitecto, mi recomendación es centralizar estas variables en una nueva sección del ERP llamada **"Configuración de Ventas"** o **"Políticas Comerciales"**.
+
+### ⚙️ Interfaz de Configuración de Recargos
+Implementaremos una tabla maestra donde el SuperAdmin podrá definir y editar:
+*   **Contado:** 0% (Fijo).
+*   **Crédito 30 días:** Editable (ej: 3.00%).
+*   **Crédito 60 días:** Editable (ej: 5.00%).
+*   **Crédito 90 días:** Editable (ej: 8.00%).
+*   **Crédito 180 días:** Editable (ej: 15.00%).
+
+> **Impacto:** Cualquier cambio en esta tabla se propagará inmediatamente a todo el sistema (ERP Local y Shop Web), recalculando precios dinámicamente sin tocar código.
 
 ---
 
-## 2. Propuesta de Arquitectura por Áreas
+## 2. Omnicanalidad B2B: Sincronización con Frontend-Shop
+La tienda online debe ser un reflejo exacto de las capacidades financieras del cliente definidas en el ERP.
 
-### 🟦 Área A: Comercial y Ventas (Front-Office)
-*Responsable: Ejecutores de ventas / Vendedores.*
-- **Objetivo:** Captación de clientes y negociación.
-- **Funciones clave:**
-    - Gestión de Cotizaciones (Quotes).
-    - Seguimiento de estados comercial (Draft, Sent, Rejected).
-    - Catálogo de productos con precios mayoristas/minoristas.
-- **Mejora necesaria:** Dashboard de metas de ventas y trazabilidad de por qué se pierden cotizaciones.
-
-### 🟩 Área B: Operaciones y Logística (Back-Office)
-*Responsable: Jefe de Almacén / Despachadores.*
-- **Objetivo:** Cumplimiento de pedidos y control de stock.
-- **Funciones clave:**
-    - Órdenes de Venta (Sales Orders) - El "corazón" operativo.
-    - Guías de Remisión (Dispatch Guides).
-    - Control de Pesos (incorporado recientemente).
-    - Gestión de Backorders (Pedidos pendientes de stock).
-- **Mejora necesaria:** Inventario por almacenes físicos (actualmente es un stock global). Separar la "Recepción de Mercadería" (Compras) del "Despacho" (Ventas).
-
-### 🟧 Área C: Finanzas y Tesorería
-*Responsable: Contador / Administrador Financiero.*
-- **Objetivo:** Flujo de caja y legalidad fiscal.
-- **Funciones clave:**
-    - Facturación Electrónica (Invoices) y Notas de Crédito/Débito.
-    - Registro de Pagos y Abonos.
-- **Mejora necesaria:** 
-    - Crear el concepto de **"Caja Chica"** o **"Cuentas Bancarias"**. Actualmente los pagos son solo marcas en la factura; no hay un destino del dinero.
-    - Reporte de Cuentas por Cobrar (Aging report).
-
-### 🟪 Área D: Compras y Abastecimiento
-*Responsable: Comprador / Logística de entrada.*
-- **Objetivo:** Reposición de inventario al mejor costo.
-- **Funciones clave:**
-    - Órdenes de Compra y Facturas de Proveedor.
-- **Mejora necesaria:** Implementar la lógica de **Facturación Parcial en Compras** (igual a la que hicimos en ventas) para manejar casos donde el proveedor envía la mercadería en partes.
+### � Validación Cruzada (ERP → SHOP)
+Al momento de que un cliente se loguee en `frontend-shop`:
+1.  **Regla de Visibilidad:** El sistema consultará el `CreditProfile` del cliente en la base de datos central.
+2.  **Filtrado de Opciones:** 
+    *   Si el cliente tiene `status_credit: FALSE`, la pasarela de pagos web **OCULTARÁ completamente** la opción "Pago a Crédito". Solo podrá finalizar la compra mediante métodos de contado (Transferencia, Tarjeta, etc.).
+    *   Si tiene `status_credit: TRUE`, solo aparecerán en el selector los plazos (`allowed_terms`) que el administrador le haya habilitado en su ficha de cliente.
+3.  **Precios Personalizados:** Los precios mostrados en la Shop se ajustarán automáticamente aplicando el recargo correspondiente al plazo seleccionado por el cliente.
 
 ---
 
-## 3. Plan de Acción Técnico (Optimization Roadmap)
+## 3. Arquitectura de Control de Riesgos
+El flujo de crédito no es una opción abierta, sino un privilegio otorgado.
 
-### Fase 1: Refactorización de Datos (Backend Senior)
-1.  **Unificación de Trazabilidad:** Llevar el modelo de `invoiced_quantity` a Compras para permitir recepciones parciales.
-2.  **Entidad "Transacción Financiera":** Crear un modelo que registre movimientos de dinero (Ingreso/Egreso) vinculado a facturas pero independiente de ellas.
-
-### Fase 2: Interfaz Basada en Contexto (Frontend UX)
-1.  **Diferenciación Visual:** Usar esquemas de color sutiles por área (Ej: Cabeceras azules para Ventas, verdes para Almacén).
-2.  **Menú Inteligente (Post-RBAC):** Preparar el `Sidebar` para colapsar secciones enteras según el rol.
-3.  **Dashboards Específicos:** 
-    - El Vendedor ve: *Mis ventas del mes, Mis cotizaciones vencidas*.
-    - El Almacenero ve: *Pedidos por despachar hoy, Productos con stock mínimo*.
-    - El Administrador ve: *Flujo de caja total, Utilidad bruta*.
-
-### Fase 3: Seguridad y Roles
-1.  **Middleware de Permisos:** Implementar lógica para que un Vendedor NO pueda borrar una Factura ni ver los costos de compra (margen de utilidad).
-2.  **Logs de Auditoría:** Registrar quién cambió un precio o quién anuló una nota de crédito.
+### 🟦 Perfil Crediticio del Cliente (Ficha ERP)
+Campos clave a implementar en la ficha de cada cliente registrada desde el ERP:
+*   **status_credit:** (BOOL) Activo/Inactivo.
+*   **allowed_terms:** (ARRAY) Lista de plazos permitidos (ej: `[30, 60]`).
+*   **credit_limit:** (DECIMAL) Monto máximo de deuda permitido (Suma de facturas pendientes + pedido actual).
+*   **risk_score:** Clasificación interna (A, B, C).
 
 ---
 
-## 4. Diferencias Notables por Responsable (Simulación)
+## 4. Mejoras "Senior" Sugeridas (Plus de Calidad)
 
-| Rol | Vista Principal | Acceso a Precios | Capacidad de Anulación |
-| :--- | :--- | :--- | :--- |
-| **Vendedor** | Cotizaciones y Catálogo | Solo Venta (Retail/Wholesale) | Solo Cotizaciones Propias |
-| **Almacenero** | Guías de Despacho y Stock | No ve precios | No puede anular nada |
-| **Contador** | Invoices y Notas de Crédito | Ve Costo y Venta | Full Facturación |
-| **SuperAdmin** | Dashboard Analítico Total | Full | Full |
+Aparte de lo solicitado, como arquitecto sugiero estas 3 mejoras para convertir el sistema en una herramienta de nivel profesional:
+
+### A. Control de Deuda Vencida (Hard Stop)
+*   **Lógica:** Si un cliente tiene una sola factura vencida (ej. con más de 5 días de retraso), el sistema debe bloquear **automáticamente** tanto en el ERP como en la Shop la capacidad de realizar nuevos pedidos a crédito, obligándolo a pagar su deuda o comprar al contado.
+
+### B. Notificaciones de Crédito (Alert Automation)
+*   **Lógica:** Cuando un cliente está por alcanzar el 90% de su `credit_limit`, el sistema envía un correo/alerta al vendedor para que gestione cobranzas proactivamente antes de que el cliente intente comprar en la Shop y se encuentre con un bloqueo.
+
+### C. Workflow de Aprobación de Riesgos
+*   **Lógica:** Permitir adjuntar documentos (reportes de Infocorp, estados financieros) en la ficha del cliente. Cuando un vendedor quiere habilitar crédito a un cliente nuevo, envía una "Solicitud de Crédito" interna que el Gerente de Finanzas aprueba con un solo clic desde su Dashboard.
 
 ---
 
-> **Nota Final:** El sistema ha evolucionado de un simple registro a un flujo operativo real. La separación por áreas evitará errores humanos y permitirá que el personal de almacén no se distraiga con temas contables, y viceversa.
+## 5. UI/UX: Grilla de Precios Masiva
+Estandarizar la carga de precios en el ERP usando el mismo motor de búsqueda de las cotizaciones:
+*   **Fast Entry:** Input que permite añadir productos sumando filas rápidamente.
+*   **Vista Previa Multivariable:** Una tabla que muestra simultáneamente: `Precio Base | Precio 30d | Precio 60d | ... | Margen de Utilidad`.
+
+---
+
+> **Visión Final:** Un ecosistema donde el **SuperAdmin** dicta las reglas (porcentajes de recargo), el **ERP** las ejecuta con rigor financiero y la **Shop** se adapta inteligentemente al perfil de cada cliente, eliminando riesgos de incobrables.

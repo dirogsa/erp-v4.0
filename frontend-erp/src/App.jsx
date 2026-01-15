@@ -28,6 +28,7 @@ import B2BManagement from './pages/B2BManagement';
 import BrandManagement from './pages/BrandManagement';
 import PricingManagement from './pages/PricingManagement';
 import Marketing from './pages/Marketing';
+import Audit from './pages/Audit';
 
 
 
@@ -84,6 +85,7 @@ function App() {
                         <Route path="/b2b" element={<B2BManagement />} />
                         <Route path="/pricing" element={<PricingManagement />} />
                         <Route path="/marketing" element={<Marketing />} />
+                        <Route path="/audit" element={<Audit />} />
                       </Routes>
 
                     </Layout>

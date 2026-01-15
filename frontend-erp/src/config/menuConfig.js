@@ -4,6 +4,9 @@
 export const ROLES = {
     SUPERADMIN: 'SUPERADMIN',
     ADMIN: 'ADMIN',
+    SELLER: 'SELLER',
+    STOCK_MANAGER: 'STOCK_MANAGER',
+    ACCOUNTANT: 'ACCOUNTANT',
     STAFF: 'STAFF',
     CUSTOMER_B2B: 'CUSTOMER_B2B',
     CUSTOMER_B2C: 'CUSTOMER_B2C'
@@ -12,6 +15,8 @@ export const ROLES = {
 // Helper to check if user has access
 export const hasAccess = (userRole, allowedRoles) => {
     if (!userRole || !allowedRoles) return false;
+    // SUPERADMIN always has access
+    if (userRole === ROLES.SUPERADMIN) return true;
     return allowedRoles.includes(userRole);
 };
 
@@ -21,14 +26,14 @@ export const MENU_CONFIG = [
         label: 'Dashboard',
         icon: '📊',
         path: '/',
-        roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.STAFF, ROLES.CUSTOMER_B2B],
+        roles: [ROLES.ADMIN, ROLES.SELLER, ROLES.STOCK_MANAGER, ROLES.ACCOUNTANT, ROLES.STAFF],
         isGroup: false
     },
     {
         id: 'comercial',
         label: 'Comercial',
         icon: '💼',
-        roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.STAFF],
+        roles: [ROLES.ADMIN, ROLES.SELLER, ROLES.ACCOUNTANT, ROLES.STAFF],
         isGroup: true,
         children: [
             { id: 'sales', label: 'Ventas', path: '/sales', icon: '🛍️' },
@@ -40,7 +45,7 @@ export const MENU_CONFIG = [
         id: 'compras',
         label: 'Compras',
         icon: '🛒',
-        roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.STAFF],
+        roles: [ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.STAFF],
         isGroup: true,
         children: [
             { id: 'purchasing', label: 'Órdenes de Compra', path: '/purchasing', icon: '📋' },
@@ -51,7 +56,7 @@ export const MENU_CONFIG = [
         id: 'inventario',
         label: 'Inventario',
         icon: '📦',
-        roles: [ROLES.SUPERADMIN, ROLES.ADMIN, ROLES.STAFF],
+        roles: [ROLES.ADMIN, ROLES.STOCK_MANAGER, ROLES.STAFF],
         isGroup: true,
         children: [
             { id: 'inventory', label: 'Productos', path: '/inventory', icon: '📦' },
@@ -67,7 +72,7 @@ export const MENU_CONFIG = [
         id: 'reportes',
         label: 'Reportes',
         icon: '📈',
-        roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
+        roles: [ROLES.ADMIN, ROLES.ACCOUNTANT],
         isGroup: true,
         children: [
             { id: 'reports', label: 'Análisis', path: '/reports', icon: '📊' },
@@ -78,7 +83,7 @@ export const MENU_CONFIG = [
         id: 'admin',
         label: 'Administración',
         icon: '⚙️',
-        roles: [ROLES.SUPERADMIN, ROLES.ADMIN],
+        roles: [ROLES.ADMIN],
         isGroup: true,
         children: [
             { id: 'companies', label: 'Empresas', path: '/companies', icon: '🏢' },
@@ -86,6 +91,16 @@ export const MENU_CONFIG = [
             { id: 'pricing', label: 'Precios Especiales B2B', path: '/pricing', icon: '🏷️' },
             { id: 'marketing', label: 'Lealtad y Puntos', path: '/marketing', icon: '🎁' }
         ]
-
+    },
+    {
+        id: 'seguridad',
+        label: 'Seguridad',
+        icon: '🛡️',
+        roles: [ROLES.SUPERADMIN],
+        isGroup: true,
+        children: [
+            { id: 'audit', label: 'Auditoría', path: '/audit', icon: '🕵️' },
+            { id: 'users', label: 'Usuarios ERP', path: '/users', icon: '👤' }
+        ]
     }
 ];

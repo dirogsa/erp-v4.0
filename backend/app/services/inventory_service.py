@@ -2,6 +2,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from app.models.inventory import Product, StockMovement, MovementType, Warehouse, ProductType
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, InsufficientStockException, DuplicateEntityException
+from app.models.auth import User
+from app.services.audit_service import AuditService
 from app.services.brand_service import ensure_brands_exist
 import re
 
@@ -78,7 +80,7 @@ async def get_product_by_sku(sku: str) -> Product:
         raise NotFoundException("Product", sku)
     return product
 
-async def create_product(product_data: Product, initial_stock: int = 0) -> Product:
+async def create_product(product_data: Product, initial_stock: int = 0, user: Optional[User] = None) -> Product:
     existing = await Product.find_one(Product.sku == product_data.sku)
     if existing:
         raise DuplicateEntityException("Product", "sku", product_data.sku)
@@ -103,9 +105,19 @@ async def create_product(product_data: Product, initial_stock: int = 0) -> Produ
     if product_data.applications:
         await ensure_brands_exist([app.make for app in product_data.applications])
         
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="CREATE",
+            module="INVENTORY",
+            description=f"Se creó el producto {product_data.sku} - {product_data.name} con stock inicial {initial_stock}",
+            entity_id=str(product_data.id),
+            entity_name=product_data.sku
+        )
+
     return product_data
 
-async def update_product(sku: str, update_data: Product, new_stock: int = None) -> Product:
+async def update_product(sku: str, update_data: Product, new_stock: int = None, user: Optional[User] = None) -> Product:
     product = await get_product_by_sku(sku)
     
     # Update all editable fields from update_data
@@ -142,6 +154,16 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None) 
     
     await product.save()
     
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="UPDATE",
+            module="INVENTORY",
+            description=f"Se actualizó la información del producto {sku}",
+            entity_id=str(product.id),
+            entity_name=sku
+        )
+    
     # Auto-register/sync vehicle brands from applications
     if product.applications:
         await ensure_brands_exist([app.make for app in product.applications])
@@ -151,10 +173,20 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None) 
         
     return product
 
-async def delete_product(sku: str) -> bool:
+async def delete_product(sku: str, user: Optional[User] = None) -> bool:
     product = await Product.find_one(Product.sku == sku)
     if not product:
         raise NotFoundException("Product", sku)
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="DELETE",
+            module="INVENTORY",
+            description=f"Se eliminó permanentemente el producto {sku} - {product.name}",
+            entity_id=str(product.id),
+            entity_name=sku
+        )
+
     await product.delete()
     return True
 

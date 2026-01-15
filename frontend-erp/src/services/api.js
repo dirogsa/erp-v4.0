@@ -248,5 +248,15 @@ export const marketingService = {
   convertPoints: (data) => api.post('/marketing/loyalty/convert-points', data),
 };
 
+export const auditService = {
+  getLogs: (params) => api.get('/audit/logs', { params }),
+  deleteLogs: (log_ids) => api.delete('/audit/logs', { data: log_ids }),
+  purgeLogs: (days, module = '') => {
+    let url = `/audit/purge?days=${days}`;
+    if (module) url += `&module=${module}`;
+    return api.delete(url);
+  },
+};
+
 export default api;
 

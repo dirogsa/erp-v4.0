@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
 
-from app.routes import inventory, purchasing, sales, sales_quotes, purchase_quotes, financial, analytics, prices, delivery, companies, categories, io, auth, shop, brands, pricing, marketing
+from app.routes import inventory, purchasing, sales, sales_quotes, purchase_quotes, financial, analytics, prices, delivery, companies, categories, io, auth, shop, brands, pricing, marketing, audit
 
 
 from app.exceptions.business_exceptions import BusinessException
@@ -50,6 +50,7 @@ app.include_router(shop.router)
 app.include_router(brands.router)
 app.include_router(pricing.router)
 app.include_router(marketing.router)
+app.include_router(audit.router)
 
 
 @app.on_event("startup")

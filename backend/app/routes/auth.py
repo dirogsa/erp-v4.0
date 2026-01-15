@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import List, Optional
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -6,6 +6,7 @@ from beanie.operators import Or
 from ..models.auth import User, UserRole, B2BApplication, B2BStatus, UserTier
 from ..schemas.auth import UserCreate, UserLogin, Token, UserResponse, B2BApplicationCreate, B2BApplicationProcess, PasswordReset
 from ..services.auth_service import AuthService, SECRET_KEY, ALGORITHM
+from ..services.audit_service import AuditService
 from datetime import datetime
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -82,7 +83,7 @@ async def register(user_in: UserCreate):
     return user
 
 @router.post("/login", response_model=Token)
-async def login(form_data: UserLogin):
+async def login(form_data: UserLogin, request: Request):
     print(f"[AUTH] Login attempt for: {form_data.username or form_data.email}")
     user = None
     if form_data.username:
@@ -107,6 +108,15 @@ async def login(form_data: UserLogin):
     # Update last login
     user.last_login = datetime.utcnow()
     await user.save()
+
+    # Log login action
+    await AuditService.log_action(
+        user=user,
+        action="LOGIN",
+        module="AUTH",
+        description=f"El usuario {user.username} inició sesión exitosamente",
+        ip_address=request.client.host
+    )
     
     print(f"[AUTH] Login successful for: {user.username}")
     return {"access_token": access_token, "token_type": "bearer"}

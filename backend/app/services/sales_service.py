@@ -7,7 +7,8 @@ from app.models.auth import User
 from app.models.marketing import LoyaltyConfig
 
 
-from app.services import inventory_service
+from app.services import inventory_service, audit_service
+from app.services.audit_service import AuditService
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, DuplicateEntityException
 from app.schemas.common import PaginatedResponse
 
@@ -76,7 +77,7 @@ async def get_product_sales_history(sku: str, limit: int = 10, customer_ruc: Opt
             
     return history
 
-async def create_order(order: SalesOrder) -> SalesOrder:
+async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesOrder:
     # Generate sequential order number: OV-YY-####
     year_prefix = datetime.now().strftime('%y')
     prefix = f"OV-{year_prefix}"
@@ -200,6 +201,16 @@ async def create_order(order: SalesOrder) -> SalesOrder:
             if total_points_gained > 0 or points_spent > 0:
                 user.cumulative_sales = (user.cumulative_sales or 0) + order.total_amount
                 await user.save()
+
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="CREATE",
+            module="SALES",
+            description=f"Se creó la Orden de Venta {order.order_number} por un total de S/ {order.total_amount}",
+            entity_id=str(order.id),
+            entity_name=order.order_number
+        )
 
     return order
 
@@ -393,7 +404,8 @@ async def create_invoice(
     payment_terms: Optional[dict] = None,
     due_date: Optional[str] = None,
     issuer_info: Optional[Dict[str, Any]] = None,
-    items_to_invoice: Optional[List[Any]] = None # List of {product_sku, quantity}
+    items_to_invoice: Optional[List[Any]] = None, # List of {product_sku, quantity}
+    user: Optional[User] = None
 ) -> SalesInvoice:
     
     order = await SalesOrder.find_one(SalesOrder.order_number == order_number)
@@ -512,10 +524,20 @@ async def create_invoice(
         order.status = OrderStatus.PARTIALLY_INVOICED
         
     await order.save()
+
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="CREATE",
+            module="SALES",
+            description=f"Se emitió la Factura {invoice.sunat_number or invoice.invoice_number} vinculada a la orden {order_number} por un total de S/ {invoice.total_amount}",
+            entity_id=str(invoice.id),
+            entity_name=invoice.sunat_number or invoice.invoice_number
+        )
     
     return invoice
 
-async def delete_order(order_number: str) -> bool:
+async def delete_order(order_number: str, user: Optional[User] = None) -> bool:
     order = await SalesOrder.find_one(SalesOrder.order_number == order_number)
     if not order:
         raise NotFoundException("Order", order_number)
@@ -537,10 +559,20 @@ async def delete_order(order_number: str) -> bool:
                 quote.status = QuoteStatus.ACCEPTED
                 await quote.save()
         
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="DELETE",
+            module="SALES",
+            description=f"Se eliminó la Orden de Venta {order.order_number} que tenía un total de S/ {order.total_amount}",
+            entity_id=str(order.id),
+            entity_name=order.order_number
+        )
+        
     await order.delete()
     return True
 
-async def delete_invoice(invoice_number: str) -> bool:
+async def delete_invoice(invoice_number: str, user: Optional[User] = None) -> bool:
     invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == invoice_number)
     if not invoice:
         raise NotFoundException("Invoice", invoice_number)
@@ -567,12 +599,22 @@ async def delete_invoice(invoice_number: str) -> bool:
                 
             await order.save()
             
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="DELETE",
+            module="SALES",
+            description=f"Se eliminó la Factura {invoice.sunat_number or invoice.invoice_number} (Ref Orden: {invoice.order_number})",
+            entity_id=str(invoice.id),
+            entity_name=invoice.sunat_number or invoice.invoice_number
+        )
+
     await invoice.delete()
     return True
 
 # ==================== PAYMENTS ====================
 
-async def register_payment(invoice_number: str, amount: float, payment_date: str, notes: str = None) -> Dict[str, Any]:
+async def register_payment(invoice_number: str, amount: float, payment_date: str, notes: str = None, user: Optional[User] = None) -> Dict[str, Any]:
     invoice = await get_invoice(invoice_number)
     
     if invoice.payment_status == PaymentStatus.PAID:
@@ -596,6 +638,17 @@ async def register_payment(invoice_number: str, amount: float, payment_date: str
         invoice.payment_status = PaymentStatus.PARTIAL
     
     await invoice.save()
+
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="UPDATE",
+            module="FINANCE",
+            description=f"Se registró un pago de S/ {amount} para la factura {invoice.sunat_number or invoice.invoice_number}. Estado: {invoice.payment_status}",
+            entity_id=str(invoice.id),
+            entity_name=invoice.sunat_number or invoice.invoice_number
+        )
+
     return {"message": "Payment registered successfully", "invoice": invoice}
 
 # ==================== CUSTOMERS ====================
@@ -754,7 +807,7 @@ async def delete_customer_branch(id: PydanticObjectId, branch_index: int) -> Cus
 
 # ==================== DISPATCH ====================
 
-async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str, sunat_number: Optional[str] = None, issuer_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str, sunat_number: Optional[str] = None, issuer_info: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Dict[str, Any]:
     invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == invoice_number)
     if not invoice:
         raise NotFoundException("Invoice", invoice_number)
@@ -834,6 +887,16 @@ async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str
     invoice.dispatch_status = "DISPATCHED"
     invoice.guide_id = str(guide.id)
     await invoice.save()
+    
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="CREATE",
+            module="INVENTORY",
+            description=f"Se generó la Guía de Remisión {guide.sunat_number or guide.guide_number} para la factura {invoice_number}",
+            entity_id=str(guide.id),
+            entity_name=guide.sunat_number or guide.guide_number
+        )
     
     return {
         "message": "Dispatch guide created successfully",

@@ -8,6 +8,9 @@ from beanie import Document, Indexed
 class UserRole(str, Enum):
     SUPERADMIN = "SUPERADMIN"
     ADMIN = "ADMIN"
+    SELLER = "SELLER"              # Comercial / Ventas
+    STOCK_MANAGER = "STOCK_MANAGER"  # Almacén / Logística
+    ACCOUNTANT = "ACCOUNTANT"      # Finanzas / Contabilidad
     STAFF = "STAFF"
     CUSTOMER_B2C = "CUSTOMER_B2C"
     CUSTOMER_B2B = "CUSTOMER_B2B"
@@ -18,6 +21,21 @@ class UserTier(str, Enum):
     PLATA = "PLATA"
     ORO = "ORO"
     DIAMANTE = "DIAMANTE"
+
+class ActivityLog(Document):
+    """Registro de auditoría para acciones críticas"""
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    user_id: str           # ID del usuario que realizó la acción
+    username: str          # Cache del nombre para visualización rápida
+    action: str            # CREATE, UPDATE, DELETE, LOGIN, DOWNLOAD, etc.
+    module: str            # SALES, INVENTORY, PURCHASING, FINANCE, AUTH
+    entity_id: Optional[str] = None # ID del documento afectado (Factura ID, Producto ID)
+    entity_name: Optional[str] = None # Número de factura, SKU del producto
+    description: str       # Detalle humano: "Modificó precio de S/10 a S/8"
+    ip_address: Optional[str] = None
+    
+    class Settings:
+        name = "activity_logs"
 
 class User(Document):
     username: Optional[Indexed(str, unique=True)] = None

@@ -1,19 +1,24 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from pydantic import BaseModel
 from beanie import PydanticObjectId
 from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, CustomerBranch
+from app.models.auth import User, UserRole
 from app.services import sales_service
 from app.schemas.sales_schemas import InvoiceCreation, PaymentRegistration, DispatchRequest
 from app.schemas.common import PaginatedResponse
+from .auth import get_current_user, check_role
 
 router = APIRouter(prefix="/sales", tags=["Sales"])
 
 # ==================== ORDERS ====================
 
 @router.post("/orders", response_model=SalesOrder)
-async def create_order(order: SalesOrder):
-    return await sales_service.create_order(order)
+async def create_order(
+    order: SalesOrder,
+    current_user: User = Depends(check_role([UserRole.SELLER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    return await sales_service.create_order(order, current_user)
 
 @router.get("/orders", response_model=PaginatedResponse[SalesOrder])
 async def get_orders(
@@ -41,7 +46,10 @@ async def get_product_history(sku: str, limit: int = 10, customer_ruc: Optional[
 # ==================== INVOICES ====================
 
 @router.post("/invoices", response_model=SalesInvoice)
-async def create_invoice(invoice_data: InvoiceCreation):
+async def create_invoice(
+    invoice_data: InvoiceCreation,
+    current_user: User = Depends(check_role([UserRole.SELLER, UserRole.ACCOUNTANT, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
     return await sales_service.create_invoice(
         invoice_data.order_number,
         invoice_data.invoice_date,
@@ -53,7 +61,8 @@ async def create_invoice(invoice_data: InvoiceCreation):
         invoice_data.payment_terms,
         invoice_data.due_date,
         invoice_data.issuer_info,
-        invoice_data.items
+        invoice_data.items,
+        user=current_user
     )
 
 @router.get("/invoices", response_model=PaginatedResponse[SalesInvoice])
@@ -72,8 +81,11 @@ async def get_invoice(invoice_number: str):
     return await sales_service.get_invoice(invoice_number)
 
 @router.delete("/invoices/{invoice_number}")
-async def delete_invoice(invoice_number: str):
-    await sales_service.delete_invoice(invoice_number)
+async def delete_invoice(
+    invoice_number: str,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    await sales_service.delete_invoice(invoice_number, user=current_user)
     return {"message": "Invoice deleted successfully"}
 
 @router.delete("/orders/{order_number}")
@@ -84,12 +96,17 @@ async def delete_order(order_number: str):
 # ==================== PAYMENTS ====================
 
 @router.post("/invoices/{invoice_number}/payments")
-async def register_payment(invoice_number: str, payment_data: PaymentRegistration):
+async def register_payment(
+    invoice_number: str, 
+    payment_data: PaymentRegistration,
+    current_user: User = Depends(check_role([UserRole.ACCOUNTANT, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
     return await sales_service.register_payment(
         invoice_number,
         payment_data.amount,
         payment_data.payment_date,
-        payment_data.notes
+        payment_data.notes,
+        user=current_user
     )
 
 # ==================== CUSTOMERS ====================
@@ -136,9 +153,14 @@ async def delete_customer_branch(id: PydanticObjectId, branch_index: int):
 # ==================== DISPATCH ====================
 
 @router.post("/invoices/{invoice_number}/dispatch")
-async def create_dispatch_guide(invoice_number: str, dispatch_data: DispatchRequest):
+async def create_dispatch_guide(
+    invoice_number: str, 
+    dispatch_data: DispatchRequest,
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
     return await sales_service.create_dispatch_guide(
         invoice_number,
         dispatch_data.notes,
-        dispatch_data.created_by
+        dispatch_data.created_by,
+        user=current_user
     )
