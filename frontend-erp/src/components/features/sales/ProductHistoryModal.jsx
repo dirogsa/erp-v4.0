@@ -3,7 +3,7 @@ import { salesService } from '../../../services/api';
 import Table from '../../common/Table';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
 
-const ProductHistoryModal = ({ sku, productName, visible, onClose }) => {
+const ProductHistoryModal = ({ sku, productName, visible, onClose, customerRuc }) => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -16,7 +16,7 @@ const ProductHistoryModal = ({ sku, productName, visible, onClose }) => {
     const fetchHistory = async () => {
         setLoading(true);
         try {
-            const response = await salesService.getProductHistory(sku);
+            const response = await salesService.getProductHistory(sku, 10, customerRuc);
             setHistory(response.data);
         } catch (error) {
             console.error("Error fetching product history:", error);

@@ -71,6 +71,7 @@ export const formatNumber = (num) => {
 export const formatStatus = (status) => {
     const statusMap = {
         'PENDING': 'Pendiente',
+        'PARTIALLY_INVOICED': 'Facturada Parcial',
         'INVOICED': 'Facturada',
         'PAID': 'Pagado',
         'PARTIAL': 'Pago Parcial',

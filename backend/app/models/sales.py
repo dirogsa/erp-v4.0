@@ -6,8 +6,9 @@ from pydantic import BaseModel, field_validator
 from .auth import UserTier
 
 class OrderStatus(str, Enum):
-    PENDING = "PENDING"      # Orden creada, sin facturar
-    INVOICED = "INVOICED"    # Facturada
+    PENDING = "PENDING"          # Orden creada, sin facturar
+    PARTIALLY_INVOICED = "PARTIALLY_INVOICED" # Facturada parcialmente
+    INVOICED = "INVOICED"    # Facturada (completamente)
     CANCELLED = "CANCELLED"  # Cancelada
     BACKORDER = "BACKORDER"  # En espera de stock
     CONVERTED = "CONVERTED"  # Backorder convertido (no mostrar en UI)
@@ -44,6 +45,7 @@ class OrderItem(BaseModel):
     product_name: Optional[str] = None
     quantity: int
     unit_price: float
+    invoiced_quantity: int = 0 # Cantidad ya facturada de este item
     loyalty_points: Optional[int] = None # Snapshot of points per unit. None = Legacy/Calc needed.
 
 
@@ -162,6 +164,7 @@ class SalesInvoice(Document):
     
     amount_in_words: Optional[str] = None
     payment_terms: Optional[dict] = None
+    linked_notes: List[dict] = [] # [{note_number, type, total_amount}]
 
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None

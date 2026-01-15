@@ -14,7 +14,16 @@ const InvoicesTable = ({
     onDelete
 }) => {
     const columns = [
-        { label: 'N° Factura', key: 'invoice_number' },
+        {
+            label: 'N° Factura',
+            key: 'sunat_number',
+            render: (val, invoice) => (
+                <div>
+                    <div style={{ fontWeight: 'bold', color: 'white' }}>{invoice.sunat_number || 'Borrador'}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Int: {invoice.invoice_number}</div>
+                </div>
+            )
+        },
         { label: 'Cliente', key: 'customer_name' },
         {
             label: 'Fecha',
@@ -38,6 +47,31 @@ const InvoicesTable = ({
             key: 'dispatch_status',
             align: 'center',
             render: (val) => <Badge status={val}>{formatStatus(val)}</Badge>
+        },
+        {
+            label: 'Notas Rel.',
+            key: 'linked_notes',
+            render: (val, invoice) => (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                    {invoice.linked_notes?.map(note => (
+                        <div
+                            key={note.note_number}
+                            title={`${note.type}: ${note.note_number} - ${formatCurrency(note.total_amount)}`}
+                            style={{
+                                fontSize: '0.7rem',
+                                padding: '0.1rem 0.3rem',
+                                borderRadius: '0.2rem',
+                                color: 'white',
+                                backgroundColor: note.type === 'CREDIT' ? '#ef4444' : '#3b82f6', // Rojo para NC, Azul para ND
+                                cursor: 'help'
+                            }}
+                        >
+                            {note.type === 'CREDIT' ? 'NC' : 'ND'}
+                        </div>
+                    ))}
+                    {(!invoice.linked_notes || invoice.linked_notes.length === 0) && '-'}
+                </div>
+            )
         },
         {
             label: 'Acciones',

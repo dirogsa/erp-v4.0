@@ -154,7 +154,11 @@ export const salesService = {
   convertBackorder: (orderNumber) => api.post(`/sales/orders/${orderNumber}/convert`),
   checkBackorderAvailability: (orderNumber) => api.get(`/sales/orders/${orderNumber}/availability`),
 
-  getProductHistory: (sku) => api.get(`/sales/products/${sku}/history`),
+  getProductHistory: (sku, limit = 10, customerRuc = null) => {
+    let url = `/sales/products/${sku}/history?limit=${limit}`;
+    if (customerRuc) url += `&customer_ruc=${encodeURIComponent(customerRuc)}`;
+    return api.get(url);
+  },
 
   // Invoices
   createInvoice: (invoiceData) => api.post('/sales/invoices', invoiceData),

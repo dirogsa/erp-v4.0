@@ -35,8 +35,8 @@ async def check_order_availability(order_number: str):
     return await sales_service.check_backorder_availability(order_number)
 
 @router.get("/products/{sku}/history")
-async def get_product_history(sku: str, limit: int = 10):
-    return await sales_service.get_product_sales_history(sku, limit)
+async def get_product_history(sku: str, limit: int = 10, customer_ruc: Optional[str] = None):
+    return await sales_service.get_product_sales_history(sku, limit, customer_ruc)
 
 # ==================== INVOICES ====================
 
@@ -50,7 +50,10 @@ async def create_invoice(invoice_data: InvoiceCreation):
         invoice_data.amount_paid,
         invoice_data.payment_date,
         invoice_data.amount_in_words,
-        invoice_data.payment_terms
+        invoice_data.payment_terms,
+        invoice_data.due_date,
+        invoice_data.issuer_info,
+        invoice_data.items
     )
 
 @router.get("/invoices", response_model=PaginatedResponse[SalesInvoice])

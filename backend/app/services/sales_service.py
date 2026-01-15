@@ -50,14 +50,16 @@ async def get_orders(
         size=limit
     )
 
-async def get_product_sales_history(sku: str, limit: int = 10) -> List[Dict[str, Any]]:
+async def get_product_sales_history(sku: str, limit: int = 10, customer_ruc: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Obtiene el historial de ventas de un producto específico.
     Busca en las órdenes de venta (SalesOrder) que contengan el SKU.
     """
-    orders = await SalesOrder.find(
-        {"items.product_sku": sku}
-    ).sort("-date").limit(limit).to_list()
+    query = {"items.product_sku": sku}
+    if customer_ruc:
+        query["customer_ruc"] = customer_ruc
+
+    orders = await SalesOrder.find(query).sort("-date").limit(limit).to_list()
     
     history = []
     for order in orders:
@@ -348,6 +350,7 @@ async def get_invoices(
     if search:
         query["$or"] = [
             {"invoice_number": {"$regex": search, "$options": "i"}},
+            {"sunat_number": {"$regex": search, "$options": "i"}},
             {"customer_name": {"$regex": search, "$options": "i"}},
             {"order_number": {"$regex": search, "$options": "i"}}
         ]
@@ -363,7 +366,7 @@ async def get_invoices(
             query["invoice_date"]["$lte"] = datetime.fromisoformat(date_to)
 
     total = await SalesInvoice.find(query).count()
-    items = await SalesInvoice.find(query).sort("-invoice_date").skip(skip).limit(limit).to_list()
+    items = await SalesInvoice.find(query).sort("-sunat_number", "-invoice_date").skip(skip).limit(limit).to_list()
     
     return PaginatedResponse(
         items=items,
@@ -389,7 +392,8 @@ async def create_invoice(
     amount_in_words: Optional[str] = None,
     payment_terms: Optional[dict] = None,
     due_date: Optional[str] = None,
-    issuer_info: Optional[Dict[str, Any]] = None
+    issuer_info: Optional[Dict[str, Any]] = None,
+    items_to_invoice: Optional[List[Any]] = None # List of {product_sku, quantity}
 ) -> SalesInvoice:
     
     order = await SalesOrder.find_one(SalesOrder.order_number == order_number)
@@ -397,10 +401,62 @@ async def create_invoice(
         raise NotFoundException("Order", order_number)
     
     if order.status == OrderStatus.INVOICED:
-        raise ValidationException("Order already invoiced")
+        raise ValidationException("Order already fully invoiced")
+
+    # Determine which items and quantities to invoice
+    final_invoice_items = []
+    invoice_total = 0.0
     
-    if amount_paid > order.total_amount:
-        raise ValidationException("Amount paid cannot exceed total amount")
+    if items_to_invoice is None:
+        # Default: Invoice all pending quantities
+        for item in order.items:
+            pending_qty = item.quantity - item.invoiced_quantity
+            if pending_qty > 0:
+                # Create a copy of the item for the invoice
+                from app.models.sales import OrderItem
+                invoice_item = OrderItem(**item.model_dump())
+                invoice_item.quantity = pending_qty
+                # Reset invoiced_quantity for the invoice snapshot as it's the current quantity being invoiced
+                invoice_item.invoiced_quantity = pending_qty 
+                final_invoice_items.append(invoice_item)
+                invoice_total += pending_qty * item.unit_price
+                # Update the order's record of invoiced quantity
+                item.invoiced_quantity += pending_qty
+    else:
+        # Specific items provided
+        for entry in items_to_invoice:
+            # entry might be an InvoicedItem schema or a dict
+            sku = entry.product_sku if hasattr(entry, 'product_sku') else entry.get('product_sku')
+            qty_to_invoice = entry.quantity if hasattr(entry, 'quantity') else entry.get('quantity')
+            
+            if qty_to_invoice <= 0:
+                continue
+                
+            # Find item in order
+            target_item = next((i for i in order.items if i.product_sku == sku), None)
+            if not target_item:
+                raise ValidationException(f"Product {sku} not found in Order {order_number}")
+                
+            available_qty = target_item.quantity - target_item.invoiced_quantity
+            if qty_to_invoice > available_qty:
+                raise ValidationException(f"Cannot invoice {qty_to_invoice} of {sku}. Available: {available_qty}")
+            
+            # Create a copy for the invoice
+            from app.models.sales import OrderItem
+            invoice_item = OrderItem(**target_item.model_dump())
+            invoice_item.quantity = qty_to_invoice
+            invoice_item.invoiced_quantity = qty_to_invoice
+            final_invoice_items.append(invoice_item)
+            invoice_total += qty_to_invoice * target_item.unit_price
+            
+            # Update order record
+            target_item.invoiced_quantity += qty_to_invoice
+
+    if not final_invoice_items:
+        raise ValidationException("No items selected for invoicing or everything is already invoiced.")
+
+    if amount_paid > invoice_total:
+        raise ValidationException(f"Amount paid (S/ {amount_paid}) cannot exceed invoice total (S/ {invoice_total})")
     
     # Generate Internal ID: FV-YY-####
     year_prefix = datetime.now().strftime('%y')
@@ -408,18 +464,14 @@ async def create_invoice(
     
     last_invoice = await SalesInvoice.find({"invoice_number": {"$regex": f"^{prefix}"}}).sort("-invoice_number").limit(1).to_list()
     
+    new_num = 1
     if last_invoice and last_invoice[0].invoice_number:
         try:
             parts = last_invoice[0].invoice_number.split('-')
             if len(parts) == 3:
-                last_num = int(parts[2])
-                new_num = last_num + 1
-            else:
-                new_num = 1
+                new_num = int(parts[2]) + 1
         except (IndexError, ValueError):
-            new_num = 1
-    else:
-        new_num = 1
+            pass
         
     invoice_number = f"{prefix}-{new_num:04d}"
     
@@ -431,15 +483,15 @@ async def create_invoice(
         customer_ruc=order.customer_ruc,
         invoice_date=datetime.fromisoformat(invoice_date),
         due_date=datetime.fromisoformat(due_date) if due_date else None,
-        items=order.items,
-        total_amount=order.total_amount,
+        items=final_invoice_items,
+        total_amount=round(invoice_total, 3),
         delivery_branch_name=order.delivery_branch_name,
         delivery_address=order.delivery_address,
         payment_status=payment_status,
         amount_paid=round(amount_paid, 3),
         amount_in_words=amount_in_words,
         payment_terms=payment_terms or order.payment_terms,
-        issuer_info=issuer_info or order.issuer_info # Inherit from order if not provided
+        issuer_info=issuer_info or order.issuer_info
     )
     
     if amount_paid > 0 and payment_date:
@@ -452,7 +504,13 @@ async def create_invoice(
     
     await invoice.insert()
     
-    order.status = OrderStatus.INVOICED
+    # Update Order Status
+    is_fully_invoiced = all(i.quantity == i.invoiced_quantity for i in order.items)
+    if is_fully_invoiced:
+        order.status = OrderStatus.INVOICED
+    else:
+        order.status = OrderStatus.PARTIALLY_INVOICED
+        
     await order.save()
     
     return invoice
@@ -490,20 +548,24 @@ async def delete_invoice(invoice_number: str) -> bool:
     if invoice.dispatch_status == "DISPATCHED":
         raise ValidationException("Cannot delete dispatched invoice. Return stock first.")
 
-    # Revert order status if exists
+    # Revert order quantities if exists
     if invoice.order_number:
         order = await SalesOrder.find_one(SalesOrder.order_number == invoice.order_number)
         if order:
-            # Check if there are other active invoices for this order
-            # (In case of partial invoicing in future, though currently 1-to-1)
-            other_invoices = await SalesInvoice.find(
-                {"order_number": invoice.order_number, "invoice_number": {"$ne": invoice.invoice_number}}
-            ).count()
+            # Restore invoiced quantities
+            for inv_item in invoice.items:
+                target_item = next((i for i in order.items if i.product_sku == inv_item.product_sku), None)
+                if target_item:
+                    target_item.invoiced_quantity = max(0, target_item.invoiced_quantity - inv_item.quantity)
             
-            if other_invoices == 0:
-                print(f"Reverting Order {order.order_number} status to PENDING")
+            # Recalculate Order Status
+            any_invoiced = any(i.invoiced_quantity > 0 for i in order.items)
+            if not any_invoiced:
                 order.status = OrderStatus.PENDING
-                await order.save()
+            else:
+                order.status = OrderStatus.PARTIALLY_INVOICED
+                
+            await order.save()
             
     await invoice.delete()
     return True
@@ -736,7 +798,8 @@ async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str
             sku=item.product_sku,
             product_name=product.name,
             quantity=item.quantity,
-            unit_cost=product.cost
+            unit_cost=product.cost,
+            weight_g=getattr(product, 'weight_g', 0.0) # Capturamos el peso del producto
         ))
     
     target_text = invoice.customer_name

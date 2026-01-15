@@ -242,6 +242,7 @@ class GuideItem(BaseModel):
     product_name: str
     quantity: int
     unit_cost: float = 0.0
+    weight_g: float = 0.0 # Peso unitario en gramos
 
 class DeliveryGuide(Document):
     # Números

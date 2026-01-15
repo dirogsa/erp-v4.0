@@ -152,4 +152,17 @@ async def create_note(
     )
     
     await note.insert()
+
+    # 6. Link Note to Invoice for visibility
+    if not hasattr(invoice, 'linked_notes') or invoice.linked_notes is None:
+        invoice.linked_notes = []
+    
+    invoice.linked_notes.append({
+        "note_number": note.note_number,
+        "type": note_type,
+        "total_amount": total_amount,
+        "date": note.date.isoformat()
+    })
+    await invoice.save()
+
     return note

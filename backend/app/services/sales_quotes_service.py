@@ -111,6 +111,7 @@ async def update_quote(quote_number: str, quote_data: SalesQuote) -> SalesQuote:
     quote.customer_name = quote_data.customer_name
     quote.customer_ruc = quote_data.customer_ruc
     quote.items = quote_data.items
+    quote.date = quote_data.date # Permitir actualizar la fecha de emisión
     quote.valid_until = quote_data.valid_until
     quote.delivery_address = quote_data.delivery_address
     quote.notes = quote_data.notes

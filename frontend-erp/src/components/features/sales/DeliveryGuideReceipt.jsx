@@ -56,6 +56,7 @@ const DeliveryGuideReceipt = ({
                                 <th>SKU</th>
                                 <th>Descripción</th>
                                 <th className="text-center">Cant.</th>
+                                <th className="text-right">Peso (g)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -64,9 +65,19 @@ const DeliveryGuideReceipt = ({
                                     <td>{item.sku}</td>
                                     <td>{item.product_name}</td>
                                     <td className="text-center">{item.quantity}</td>
+                                    <td className="text-right">{(item.weight_g || 0) * item.quantity}g</td>
                                 </tr>
                             ))}
                         </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colSpan="2"></td>
+                                <td className="text-center" style={{ fontWeight: 'bold' }}>Total:</td>
+                                <td className="text-right" style={{ fontWeight: 'bold' }}>
+                                    {guide.items?.reduce((sum, item) => sum + ((item.weight_g || 0) * item.quantity), 0)}g
+                                </td>
+                            </tr>
+                        </tfoot>
                     </table>
 
                     {guide.notes && (

@@ -3,6 +3,7 @@ import CustomerSelector from './CustomerSelector';
 import ProductItemsSection from './ProductItemsSection';
 import QuoteSummary from './QuoteSummary';
 import Button from '../../common/Button';
+import Input from '../../common/Input';
 import { useNotification } from '../../../hooks/useNotification';
 import { useCompany } from '../../../context/CompanyContext';
 
@@ -26,6 +27,7 @@ const QuoteForm = ({
         items: [],
         delivery_address: '',
         delivery_branch_name: '',
+        date: new Date().toISOString().split('T')[0],
         ...initialData
     });
 
@@ -35,6 +37,7 @@ const QuoteForm = ({
             setFormData(prev => ({
                 ...prev,
                 ...initialData,
+                date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
                 customer: initialData.customer || {
                     name: initialData.customer_name || '',
                     ruc: initialData.customer_ruc || '',
@@ -101,6 +104,27 @@ const QuoteForm = ({
 
     return (
         <form onSubmit={handleSubmit}>
+            <div style={{
+                padding: '1.5rem',
+                backgroundColor: '#1e293b',
+                borderRadius: '0.5rem',
+                marginBottom: '1.5rem'
+            }}>
+                <h3 style={{ marginBottom: '1rem', color: '#e2e8f0', fontSize: '1.1rem' }}>
+                    Información General
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <Input
+                        label="Fecha de Emisión"
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        disabled={readOnly}
+                        required
+                    />
+                </div>
+            </div>
+
             <CustomerSelector
                 value={formData.customer}
                 onChange={handleCustomerChange}
@@ -112,6 +136,7 @@ const QuoteForm = ({
                 items={formData.items}
                 onItemsChange={handleItemsChange}
                 readOnly={readOnly}
+                customerRuc={formData.customer?.ruc}
             />
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>

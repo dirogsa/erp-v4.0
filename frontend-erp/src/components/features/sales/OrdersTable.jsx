@@ -58,8 +58,8 @@ const OrdersTable = ({
                         Ver
                     </Button>
 
-                    {/* Show invoice button for PENDING orders */}
-                    {order.status === 'PENDING' && onCreateInvoice && (
+                    {/* Show invoice button for PENDING or PARTIALLY_INVOICED orders */}
+                    {['PENDING', 'PARTIALLY_INVOICED'].includes(order.status) && onCreateInvoice && (
                         <>
                             <Button
                                 size="small"

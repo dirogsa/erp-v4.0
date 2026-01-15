@@ -1,72 +1,83 @@
-# Plan Maestro: Precios Dinámicos B2B y Sincronización Omnicanal (DIROGSA V4.0)
+# Plan de Optimización y Evolución: ERP Antigravity v4.0
 
-Este documento detalla la estrategia para transformar el sistema en una plataforma B2B de alto nivel, permitiendo precios personalizados por cliente y una gestión centralizada desde el ERP.
-
----
-
-## 🏗️ Fase 1: Arquitectura de Datos y Clasificación
-*Objetivo: Sentar las bases para que el sistema reconozca diferentes tipos de clientes.*
-
-- [ ] **Clasificación de Usuarios (Tiers)**:
-    - Extender el modelo de `User` para incluir el campo `classification` (Enum: `BRONCE`, `PLATA`, `ORO`, `DIAMANTE`, `STANDARD`).
-- [ ] **Modelo de Reglas de Precio (`PricingRule`)**:
-    - Crear una nueva colección/tabla para almacenar las reglas.
-    - Campos: `classification`, `category_id`, `brand`, `discount_percentage`, `fixed_price` (opcional).
+Este plan detalla la hoja de ruta para transformar el sistema actual en un ERP robusto dividido por áreas funcionales, preparado para Control de Acceso Basado en Roles (RBAC).
 
 ---
 
-## 🛠️ Fase 2: Módulo de Gestión para el Superadmin (ERP)
-*Objetivo: ¿Dónde se modifican los precios visualmente?*
-
-- [ ] **Nueva Sección: "Administración de Precios B2B"**:
-    - Ubicación: Un nuevo ítem en el menú lateral del ERP bajo el grupo de **Administración**.
-    - **Panel de Reglas**: Una interfaz donde el Superadmin pueda crear reglas globales.
-        - *Ejemplo*: Filtro de búsqueda por Marca "WIX" + Nivel "ORO" -> Definir 20% de descuento.
-- [ ] **Gestión de Socios en B2BManagement**:
-    - Al momento de aprobar una solicitud B2B, añadir un selector para definir su nivel inicial.
-    - Posibilidad de cambiar el nivel de un cliente existente con un par de clics.
+## 1. Análisis del Estado Actual
+El sistema cuenta con cimientos sólidos en **Ventas, Compras e Inventario**. Sin embargo, las funciones están mezcladas en menús generales y los modelos de datos aún no reflejan la autonomía total de cada área.
 
 ---
 
-## 📡 Fase 3: Dashboard Omnicanal y CRM (Sincronización)
-*Objetivo: Que el Admin sepa todo lo que pasa en la web al instante.*
+## 2. Propuesta de Arquitectura por Áreas
 
-- [ ] **Feed de Actividad en Tiempo Real**:
-    - Implementar un panel en el Dashboard principal del ERP que muestre:
-        - ✅ "Nuevo cliente Empresa registrado: [Nombre] - Pendiente de Clasificación".
-        - 📄 "Nueva cotización Web recibida de [Cliente ORO] por S/ X,XXX.XX".
-- [ ] **Directorio Unificado de Clientes**:
-    - Una vista que consolide clientes locales y web, permitiendo ver su historial de cotizaciones y su clasificación actual.
+### 🟦 Área A: Comercial y Ventas (Front-Office)
+*Responsable: Ejecutores de ventas / Vendedores.*
+- **Objetivo:** Captación de clientes y negociación.
+- **Funciones clave:**
+    - Gestión de Cotizaciones (Quotes).
+    - Seguimiento de estados comercial (Draft, Sent, Rejected).
+    - Catálogo de productos con precios mayoristas/minoristas.
+- **Mejora necesaria:** Dashboard de metas de ventas y trazabilidad de por qué se pierden cotizaciones.
+
+### 🟩 Área B: Operaciones y Logística (Back-Office)
+*Responsable: Jefe de Almacén / Despachadores.*
+- **Objetivo:** Cumplimiento de pedidos y control de stock.
+- **Funciones clave:**
+    - Órdenes de Venta (Sales Orders) - El "corazón" operativo.
+    - Guías de Remisión (Dispatch Guides).
+    - Control de Pesos (incorporado recientemente).
+    - Gestión de Backorders (Pedidos pendientes de stock).
+- **Mejora necesaria:** Inventario por almacenes físicos (actualmente es un stock global). Separar la "Recepción de Mercadería" (Compras) del "Despacho" (Ventas).
+
+### 🟧 Área C: Finanzas y Tesorería
+*Responsable: Contador / Administrador Financiero.*
+- **Objetivo:** Flujo de caja y legalidad fiscal.
+- **Funciones clave:**
+    - Facturación Electrónica (Invoices) y Notas de Crédito/Débito.
+    - Registro de Pagos y Abonos.
+- **Mejora necesaria:** 
+    - Crear el concepto de **"Caja Chica"** o **"Cuentas Bancarias"**. Actualmente los pagos son solo marcas en la factura; no hay un destino del dinero.
+    - Reporte de Cuentas por Cobrar (Aging report).
+
+### 🟪 Área D: Compras y Abastecimiento
+*Responsable: Comprador / Logística de entrada.*
+- **Objetivo:** Reposición de inventario al mejor costo.
+- **Funciones clave:**
+    - Órdenes de Compra y Facturas de Proveedor.
+- **Mejora necesaria:** Implementar la lógica de **Facturación Parcial en Compras** (igual a la que hicimos en ventas) para manejar casos donde el proveedor envía la mercadería en partes.
+
+---
+
+## 3. Plan de Acción Técnico (Optimization Roadmap)
+
+### Fase 1: Refactorización de Datos (Backend Senior)
+1.  **Unificación de Trazabilidad:** Llevar el modelo de `invoiced_quantity` a Compras para permitir recepciones parciales.
+2.  **Entidad "Transacción Financiera":** Crear un modelo que registre movimientos de dinero (Ingreso/Egreso) vinculado a facturas pero independiente de ellas.
+
+### Fase 2: Interfaz Basada en Contexto (Frontend UX)
+1.  **Diferenciación Visual:** Usar esquemas de color sutiles por área (Ej: Cabeceras azules para Ventas, verdes para Almacén).
+2.  **Menú Inteligente (Post-RBAC):** Preparar el `Sidebar` para colapsar secciones enteras según el rol.
+3.  **Dashboards Específicos:** 
+    - El Vendedor ve: *Mis ventas del mes, Mis cotizaciones vencidas*.
+    - El Almacenero ve: *Pedidos por despachar hoy, Productos con stock mínimo*.
+    - El Administrador ve: *Flujo de caja total, Utilidad bruta*.
+
+### Fase 3: Seguridad y Roles
+1.  **Middleware de Permisos:** Implementar lógica para que un Vendedor NO pueda borrar una Factura ni ver los costos de compra (margen de utilidad).
+2.  **Logs de Auditoría:** Registrar quién cambió un precio o quién anuló una nota de crédito.
 
 ---
 
-## 🛒 Fase 4: Experiencia de Compra Inteligente (Shop)
-*Objetivo: Que el cliente vea "sus" precios.*
+## 4. Diferencias Notables por Responsable (Simulación)
 
-- [ ] **Motor de Precios Dinámicos**:
-    - Modificar la API `/shop/products` para que identifique al usuario logueado.
-    - El sistema calculará en tiempo real: `Precio Final = Precio Base - Descuento(Nivel + Marca/Categoría)`.
-- [ ] **UI Transparente**:
-    - Mostrar un distintivo en la tienda: "Socio ORO: Estás ahorrando un [X]% adicional en esta marca".
-    - El carrito aplicará automáticamente el precio correspondiente al nivel del socio.
-
----
-
-## 📝 Roadmap de Implementación (Checklist)
-
-### 🖥️ Backend
-- [ ] Script de migración para añadir `classification` a usuarios.
-- [ ] Endpoints CRUD para `PricingRules`.
-- [ ] Lógica interna para el cálculo de precio prioritario (Regla B2B > Descuento Volumen).
-
-### 🏢 ERP Frontend
-- [ ] Crear página `PricingRulesManagement.jsx` (La interfaz de control).
-- [ ] Integrar notificaciones de actividad web en el Dashboard.
-- [ ] Actualizar el modal de edición de B2B para incluir el Tier.
-
-### 🛍️ Tienda Online
-- [ ] Refactorizar el contexto de autenticación para persistir el Tier del usuario.
-- [ ] Actualizar visualmente los productos para mostrar "Tu Precio de Socio".
+| Rol | Vista Principal | Acceso a Precios | Capacidad de Anulación |
+| :--- | :--- | :--- | :--- |
+| **Vendedor** | Cotizaciones y Catálogo | Solo Venta (Retail/Wholesale) | Solo Cotizaciones Propias |
+| **Almacenero** | Guías de Despacho y Stock | No ve precios | No puede anular nada |
+| **Contador** | Invoices y Notas de Crédito | Ve Costo y Venta | Full Facturación |
+| **SuperAdmin** | Dashboard Analítico Total | Full | Full |
 
 ---
-*Nota: Este flujo garantiza que el administrador tiene el control total sobre los márgenes de ganancia, mientras que el cliente recibe una experiencia personalizada que fomenta la fidelización.*
+
+> **Nota Final:** El sistema ha evolucionado de un simple registro a un flujo operativo real. La separación por áreas evitará errores humanos y permitirá que el personal de almacén no se distraiga con temas contables, y viceversa.

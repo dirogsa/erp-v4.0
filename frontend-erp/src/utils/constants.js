@@ -1,6 +1,7 @@
 // Estados de órdenes
 export const ORDER_STATUS = {
     PENDING: 'PENDING',
+    PARTIALLY_INVOICED: 'PARTIALLY_INVOICED',
     INVOICED: 'INVOICED'
 };
 
@@ -44,6 +45,7 @@ export const NOTIFICATION_TYPE = {
 // Colores de estado
 export const STATUS_COLORS = {
     PENDING: '#f59e0b',
+    PARTIALLY_INVOICED: '#06b6d4',
     INVOICED: '#10b981',
     PAID: '#10b981',
     PARTIAL: '#f97316',
