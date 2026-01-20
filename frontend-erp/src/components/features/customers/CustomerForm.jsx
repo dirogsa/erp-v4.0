@@ -21,6 +21,13 @@ const CustomerForm = ({
         classification: 'STANDARD',
         custom_discount_percent: 0,
         branches: [],
+        status_credit: false,
+        credit_manual_block: false,
+        credit_limit: 0,
+        allowed_terms: [0],
+        risk_score: 'C',
+        internal_notes: '',
+        digital_dossier: [],
         ...initialData
     });
 
@@ -37,6 +44,13 @@ const CustomerForm = ({
             classification: 'STANDARD',
             custom_discount_percent: 0,
             branches: [],
+            status_credit: false,
+            credit_manual_block: false,
+            credit_limit: 0,
+            allowed_terms: [0],
+            risk_score: 'C',
+            internal_notes: '',
+            digital_dossier: [],
             ...initialData
         } : {
             name: '',
@@ -46,7 +60,14 @@ const CustomerForm = ({
             address: '',
             classification: 'STANDARD',
             custom_discount_percent: 0,
-            branches: []
+            branches: [],
+            status_credit: false,
+            credit_manual_block: false,
+            credit_limit: 0,
+            allowed_terms: [0],
+            risk_score: 'C',
+            internal_notes: '',
+            digital_dossier: []
         };
         setFormData(resetData);
     }, [initialData?._id]);
@@ -183,6 +204,136 @@ const CustomerForm = ({
                         onChange={(e) => setFormData({ ...formData, custom_discount_percent: parseFloat(e.target.value) || 0 })}
                         placeholder="0"
                     />
+                </div>
+
+                {/* --- GESTIÓN DE RIESGOS Y CRÉDITO (CONTROL INTERNO) --- */}
+                <div style={{ marginTop: '1rem', padding: '1.5rem', background: '#1e293b', borderRadius: '8px', border: '1px solid #3b82f6' }}>
+                    <h4 style={{ marginBottom: '1rem', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        🛡️ Gestión de Riesgos y Crédito
+                    </h4>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem', marginBottom: '1rem' }}>
+                        <div className="form-group" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#e2e8f0', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.status_credit}
+                                    onChange={(e) => setFormData({ ...formData, status_credit: e.target.checked })}
+                                    style={{ width: '1.2rem', height: '1.2rem' }}
+                                />
+                                <span style={{ fontWeight: '600' }}>Habilitar Crédito</span>
+                            </label>
+
+                            <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                color: formData.credit_manual_block ? '#ef4444' : '#94a3b8',
+                                cursor: 'pointer',
+                                background: formData.credit_manual_block ? 'rgba(239, 68, 68, 0.1)' : 'transparent',
+                                padding: '0.5rem',
+                                borderRadius: '8px',
+                                border: formData.credit_manual_block ? '1px solid #ef4444' : '1px solid transparent'
+                            }}>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.credit_manual_block}
+                                    onChange={(e) => setFormData({ ...formData, credit_manual_block: e.target.checked })}
+                                    style={{ width: '1.2rem', height: '1.2rem' }}
+                                />
+                                <span style={{ fontWeight: '700' }}>🚩 BLOQUEO MANUAL</span>
+                            </label>
+                        </div>
+                        <Input
+                            label="Límite de Crédito (S/)"
+                            type="number"
+                            value={formData.credit_limit}
+                            onChange={(e) => setFormData({ ...formData, credit_limit: parseFloat(e.target.value) || 0 })}
+                            disabled={!formData.status_credit}
+                        />
+                    </div>
+
+                    <div style={{ marginBottom: '1rem' }}>
+                        <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Plazos Permitidos</label>
+                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                            {[0, 30, 60, 90, 180].map(days => (
+                                <label key={days} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'white', cursor: 'pointer', fontSize: '0.9rem' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.allowed_terms.includes(days)}
+                                        onChange={(e) => {
+                                            const newTerms = e.target.checked
+                                                ? [...formData.allowed_terms, days]
+                                                : formData.allowed_terms.filter(d => d !== days);
+                                            setFormData({ ...formData, allowed_terms: newTerms });
+                                        }}
+                                        disabled={!formData.status_credit && days !== 0}
+                                    />
+                                    {days === 0 ? 'Contado' : `${days} días`}
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                        <div className="form-group">
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Perfil de Riesgo</label>
+                            <select
+                                value={formData.risk_score}
+                                onChange={(e) => setFormData({ ...formData, risk_score: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.625rem',
+                                    backgroundColor: '#0f172a',
+                                    border: '1px solid #334155',
+                                    borderRadius: '0.375rem',
+                                    color: 'white'
+                                }}
+                            >
+                                <option value="A">RIESGO A (Excelente Solvencia)</option>
+                                <option value="B">RIESGO B (Solvencia Estándar)</option>
+                                <option value="C">RIESGO C (Evaluación Pendiente)</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Notas Internas (No visibles al cliente)</label>
+                            <textarea
+                                value={formData.internal_notes}
+                                onChange={(e) => setFormData({ ...formData, internal_notes: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.625rem',
+                                    backgroundColor: '#0f172a',
+                                    border: '1px solid #334155',
+                                    borderRadius: '0.375rem',
+                                    color: 'white',
+                                    minHeight: '80px',
+                                    outline: 'none'
+                                }}
+                                placeholder="Historial de pagos, referencias bancarias, etc."
+                            />
+                        </div>
+                    </div>
+
+                    {/* Expediente Digital DMS */}
+                    <div style={{ borderTop: '1px solid #334155', paddingTop: '1rem' }}>
+                        <h5 style={{ color: '#94a3b8', marginBottom: '0.5rem' }}>📂 Expediente Digital (DMS)</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {formData.digital_dossier && formData.digital_dossier.length > 0 ? (
+                                formData.digital_dossier.map((doc, i) => (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', background: '#0f172a', padding: '0.5rem', borderRadius: '4px' }}>
+                                        <span style={{ color: 'white' }}>{doc.name}</span>
+                                        <a href={doc.url} target="_blank" rel="noreferrer" style={{ color: '#3b82f6', fontSize: '0.8rem' }}>Ver Archivo</a>
+                                    </div>
+                                ))
+                            ) : (
+                                <p style={{ color: '#64748b', fontSize: '0.85rem' }}>No hay documentos adjuntos.</p>
+                            )}
+                            <Button variant="secondary" size="small" type="button" onClick={() => showNotification('Función de carga disponible en próxima fase', 'info')}>
+                                + Adjuntar Documento
+                            </Button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Sección de Sucursales */}

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from ..models.auth import ActivityLog, User
 
 class AuditService:

@@ -1,69 +1,39 @@
-# Plan de Optimización y Evolución: ERP Antigravity v4.0
+# Plan de Simplificación: Motor de Precios Relacionales (ERP v4.0)
 
-Este documento detalla la estrategia de arquitectura para la implementación de un **Motor de Precios Avanzado** y un **Módulo de Control de Riesgos**, asegurando la omnicanalidad entre el ERP y la Shop Online.
-
----
-
-## 1. Centro de Control de Políticas Comerciales (Editable)
-Como arquitecto, mi recomendación es centralizar estas variables en una nueva sección del ERP llamada **"Configuración de Ventas"** o **"Políticas Comerciales"**.
-
-### ⚙️ Interfaz de Configuración de Recargos
-Implementaremos una tabla maestra donde el SuperAdmin podrá definir y editar:
-*   **Contado:** 0% (Fijo).
-*   **Crédito 30 días:** Editable (ej: 3.00%).
-*   **Crédito 60 días:** Editable (ej: 5.00%).
-*   **Crédito 90 días:** Editable (ej: 8.00%).
-*   **Crédito 180 días:** Editable (ej: 15.00%).
-
-> **Impacto:** Cualquier cambio en esta tabla se propagará inmediatamente a todo el sistema (ERP Local y Shop Web), recalculando precios dinámicamente sin tocar código.
+Este plan detalla la transición de una gestión de precios manual a una **Arquitectura de Precios Basada en Márgenes**, donde el **Precio al por Mayor** es el único dato de entrada manual.
 
 ---
 
-## 2. Omnicanalidad B2B: Sincronización con Frontend-Shop
-La tienda online debe ser un reflejo exacto de las capacidades financieras del cliente definidas en el ERP.
+## 🔝 Fase 1: El Precio Ancla (Wholesale Core)
+El objetivo es que el administrador solo piense en el valor mayorista del producto. El resto es consecuencia matemática.
 
-### � Validación Cruzada (ERP → SHOP)
-Al momento de que un cliente se loguee en `frontend-shop`:
-1.  **Regla de Visibilidad:** El sistema consultará el `CreditProfile` del cliente en la base de datos central.
-2.  **Filtrado de Opciones:** 
-    *   Si el cliente tiene `status_credit: FALSE`, la pasarela de pagos web **OCULTARÁ completamente** la opción "Pago a Crédito". Solo podrá finalizar la compra mediante métodos de contado (Transferencia, Tarjeta, etc.).
-    *   Si tiene `status_credit: TRUE`, solo aparecerán en el selector los plazos (`allowed_terms`) que el administrador le haya habilitado en su ficha de cliente.
-3.  **Precios Personalizados:** Los precios mostrados en la Shop se ajustarán automáticamente aplicando el recargo correspondiente al plazo seleccionado por el cliente.
+- [x] **1.1 Definición de Markup Retail:** Crear un campo global en el módulo de Políticas llamado "Margen de Canal Minorista" (ej: +20% sobre el precio mayorista).
+- [x] **1.2 Descuentos por Volumen Sistémicos:** Establecer porcentajes estándar por categoría (ej: 6u = -3%, 12u = -7%, 24u = -12%) para evitar llenarlos uno a uno.
+- [x] **1.3 Bloqueo de Input Secundario:** Deshabilitar la edición manual del Precio Minorista en el ERP para garantizar la coherencia de márgenes.
 
 ---
 
-## 3. Arquitectura de Control de Riesgos
-El flujo de crédito no es una opción abierta, sino un privilegio otorgado.
+## ⚙️ Fase 2: Motor de Cálculo en Cascada (Frontend)
+Refactorizar la UI de "Actualización Masiva" para que sea un simulador en tiempo real.
 
-### 🟦 Perfil Crediticio del Cliente (Ficha ERP)
-Campos clave a implementar en la ficha de cada cliente registrada desde el ERP:
-*   **status_credit:** (BOOL) Activo/Inactivo.
-*   **allowed_terms:** (ARRAY) Lista de plazos permitidos (ej: `[30, 60]`).
-*   **credit_limit:** (DECIMAL) Monto máximo de deuda permitido (Suma de facturas pendientes + pedido actual).
-*   **risk_score:** Clasificación interna (A, B, C).
+- [x] **2.1 Edición Pivote:** Al modificar el campo "Precio Mayorista", el sistema debe disparar un evento de recálculo instantáneo para todas las demás columnas.
+- [x] **2.2 Visualización de Fórmulas:** Mostrar una pequeña leyenda debajo de los precios calculados (ej: "M. Mayorista + 15%") para que el usuario sepa de dónde sale el número.
+- [x] **2.3 Redondeo Psicológico Automático:** Implementar una regla opcional que, tras aplicar los porcentajes, redondee automáticamente a .90 o .00 para mantener la estética comercial.
 
 ---
 
-## 4. Mejoras "Senior" Sugeridas (Plus de Calidad)
+## 🛡️ Fase 3: Integración Financiera y Créditos
+Vincular los plazos de pago (30, 60, 90, 180 días) con el precio ya calculado.
 
-Aparte de lo solicitado, como arquitecto sugiero estas 3 mejoras para convertir el sistema en una herramienta de nivel profesional:
-
-### A. Control de Deuda Vencida (Hard Stop)
-*   **Lógica:** Si un cliente tiene una sola factura vencida (ej. con más de 5 días de retraso), el sistema debe bloquear **automáticamente** tanto en el ERP como en la Shop la capacidad de realizar nuevos pedidos a crédito, obligándolo a pagar su deuda o comprar al contado.
-
-### B. Notificaciones de Crédito (Alert Automation)
-*   **Lógica:** Cuando un cliente está por alcanzar el 90% de su `credit_limit`, el sistema envía un correo/alerta al vendedor para que gestione cobranzas proactivamente antes de que el cliente intente comprar en la Shop y se encuentre con un bloqueo.
-
-### C. Workflow de Aprobación de Riesgos
-*   **Lógica:** Permitir adjuntar documentos (reportes de Infocorp, estados financieros) en la ficha del cliente. Cuando un vendedor quiere habilitar crédito a un cliente nuevo, envía una "Solicitud de Crédito" interna que el Gerente de Finanzas aprueba con un solo clic desde su Dashboard.
+- [ ] **3.1 Proyección Financiera Dinámica:** Las columnas de crédito deben ser "Read-Only" y basarse siempre en el resultado del Precio Mayorista * Margen Minorista (si aplica) * Recargo de Plazo.
+- [ ] **3.2 Alerta de Margen de Seguridad:** Si el precio con descuento por volumen (ej: 24u) cae por debajo del costo de compra + 5%, el sistema debe pintar una alerta roja (Stop-Loss).
 
 ---
 
-## 5. UI/UX: Grilla de Precios Masiva
-Estandarizar la carga de precios en el ERP usando el mismo motor de búsqueda de las cotizaciones:
-*   **Fast Entry:** Input que permite añadir productos sumando filas rápidamente.
-*   **Vista Previa Multivariable:** Una tabla que muestra simultáneamente: `Precio Base | Precio 30d | Precio 60d | ... | Margen de Utilidad`.
+## 🚀 Fase 4: Automatización de Publicación
+- [ ] **4.1 Batch Update Relacional:** El botón "Publicar" enviará al servidor el nuevo precio mayorista y el ID de la política aplicada, ahorrando ancho de banda y evitando inconsistencias en la base de datos.
+- [ ] **4.2 Sincronización Web (Shop):** Asegurar que la tienda online use exactamente la misma lógica de "Markup" para que el cliente final siempre vea precios coherentes con la estrategia del ERP.
 
 ---
 
-> **Visión Final:** Un ecosistema donde el **SuperAdmin** dicta las reglas (porcentajes de recargo), el **ERP** las ejecuta con rigor financiero y la **Shop** se adapta inteligentemente al perfil de cada cliente, eliminando riesgos de incobrables.
+> **Ventaja Competitiva:** Con este sistema, cambiar los precios de toda la empresa ante una inflación o devaluación toma **segundos**: solo ajustas el Precio Mayorista y el sistema se encarga de re-alinear al por menor, volúmenes y créditos automáticamente.

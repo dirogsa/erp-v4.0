@@ -45,6 +45,7 @@ async def init_db():
                 "app.models.sales.Customer",
                 "app.models.sales.SalesQuote",
                 "app.models.sales.SalesNote",
+                "app.models.sales.SalesPolicy",
                 "app.models.company.Company",
                 "app.models.auth.User",
                 "app.models.auth.B2BApplication",

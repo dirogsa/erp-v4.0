@@ -25,6 +25,26 @@ class QuoteStatus(str, Enum):
     CONVERTED = "CONVERTED"
     REJECTED = "REJECTED"
 
+class SalesPolicy(Document):
+    """Configuración maestra de porcentajes de recargo financiero"""
+    cash_discount: float = 0.0          # Contado (siempre 0 o descuento si se desea)
+    credit_30_days: float = 3.0        # Recargo % para 30 días
+    credit_60_days: float = 5.0        # Recargo % para 60 días
+    credit_90_days: float = 8.0        # Recargo % para 90 días
+    credit_180_days: float = 15.0      # Recargo % para 180 días
+    # Relational Engine (Precios Automáticos)
+    retail_markup_pct: float = 20.0    # Margen sugerido sobre mayorista
+    vol_6_discount_pct: float = 5.0    # Descuento para 6u
+    vol_12_discount_pct: float = 8.0   # Descuento para 12u
+    vol_24_discount_pct: float = 12.0  # Descuento para 24u
+    # Security Guard (Stop Loss)
+    min_margin_guard_pct: float = 12.0 # Margen mínimo permitido
+    last_updated: datetime = datetime.utcnow()
+    updated_by: Optional[str] = None    # Username del SuperAdmin
+    
+    class Settings:
+        name = "sales_policies"
+
 class IssuerInfo(BaseModel):
     """Información de la empresa emisora al momento de la creación"""
     name: str
@@ -77,7 +97,6 @@ class SalesOrder(Document):
     items: List[OrderItem]
     status: OrderStatus = OrderStatus.PENDING
     total_amount: float = 0.0
-    customer_email: Optional[str] = None
     loyalty_points_granted: int = 0  # Puntos que se otorgaron al confirmar esta orden
     loyalty_points_spent: int = 0    # Puntos canjeados en esta orden
     
@@ -196,6 +215,13 @@ class CustomerBranch(BaseModel):
     is_main: bool = False
     is_active: bool = True
 
+class DigitalDocument(BaseModel):
+    """Metadatos de documentos adjuntos para evaluación de riesgo"""
+    name: str                           # "DNI", "Reporte Infocorp", etc.
+    url: str                            # Link al archivo
+    uploaded_at: datetime = datetime.utcnow()
+    uploaded_by: str
+
 class Customer(Document):
     name: str
     ruc: Indexed(str, unique=True)  # RUC único para búsqueda/autocompletado
@@ -205,6 +231,16 @@ class Customer(Document):
     classification: UserTier = UserTier.STANDARD
     custom_discount_percent: float = 0.0 # Descuento adicional (opcional)
     branches: List[CustomerBranch] = []  # Sucursales del cliente
+    
+    # --- Gestión de Créditos y Riesgos (Control Interno) ---
+    status_credit: bool = False         # Habilitado para pagar a plazos
+    credit_manual_block: bool = False   # Bloqueo MANUAL (Hard Stop decidido por Admin)
+    credit_limit: float = 0.0           # Línea de crédito máxima
+    allowed_terms: List[int] = [0]      # Plazos permitidos (días): [0, 30, 60...]
+    risk_score: str = "C"               # A, B, C
+    digital_dossier: List[DigitalDocument] = [] # Expediente de riesgo
+    internal_notes: Optional[str] = None # Notas solo visibles en ERP
+    
     created_at: datetime = datetime.now()
 
     class Settings:

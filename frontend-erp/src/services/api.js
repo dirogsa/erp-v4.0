@@ -248,6 +248,11 @@ export const marketingService = {
   convertPoints: (data) => api.post('/marketing/loyalty/convert-points', data),
 };
 
+export const salesPolicyService = {
+  getPolicies: () => api.get('/sales/config/policies'),
+  updatePolicies: (data) => api.put('/sales/config/policies', data),
+};
+
 export const auditService = {
   getLogs: (params) => api.get('/audit/logs', { params }),
   deleteLogs: (log_ids) => api.delete('/audit/logs', { data: log_ids }),

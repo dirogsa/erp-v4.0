@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Table from '../../common/Table';
 import Input from '../../common/Input';
 import Button from '../../common/Button';
 import Pagination from '../../common/Table/Pagination';
 import { usePrices, usePriceHistory } from '../../../hooks/usePrices';
 import { formatCurrency } from '../../../utils/formatters';
+import { salesPolicyService } from '../../../services/api';
 
 const PriceManagement = () => {
     const [page, setPage] = useState(1);
@@ -25,9 +26,31 @@ const PriceManagement = () => {
 
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [historyProduct, setHistoryProduct] = useState(null);
+    const [policies, setPolicies] = useState(null);
 
     const { products, pagination, loading, updatePrice, importCsv, isUpdating, isImporting } = usePrices({ page, limit, search });
     const { history, loading: historyLoading } = usePriceHistory(historyProduct?.sku);
+
+    useEffect(() => {
+        const loadPolicies = async () => {
+            try {
+                const res = await salesPolicyService.getPolicies();
+                setPolicies(res.data);
+            } catch (err) { console.error(err); }
+        };
+        loadPolicies();
+    }, []);
+
+    const handleWholesaleChange = (val) => {
+        const numVal = parseFloat(val) || 0;
+        setNewWholesalePrice(numVal);
+        if (policies) {
+            setNewRetailPrice(parseFloat((numVal * (1 + (policies.retail_markup_pct || 20) / 100)).toFixed(3)));
+            setNewDisc6(policies.vol_6_discount_pct || 0);
+            setNewDisc12(policies.vol_12_discount_pct || 0);
+            setNewDisc24(policies.vol_24_discount_pct || 0);
+        }
+    };
 
     const handleEditClick = (product) => {
         setEditingProduct(product);
@@ -43,25 +66,21 @@ const PriceManagement = () => {
         if (!editingProduct) return;
 
         try {
-            // Update retail
-            if (newRetailPrice !== editingProduct.price_retail || newDisc6 !== editingProduct.discount_6_pct || newDisc12 !== editingProduct.discount_12_pct || newDisc24 !== editingProduct.discount_24_pct) {
-                await updatePrice(editingProduct.sku, {
-                    new_price: newRetailPrice,
-                    price_type: 'RETAIL',
-                    reason: priceReason || 'Actualización manual',
-                    discount_6_pct: newDisc6,
-                    discount_12_pct: newDisc12,
-                    discount_24_pct: newDisc24
-                });
-            } else if (newWholesalePrice !== editingProduct.price_wholesale) {
-                // If only wholesale changed
+            // Update prices
+            await updatePrice(editingProduct.sku, {
+                new_price: newRetailPrice,
+                price_type: 'RETAIL',
+                reason: priceReason || 'Actualización manual',
+                discount_6_pct: newDisc6,
+                discount_12_pct: newDisc12,
+                discount_24_pct: newDisc24
+            });
+
+            if (newWholesalePrice !== editingProduct.price_wholesale) {
                 await updatePrice(editingProduct.sku, {
                     new_price: newWholesalePrice,
                     price_type: 'WHOLESALE',
-                    reason: priceReason || 'Actualización manual',
-                    discount_6_pct: newDisc6,
-                    discount_12_pct: newDisc12,
-                    discount_24_pct: newDisc24
+                    reason: priceReason || 'Actualización manual'
                 });
             }
             setEditingProduct(null);
@@ -81,11 +100,85 @@ const PriceManagement = () => {
     const columns = [
         { label: 'SKU', key: 'sku' },
         { label: 'Nombre', key: 'name' },
-        { label: 'P. Minorista', key: 'price_retail', align: 'right', render: (val) => formatCurrency(val) },
+        {
+            label: 'P. Minorista',
+            key: 'price_retail',
+            align: 'right',
+            render: (val, row) => {
+                if (val > 0) return formatCurrency(val);
+                // Fallback to default 20% if policies not loaded yet
+                const markup = policies?.retail_markup_pct ?? 20;
+                if (row.price_wholesale > 0) {
+                    const calculated = row.price_wholesale * (1 + markup / 100);
+                    return <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>{formatCurrency(calculated)}*</span>;
+                }
+                return formatCurrency(0);
+            }
+        },
         { label: 'P. Mayorista', key: 'price_wholesale', align: 'right', render: (val) => formatCurrency(val || 0) },
-        { label: '% D.6', key: 'discount_6_pct', align: 'center', render: (val) => `${val || 0}%` },
-        { label: '% D.12', key: 'discount_12_pct', align: 'center', render: (val) => `${val || 0}%` },
-        { label: '% D.24', key: 'discount_24_pct', align: 'center', render: (val) => `${val || 0}%` },
+        {
+            label: 'Estrategia 6u',
+            key: 'discount_6_pct',
+            align: 'center',
+            render: (val, row) => {
+                const effectivePct = val > 0 ? val : (policies?.vol_6_discount_pct || 0);
+                const markup = policies?.retail_markup_pct ?? 20;
+                const baseRetail = row.price_retail > 0 ? row.price_retail : (row.price_wholesale * (1 + markup / 100));
+
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', opacity: 1 }}>
+                        <span style={{ fontWeight: 'bold', color: effectivePct > 0 ? '#10b981' : '#94a3b8' }}>
+                            {formatCurrency(baseRetail * (1 - (effectivePct || 0) / 100))}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: val > 0 ? '#e2e8f0' : '#3b82f6' }}>
+                            {effectivePct}% {val > 0 ? 'desc.' : '(global)'}
+                        </span>
+                    </div>
+                );
+            }
+        },
+        {
+            label: 'Estrategia 12u',
+            key: 'discount_12_pct',
+            align: 'center',
+            render: (val, row) => {
+                const effectivePct = val > 0 ? val : (policies?.vol_12_discount_pct || 0);
+                const markup = policies?.retail_markup_pct ?? 20;
+                const baseRetail = row.price_retail > 0 ? row.price_retail : (row.price_wholesale * (1 + markup / 100));
+
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', opacity: 1 }}>
+                        <span style={{ fontWeight: 'bold', color: effectivePct > 0 ? '#10b981' : '#94a3b8' }}>
+                            {formatCurrency(baseRetail * (1 - (effectivePct || 0) / 100))}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: val > 0 ? '#e2e8f0' : '#3b82f6' }}>
+                            {effectivePct}% {val > 0 ? 'desc.' : '(global)'}
+                        </span>
+                    </div>
+                );
+            }
+        },
+        {
+            label: 'Estrategia 24u',
+            key: 'discount_24_pct',
+            align: 'center',
+            render: (val, row) => {
+                const effectivePct = val > 0 ? val : (policies?.vol_24_discount_pct || 0);
+                const markup = policies?.retail_markup_pct ?? 20;
+                const baseRetail = row.price_retail > 0 ? row.price_retail : (row.price_wholesale * (1 + markup / 100));
+
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', opacity: 1 }}>
+                        <span style={{ fontWeight: 'bold', color: effectivePct > 0 ? '#10b981' : '#94a3b8' }}>
+                            {formatCurrency(baseRetail * (1 - (effectivePct || 0) / 100))}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: val > 0 ? '#e2e8f0' : '#3b82f6' }}>
+                            {effectivePct}% {val > 0 ? 'desc.' : '(global)'}
+                        </span>
+                    </div>
+                );
+            }
+        },
         { label: 'Costo Prom.', key: 'cost', align: 'right', render: (val) => formatCurrency(val) },
         {
             label: 'Acciones', key: 'actions', align: 'center',
@@ -142,15 +235,33 @@ const PriceManagement = () => {
                         <h2 style={{ color: 'white', marginBottom: '1rem' }}>Editar Precios: {editingProduct.name}</h2>
                         <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>SKU: {editingProduct.sku}</p>
 
-                        <Input label="Precio Minorista (S/)" type="number" value={newRetailPrice} onChange={(e) => setNewRetailPrice(e.target.value === '' ? '' : parseFloat(e.target.value))} step="0.01" />
-                        <div style={{ marginTop: '1rem' }}>
-                            <Input label="Precio Mayorista (S/)" type="number" value={newWholesalePrice} onChange={(e) => setNewWholesalePrice(e.target.value === '' ? '' : parseFloat(e.target.value))} step="0.01" />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div style={{ padding: '1rem', border: '2px solid #3b82f6', borderRadius: '0.5rem', background: 'rgba(59, 130, 246, 0.05)' }}>
+                                <Input
+                                    label="💰 PRECIO MAYORISTA (ANCLA)"
+                                    type="number"
+                                    value={newWholesalePrice}
+                                    onChange={(e) => handleWholesaleChange(e.target.value)}
+                                    step="0.01"
+                                    style={{ fontSize: '1.2rem', fontWeight: 'bold' }}
+                                />
+                                <small style={{ color: '#3b82f6' }}>Modificar este precio recalcula el resto automáticamente.</small>
+                            </div>
+                            <div>
+                                <Input
+                                    label="Precio Minorista (Calculado)"
+                                    type="number"
+                                    value={newRetailPrice}
+                                    onChange={(e) => setNewRetailPrice(parseFloat(e.target.value) || 0)}
+                                    step="0.01"
+                                />
+                            </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '1rem' }}>
-                            <Input label="% Desc. 6" type="number" value={newDisc6} onChange={(e) => setNewDisc6(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                            <Input label="% Desc. 12" type="number" value={newDisc12} onChange={(e) => setNewDisc12(e.target.value === '' ? '' : parseFloat(e.target.value))} />
-                            <Input label="% Desc. 24" type="number" value={newDisc24} onChange={(e) => setNewDisc24(e.target.value === '' ? '' : parseFloat(e.target.value))} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginTop: '1rem', padding: '1rem', background: '#1e293b', borderRadius: '0.5rem' }}>
+                            <Input label="% Desc. 6" type="number" value={newDisc6} onChange={(e) => setNewDisc6(parseFloat(e.target.value) || 0)} />
+                            <Input label="% Desc. 12" type="number" value={newDisc12} onChange={(e) => setNewDisc12(parseFloat(e.target.value) || 0)} />
+                            <Input label="% Desc. 24" type="number" value={newDisc24} onChange={(e) => setNewDisc24(parseFloat(e.target.value) || 0)} />
                         </div>
                         <div style={{ marginTop: '1rem' }}>
                             <Input label="Razón del cambio" value={priceReason} onChange={(e) => setPriceReason(e.target.value)} placeholder="Ej: Actualización mensual" />

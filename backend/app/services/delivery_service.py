@@ -235,15 +235,26 @@ async def cancel_guide(guide_number: str) -> DeliveryGuide:
                 product.stock_current += item.quantity
                 await product.save()
     
-    # Actualizar factura asociada
+    # Actualizar factura asociada (Restauración Robusta)
+    # 1. Intentar por el número de factura guardado en la guía
     if guide.invoice_number:
         from app.models.sales import SalesInvoice
-        # Use find_one to avoid errors if invoice deleted
         invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == guide.invoice_number)
         if invoice:
             invoice.dispatch_status = "NOT_DISPATCHED"
             invoice.guide_id = None
             await invoice.save()
+
+    # 2. BARRIDO DE SEGURIDAD: Buscar cualquier factura que apunte a esta guía (Back-link check)
+    # Esto corrige casos donde invoice_number no coincida pero el link guide_id sí exista.
+    from app.models.sales import SalesInvoice
+    linked_invoices = await SalesInvoice.find(SalesInvoice.guide_id == guide.guide_number).to_list()
+    for linked_inv in linked_invoices:
+        # Solo actualizar si no es la misma que ya actualizamos (aunque guardarla 2 veces no hace daño)
+        if linked_inv.dispatch_status != "NOT_DISPATCHED":
+            linked_inv.dispatch_status = "NOT_DISPATCHED"
+            linked_inv.guide_id = None
+            await linked_inv.save()
 
     # User Request: Delete the guide instead of keeping it as CANCELLED
     await guide.delete()

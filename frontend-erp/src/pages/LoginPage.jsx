@@ -18,12 +18,9 @@ const LoginPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log("LoginPage: Form submitted with username:", username);
         setLoading(true);
         try {
-            console.log("LoginPage: Calling login function from context...");
             await login(username, password);
-            console.log("LoginPage: Login successful, navigating to:", from);
             showNotification('¡Bienvenido al sistema!', 'success');
             navigate(from, { replace: true });
         } catch (error) {
@@ -41,7 +38,6 @@ const LoginPage = () => {
             showNotification(msg, 'error');
         } finally {
             setLoading(false);
-            console.log("LoginPage: Loading state set to false");
         }
     };
 

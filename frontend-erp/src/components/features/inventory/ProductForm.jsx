@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { categoryService, brandService, inventoryService } from '../../../services/api';
+import { salesPolicyService, categoryService, brandService, inventoryService } from '../../../services/api';
 import Input from '../../common/Input';
 import Button from '../../common/Button';
 import Select from '../../common/Select';
@@ -44,12 +44,23 @@ const ProductForm = ({
 
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [policies, setPolicies] = useState(null);
     const [vehicleBrands, setVehicleBrands] = useState([]);
 
     useEffect(() => {
         loadCategories();
         loadVehicleBrands();
+        loadPolicies();
     }, []);
+
+    const loadPolicies = async () => {
+        try {
+            const res = await salesPolicyService.getPolicies();
+            setPolicies(res.data);
+        } catch (error) {
+            console.error("Error loading policies", error);
+        }
+    };
 
     // Effect to set selected category object when formData.category_id changes (e.g. edit mode)
     useEffect(() => {
@@ -109,8 +120,8 @@ const ProductForm = ({
             { label: 'F (Rosca)', measure_type: 'thread', value: '' }
         ],
         'AIRE': [
-            { label: 'A (OD)', measure_type: 'mm', value: '' },
-            { label: 'B (ID)', measure_type: 'mm', value: '' },
+            { label: 'A', measure_type: 'mm', value: '' },
+            { label: 'B', measure_type: 'mm', value: '' },
             { label: 'H', measure_type: 'mm', value: '' }
         ],
         'COMBUSTIBLE': [
@@ -119,14 +130,32 @@ const ProductForm = ({
             { label: 'H', measure_type: 'mm', value: '' },
             { label: 'Rosca Entry', measure_type: 'thread', value: '' },
             { label: 'Rosca Exit', measure_type: 'thread', value: '' }
+        ],
+        'CABINA': [
+            { label: 'A', measure_type: 'mm', value: '' },
+            { label: 'B', measure_type: 'mm', value: '' },
+            { label: 'H', measure_type: 'mm', value: '' }
         ]
     };
 
     const applyTemplate = (categoryName) => {
         const key = Object.keys(categoryTemplates).find(k => categoryName.toUpperCase().includes(k));
-        if (key && (formData.specs || []).length === 0) {
-            setFormData(prev => ({ ...prev, specs: categoryTemplates[key] }));
-            showNotification(`Plantilla de ${key} aplicada automáticamente`, 'info');
+        if (key) {
+            const currentSpecs = formData.specs || [];
+            const hasValues = currentSpecs.some(s => s.value && s.value.trim() !== '');
+
+            const doApply = () => {
+                setFormData(prev => ({ ...prev, specs: [...categoryTemplates[key]] }));
+                showNotification(`Plantilla de ${key} aplicada`, 'info');
+            };
+
+            if (!hasValues) {
+                doApply();
+            } else {
+                if (window.confirm(`¿Deseas reemplazar las especificaciones actuales con la plantilla de ${key}?`)) {
+                    doApply();
+                }
+            }
         }
     };
 

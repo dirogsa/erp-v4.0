@@ -45,6 +45,48 @@ async def get_shop_quotes(current_user: User = Depends(get_current_user)):
     quotes = await SalesQuote.find(SalesQuote.customer_email == current_user.email).to_list()
     return sorted(quotes, key=lambda x: x.date, reverse=True)
 
+@router.get("/payment-options")
+async def get_shop_payment_options(current_user: Optional[User] = Depends(get_optional_user)):
+    """Returns the allowed payment terms for the current user"""
+    if not current_user or not current_user.ruc_linked:
+        return {"allowed_terms": [0]}
+    
+    from app.models.sales import Customer
+    customer = await Customer.find_one(Customer.ruc == current_user.ruc_linked)
+    
+    if not customer:
+        return {"allowed_terms": [0]}
+        
+    # Check for manual hard block
+    if customer.credit_manual_block:
+        return {
+            "allowed_terms": [0],
+            "reason": "Crédito bloqueado por la administración. Por favor contacte con soporte."
+        }
+        
+    # Fetch policies to provide percentages to the shop
+    from app.models.sales import SalesPolicy
+    policy = await SalesPolicy.find_one()
+    if not policy:
+        policy = SalesPolicy()
+    
+    # Map surcharges to allowed terms
+    surcharges = {
+        0: policy.cash_discount,
+        30: policy.credit_30_days,
+        60: policy.credit_60_days,
+        90: policy.credit_90_days,
+        180: policy.credit_180_days
+    }
+    
+    allowed_terms = customer.allowed_terms if customer.status_credit else [0]
+    terms_info = [{"days": t, "surcharge": surcharges.get(t, 0.0)} for t in allowed_terms]
+
+    return {
+        "allowed_terms": allowed_terms,
+        "terms_info": terms_info
+    }
+
 
 
 class ShopProductResponse(BaseModel):
@@ -206,6 +248,7 @@ class CheckoutRequest(BaseModel):
     customer_ruc: str
     delivery_address: str
     delivery_branch_name: Optional[str] = None
+    payment_term: int = 0 # 0=Cash, 30, 60, etc.
     notes: Optional[str] = None
 
 @router.get("/products", response_model=PaginatedResponse[ShopProductResponse])
@@ -348,27 +391,41 @@ async def checkout(
     if not req.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
 
-    # Resolve pricing and validate items
-    role = current_user.role if current_user else UserRole.CUSTOMER_B2C
+    # Validate Credit and Apply Surcharges if needed
     order_items = []
+    
+    # Validate Credit and Apply Surcharges if needed
+    from app.services.pricing_calculator import PricingCalculator
+    from app.services.risk_service import RiskService
+    
+    # Calculate initial total for limit validation
+    initial_total = 0
     
     for item in req.items:
         product = await Product.find_one(Product.sku == item.sku)
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {item.sku} not found")
         
-        price = await get_product_price_for_user(
-            product, 
-            item.quantity, 
-            current_user
-        )
+        base_price = await get_product_price_for_user(product, item.quantity, current_user)
+        # Apply surcharge
+        final_price = await PricingCalculator.get_adjusted_price(base_price, req.payment_term)
         
         order_items.append(OrderItem(
             product_sku=item.sku,
             product_name=product.name,
             quantity=item.quantity,
-            unit_price=price
+            unit_price=final_price
         ))
+        initial_total += final_price * item.quantity
+
+    # If it's a credit purchase, perform risk validation
+    if req.payment_term > 0:
+        if not current_user or not current_user.ruc_linked:
+            raise HTTPException(status_code=403, detail="Debe tener una cuenta vinculada a un RUC para solicitar crédito.")
+        
+        authorized, reason = await RiskService.validate_credit_request(current_user.ruc_linked, initial_total)
+        if not authorized:
+            raise HTTPException(status_code=403, detail=reason)
 
 
     # Get Company Snapshot

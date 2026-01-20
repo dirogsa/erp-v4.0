@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Table from '../../common/Table';
 import Button from '../../common/Button';
 import { formatCurrency } from '../../../utils/formatters';
+import { salesPolicyService } from '../../../services/api';
 
 const ProductsTable = ({
     products = [],
@@ -12,6 +13,17 @@ const ProductsTable = ({
     isMarketing = false,
     categories = []
 }) => {
+    const [policies, setPolicies] = useState(null);
+
+    useEffect(() => {
+        const loadPolicies = async () => {
+            try {
+                const res = await salesPolicyService.getPolicies();
+                setPolicies(res.data);
+            } catch (err) { console.error("Error loading policies for table", err); }
+        };
+        loadPolicies();
+    }, []);
     const columns = [
         { label: 'SKU', key: 'sku' },
         {
@@ -84,7 +96,21 @@ const ProductsTable = ({
                 label: 'P. Minorista',
                 key: 'price_retail',
                 align: 'right',
-                render: (val) => formatCurrency(val)
+                render: (val, row) => {
+                    if (val > 0) return formatCurrency(val);
+
+                    // Relational Calculation if Price is 0
+                    if (policies && row.price_wholesale > 0) {
+                        const calculated = row.price_wholesale * (1 + (policies.retail_markup_pct || 20) / 100);
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>{formatCurrency(calculated)}</span>
+                                <span style={{ fontSize: '0.6rem', color: '#64748b', textTransform: 'uppercase' }}>Sugerido (+{policies.retail_markup_pct}%)</span>
+                            </div>
+                        );
+                    }
+                    return formatCurrency(0);
+                }
             },
             {
                 label: 'P. Mayorista',

@@ -38,16 +38,16 @@ class DataExchangeService:
         # Fetch all records
         records = await model.find_all().to_list()
         
-        output = io.StringIO()
-        writer = None
+        if not records:
+            return ""
+
+        # Prepare data rows first to collect all possible fieldnames
+        rows = []
+        all_fieldnames = set()
         
         for record in records:
             data = record.model_dump()
-            
-            # Extract items if they exist
             items = data.pop(items_field, []) if items_field else [None]
-            
-            # Flatten parent data
             flattened_parent = cls._flatten_dict(data)
             
             for item in items:
@@ -58,13 +58,22 @@ class DataExchangeService:
                     flattened_item = cls._flatten_dict(item, prefix="item_")
                     row.update(flattened_item)
                 
-                if not writer:
-                    writer = csv.DictWriter(output, fieldnames=row.keys())
-                    writer.writeheader()
-                
-                # Convert dates/enums to strings
-                row = {k: cls._serialize_val(v) for k, v in row.items()}
-                writer.writerow(row)
+                all_fieldnames.update(row.keys())
+                rows.append({k: cls._serialize_val(v) for k, v in row.items()})
+
+        output = io.StringIO()
+        # Sort fieldnames: put operation and key first
+        sorted_fields = sorted(list(all_fieldnames))
+        if "operation" in sorted_fields:
+            sorted_fields.insert(0, sorted_fields.pop(sorted_fields.index("operation")))
+        if config["key"] in sorted_fields:
+            sorted_fields.insert(1, sorted_fields.pop(sorted_fields.index(config["key"])))
+
+        writer = csv.DictWriter(output, fieldnames=sorted_fields)
+        writer.writeheader()
+        writer.writerows(rows)
+        
+        return output.getvalue()
         
         return output.getvalue()
 

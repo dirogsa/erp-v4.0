@@ -88,6 +88,7 @@ export const MENU_CONFIG = [
         children: [
             { id: 'companies', label: 'Empresas', path: '/companies', icon: '🏢' },
             { id: 'b2b', label: 'Socios B2B', path: '/b2b', icon: '🤝' },
+            { id: 'price-update', label: 'Actualización Masiva de Precios', path: '/price-update', icon: '📊' },
             { id: 'pricing', label: 'Precios Especiales B2B', path: '/pricing', icon: '🏷️' },
             { id: 'marketing', label: 'Lealtad y Puntos', path: '/marketing', icon: '🎁' }
         ]
@@ -100,6 +101,7 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'audit', label: 'Auditoría', path: '/audit', icon: '🕵️' },
+            { id: 'policies', label: 'Políticas de Venta', path: '/sales-policies', icon: '⚖️' },
             { id: 'users', label: 'Usuarios ERP', path: '/users', icon: '👤' }
         ]
     }

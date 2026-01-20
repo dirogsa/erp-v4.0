@@ -32,6 +32,26 @@ const CheckoutPage = () => {
     const [orderInfo, setOrderInfo] = useState(null);
     const [checkoutSummary, setCheckoutSummary] = useState({ items: [], total: 0 });
 
+    // Credit & Risks Integration
+    const [paymentOptions, setPaymentOptions] = useState({ allowed_terms: [0], terms_info: [] });
+    const [selectedTerm, setSelectedTerm] = useState(0);
+
+    useEffect(() => {
+        const fetchOptions = async () => {
+            try {
+                const res = await shopService.getPaymentOptions();
+                setPaymentOptions(res.data);
+                // Default to first option or 0
+                if (res.data.allowed_terms && res.data.allowed_terms.length > 0) {
+                    setSelectedTerm(res.data.allowed_terms[0]);
+                }
+            } catch (error) {
+                console.error("Error fetching payment options", error);
+            }
+        };
+        if (isAuthenticated) fetchOptions();
+    }, [isAuthenticated]);
+
     useEffect(() => {
         if (isAuthenticated && user) {
             setFormData(prev => ({
@@ -67,15 +87,20 @@ const CheckoutPage = () => {
 
         setLoading(true);
         try {
+            const currentTermInfo = paymentOptions.terms_info.find(t => t.days === selectedTerm);
+            const surchargePct = currentTermInfo ? currentTermInfo.surcharge : 0;
+            const adjustedTotal = cartTotal * (1 + surchargePct / 100);
+
             const orderData = {
                 ...formData,
+                payment_term: selectedTerm,
                 items: cart.map(item => ({ sku: item.sku, quantity: item.quantity }))
             };
             const response = await shopService.checkout(orderData);
             setOrderInfo(response.data);
             setCheckoutSummary({
                 items: [...cart],
-                total: cartTotal,
+                total: adjustedTotal,
                 points: cartPointsTotal
             });
             setStatus('success');
@@ -240,6 +265,59 @@ const CheckoutPage = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Payment Terms Info */}
+                    <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-slate-100">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="bg-primary-50 p-3 rounded-2xl text-primary-600">
+                                <CreditCardIcon className="h-6 w-6" />
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-900">Condiciones de Pago</h2>
+                        </div>
+
+                        {paymentOptions.reason && (
+                            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-bold flex items-center gap-2">
+                                <ShieldCheckIcon className="h-5 w-5" />
+                                {paymentOptions.reason}
+                            </div>
+                        )}
+
+                        <p className="text-slate-500 text-sm mb-8">
+                            Selecciona el plazo de pago. Recuerda que los plazos de crédito están sujetos a tu perfil de riesgo habilitado.
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {paymentOptions.terms_info.map((info) => (
+                                <button
+                                    key={info.days}
+                                    type="button"
+                                    onClick={() => setSelectedTerm(info.days)}
+                                    className={`p-6 rounded-3xl border-2 text-left transition-all ${selectedTerm === info.days
+                                        ? 'border-primary-600 bg-primary-50 ring-4 ring-primary-50'
+                                        : 'border-slate-50 bg-slate-50 hover:border-slate-200'
+                                        }`}
+                                >
+                                    <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${selectedTerm === info.days ? 'text-primary-600' : 'text-slate-400'
+                                        }`}>
+                                        {info.days === 0 ? 'Inmediato' : `Crédito ${info.days} días`}
+                                    </p>
+                                    <p className="text-xl font-black text-slate-900">
+                                        {info.days === 0 ? 'Contado' : `${info.days} Días`}
+                                    </p>
+                                    {info.surcharge > 0 && (
+                                        <span className="inline-block mt-2 px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-black rounded-lg">
+                                            +{info.surcharge}% Financiero
+                                        </span>
+                                    )}
+                                    {info.surcharge < 0 && (
+                                        <span className="inline-block mt-2 px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-lg">
+                                            {info.surcharge}% Descuento
+                                        </span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right Side: Summary & Action */}
@@ -285,10 +363,20 @@ const CheckoutPage = () => {
                         </div>
 
                         <div className="space-y-3 mb-10 pt-6 border-t border-white/10">
+                            {selectedTerm > 0 && (
+                                <div className="flex justify-between items-center text-slate-400">
+                                    <span className="font-bold uppercase tracking-widest text-[10px]">Recargo Financiero ({paymentOptions.terms_info.find(t => t.days === selectedTerm)?.surcharge}%)</span>
+                                    <span className="font-bold">
+                                        S/ {(cartTotal * (paymentOptions.terms_info.find(t => t.days === selectedTerm)?.surcharge || 0) / 100).toFixed(2)}
+                                    </span>
+                                </div>
+                            )}
                             <div className="flex justify-between items-center">
                                 <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Total Final</span>
                                 <div className="text-right">
-                                    <span className="block text-4xl font-black text-primary-500">S/ {cartTotal.toFixed(2)}</span>
+                                    <span className="block text-4xl font-black text-primary-500">
+                                        S/ {(cartTotal * (1 + (paymentOptions.terms_info.find(t => t.days === selectedTerm)?.surcharge || 0) / 100)).toFixed(2)}
+                                    </span>
                                     {cartPointsTotal > 0 && (
                                         <span className="block text-2xl font-black text-amber-500">+ {cartPointsTotal} pts</span>
                                     )}
