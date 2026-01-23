@@ -312,7 +312,7 @@ async def delete_order(order_number: str) -> bool:
         raise NotFoundException("Order", order_number)
     
     if order.status == OrderStatus.INVOICED:
-        raise ValidationException("Cannot delete invoiced order. Delete the invoice first.")
+        raise ValidationException("No se puede eliminar una orden facturada. Elimine la factura de proveedor primero.")
         
     await order.delete()
     return True
@@ -337,6 +337,7 @@ async def delete_invoice(invoice_number: str) -> bool:
             if other_invoices == 0:
                 order.status = OrderStatus.PENDING
                 await order.save()
+                print(f"Rollback: Purchase Order {order.order_number} status reverted to PENDING")
             
     await invoice.delete()
     return True

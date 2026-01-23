@@ -31,6 +31,7 @@ const ReceiptTemplate = ({
     paymentTerms = null,
 
     // Props inyectados por PrintableModal para conversión visual
+    format = 'A5_SINGLE',
     targetCurrency = 'PEN',
     exchangeRate = 1
 }) => {
@@ -82,8 +83,10 @@ const ReceiptTemplate = ({
         ? numberToWords(displayTotalAmount, 'USD')
         : amountInWords;
 
+    const containerClass = `receipt-container ${format === 'A4_FULL' ? 'format-a4-full' : ''}`;
+
     return (
-        <div className="receipt-container">
+        <div className={containerClass}>
             <ReceiptHeader
                 documentType={documentType}
                 documentNumber={documentNumber}

@@ -17,6 +17,7 @@ import { usePurchaseQuotes } from '../hooks/usePurchaseQuotes';
 import PurchaseQuotesTable from '../components/features/purchasing/PurchaseQuotesTable';
 import PurchaseQuoteForm from '../components/forms/PurchaseQuoteForm';
 import PurchaseQuoteDetailModal from '../components/features/purchasing/PurchaseQuoteDetailModal';
+import XMLImportModal from '../components/common/XMLImportModal';
 
 const Purchasing = () => {
     const [activeTab, setActiveTab] = useState('quotes');
@@ -40,6 +41,7 @@ const Purchasing = () => {
     const [showCreateQuote, setShowCreateQuote] = useState(false);
     const [selectedQuote, setSelectedQuote] = useState(null);
     const [showQuoteDetailModal, setShowQuoteDetailModal] = useState(false);
+    const [showXMLImportModal, setShowXMLImportModal] = useState(false);
 
     // Hooks
     const {
@@ -113,11 +115,16 @@ const Purchasing = () => {
                     <h1 style={{ color: 'white', marginBottom: '0.5rem' }}>Compras</h1>
                     <p style={{ color: '#94a3b8' }}>Gestión de solicitudes, órdenes y facturas</p>
                 </div>
-                <div>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                     {(activeTab === 'orders' || activeTab === 'quotes') && (
-                        <Button onClick={() => setShowCreateQuote(true)}>
-                            + Nueva Solicitud RFQ
-                        </Button>
+                        <>
+                            <Button variant="secondary" onClick={() => setShowXMLImportModal(true)}>
+                                📧 Importar XML
+                            </Button>
+                            <Button onClick={() => setShowCreateQuote(true)}>
+                                + Nueva Solicitud RFQ
+                            </Button>
+                        </>
                     )}
                 </div>
             </div>
@@ -343,13 +350,42 @@ const Purchasing = () => {
                     }}>
                         <h2 style={{ color: 'white', marginTop: 0 }}>Nueva Solicitud de Cotización</h2>
                         <PurchaseQuoteForm
+                            initialData={selectedQuote}
                             onSubmit={handleCreateQuote}
-                            onCancel={() => setShowCreateQuote(false)}
+                            onCancel={() => {
+                                setShowCreateQuote(false);
+                                setSelectedQuote(null);
+                            }}
                             loading={quotesLoading}
                         />
                     </div>
                 </div>
             )}
+
+            <XMLImportModal
+                visible={showXMLImportModal}
+                onClose={() => setShowXMLImportModal(false)}
+                type="PURCHASE"
+                onConfirm={(data) => {
+                    // Map XML data to Purchase Quote form structure
+                    const mappedQuote = {
+                        supplier: {
+                            ruc: data.supplier.ruc,
+                            name: data.supplier.name,
+                            address: data.supplier.address
+                        },
+                        supplier_name: data.supplier.name,
+                        items: data.items.map(item => ({
+                            product_sku: item.product_sku,
+                            product_name: item.product_name,
+                            quantity: item.quantity,
+                            unit_cost: item.unit_price // XML price (net) becomes our cost
+                        }))
+                    };
+                    setSelectedQuote(mappedQuote);
+                    setShowCreateQuote(true);
+                }}
+            />
         </div>
     );
 };

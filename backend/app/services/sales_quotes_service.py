@@ -114,6 +114,8 @@ async def update_quote(quote_number: str, quote_data: SalesQuote) -> SalesQuote:
     quote.date = quote_data.date # Permitir actualizar la fecha de emisión
     quote.valid_until = quote_data.valid_until
     quote.delivery_address = quote_data.delivery_address
+    quote.payment_terms = quote_data.payment_terms
+    quote.due_date = quote_data.due_date
     quote.notes = quote_data.notes
     quote.total_amount = round(sum(item.quantity * item.unit_price for item in quote_data.items), 3)
 
@@ -206,7 +208,10 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             customer_email=quote.customer_email,
             related_quote_number=quote.quote_number,
             issuer_info=quote.issuer_info,
-            source=quote.source
+            payment_terms=quote.payment_terms,
+            due_date=quote.due_date,
+            source=quote.source,
+            date=quote.date
         )
 
         
@@ -234,7 +239,10 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             customer_email=quote.customer_email,
             related_quote_number=quote.quote_number,
             issuer_info=quote.issuer_info,
-            source=quote.source
+            payment_terms=quote.payment_terms,
+            due_date=quote.due_date,
+            source=quote.source,
+            date=quote.date
         )
 
         

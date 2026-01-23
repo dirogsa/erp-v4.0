@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import Input from '../../common/Input';
 
-const PaymentInfoSection = ({ value, onChange, totalAmount }) => {
+const PaymentInfoSection = ({ value, onChange, totalAmount, readOnly = false }) => {
     // value structure: { type: 'CASH' | 'CREDIT', installments: [] }
     // installment: { date: 'YYYY-MM-DD', amount: 0 }
 
@@ -93,11 +93,11 @@ const PaymentInfoSection = ({ value, onChange, totalAmount }) => {
             {/* Payment Type Selection Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
                 <div
-                    onClick={() => handleTypeChange('CASH')}
+                    onClick={() => !readOnly && handleTypeChange('CASH')}
                     style={{
                         padding: '1rem',
                         borderRadius: '0.5rem',
-                        cursor: 'pointer',
+                        cursor: readOnly ? 'default' : 'pointer',
                         border: `2px solid ${value.type === 'CASH' ? '#3b82f6' : '#334155'}`,
                         backgroundColor: value.type === 'CASH' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
                         transition: 'all 0.2s ease',
@@ -124,11 +124,11 @@ const PaymentInfoSection = ({ value, onChange, totalAmount }) => {
                 </div>
 
                 <div
-                    onClick={() => handleTypeChange('CREDIT')}
+                    onClick={() => !readOnly && handleTypeChange('CREDIT')}
                     style={{
                         padding: '1rem',
                         borderRadius: '0.5rem',
-                        cursor: 'pointer',
+                        cursor: readOnly ? 'default' : 'pointer',
                         border: `2px solid ${value.type === 'CREDIT' ? '#3b82f6' : '#334155'}`,
                         backgroundColor: value.type === 'CREDIT' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
                         transition: 'all 0.2s ease',
@@ -161,14 +161,15 @@ const PaymentInfoSection = ({ value, onChange, totalAmount }) => {
                     <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#e2e8f0', cursor: 'pointer' }}>
                             <div
-                                onClick={toggleInstallments}
+                                onClick={() => !readOnly && toggleInstallments()}
                                 style={{
                                     width: '44px',
                                     height: '24px',
                                     backgroundColor: value.installments?.length > 0 ? '#10b981' : '#475569',
                                     borderRadius: '12px',
                                     position: 'relative',
-                                    transition: 'background-color 0.2s ease'
+                                    transition: 'background-color 0.2s ease',
+                                    cursor: readOnly ? 'default' : 'pointer'
                                 }}
                             >
                                 <div style={{
@@ -196,6 +197,7 @@ const PaymentInfoSection = ({ value, onChange, totalAmount }) => {
                                     max="36"
                                     value={value.installments?.length || 1}
                                     onChange={handleCountChange}
+                                    disabled={readOnly}
                                 />
                             </div>
 
@@ -220,6 +222,7 @@ const PaymentInfoSection = ({ value, onChange, totalAmount }) => {
                                             type="date"
                                             value={inst.date}
                                             onChange={(e) => handleDateChange(idx, e.target.value)}
+                                            disabled={readOnly}
                                         />
                                     </div>
                                 ))}

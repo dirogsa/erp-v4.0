@@ -358,91 +358,44 @@ const PriceUpdateMasive = () => {
     return (
         <div style={{ padding: '2rem' }}>
             <header style={{
-                marginBottom: '2rem',
+                marginBottom: '1rem',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'flex-start',
+                alignItems: 'center',
                 backgroundColor: '#1e293b',
-                padding: '1.5rem',
-                borderRadius: '1rem',
+                padding: '1.25rem',
+                borderRadius: '0.75rem',
                 border: '1px solid #334155'
             }}>
                 <div>
-                    <h1 style={{ color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{ fontSize: '2rem' }}>💎</span> Price Management Control Center
+                    <h1 style={{ color: 'white', margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>
+                        Gestión de Precios Global
                     </h1>
-                    <p style={{ color: '#94a3b8', marginTop: '0.5rem' }}>Gestión centralizada de precios para operaciones de gran escala.</p>
+                    <p style={{ color: '#94a3b8', margin: 0, marginTop: '0.25rem', fontSize: '0.9rem' }}>Centro de control financiero</p>
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'flex-end', maxWidth: '700px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ color: '#94a3b8', fontSize: '0.65rem', fontWeight: '800' }}>AUDITORÍA: RAZÓN DEL CAMBIO</label>
-                        <Input
-                            value={updateReason}
-                            onChange={(e) => setUpdateReason(e.target.value)}
-                            style={{ width: '250px', height: '40px', fontSize: '0.8rem' }}
-                        />
-                    </div>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <Button variant="secondary" onClick={() => setShowImportModal(true)}>
+                        📤 Importar Excel
+                    </Button>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ color: '#3b82f6', fontSize: '0.65rem', fontWeight: '800' }}>MODO ANCLA RELACIONAL</label>
-                        <div
-                            onClick={() => setAutoRelational(!autoRelational)}
-                            style={{
-                                height: '40px',
-                                padding: '0 1rem',
-                                backgroundColor: autoRelational ? '#1e293b' : '#0f172a',
-                                border: `2px solid ${autoRelational ? '#3b82f6' : '#334155'}`,
-                                borderRadius: '0.5rem',
-                                color: autoRelational ? '#3b82f6' : '#94a3b8',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                cursor: 'pointer',
-                                fontWeight: 'bold',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            {autoRelational ? '🤖 ACTIVO' : '🔘 DESACTIVADO'}
-                            <div style={{ fontSize: '0.6rem', opacity: 0.8 }}>
-                                {autoRelational ? '(Wholesale manda)' : '(Manual)'}
-                            </div>
-                        </div>
-                    </div>
+                    <div style={{ height: '32px', width: '1px', background: '#334155' }}></div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ color: '#94a3b8', fontSize: '0.65rem', fontWeight: '800' }}>VISTA PRINCIPAL</label>
-                        <select
-                            value={priceType}
-                            onChange={(e) => setPriceType(e.target.value)}
-                            style={{
-                                height: '40px',
-                                backgroundColor: '#0f172a',
-                                border: '2px solid #334155',
-                                borderRadius: '0.5rem',
-                                color: 'white',
-                                fontWeight: 'bold'
-                            }}
-                        >
-                            <option value="price_retail">MINORISTAS (Retail)</option>
-                            <option value="price_wholesale">MAYORISTAS (Wholesale)</option>
-                        </select>
-                    </div>
+                    <Input
+                        placeholder="Razón del cambio (Auditoría)..."
+                        value={updateReason}
+                        onChange={(e) => setUpdateReason(e.target.value)}
+                        style={{ width: '250px' }}
+                    />
 
-                    <div style={{ display: 'flex', gap: '0.5rem', alignSelf: 'flex-end' }}>
-                        <Button variant="secondary" onClick={() => setShowImportModal(true)}>
-                            📋 Excel Paste
-                        </Button>
-                        <Button
-                            onClick={handleSaveAll}
-                            loading={saving}
-                            disabled={items.length === 0 || saving || hasCriticalRisk}
-                            variant={hasCriticalRisk ? 'danger' : (saving ? 'secondary' : 'primary')}
-                            style={{ minWidth: '220px', opacity: hasCriticalRisk ? 0.8 : 1 }}
-                        >
-                            {hasCriticalRisk ? `🚨 ALERTA: MARGEN < ${securityMargin}%` : (saving ? '⏳ Procesando Multinacional...' : `🚀 Publicar ${items.length} Precios`)}
-                        </Button>
-                    </div>
+                    <Button
+                        onClick={handleSaveAll}
+                        loading={saving}
+                        disabled={items.length === 0 || saving || hasCriticalRisk}
+                        variant={hasCriticalRisk ? 'danger' : 'primary'}
+                    >
+                        {hasCriticalRisk ? '🚨 RIESGO DETECTADO' : `Publicar ${items.length} Cambios`}
+                    </Button>
                 </div>
             </header>
 
@@ -504,105 +457,65 @@ const PriceUpdateMasive = () => {
                 </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
-                <div className="card" style={{ marginBottom: 0, padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <Button variant="secondary" onClick={() => setIsFilterOpen(true)} style={{ flex: 1, height: '45px', border: '1px dashed #334155' }}>
-                            🔍 Búsqueda Avanzada / Filtros
-                        </Button>
-                        <Button variant="secondary" onClick={loadEmptyPrices} title="Traer productos sin precio" style={{ height: '45px' }}>
-                            Empty
-                        </Button>
-                    </div>
+            {/* Toolbar Unificada */}
+            <div style={{
+                display: 'flex',
+                gap: '1rem',
+                marginBottom: '1.5rem',
+                alignItems: 'center',
+                backgroundColor: '#0f172a',
+                padding: '0.75rem',
+                borderRadius: '0.5rem',
+                border: '1px solid #334155'
+            }}>
+                {/* Search / Add */}
+                <div style={{ flex: 1 }}>
+                    <Button variant="secondary" onClick={() => setIsFilterOpen(true)} style={{ width: '100%', justifyContent: 'space-between', border: '1px dashed #475569' }}>
+                        <span>🔍 Agregar Productos Manualmente / Filtros</span>
+                        <span style={{ background: '#334155', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem' }}>CMD+K</span>
+                    </Button>
                 </div>
 
-                <div className="card" style={{
-                    marginBottom: 0,
-                    padding: '1rem',
-                    background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                    border: '1px solid #3b82f644'
-                }}>
-                    <label style={{ color: '#3b82f6', fontSize: '0.7rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>🕵️ SIMULADOR DE PERFIL DE VENTA</label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <select
-                            value={simTier}
-                            onChange={(e) => setSimTier(e.target.value)}
-                            style={{ flex: 2, padding: '0.5rem', borderRadius: '0.5rem', background: '#0f172a', color: 'white', border: '1px solid #334155' }}
-                        >
-                            <option value="STANDARD">Público General</option>
-                            <option value="BRONCE">BRONCE</option>
-                            <option value="PLATA">PLATA</option>
-                            <option value="ORO">ORO</option>
-                            <option value="DIAMANTE">DIAMANTE</option>
-                        </select>
-                        <select
-                            value={simQty}
-                            onChange={(e) => setSimQty(parseInt(e.target.value))}
-                            style={{ flex: 1, padding: '0.5rem', borderRadius: '0.5rem', background: '#0f172a', color: 'white', border: '1px solid #334155' }}
-                        >
-                            <option value="1">1 u.</option>
-                            <option value="6">6 u.</option>
-                            <option value="12">12 u.</option>
-                            <option value="24">24 u.</option>
-                        </select>
-                    </div>
-                </div>
+                {/* Vertical Divider */}
+                <div style={{ width: '1px', height: '24px', backgroundColor: '#334155' }}></div>
 
-                <div className="card" style={{
-                    marginBottom: 0,
-                    padding: '1rem',
-                    background: 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)',
-                    border: '1px solid #10b98144'
+                {/* Configuración de Cálculo (Relational Mode) */}
+                <label style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
+                    color: autoRelational ? '#3b82f6' : '#94a3b8', fontWeight: '500',
+                    fontSize: '0.9rem', userSelect: 'none'
                 }}>
-                    <label style={{ color: '#34d399', fontSize: '0.7rem', fontWeight: 'bold', display: 'block', marginBottom: '0.5rem' }}>⚡ CENTRAL DE MANDO (BULK ACTIONS)</label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                        <Button
-                            variant="outline"
-                            size="small"
-                            onClick={handleSyncGlobalPolicies}
-                            style={{ borderColor: '#3b82f6', color: '#3b82f6' }}
-                        >
-                            🔄 Sincronizar con Políticas Globales
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="small"
-                            onClick={() => executeAction('ROUND_PSYCHOLOGICAL')}
-                            style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
-                        >
-                            🎯 Redondear .90
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem' }}
-                            onClick={() => {
-                                const p = prompt("Sincronizar Retail/Wholesale. Ingrese % de margen:");
-                                if (p) executeAction(priceType === 'price_retail' ? 'SYNC_WHOLESALE' : 'SYNC_RETAIL', p);
-                            }}
-                        >
-                            Sincronizar R/W
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem' }}
-                            onClick={() => {
-                                const p = prompt("% de ajuste global:");
-                                if (p) executeAction('PERCENTAGE', p);
-                            }}
-                        >
-                            Ajuste %
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem', border: '1px solid #10b981', color: '#10b981' }}
-                            onClick={() => {
-                                const p = prompt("Margen objetivo (%) deseado (ej: 30):");
-                                if (p) executeAction('SET_MARGIN', p);
-                            }}
-                        >
-                            🎯 Target Margin %
-                        </Button>
-                    </div>
+                    <input
+                        type="checkbox"
+                        checked={autoRelational}
+                        onChange={(e) => setAutoRelational(e.target.checked)}
+                        style={{ accentColor: '#3b82f6' }}
+                    />
+                    <span>{autoRelational ? '⚡ Autocalcular Márgenes (Automático)' : '📝 Manual (Excel Manda)'}</span>
+                </label>
+
+                {/* Vertical Divider */}
+                <div style={{ width: '1px', height: '24px', backgroundColor: '#334155' }}></div>
+
+                {/* Selector de Vista Principal */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Columna Editable:</span>
+                    <select
+                        value={priceType}
+                        onChange={(e) => setPriceType(e.target.value)}
+                        style={{
+                            background: '#1e293b',
+                            border: 'none',
+                            color: 'white',
+                            padding: '0.4rem',
+                            borderRadius: '0.25rem',
+                            fontWeight: 'bold',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <option value="price_retail">Precios Minoristas</option>
+                        <option value="price_wholesale">Precios Mayoristas</option>
+                    </select>
                 </div>
             </div>
 

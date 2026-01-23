@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { purchasingService } from '../services/api';
 import { useNotification } from './useNotification';
 
@@ -6,6 +7,7 @@ export const usePurchaseInvoices = () => {
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const queryClient = useQueryClient();
     const { showNotification } = useNotification();
 
     const fetchInvoices = useCallback(async () => {
@@ -29,6 +31,8 @@ export const usePurchaseInvoices = () => {
         try {
             const response = await purchasingService.createInvoice(invoiceData);
             await fetchInvoices();
+            // Invalidate purchase orders cache
+            queryClient.invalidateQueries(['purchase-orders']);
             showNotification('Factura de compra registrada exitosamente', 'success');
             return response.data;
         } catch (err) {
@@ -75,6 +79,8 @@ export const usePurchaseInvoices = () => {
         try {
             await purchasingService.deleteInvoice(invoiceNumber);
             await fetchInvoices();
+            // Invalidate purchase orders cache
+            queryClient.invalidateQueries(['purchase-orders']);
             showNotification('Factura de compra eliminada exitosamente', 'success');
         } catch (err) {
             const errorMessage = err.response?.data?.detail || 'Error al eliminar factura';

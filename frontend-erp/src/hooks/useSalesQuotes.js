@@ -39,7 +39,15 @@ export const useSalesQuotes = ({ page = 1, limit = 50, search = '', status = '',
         },
         onError: (err) => {
             console.error('Error creating sales quote:', err);
-            const errorMessage = err.response?.data?.detail || 'Error al crear cotización';
+            let errorMessage = 'Error al crear cotización';
+            if (err.response?.data?.detail) {
+                const detail = err.response.data.detail;
+                if (Array.isArray(detail)) {
+                    errorMessage = detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                } else if (typeof detail === 'string') {
+                    errorMessage = detail;
+                }
+            }
             showNotification(errorMessage, 'error');
         }
     });
@@ -52,7 +60,15 @@ export const useSalesQuotes = ({ page = 1, limit = 50, search = '', status = '',
         },
         onError: (err) => {
             console.error('Error updating sales quote:', err);
-            const errorMessage = err.response?.data?.detail || 'Error al actualizar cotización';
+            let errorMessage = 'Error al actualizar cotización';
+            if (err.response?.data?.detail) {
+                const detail = err.response.data.detail;
+                if (Array.isArray(detail)) {
+                    errorMessage = detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                } else if (typeof detail === 'string') {
+                    errorMessage = detail;
+                }
+            }
             showNotification(errorMessage, 'error');
         }
     });
@@ -83,7 +99,15 @@ export const useSalesQuotes = ({ page = 1, limit = 50, search = '', status = '',
         },
         onError: (err) => {
             console.error('Error converting sales quote:', err);
-            const errorMessage = err.response?.data?.detail || 'Error al convertir cotización';
+            let errorMessage = 'Error al convertir cotización';
+            if (err.response?.data?.detail) {
+                const detail = err.response.data.detail;
+                if (Array.isArray(detail)) {
+                    errorMessage = detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                } else if (typeof detail === 'string') {
+                    errorMessage = detail;
+                }
+            }
             showNotification(errorMessage, 'error');
         }
     });

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Button from '../../common/Button';
-import { inventoryService, priceService } from '../../../services/api';
+import { inventoryService, priceService, salesPolicyService } from '../../../services/api';
 
 const PriceImportModal = ({ visible, onClose, onImported }) => {
     const [pastedData, setPastedData] = useState('');
@@ -9,6 +9,17 @@ const PriceImportModal = ({ visible, onClose, onImported }) => {
     const [mapping, setMapping] = useState({ sku: 0, retail: 1, wholesale: 2 });
     const [step, setStep] = useState(1); // 1: Paste, 2: Map & Validate, 3: Final Review
     const [validationStatus, setValidationStatus] = useState({ loading: false, errors: [] });
+
+    // Relational Engine States
+    const [autoCalcRetail, setAutoCalcRetail] = useState(true);
+    const [policies, setPolicies] = useState(null);
+
+    // Load policies on mount
+    React.useEffect(() => {
+        if (visible) {
+            salesPolicyService.getPolicies().then(res => setPolicies(res.data)).catch(console.error);
+        }
+    }, [visible]);
 
     if (!visible) return null;
 
@@ -34,12 +45,13 @@ const PriceImportModal = ({ visible, onClose, onImported }) => {
         setValidationStatus({ loading: true, errors: [] });
         const finalItems = [];
         const errors = [];
+        const markup = policies?.retail_markup_pct || 25; // Default fallback
 
         for (let i = 0; i < parsedItems.length; i++) {
             const row = parsedItems[i];
             const sku = row[mapping.sku]?.trim();
-            const retail = parseFloat(row[mapping.retail]) || 0;
-            const wholesale = parseFloat(row[mapping.wholesale]) || 0;
+            const retailInput = parseFloat(row[mapping.retail]) || 0;
+            const wholesaleInput = parseFloat(row[mapping.wholesale]) || 0;
 
             if (!sku) continue;
 
@@ -49,11 +61,23 @@ const PriceImportModal = ({ visible, onClose, onImported }) => {
                 const product = res.data.items.find(p => p.sku.toLowerCase() === sku.toLowerCase());
 
                 if (product) {
+                    const finalWholesale = wholesaleInput > 0 ? wholesaleInput : product.price_wholesale;
+
+                    // Relational Logic:
+                    // If AutoCalc is ON, force calculation based on wholesale.
+                    // If AutoCalc is OFF, use input if present, else keep old.
+                    let finalRetail;
+                    if (autoCalcRetail) {
+                        finalRetail = finalWholesale * (1 + markup / 100);
+                    } else {
+                        finalRetail = retailInput > 0 ? retailInput : product.price_retail;
+                    }
+
                     finalItems.push({
                         sku: product.sku,
                         name: product.name,
-                        price_retail: retail || product.price_retail,
-                        price_wholesale: wholesale || product.price_wholesale,
+                        price_retail: finalRetail,
+                        price_wholesale: finalWholesale,
                         old_retail: product.price_retail,
                         old_wholesale: product.price_wholesale,
                         cost: product.cost || 0
@@ -202,7 +226,19 @@ const PriceImportModal = ({ visible, onClose, onImported }) => {
 
                     {step === 2 && (
                         <div>
-                            <p style={{ color: '#94a3b8', marginBottom: '1rem' }}>Mapea las columnas de tu pegado:</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <p style={{ color: '#94a3b8', margin: 0 }}>Mapea las columnas de tu pegado:</p>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', background: autoCalcRetail ? 'rgba(59, 130, 246, 0.1)' : 'transparent', padding: '0.5rem', borderRadius: '0.5rem', border: `1px solid ${autoCalcRetail ? '#3b82f6' : '#334155'}` }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={autoCalcRetail}
+                                        onChange={(e) => setAutoCalcRetail(e.target.checked)}
+                                    />
+                                    <span style={{ color: autoCalcRetail ? '#60a5fa' : '#94a3b8', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                                        ⚡ Aplicar Margen Minorista Automático ({policies?.retail_markup_pct || 25}%)
+                                    </span>
+                                </label>
+                            </div>
                             <div style={{ border: '1px solid #334155', borderRadius: '0.5rem', overflow: 'hidden' }}>
                                 <table style={{ width: '100%', color: 'white', borderCollapse: 'collapse' }}>
                                     <thead style={{ backgroundColor: '#1e293b' }}>
@@ -213,9 +249,18 @@ const PriceImportModal = ({ visible, onClose, onImported }) => {
                                                         value={mapping.sku === i ? 'sku' : mapping.retail === i ? 'retail' : mapping.wholesale === i ? 'wholesale' : 'none'}
                                                         onChange={(e) => {
                                                             const val = e.target.value;
-                                                            if (val === 'sku') setMapping({ ...mapping, sku: i });
-                                                            if (val === 'retail') setMapping({ ...mapping, retail: i });
-                                                            if (val === 'wholesale') setMapping({ ...mapping, wholesale: i });
+                                                            const newMapping = { ...mapping };
+
+                                                            // Logic 1: If selecting 'none', remove this column from any mapping
+                                                            if (val === 'none') {
+                                                                if (newMapping.sku === i) newMapping.sku = -1;
+                                                                if (newMapping.retail === i) newMapping.retail = -1;
+                                                                if (newMapping.wholesale === i) newMapping.wholesale = -1;
+                                                            } else {
+                                                                // Logic 2: If selecting a field, assign it to this column
+                                                                newMapping[val] = i;
+                                                            }
+                                                            setMapping(newMapping);
                                                         }}
                                                         style={{ backgroundColor: '#0f172a', color: 'white', border: '1px solid #475569', padding: '0.4rem', borderRadius: '4px', width: '100%' }}
                                                     >

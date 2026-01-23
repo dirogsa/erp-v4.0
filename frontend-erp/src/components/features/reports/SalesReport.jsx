@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import ReportViewerModal from './ReportViewerModal';
 import { analyticsService } from '../../../services/api';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
+import { useCompany } from '../../../context/CompanyContext';
 import Button from '../../common/Button';
 
 const SalesReport = ({ visible, onClose }) => {
+    const { activeCompany } = useCompany(); // Get active company info
     const [loading, setLoading] = useState(false);
 
     // Default to current month
@@ -35,12 +37,43 @@ const SalesReport = ({ visible, onClose }) => {
 
     if (!visible) return null;
 
+    const companyName = activeCompany?.name || 'Empresa';
+    const companyRuc = activeCompany?.ruc || '-';
+    const companyAddress = activeCompany?.address || '-';
+
     return (
         <ReportViewerModal
             visible={visible}
             onClose={onClose}
-            title="Reporte de Ventas Detallado"
+            title="Reporte Detallado de Ventas"
         >
+            {/* Header for Print - Compact A5 */}
+            <div style={{ marginBottom: '1rem', display: 'none', borderBottom: '2px solid #0f172a', paddingBottom: '0.5rem' }} className="print-header">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                    <div>
+                        <h1 style={{ fontSize: '1rem', fontWeight: 'bold', margin: '0' }}>{companyName}</h1>
+                        <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.7rem' }}>RUC: {companyRuc}</p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                        <h2 style={{ fontSize: '0.9rem', margin: '0', color: '#0f172a' }}>REPORTE DE VENTAS</h2>
+                        <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.65rem', color: '#666' }}>{new Date().toLocaleDateString()}</p>
+                    </div>
+                </div>
+            </div>
+
+            <style>{`
+                @media print {
+                    .print-header { display: block !important; }
+                    .no-print { display: none !important; }
+                    .report-table th, .report-table td {
+                        padding: 4px 3px !important;
+                        font-size: 8px !important;
+                        border-bottom: 1px solid #e2e8f0 !important;
+                    }
+                    .report-table th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; }
+                }
+            `}</style>
+
             {/* Filters - Hidden on Print */}
             <div className="no-print" style={{
                 marginBottom: '2rem',
@@ -81,18 +114,18 @@ const SalesReport = ({ visible, onClose }) => {
             {/* Report Table */}
             {reportData ? (
                 <>
-                    <div style={{ marginBottom: '1rem', fontWeight: 'bold' }}>
+                    <div style={{ marginBottom: '1rem', fontWeight: 'bold' }} className="no-print">
                         Periodo: {startDate} al {endDate} | Registros: {reportData.items.length}
                     </div>
 
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                    <table className="report-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                         <thead>
                             <tr style={{ backgroundColor: '#f8fafc' }}>
-                                <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '2px solid #000' }}>Fecha</th>
-                                <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '2px solid #000' }}>Documento</th>
-                                <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '2px solid #000' }}>Cliente</th>
-                                <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '2px solid #000' }}>Estado Pago</th>
-                                <th style={{ textAlign: 'right', padding: '0.75rem', borderBottom: '2px solid #000' }}>Total (S/)</th>
+                                <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '2px solid #0f172a' }}>Fecha</th>
+                                <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '2px solid #0f172a' }}>Documento</th>
+                                <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '2px solid #0f172a' }}>Cliente</th>
+                                <th style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '2px solid #0f172a' }}>Estado</th>
+                                <th style={{ textAlign: 'right', padding: '0.75rem', borderBottom: '2px solid #0f172a' }}>Total (S/)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -102,15 +135,7 @@ const SalesReport = ({ visible, onClose }) => {
                                     <td style={{ padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>{item.sunat_number || item.invoice_number}</td>
                                     <td style={{ padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>{item.customer}</td>
                                     <td style={{ padding: '0.5rem', borderBottom: '1px solid #e2e8f0' }}>
-                                        <span style={{
-                                            padding: '2px 6px',
-                                            borderRadius: '4px',
-                                            backgroundColor: item.status === 'PAID' ? '#dcfce7' : '#fee2e2',
-                                            color: item.status === 'PAID' ? '#166534' : '#991b1b',
-                                            fontSize: '0.75rem'
-                                        }}>
-                                            {item.status}
-                                        </span>
+                                        {item.status === 'PAID' ? 'PAGADO' : 'PENDIENTE'}
                                     </td>
                                     <td style={{ padding: '0.5rem', borderBottom: '1px solid #e2e8f0', textAlign: 'right' }}>
                                         {formatCurrency(item.total)}
@@ -120,8 +145,8 @@ const SalesReport = ({ visible, onClose }) => {
                         </tbody>
                         <tfoot>
                             <tr style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold' }}>
-                                <td colSpan={4} style={{ padding: '1rem', textAlign: 'right' }}>VENTA TOTAL:</td>
-                                <td style={{ padding: '1rem', textAlign: 'right', fontSize: '1.1rem' }}>
+                                <td colSpan={4} style={{ padding: '1rem', textAlign: 'right' }}>VENTA TOTAL DEL PERIODO:</td>
+                                <td style={{ padding: '1rem', textAlign: 'right', fontSize: '1.2rem', color: '#166534' }}>
                                     {formatCurrency(reportData.total_sales)}
                                 </td>
                             </tr>

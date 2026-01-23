@@ -31,6 +31,7 @@ import { useDeliveryGuides } from '../hooks/useDeliveryGuides';
 import GuidesTable from '../components/features/sales/GuidesTable';
 import GuideFormModal from '../components/features/sales/GuideFormModal';
 import DeliveryGuideReceipt from '../components/features/sales/DeliveryGuideReceipt';
+import XMLImportModal from '../components/common/XMLImportModal';
 
 const Sales = () => {
     const [activeTab, setActiveTab] = useState('quotes');
@@ -63,6 +64,7 @@ const Sales = () => {
     const [showGuideFormModal, setShowGuideFormModal] = useState(false);
     const [showGuideReceipt, setShowGuideReceipt] = useState(false);
     const [selectedGuide, setSelectedGuide] = useState(null);
+    const [showXMLImportModal, setShowXMLImportModal] = useState(false);
 
     const [sourceFilter, setSourceFilter] = useState('');
 
@@ -232,20 +234,24 @@ const Sales = () => {
                 </div>
                 <div>
                     {/* Always show New Quote as it's the primary entry point */}
-                    <Button onClick={() => setShowCreateQuote(true)}>
-                        + Nueva Cotización
-                    </Button>
-
-                    {/* Show New Order button specifically for Orders tab */}
-                    {activeTab === 'orders' && (
-                        <Button
-                            variant="secondary"
-                            onClick={() => setShowCreateOrder(true)}
-                            style={{ marginLeft: '1rem' }}
-                        >
-                            + Nueva Orden
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                        <Button variant="secondary" onClick={() => setShowXMLImportModal(true)}>
+                            📧 Importar XML
                         </Button>
-                    )}
+                        <Button onClick={() => setShowCreateQuote(true)}>
+                            + Nueva Cotización
+                        </Button>
+
+                        {/* Show New Order button specifically for Orders tab */}
+                        {activeTab === 'orders' && (
+                            <Button
+                                variant="secondary"
+                                onClick={() => setShowCreateOrder(true)}
+                            >
+                                + Nueva Orden
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -795,6 +801,33 @@ const Sales = () => {
                 visible={showGuideReceipt}
                 guide={selectedGuide}
                 onClose={() => setShowGuideReceipt(false)}
+            />
+
+            <XMLImportModal
+                visible={showXMLImportModal}
+                onClose={() => setShowXMLImportModal(false)}
+                type="SALES"
+                onConfirm={(data) => {
+                    // Map XML data to Quote form structure
+                    const mappedQuote = {
+                        customer: {
+                            ruc: data.customer.ruc,
+                            name: data.customer.name,
+                            address: '', // To be filled or fetched
+                            branches: []
+                        },
+                        customer_ruc: data.customer.ruc,
+                        customer_name: data.customer.name,
+                        items: data.items.map(item => ({
+                            product_sku: item.product_sku,
+                            product_name: item.product_name,
+                            quantity: item.quantity,
+                            unit_price: item.unit_price // Net price (15.25)
+                        }))
+                    };
+                    setSelectedQuote(mappedQuote);
+                    setShowCreateQuote(true);
+                }}
             />
         </div >
     );

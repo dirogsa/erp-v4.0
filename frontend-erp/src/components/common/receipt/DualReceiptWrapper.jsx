@@ -2,6 +2,7 @@ import React from 'react';
 import './receipt.css';
 
 const DualReceiptWrapper = ({ children, format = 'A4_DUAL', ...props }) => {
+    const isFull = format === 'A4_FULL';
     const isSingle = format === 'A5_SINGLE';
 
     // Helper recursivo para inyectar props a través de divs contenedores
@@ -17,26 +18,30 @@ const DualReceiptWrapper = ({ children, format = 'A4_DUAL', ...props }) => {
             }
 
             // Si es un Componente React (ej. ReceiptTemplate), inyectamos los props
-            // incluyendo format y los de conversión de moneda
             return React.cloneElement(child, { format, ...props });
         });
     };
 
     const childrenWithProps = injectProps(children);
 
+    // Dynamic class based on format
+    let containerClass = "dual-receipt-container";
+    if (isSingle) containerClass = "single-receipt-container";
+    if (isFull) containerClass = "full-receipt-container";
+
     return (
-        <div className={isSingle ? "single-receipt-container" : "dual-receipt-container"}>
+        <div className={containerClass}>
             {/* Original Copy (or Single Copy) */}
-            <div className={isSingle ? "receipt-half single" : "receipt-half original"}>
+            <div className={isFull ? "receipt-half full" : (isSingle ? "receipt-half single" : "receipt-half original")}>
                 <div className="watermark-text">
-                    {isSingle ? (props.isCargo ? "CARGO" : "") : "ORIGINAL"}
+                    {isFull ? "" : (isSingle ? (props.isCargo ? "CARGO" : "") : "ORIGINAL")}
                 </div>
                 <div className="receipt-content-wrapper">
                     {childrenWithProps}
                 </div>
             </div>
 
-            {!isSingle && (
+            {!isSingle && !isFull && (
                 <>
                     {/* Cut Line */}
                     <div className="cut-line" />

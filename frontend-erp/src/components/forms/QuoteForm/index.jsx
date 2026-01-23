@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import CustomerSelector from './CustomerSelector';
 import ProductItemsSection from './ProductItemsSection';
 import QuoteSummary from './QuoteSummary';
+import PaymentInfoSection from '../OrderForm/PaymentInfoSection';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import { useNotification } from '../../../hooks/useNotification';
@@ -28,6 +29,9 @@ const QuoteForm = ({
         delivery_address: '',
         delivery_branch_name: '',
         date: new Date().toISOString().split('T')[0],
+        due_date: '',
+        currency: 'SOLES',
+        payment_terms: { type: 'CASH', installments: [] },
         ...initialData
     });
 
@@ -38,6 +42,8 @@ const QuoteForm = ({
                 ...prev,
                 ...initialData,
                 date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
+                due_date: initialData.due_date ? initialData.due_date.split('T')[0] : '',
+                currency: initialData.currency || 'SOLES',
                 customer: initialData.customer || {
                     name: initialData.customer_name || '',
                     ruc: initialData.customer_ruc || '',
@@ -46,7 +52,7 @@ const QuoteForm = ({
                 },
                 items: (initialData.items || []).map(item => ({
                     ...item,
-                    subtotal: item.subtotal !== undefined ? item.subtotal : (item.quantity * item.unit_price)
+                    subtotal: item.subtotal !== undefined ? item.subtotal : Math.round((item.quantity * item.unit_price) * 100) / 100
                 }))
             }));
         }
@@ -94,6 +100,7 @@ const QuoteForm = ({
 
         const quotePayload = {
             ...formData,
+            due_date: formData.due_date || null,
             items: formData.items,
             total_amount: total,
             issuer_info: activeCompany // Snapshot active company info at creation time
@@ -113,7 +120,7 @@ const QuoteForm = ({
                 <h3 style={{ marginBottom: '1rem', color: '#e2e8f0', fontSize: '1.1rem' }}>
                     Información General
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1fr) 150px', gap: '1rem' }}>
                     <Input
                         label="Fecha de Emisión"
                         type="date"
@@ -122,6 +129,32 @@ const QuoteForm = ({
                         disabled={readOnly}
                         required
                     />
+                    <Input
+                        label="Vencimiento (Ref)"
+                        type="date"
+                        value={formData.due_date}
+                        onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                        disabled={readOnly}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <label style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Moneda</label>
+                        <select
+                            value={formData.currency}
+                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                            disabled={readOnly}
+                            style={{
+                                padding: '0.5rem',
+                                backgroundColor: '#0f172a',
+                                border: '1px solid #334155',
+                                borderRadius: '0.25rem',
+                                color: 'white',
+                                outline: 'none'
+                            }}
+                        >
+                            <option value="SOLES">S/ Soles</option>
+                            <option value="DOLARES">$ Dólares</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -139,8 +172,15 @@ const QuoteForm = ({
                 customerRuc={formData.customer?.ruc}
             />
 
+            <PaymentInfoSection
+                value={formData.payment_terms}
+                onChange={(payment_terms) => setFormData({ ...formData, payment_terms })}
+                totalAmount={formData.items.reduce((sum, item) => sum + (item.subtotal || 0), 0)}
+                readOnly={readOnly}
+            />
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <QuoteSummary items={formData.items} />
+                <QuoteSummary items={formData.items} currency={formData.currency} />
             </div>
 
             {!readOnly && (

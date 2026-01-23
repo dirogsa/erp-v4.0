@@ -542,8 +542,8 @@ async def delete_order(order_number: str, user: Optional[User] = None) -> bool:
     if not order:
         raise NotFoundException("Order", order_number)
     
-    if order.status == OrderStatus.INVOICED:
-        raise ValidationException("Cannot delete invoiced order. Delete the invoice first.")
+    if order.status in [OrderStatus.INVOICED, OrderStatus.PARTIALLY_INVOICED]:
+        raise ValidationException("No se puede eliminar una orden facturada o parcialmente facturada. Elimine las facturas primero.")
 
     # Revert Quote status if it was converted from one
     if order.related_quote_number:
@@ -584,20 +584,37 @@ async def delete_invoice(invoice_number: str, user: Optional[User] = None) -> bo
     if invoice.order_number:
         order = await SalesOrder.find_one(SalesOrder.order_number == invoice.order_number)
         if order:
-            # Restore invoiced quantities
-            for inv_item in invoice.items:
-                target_item = next((i for i in order.items if i.product_sku == inv_item.product_sku), None)
-                if target_item:
-                    target_item.invoiced_quantity = max(0, target_item.invoiced_quantity - inv_item.quantity)
+            # 1. Get all OTHER active invoices for this order
+            other_active_invoices = await SalesInvoice.find(
+                {"order_number": order.order_number, "invoice_number": {"$ne": invoice.invoice_number}}
+            ).to_list()
             
-            # Recalculate Order Status
-            any_invoiced = any(i.invoiced_quantity > 0 for i in order.items)
-            if not any_invoiced:
+            # 2. Reset all invoiced quantities on the order
+            for item in order.items:
+                item.invoiced_quantity = 0
+            
+            # 3. Sum quantities from all remaining invoices
+            for other_inv in other_active_invoices:
+                for inv_item in other_inv.items:
+                    target = next((i for i in order.items if i.product_sku == inv_item.product_sku), None)
+                    if target:
+                        target.invoiced_quantity += inv_item.quantity
+            
+            # 4. Recalculate Order Status
+            total_items_to_invoice = sum(i.quantity for i in order.items)
+            total_items_invoiced = sum(i.invoiced_quantity for i in order.items)
+            
+            if total_items_invoiced == 0:
                 order.status = OrderStatus.PENDING
+            elif total_items_invoiced >= total_items_to_invoice:
+                # This check is slightly more robust for full invoicing
+                is_fully_done = all(i.invoiced_quantity >= i.quantity for i in order.items)
+                order.status = OrderStatus.INVOICED if is_fully_done else OrderStatus.PARTIALLY_INVOICED
             else:
                 order.status = OrderStatus.PARTIALLY_INVOICED
                 
             await order.save()
+            print(f"Rollback: Order {order.order_number} recalculated. New status: {order.status}")
             
     if user:
         await AuditService.log_action(

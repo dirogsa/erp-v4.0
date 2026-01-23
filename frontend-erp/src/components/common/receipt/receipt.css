@@ -19,7 +19,6 @@
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: row;
-    /* Side-by-side */
     position: relative;
     box-sizing: border-box;
     overflow: hidden;
@@ -29,7 +28,6 @@
 .single-receipt-container {
     background: white;
     width: 297mm;
-    /* Full A4 Landscape width to prevent scaling */
     height: 210mm;
     margin: 0 auto;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
@@ -38,10 +36,29 @@
     position: relative;
     box-sizing: border-box;
     overflow: hidden;
-    /* Prevent scrolling inside the paper in preview */
+    justify-content: flex-end;
 }
 
-/* Each vertical half */
+.single-receipt-container::before {
+    content: "";
+    flex: 1;
+}
+
+/* A4 PORTRAIT Container - Full Page Corporate Layout */
+.full-receipt-container {
+    background: white;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-sizing: border-box;
+    padding: 15mm 18mm;
+}
+
+/* Common half-page logic */
 .receipt-half {
     width: 147.5mm;
     height: 100%;
@@ -53,60 +70,83 @@
     flex-direction: column;
 }
 
-/* Single Format Fixed Width (Matches half A4) */
 .receipt-half.single {
     width: 147.5mm !important;
     height: 100% !important;
-    padding: 8mm 10mm;
 }
 
-/* Ensure the container stays empty on the left and shows content on the right */
-.single-receipt-container::before {
-    content: "";
-    flex: 1;
+.full-receipt-container .receipt-half {
+    width: 100% !important;
+    height: auto !important;
+    padding: 0 !important;
 }
 
-.single-receipt-container {
-    justify-content: flex-end;
+/* UI/UX Upgrades for Full A4 */
+.format-a4-full .receipt-content {
+    font-size: 11px;
+    /* Larger base font for A4 */
 }
 
-/* Compact rules for A5_SINGLE */
-.single-receipt-container .receipt-header-container {
-    gap: 2mm;
-    margin-bottom: 2mm;
+.format-a4-full .company-name {
+    font-size: 16px;
 }
 
-.single-receipt-container .receipt-top-section {
-    padding-bottom: 2mm;
+.format-a4-full .company-details {
+    font-size: 10px;
 }
 
-.single-receipt-container .receipt-details-grid {
-    padding: 2mm 3mm;
-    gap: 2mm;
+.format-a4-full .invoice-type {
+    font-size: 12px;
 }
 
-.single-receipt-container .receipt-body {
-    margin-top: 2mm;
+.format-a4-full .invoice-number {
+    font-size: 14px;
 }
 
-.single-receipt-container .receipt-items-table th,
-.single-receipt-container .receipt-items-table td {
-    padding: 2mm 2mm;
+.format-a4-full .customer-row {
+    font-size: 12px;
 }
 
-.single-receipt-container .receipt-totals {
-    padding-top: 2mm;
-    margin-bottom: 1mm;
+.format-a4-full .receipt-items-table {
+    font-size: 11px;
+    margin-top: 8mm;
 }
 
-.single-receipt-container .receipt-payment-history {
-    margin-top: 2mm;
-    padding: 1.5mm;
+.format-a4-full .receipt-items-table th {
+    padding: 4mm 3mm;
+    font-size: 10px;
 }
 
-.single-receipt-container .receipt-notes {
-    margin-top: 2mm;
-    padding: 1.5mm 2.5mm;
+.format-a4-full .receipt-items-table td {
+    padding: 5mm 3mm;
+}
+
+.format-a4-full .receipt-product-name {
+    font-size: 11.5px;
+}
+
+.format-a4-full .receipt-totals {
+    border-top: 3px solid #eee;
+    padding-top: 6mm;
+}
+
+.format-a4-full .receipt-total-value {
+    font-size: 12px;
+}
+
+.format-a4-full .receipt-total-row.grand-total {
+    font-size: 16px;
+    padding-top: 5mm;
+}
+
+.format-a4-full .receipt-total-row.grand-total .receipt-total-value {
+    font-size: 20px;
+}
+
+.format-a4-full .receipt-notes {
+    font-size: 11px;
+    padding: 4mm 6mm;
+    margin-top: 10mm;
 }
 
 .watermark-text {

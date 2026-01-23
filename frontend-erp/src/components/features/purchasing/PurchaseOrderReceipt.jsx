@@ -1,3 +1,6 @@
+import React from 'react';
+import PrintableModal from '../../common/receipt/PrintableModal';
+import ReceiptTemplate from '../../common/receipt/ReceiptTemplate';
 import DualReceiptWrapper from '../../common/receipt/DualReceiptWrapper';
 
 const PurchaseOrderReceipt = ({

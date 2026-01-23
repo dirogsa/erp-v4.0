@@ -20,7 +20,7 @@ const Layout = ({ children }) => {
     return (
         <div className={`app-container ${moduleTheme}`}>
             <button
-                className="sidebar-toggle"
+                className="sidebar-toggle no-print"
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 title={isSidebarOpen ? "Cerrar menú" : "Abrir menú"}
             >
@@ -35,7 +35,7 @@ const Layout = ({ children }) => {
             {/* Overlay to close sidebar on mobile */}
             {isSidebarOpen && (
                 <div
-                    className="sidebar-overlay"
+                    className="sidebar-overlay no-print"
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}

@@ -26,7 +26,7 @@ const PrintableModal = ({
         documentTitle: title,
         pageStyle: `
             @page {
-                size: landscape !important;
+                size: ${printFormat === 'A4_FULL' ? 'portrait' : 'landscape'} !important;
                 margin: 0 !important;
             }
             @media print {
@@ -121,6 +121,22 @@ const PrintableModal = ({
                                 }}
                             >
                                 A4 (2 Copias)
+                            </button>
+                            <button
+                                onClick={() => setPrintFormat('A4_FULL')}
+                                style={{
+                                    padding: '5px 15px',
+                                    borderRadius: '17px',
+                                    border: 'none',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    backgroundColor: printFormat === 'A4_FULL' ? '#3b82f6' : 'transparent',
+                                    color: printFormat === 'A4_FULL' ? 'white' : '#94a3b8'
+                                }}
+                            >
+                                A4 (Completo)
                             </button>
                         </div>
 
@@ -245,12 +261,15 @@ const PrintableModal = ({
                     <div ref={receiptRef}>
                         {React.Children.map(children, child => {
                             if (React.isValidElement(child)) {
-                                return React.cloneElement(child, {
-                                    format: printFormat,
-                                    isCargo, // Pass cargo state down
-                                    targetCurrency: appliedConversion.currency,
-                                    exchangeRate: appliedConversion.rate
-                                });
+                                // Only inject props into React components, not standard DOM elements (strings)
+                                if (typeof child.type !== 'string') {
+                                    return React.cloneElement(child, {
+                                        format: printFormat,
+                                        isCargo,
+                                        targetCurrency: appliedConversion.currency,
+                                        exchangeRate: appliedConversion.rate
+                                    });
+                                }
                             }
                             return child;
                         })}

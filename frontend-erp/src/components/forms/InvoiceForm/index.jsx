@@ -21,7 +21,7 @@ const InvoiceForm = ({
     const [formData, setFormData] = useState(() => ({
         sunat_number: '',
         invoice_date: new Date().toISOString().split('T')[0],
-        due_date: new Date().toISOString().split('T')[0],
+        due_date: order?.due_date ? order.due_date.split('T')[0] : '',
         notes: '',
         amount_in_words: '',
         payment_terms: order?.payment_terms || { type: 'CASH', installments: [] }
@@ -34,6 +34,7 @@ const InvoiceForm = ({
         if (order) {
             setFormData(prev => ({
                 ...prev,
+                due_date: order.due_date ? order.due_date.split('T')[0] : '',
                 payment_terms: order.payment_terms || { type: 'CASH', installments: [] }
             }));
 
@@ -77,7 +78,7 @@ const InvoiceForm = ({
         e.preventDefault();
 
         const itemsToInvoice = selectedItems.filter(i => i.qty_to_invoice > 0);
-        
+
         if (itemsToInvoice.length === 0) {
             showNotification('Debes seleccionar al menos un ítem con cantidad mayor a 0', 'error');
             return;
@@ -94,7 +95,7 @@ const InvoiceForm = ({
             order_number: order.order_number,
             sunat_number: formData.sunat_number,
             invoice_date: formData.invoice_date,
-            due_date: formData.due_date,
+            due_date: formData.due_date || null,
             payment_status: 'PENDING',
             amount_paid: 0,
             payment_date: null,
@@ -134,8 +135,15 @@ const InvoiceForm = ({
                         label="Fecha de Emisión"
                         type="date"
                         value={formData.invoice_date}
-                        onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value, due_date: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, invoice_date: e.target.value })}
                         required
+                    />
+
+                    <Input
+                        label="Vencimiento (Opcional)"
+                        type="date"
+                        value={formData.due_date}
+                        onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                     />
                 </div>
 

@@ -59,6 +59,9 @@ class IssuerInfo(BaseModel):
     bank_name: Optional[str] = None
     account_soles: Optional[str] = None
     account_dollars: Optional[str] = None
+    
+    # Organizational structure
+    departments: List[dict] = []
 
 class OrderItem(BaseModel):
     product_sku: str
@@ -99,6 +102,7 @@ class SalesOrder(Document):
     total_amount: float = 0.0
     loyalty_points_granted: int = 0  # Puntos que se otorgaron al confirmar esta orden
     loyalty_points_spent: int = 0    # Puntos canjeados en esta orden
+    due_date: Optional[datetime] = None
     
     # Términos de pago (Opcional, para créditos)
 
@@ -140,6 +144,8 @@ class SalesQuote(Document):
     
     delivery_branch_name: Optional[str] = None
     delivery_address: Optional[str] = None
+    payment_terms: Optional[dict] = None
+    due_date: Optional[datetime] = None
     notes: Optional[str] = None
     
     # Origen del pedido

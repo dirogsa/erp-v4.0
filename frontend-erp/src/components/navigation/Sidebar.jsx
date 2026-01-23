@@ -21,7 +21,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     };
 
     return (
-        <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        <aside className={`sidebar no-print ${isOpen ? 'open' : ''}`}>
             {/* Header */}
             <div className="sidebar-header">
                 <h1 className="sidebar-title">ERP System</h1>

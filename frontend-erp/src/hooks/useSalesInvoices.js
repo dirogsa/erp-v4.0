@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { salesService } from '../services/api';
 import { useNotification } from './useNotification';
 
@@ -6,6 +7,7 @@ export const useSalesInvoices = () => {
     const [invoices, setInvoices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const queryClient = useQueryClient();
     const { showNotification } = useNotification();
 
     const fetchInvoices = useCallback(async () => {
@@ -29,6 +31,8 @@ export const useSalesInvoices = () => {
         try {
             const response = await salesService.createInvoice(invoiceData);
             await fetchInvoices();
+            // Invalidate sales orders cache to reflect new status
+            queryClient.invalidateQueries(['sales-orders']);
             showNotification('Factura registrada exitosamente', 'success');
             return response.data;
         } catch (err) {
@@ -88,6 +92,8 @@ export const useSalesInvoices = () => {
         try {
             await salesService.deleteInvoice(invoiceNumber);
             await fetchInvoices();
+            // Critical: Invalidate sales orders so they revert to PENDING/PARTIAL in UI
+            queryClient.invalidateQueries(['sales-orders']);
             showNotification('Factura eliminada exitosamente', 'success');
         } catch (err) {
             const errorMessage = err.response?.data?.detail || 'Error al eliminar factura';

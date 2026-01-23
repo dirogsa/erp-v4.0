@@ -1,7 +1,12 @@
-from typing import Optional
+from typing import Optional, List
 from beanie import Document, Indexed
 from pydantic import BaseModel
 from datetime import datetime
+
+class Department(BaseModel):
+    name: str # e.g., "Cobranzas", "Ventas", "Logística"
+    lead_name: str
+    lead_email: Optional[str] = None
 
 class Company(Document):
     name: str
@@ -19,6 +24,8 @@ class Company(Document):
     
     is_active_local: bool = False
     is_active_web: bool = False
+    
+    departments: List[Department] = []
     
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()

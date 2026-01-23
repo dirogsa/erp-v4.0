@@ -38,6 +38,7 @@ const SalesQuoteReceipt = ({
                         })) || []}
                         totalAmount={quote.total_amount}
                         showPaymentDetails={false}
+                        paymentTerms={quote.payment_terms}
                         notes={quote.notes}
                         // Issuer Info (Snapshot)
                         companyName={quote.issuer_info?.name}

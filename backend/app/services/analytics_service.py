@@ -84,11 +84,8 @@ async def get_debtors_report(customer_id: Optional[str] = None, status_filter: s
         if balance <= 0.01: continue 
         
         days_overdue = 0
-        if inv.due_date:
-            if inv.due_date < datetime.now():
-                days_overdue = (datetime.now() - inv.due_date).days
-        elif inv.invoice_date:
-            days_overdue = (datetime.now() - inv.invoice_date).days
+        if inv.due_date and inv.due_date < datetime.now():
+            days_overdue = (datetime.now() - inv.due_date).days
         
         item = {
             "invoice_number": inv.invoice_number,

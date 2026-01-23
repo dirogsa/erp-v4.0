@@ -1,7 +1,8 @@
 import React from 'react';
 import { formatCurrency } from '../../../utils/formatters';
 
-const QuoteSummary = ({ items = [] }) => {
+const QuoteSummary = ({ items = [], currency = 'SOLES' }) => {
+    const symbol = currency === 'DOLARES' ? '$' : 'S/';
     const total = items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
     const subtotal = total / 1.18;
     const igv = total - subtotal;
@@ -40,17 +41,17 @@ const QuoteSummary = ({ items = [] }) => {
 
             <div style={rowStyle}>
                 <span>Subtotal:</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>{formatCurrency(subtotal, symbol)}</span>
             </div>
 
             <div style={rowStyle}>
                 <span>IGV (18%):</span>
-                <span>{formatCurrency(igv)}</span>
+                <span>{formatCurrency(igv, symbol)}</span>
             </div>
 
             <div style={totalStyle}>
                 <span>Total:</span>
-                <span style={{ color: '#10b981' }}>{formatCurrency(total)}</span>
+                <span style={{ color: '#10b981' }}>{formatCurrency(total, symbol)}</span>
             </div>
         </div>
     );
