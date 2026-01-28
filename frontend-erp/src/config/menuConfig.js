@@ -60,6 +60,7 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'inventory', label: 'Productos', path: '/inventory', icon: '📦' },
+            { id: 'bulk-import', label: 'Ingesta de Catálogo', path: '/inventory/bulk-import', icon: '⚡' },
             { id: 'marketing-inventory', label: 'Publicidad', path: '/inventory/marketing', icon: '🎁' },
             { id: 'brands', label: 'Marcas de Vehículos', path: '/brands', icon: '🏎️' },
             { id: 'categories', label: 'Categorías', path: '/categories', icon: '🏷️' },

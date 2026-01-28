@@ -31,6 +31,7 @@ import Marketing from './pages/Marketing';
 import Audit from './pages/Audit';
 import SalesPolicies from './pages/SalesPolicies';
 import PriceUpdateMasive from './pages/PriceUpdateMasive';
+import CatalogIngestion from './pages/CatalogIngestion';
 
 
 
@@ -72,6 +73,7 @@ function App() {
                         <Route path="/reports" element={<Reports />} />
                         <Route path="/inventory" element={<Inventory />} />
                         <Route path="/inventory/marketing" element={<MarketingInventory />} />
+                        <Route path="/inventory/bulk-import" element={<CatalogIngestion />} />
                         <Route path="/categories" element={<Categories />} />
                         <Route path="/suppliers" element={<Suppliers />} />
                         <Route path="/purchasing" element={<Purchasing />} />

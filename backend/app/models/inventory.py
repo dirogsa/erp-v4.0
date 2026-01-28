@@ -37,7 +37,13 @@ class MovementType(str, Enum):
     TRANSFER_IN = "TRANSFER_IN"   # Entrada por transferencia
     TRANSFER_OUT = "TRANSFER_OUT" # Salida por transferencia
     
-    # Tipos de Merma
+    # Enterprise Adjustment Types
+    ADJUSTMENT_STOCKTAKE = "ADJUSTMENT_STOCKTAKE"     # Por inventario físico (Conteo)
+    ADJUSTMENT_GIFT = "ADJUSTMENT_GIFT"               # Por regalo/donación recibida
+    ADJUSTMENT_BONUS = "ADJUSTMENT_BONUS"             # Por bonificación de proveedor
+    ADJUSTMENT_CORRECTION = "ADJUSTMENT_CORRECTION"   # Corrección de error de digitación
+    
+    # Tipos de Merma / Salida
     LOSS_DAMAGED = "LOSS_DAMAGED"        # Deteriorado/Roto
     LOSS_DEFECTIVE = "LOSS_DEFECTIVE"    # Defecto de fábrica
     LOSS_HUMIDITY = "LOSS_HUMIDITY"      # Dañado por humedad
@@ -152,7 +158,12 @@ class Product(Document):
     points_cost: int = 0    # Puntos necesarios para canje (0 = no canjeable)
 
     
-    # Nuevos campos para Filtros Automotrices
+    # Nuevos campos para Filtros Automotrices (Importación avanzada)
+    ean: Optional[Indexed(str)] = None
+    tech_bulletin: Optional[str] = None
+    manual_pdf_url: Optional[str] = None
+    tech_drawing_url: Optional[str] = None
+    
     specs: List[TechnicalSpec] = []
     equivalences: List[CrossReference] = []
     applications: List[Application] = []
@@ -171,15 +182,13 @@ class Product(Document):
     class Settings:
         name = "products"
         indexes = [
-            # Índices existentes
-            # "sku" is already defined as Indexed(unique=True) above, so we remove it here to avoid conflict
-            
             # Texto completo para búsqueda potente
             [
                 ("name", "text"),
                 ("description", "text"),
                 ("brand", "text"),
                 ("sku", "text"),
+                ("ean", "text"),
                 ("equivalences.code", "text"),
                 ("applications.model", "text")
             ]

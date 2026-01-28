@@ -43,13 +43,17 @@ const Inventory = ({ forcedType = null }) => {
         loading,
         createProduct,
         updateProduct,
-        deleteProduct
+        deleteProduct,
+        error
     } = useProducts({
         page,
         limit,
         search,
         type: forcedType || (activeTab === 'products' ? 'COMMERCIAL' : '')
     });
+
+    console.log('[Inventory] Render - Tab:', activeTab, 'Loading:', loading, 'Products count:', products?.length);
+    if (error) console.error('[Inventory] Error loading products:', error);
 
     const handleCreate = async (data) => {
         try {

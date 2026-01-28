@@ -7,11 +7,15 @@ import Badge from '../../common/Badge';
 import { useLosses } from '../../../hooks/useLosses';
 import { useProducts } from '../../../hooks/useProducts';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
+import StockReconciliationModal from './StockReconciliationModal';
 
 const AdjustmentsSection = () => {
-    const { losses, summary, createLoss, loading } = useLosses();
+    const { losses, summary, createLoss, loading, fetchLosses } = useLosses();
     const { products, refetch: refetchProducts } = useProducts();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isReconModalOpen, setIsReconModalOpen] = useState(false);
+
+    console.log('[AdjustmentsSection] Render - Loading:', loading, 'Losses count:', losses?.length);
 
     const [formData, setFormData] = useState({
         sku: '',
@@ -126,7 +130,10 @@ const AdjustmentsSection = () => {
                 */}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginBottom: '1rem' }}>
+                <Button onClick={() => setIsReconModalOpen(true)} variant="secondary" style={{ background: '#1e293b', border: '1px solid #334155' }}>
+                    📥 Ajuste Masivo (Excel)
+                </Button>
                 <Button onClick={() => setIsModalOpen(true)} variant="primary">+ Registrar Ingreso / Salida</Button>
             </div>
 
@@ -134,6 +141,15 @@ const AdjustmentsSection = () => {
                 columns={columns}
                 data={losses}
                 emptyMessage="No hay ajustes registrados"
+            />
+
+            <StockReconciliationModal
+                visible={isReconModalOpen}
+                onClose={() => setIsReconModalOpen(false)}
+                onRefresh={() => {
+                    refetchProducts();
+                    fetchLosses();
+                }}
             />
 
             {isModalOpen && (

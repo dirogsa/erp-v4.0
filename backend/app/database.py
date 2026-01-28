@@ -52,10 +52,8 @@ async def init_db():
                 "app.models.auth.ActivityLog",
                 "app.models.pricing.PricingRule",
                 "app.models.marketing.LoyaltyConfig"
-            ]
-
-
-
+            ],
+            allow_index_dropping=True
         )
         print("DB: [DEBUG] init_db completed successfully.")
     except Exception as e:

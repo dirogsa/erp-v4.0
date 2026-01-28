@@ -32,6 +32,7 @@ import GuidesTable from '../components/features/sales/GuidesTable';
 import GuideFormModal from '../components/features/sales/GuideFormModal';
 import DeliveryGuideReceipt from '../components/features/sales/DeliveryGuideReceipt';
 import XMLImportModal from '../components/common/XMLImportModal';
+import { formatCurrency } from '../utils/formatters';
 
 const Sales = () => {
     const [activeTab, setActiveTab] = useState('quotes');
@@ -65,6 +66,7 @@ const Sales = () => {
     const [showGuideReceipt, setShowGuideReceipt] = useState(false);
     const [selectedGuide, setSelectedGuide] = useState(null);
     const [showXMLImportModal, setShowXMLImportModal] = useState(false);
+    const [xmlBatch, setXmlBatch] = useState([]); // Batch state
 
     const [sourceFilter, setSourceFilter] = useState('');
 
@@ -807,28 +809,112 @@ const Sales = () => {
                 visible={showXMLImportModal}
                 onClose={() => setShowXMLImportModal(false)}
                 type="SALES"
-                onConfirm={(data) => {
-                    // Map XML data to Quote form structure
-                    const mappedQuote = {
-                        customer: {
-                            ruc: data.customer.ruc,
-                            name: data.customer.name,
-                            address: '', // To be filled or fetched
-                            branches: []
-                        },
-                        customer_ruc: data.customer.ruc,
-                        customer_name: data.customer.name,
-                        items: data.items.map(item => ({
-                            product_sku: item.product_sku,
-                            product_name: item.product_name,
-                            quantity: item.quantity,
-                            unit_price: item.unit_price // Net price (15.25)
-                        }))
-                    };
-                    setSelectedQuote(mappedQuote);
-                    setShowCreateQuote(true);
+                onConfirm={(batch) => {
+                    if (batch.length === 1) {
+                        const data = batch[0];
+                        const mappedQuote = {
+                            date: data.date,
+                            currency: data.currency,
+                            customer: {
+                                ruc: data.customer.ruc,
+                                name: data.customer.name,
+                                address: '',
+                                branches: []
+                            },
+                            customer_ruc: data.customer.ruc,
+                            customer_name: data.customer.name,
+                            items: data.items.map(item => ({
+                                product_sku: item.product_sku,
+                                product_name: item.product_name,
+                                quantity: item.quantity,
+                                unit_price: item.unit_price,
+                                subtotal: item.subtotal
+                            }))
+                        };
+                        setSelectedQuote(mappedQuote);
+                        setShowCreateQuote(true);
+                    } else {
+                        setXmlBatch(batch);
+                    }
                 }}
             />
+
+            {/* STAGING AREA: Review Sales Batch */}
+            {xmlBatch.length > 0 && (
+                <div style={{
+                    backgroundColor: '#1e293b',
+                    padding: '1.5rem',
+                    borderRadius: '1rem',
+                    marginTop: '2rem',
+                    border: '1px solid #10b98144',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                    animation: 'slideUp 0.4s ease-out'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <div>
+                            <h3 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ backgroundColor: '#10b981', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '0.5rem', fontSize: '0.9rem' }}>{xmlBatch.length}</span>
+                                Facturas de Cliente por Revisar
+                            </h3>
+                            <p style={{ margin: '0.25rem 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>Confirme o edite para emitir las cotizaciones de venta.</p>
+                        </div>
+                        <Button variant="secondary" onClick={() => setXmlBatch([])}>Limpiar todo</Button>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                        {xmlBatch.map((doc, idx) => (
+                            <div key={idx} style={{
+                                backgroundColor: '#0f172a',
+                                padding: '1.25rem',
+                                borderRadius: '0.75rem',
+                                border: '1px solid #334155',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}>
+                                <div>
+                                    <div style={{ fontWeight: 'bold', color: 'white' }}>{doc.document_number}</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{doc.customer.name}</div>
+                                    <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 'bold', marginTop: '0.4rem' }}>{formatCurrency(doc.total_amount)}</div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <Button
+                                        size="small"
+                                        variant="primary"
+                                        onClick={() => {
+                                            const mappedQuote = {
+                                                date: doc.date,
+                                                currency: doc.currency,
+                                                customer: { ruc: doc.customer.ruc, name: doc.customer.name, address: '', branches: [] },
+                                                customer_ruc: doc.customer.ruc,
+                                                customer_name: doc.customer.name,
+                                                items: doc.items.map(item => ({
+                                                    product_sku: item.product_sku,
+                                                    product_name: item.product_name,
+                                                    quantity: item.quantity,
+                                                    unit_price: item.unit_price,
+                                                    subtotal: item.subtotal
+                                                }))
+                                            };
+                                            setSelectedQuote(mappedQuote);
+                                            setShowCreateQuote(true);
+                                            setXmlBatch(prev => prev.filter((_, i) => i !== idx));
+                                        }}
+                                    >
+                                        Revisar
+                                    </Button>
+                                    <button
+                                        onClick={() => setXmlBatch(prev => prev.filter((_, i) => i !== idx))}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.2rem' }}
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

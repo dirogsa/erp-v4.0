@@ -80,31 +80,30 @@ async def get_product_by_sku(sku: str) -> Product:
         raise NotFoundException("Product", sku)
     return product
 
-async def create_product(product_data: Product, initial_stock: int = 0, user: Optional[User] = None) -> Product:
+async def create_product(product_data: Product, initial_stock: int = 0, user: Optional[User] = None):
+    # Verificar si el SKU ya existe
     existing = await Product.find_one(Product.sku == product_data.sku)
     if existing:
-        raise DuplicateEntityException("Product", "sku", product_data.sku)
+        raise DuplicateEntityException(f"Producto con SKU {product_data.sku} ya existe")
     
-    # Set initial stock
-    product_data.stock_current = initial_stock
+    # Asegurar que las marcas vehiculares existan si vienen en aplicaciones
+    if product_data.applications:
+        brands = set(app.make.upper() for app in product_data.applications if app.make)
+        if brands:
+            await ensure_brands_exist(list(brands))
+
+    # Guardar producto
     await product_data.insert()
-    
+
+    # Si hay stock inicial, registrar movimiento
     if initial_stock > 0:
-        movement = StockMovement(
-            product_sku=product_data.sku,
+        await register_movement(
+            sku=product_data.sku,
             quantity=initial_stock,
             movement_type=MovementType.IN,
-            notes="Inventario Inicial",
-            date=datetime.now(),
-            unit_cost=product_data.cost,
-            reference_document=f"INITIAL-{product_data.sku}"
+            reference=f"INITIAL-{product_data.sku}"
         )
-        await movement.insert()
-        
-    # Auto-register vehicle brands from applications
-    if product_data.applications:
-        await ensure_brands_exist([app.make for app in product_data.applications])
-        
+
     if user:
         await AuditService.log_action(
             user=user,
@@ -116,6 +115,55 @@ async def create_product(product_data: Product, initial_stock: int = 0, user: Op
         )
 
     return product_data
+
+async def bulk_create_products(products: List[Product], user: Optional[User] = None):
+    # 1. Asegurar que las marcas vehiculares existan
+    all_brands = set()
+    for p in products:
+        if p.applications:
+            for app in p.applications:
+                if app.make:
+                    all_brands.add(app.make.upper())
+    
+    if all_brands:
+        await ensure_brands_exist(list(all_brands))
+
+    # 2. Procesar productos uno por uno (UPSERT)
+    results = []
+    for p_data in products:
+        existing = await Product.find_one(Product.sku == p_data.sku)
+        
+        if existing:
+            # ACTUALIZAR: Fusionar datos técnicos
+            existing.ean = p_data.ean or existing.ean
+            existing.name = p_data.name or existing.name
+            existing.brand = p_data.brand or existing.brand
+            existing.image_url = p_data.image_url or existing.image_url
+            existing.manual_pdf_url = p_data.manual_pdf_url or existing.manual_pdf_url
+            existing.tech_bulletin = p_data.tech_bulletin or existing.tech_bulletin
+            
+            # Reemplazar listas técnicas con la versión oficial del catálogo
+            if p_data.specs: existing.specs = p_data.specs
+            if p_data.equivalences: existing.equivalences = p_data.equivalences
+            if p_data.applications: existing.applications = p_data.applications
+            
+            await existing.save()
+            results.append(existing)
+        else:
+            # INSERTAR: Crear nuevo
+            await p_data.insert()
+            results.append(p_data)
+
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="BULK_UPSERT",
+            module="INVENTORY",
+            description=f"Se procesaron {len(products)} productos (Ingesta/Actualización masiva)",
+            entity_name=f"{len(products)} productos procesados"
+        )
+
+    return results
 
 async def update_product(sku: str, update_data: Product, new_stock: int = None, user: Optional[User] = None) -> Product:
     product = await get_product_by_sku(sku)
@@ -540,4 +588,71 @@ async def check_stock_availability(items: List[Dict[str, Any]]) -> Dict[str, Any
         "available_items": available_items,
         "missing_items": missing_items,
         "can_fulfill_full": len(missing_items) == 0
+    }
+
+async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[str, Any]:
+    """
+    Procesa una lista de ajustes de inventario masivos.
+    adjustments: [{"sku": "...", "physical_stock": 10, "reason": "...", "responsible": "...", "notes": "..."}]
+    """
+    results = []
+    total_impact = 0
+    ref_id = f"RECON-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+    for adj in adjustments:
+        sku = adj.get("sku")
+        physical_stock = int(adj.get("physical_stock", 0))
+        reason = adj.get("reason", MovementType.ADJUSTMENT_STOCKTAKE)
+        notes = adj.get("notes", "Ajuste masivo por inventario físico")
+        responsible = adj.get("responsible", user.username)
+
+        product = await get_product_by_sku(sku)
+        system_stock = product.stock_current
+        diff = physical_stock - system_stock
+
+        if diff == 0:
+            continue
+
+        # Registrar el movimiento
+        # Usamos el costo actual del producto para el impacto financiero
+        movement = StockMovement(
+            product_sku=sku,
+            quantity=abs(diff),
+            movement_type=reason,
+            reference_document=ref_id,
+            unit_cost=product.cost,
+            notes=notes,
+            responsible=responsible,
+            date=datetime.now()
+        )
+        await movement.insert()
+
+        # Actualizar stock
+        product.stock_current = physical_stock
+        await product.save()
+
+        impact = diff * product.cost
+        total_impact += impact
+
+        results.append({
+            "sku": sku,
+            "system_stock": system_stock,
+            "physical_stock": physical_stock,
+            "delta": diff,
+            "impact": round(impact, 3)
+        })
+
+    await AuditService.log_action(
+        user=user,
+        action="BULK_RECONCILE",
+        module="INVENTORY",
+        description=f"Se realizó una reconciliación masiva de {len(results)} productos. Impacto total: {total_impact}",
+        entity_name=ref_id
+    )
+
+    return {
+        "reference": ref_id,
+        "processed_count": len(results),
+        "total_impact": round(total_impact, 3),
+        "details": results
     }

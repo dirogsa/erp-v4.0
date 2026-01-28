@@ -4,6 +4,7 @@ import Input from '../../common/Input';
 import Button from '../../common/Button';
 import Select from '../../common/Select';
 import { useNotification } from '../../../hooks/useNotification';
+import { parseFiltronHtml } from '../../../utils/filtronParser';
 
 const ProductForm = ({
     initialData = null,
@@ -39,6 +40,9 @@ const ProductForm = ({
         discount_12_pct: 0,
         discount_24_pct: 0,
         type: 'COMMERCIAL',
+        ean: '',
+        tech_bulletin: '',
+        manual_pdf_url: '',
         ...initialData
     });
 
@@ -136,6 +140,45 @@ const ProductForm = ({
             { label: 'B', measure_type: 'mm', value: '' },
             { label: 'H', measure_type: 'mm', value: '' }
         ]
+    };
+
+    const handleFiltronImport = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const content = event.target.result;
+                const data = parseFiltronHtml(content);
+
+                if (!data.sku) {
+                    showNotification('No se pudo detectar un SKU en el archivo. ¿Es un catálogo válido?', 'error');
+                    return;
+                }
+
+                // Merge data into form
+                setFormData(prev => ({
+                    ...prev,
+                    sku: data.sku || prev.sku,
+                    name: data.name || prev.name,
+                    ean: data.ean || prev.ean,
+                    brand: data.brand || prev.brand,
+                    image_url: data.image_url ? `https://filtron.eu${data.image_url}` : prev.image_url,
+                    manual_pdf_url: data.manual_pdf_url ? `https://filtron.eu${data.manual_pdf_url}` : prev.manual_pdf_url,
+                    tech_bulletin: data.tech_bulletin || prev.tech_bulletin,
+                    specs: data.specs.length > 0 ? data.specs : prev.specs,
+                    applications: data.applications.length > 0 ? [...prev.applications, ...data.applications] : prev.applications,
+                    equivalences: data.equivalences.length > 0 ? [...prev.equivalences, ...data.equivalences] : prev.equivalences,
+                }));
+
+                showNotification(`Datos de ${data.sku} importados correctamente`, 'success');
+            } catch (error) {
+                console.error("Error parsing Filtron HTML", error);
+                showNotification('Error al procesar el archivo HTML', 'error');
+            }
+        };
+        reader.readAsText(file);
     };
 
     const applyTemplate = (categoryName) => {
@@ -280,25 +323,54 @@ const ProductForm = ({
                                 disabled={isEditMode || isViewMode}
                             />
                         </div>
-                        {!isEditMode && !isViewMode && formData.type === 'MARKETING' && (
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={handleGenerateSku}
-                                style={{ marginBottom: '1rem', height: '42px' }}
-                                title="Generar SKU automáticamente"
-                            >
-                                ✨
-                            </Button>
+                        {!isEditMode && !isViewMode && (
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input
+                                    type="file"
+                                    id="filtron-import-input"
+                                    accept=".html"
+                                    onChange={handleFiltronImport}
+                                    style={{ display: 'none' }}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => document.getElementById('filtron-import-input').click()}
+                                    style={{ marginBottom: '1rem', height: '42px', background: '#eab308', color: '#000' }}
+                                    title="Importar desde Catálogo Filtron (.html)"
+                                >
+                                    ⚡ Importar Filtron
+                                </Button>
+                                {formData.type === 'MARKETING' && (
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={handleGenerateSku}
+                                        style={{ marginBottom: '1rem', height: '42px' }}
+                                        title="Generar SKU automáticamente"
+                                    >
+                                        ✨
+                                    </Button>
+                                )}
+                            </div>
                         )}
                     </div>
-                    <Input
-                        label="Nombre"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        required
-                        disabled={isViewMode}
-                    />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <Input
+                            label="Nombre"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            required
+                            disabled={isViewMode}
+                        />
+                        <Input
+                            label="Código de Barras (EAN)"
+                            value={formData.ean}
+                            onChange={(e) => setFormData({ ...formData, ean: e.target.value })}
+                            placeholder="590..."
+                            disabled={isViewMode}
+                        />
+                    </div>
 
                     <label style={{
                         display: 'flex',
@@ -475,6 +547,34 @@ const ProductForm = ({
                             />
                         </div>
                     )}
+
+                    {formData.manual_pdf_url && (
+                        <div style={{ padding: '0.5rem', background: '#0f172a', borderRadius: '0.5rem', border: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>📄 Manual técnico disponible</span>
+                            <a href={formData.manual_pdf_url} target="_blank" rel="noreferrer" style={{ color: '#3b82f6', fontSize: '0.8rem', fontWeight: 'bold' }}>VER PDF</a>
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label style={{ color: '#f59e0b', fontSize: '0.875rem', fontWeight: '600' }}>⚠️ Boletín Técnico / Notas de Montaje</label>
+                        <textarea
+                            style={{
+                                width: '100%',
+                                background: isViewMode ? '#1e293b' : '#0f172a',
+                                border: '1px solid #f59e0b',
+                                borderRadius: '0.375rem',
+                                color: '#e2e8f0',
+                                padding: '0.5rem',
+                                minHeight: '60px',
+                                outline: 'none',
+                                opacity: isViewMode ? 0.6 : 1
+                            }}
+                            value={formData.tech_bulletin || ''}
+                            onChange={(e) => setFormData({ ...formData, tech_bulletin: e.target.value })}
+                            placeholder="Ej: La junta debe colocarse en la ranura superior..."
+                            disabled={isViewMode}
+                        />
+                    </div>
                 </div>
             </div>
 

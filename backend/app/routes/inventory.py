@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from app.models.inventory import Product, Warehouse, MovementType
 from app.models.auth import User, UserRole
@@ -34,6 +34,13 @@ async def create_product(
     current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
 ):
     return await inventory_service.create_product(product, initial_stock, user=current_user)
+
+@router.post("/products/bulk", response_model=List[Product])
+async def bulk_create_products(
+    products: List[Product],
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    return await inventory_service.bulk_create_products(products, user=current_user)
 
 @router.put("/products/{sku}", response_model=Product)
 async def update_product(
@@ -98,4 +105,15 @@ async def register_transfer_out(transfer: TransferRequest):
         items_dict,
         transfer.notes
     )
+
+@router.post("/reconcile")
+async def bulk_reconcile(
+    adjustments: list[dict],
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Endpoint robusto para reconciliación masiva de stock.
+    Soporta tipado nativo para compatibilidad con Python 3.14+.
+    """
+    return await inventory_service.bulk_reconcile(adjustments, user=current_user)
 

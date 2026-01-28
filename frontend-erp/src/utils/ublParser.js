@@ -38,31 +38,44 @@ export const parseUBLXml = (xmlString) => {
         : Array.from(xmlDoc.getElementsByTagName('InvoiceLine'));
 
     const items = lines.map(line => {
-        const productSku = getTagText(line, 'cbc:ID'); // Item Identification
+        const lineId = getTagText(line, 'cbc:ID');
+        const itemInfo = line.getElementsByTagName('cac:Item')[0] || line.getElementsByTagName('Item')[0];
+
+        // SKU: Buscar en SellersItemIdentification, si no, usar ID de línea
+        let productSku = '';
+        if (itemInfo) {
+            const sellersId = itemInfo.getElementsByTagName('cac:SellersItemIdentification')[0] || itemInfo.getElementsByTagName('SellersItemIdentification')[0];
+            if (sellersId) productSku = getTagText(sellersId, 'cbc:ID');
+        }
+        if (!productSku) productSku = lineId;
+
         const productName = getTagText(line, 'cbc:Description');
         const quantity = parseFloat(getTagText(line, 'cbc:InvoicedQuantity') || '0');
 
         // PRICES logic
-        let unitPrice = 0;
-        let basePrice = parseFloat(getTagText(line, 'cbc:PriceAmount') || '0'); // Usually net
+        let unitPriceIncTax = 0;
+        let basePriceNet = parseFloat(getTagText(line, 'cbc:PriceAmount') || '0');
 
         // Look for AlternativeConditionPrice (Type 01 = Price with Tax)
         const pricingRefs = line.getElementsByTagName('cac:AlternativeConditionPrice') || line.getElementsByTagName('AlternativeConditionPrice');
         for (let ref of Array.from(pricingRefs)) {
             const typeCode = getTagText(ref, 'cbc:PriceTypeCode');
             if (typeCode === '01') {
-                unitPrice = parseFloat(getTagText(ref, 'cbc:PriceAmount') || '0');
+                unitPriceIncTax = parseFloat(getTagText(ref, 'cbc:PriceAmount') || '0');
                 break;
             }
         }
 
-        // Final rounding to 2 decimals for clean ERP entry
+        // Si no encontramos precio con impuestos (01), lo calculamos sumando el IGV o usamos el base
+        const finalUnitPrice = unitPriceIncTax > 0 ? unitPriceIncTax : (basePriceNet * 1.18);
+
         return {
             product_sku: productSku,
             product_name: productName,
             quantity: quantity,
-            unit_price: Math.round((unitPrice > 0 ? unitPrice : basePrice) * 100) / 100, // 18.00
-            net_unit_price: Math.round(basePrice * 100) / 100, // 15.25
+            unit_price: Math.round(finalUnitPrice * 100) / 100,
+            net_unit_price: Math.round(basePriceNet * 100) / 100,
+            subtotal: Math.round((quantity * finalUnitPrice) * 100) / 100,
             tax_status: getTagText(line, 'cbc:TaxExemptionReasonCode') || '10'
         };
     });

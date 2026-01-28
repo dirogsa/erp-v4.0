@@ -8,7 +8,6 @@ const api = axios.create({
   },
 });
 
-// Authorization Interceptor
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('erp_token');
   if (token) {
@@ -42,6 +41,7 @@ export const inventoryService = {
   getProducts: (page = 1, limit = 50, search = '', category = '', product_type = '') =>
     api.get('/inventory/products', { params: { skip: (page - 1) * limit, limit, search, category, product_type } }),
   createProduct: (product, initial_stock = 0) => api.post(`/inventory/products?initial_stock=${initial_stock}`, product),
+  bulkCreateProducts: (products) => api.post('/inventory/products/bulk', products),
   generateMarketingSku: () => api.get('/inventory/generate-marketing-sku'),
   deleteProduct: (sku) => api.delete(`/inventory/products/${sku}`),
   updateProduct: (sku, product, new_stock = null) => {
@@ -68,6 +68,7 @@ export const inventoryService = {
   updateWarehouse: (code, warehouse) => api.put(`/inventory/warehouses/${code}`, warehouse),
   deleteWarehouse: (code) => api.delete(`/inventory/warehouses/${code}`),
   registerTransfer: (transferData) => api.post('/inventory/transfer-out', transferData),
+  reconcileStock: (adjustments) => api.post('/inventory/reconcile', adjustments),
 };
 
 export const priceService = {
