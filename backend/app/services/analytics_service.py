@@ -98,8 +98,8 @@ async def get_debtors_report(customer_id: Optional[str] = None, status_filter: s
             "amount_paid": paid,
             "balance": balance,
             "days_overdue": days_overdue,
-            "payment_terms": inv.payment_terms
-
+            "payment_terms": inv.payment_terms,
+            "currency": inv.currency.value if hasattr(inv, 'currency') and inv.currency else 'PEN'
         }
         report_items.append(item)
         total_receivable += balance

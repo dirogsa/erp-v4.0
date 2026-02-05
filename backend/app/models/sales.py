@@ -13,6 +13,10 @@ class OrderStatus(str, Enum):
     BACKORDER = "BACKORDER"  # En espera de stock
     CONVERTED = "CONVERTED"  # Backorder convertido (no mostrar en UI)
 
+class Currency(str, Enum):
+    PEN = "PEN"
+    USD = "USD"
+
 class PaymentStatus(str, Enum):
     PENDING = "PENDING"
     PARTIAL = "PARTIAL"  # Pago parcial
@@ -103,6 +107,7 @@ class SalesOrder(Document):
     loyalty_points_granted: int = 0  # Puntos que se otorgaron al confirmar esta orden
     loyalty_points_spent: int = 0    # Puntos canjeados en esta orden
     due_date: Optional[datetime] = None
+    currency: Currency = Currency.PEN
     
     # Términos de pago (Opcional, para créditos)
 
@@ -147,6 +152,7 @@ class SalesQuote(Document):
     delivery_address: Optional[str] = None
     payment_terms: Optional[dict] = None
     due_date: Optional[datetime] = None
+    currency: Currency = Currency.PEN
     notes: Optional[str] = None
     amount_in_words: Optional[str] = None
     
@@ -174,6 +180,7 @@ class SalesInvoice(Document):
     customer_ruc: str
     invoice_date: datetime = datetime.now()
     due_date: Optional[datetime] = None
+    currency: Currency = Currency.PEN
     items: List[OrderItem]
     total_amount: float = 0.0
     
@@ -276,6 +283,7 @@ class SalesNote(Document):
     items: List[OrderItem] = []  # Ítems involucrados (puede ser parcial)
     total_amount: float = 0.0
     notes: Optional[str] = None
+    currency: Currency = Currency.PEN
     
     # Referencia a guía de retorno si hubo devolución de stock
     return_guide_id: Optional[str] = None
