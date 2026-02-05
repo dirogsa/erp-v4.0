@@ -5,7 +5,7 @@ import { parseFiltron } from './catalogParsers/filtron';
  * Orquestador de Ingesta de Catálogos
  * Detecta la marca y delega al parser especializado.
  */
-export const parseFiltronHtml = (htmlString) => {
+export const parseCatalogHtml = (htmlString) => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlString, 'text/html');
 

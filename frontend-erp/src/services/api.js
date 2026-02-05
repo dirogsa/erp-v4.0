@@ -69,6 +69,7 @@ export const inventoryService = {
   deleteWarehouse: (code) => api.delete(`/inventory/warehouses/${code}`),
   registerTransfer: (transferData) => api.post('/inventory/transfer-out', transferData),
   reconcileStock: (adjustments) => api.post('/inventory/reconcile', adjustments),
+  externalLookup: (sku) => api.get(`/inventory/external-lookup?sku=${encodeURIComponent(sku)}`),
 };
 
 export const priceService = {

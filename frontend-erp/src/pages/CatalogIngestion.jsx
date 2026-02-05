@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { inventoryService } from '../services/api';
 import { useNotification } from '../hooks/useNotification';
-import { parseFiltronHtml } from '../utils/filtronParser';
+import { parseCatalogHtml } from '../utils/catalogParsers';
 import Button from '../components/common/Button';
 import { Upload, FileText, CheckCircle, AlertCircle, Trash2, Database, Rocket, Edit3, X } from 'lucide-react';
 import Input from '../components/common/Input';
@@ -12,6 +12,8 @@ const CatalogIngestion = () => {
     const [files, setFiles] = useState([]);
     const [parsedProducts, setParsedProducts] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const [skuList, setSkuList] = useState('');
     const [uploadStatus, setUploadStatus] = useState({ total: 0, current: 0, errors: [] });
     const [editingProduct, setEditingProduct] = useState(null);
     const [editingIndex, setEditingIndex] = useState(null);
@@ -29,6 +31,73 @@ const CatalogIngestion = () => {
         processFiles(htmlFiles);
     };
 
+    const handleSkuLookup = async () => {
+        const rawSkus = skuList.split('\n').map(s => s.trim()).filter(s => s !== '');
+        const total = rawSkus.length;
+
+        if (total === 0) {
+            showNotification('Ingresa al menos un SKU', 'error');
+            return;
+        }
+
+        console.log("Starting SKU Lookup for:", total, "items");
+        setIsSearching(true);
+        setUploadStatus({ total, current: 0, errors: [] });
+
+        // Limpiar errores previos pero mantener productos ya encontrados
+        setUploadStatus(prev => ({ ...prev, errors: [] }));
+
+        // Procesar en pequeños grupos para no saturar y ver progreso real
+        const batchSize = 3;
+        let processedCount = 0;
+
+        for (let i = 0; i < rawSkus.length; i += batchSize) {
+            const batch = rawSkus.slice(i, i + batchSize);
+
+            const results = await Promise.all(batch.map(async (sku) => {
+                try {
+                    const response = await inventoryService.externalLookup(sku);
+                    const html = response.data.html;
+                    if (html) {
+                        const data = parseCatalogHtml(html);
+                        if (data.sku) {
+                            return { success: true, data: { ...data, _file: `Auto-Lookup: ${sku}`, _status: 'pending' } };
+                        } else {
+                            return { success: false, error: `${sku}: No encontrado en catálogo` };
+                        }
+                    }
+                    return { success: false, error: `${sku}: Sin respuesta del servidor` };
+                } catch (err) {
+                    const detail = err.response?.data?.detail || err.message || 'Error de conexión';
+                    return { success: false, error: `${sku}: ${detail}` };
+                }
+            }));
+
+            // Actualizar estado progresivamente
+            const foundInBatch = results.filter(r => r.success).map(r => r.data);
+            const errorsInBatch = results.filter(r => !r.success).map(r => r.error);
+
+            if (foundInBatch.length > 0) {
+                setParsedProducts(prev => [...prev, ...foundInBatch]);
+            }
+
+            processedCount += batch.length;
+            setUploadStatus(prev => ({
+                ...prev,
+                current: processedCount,
+                errors: [...prev.errors, ...errorsInBatch]
+            }));
+
+            // Pequeña pausa opcional para evitar bloqueos si la lista es gigante
+            if (total > 50) await new Promise(r => setTimeout(r, 200));
+        }
+
+        setIsSearching(false);
+        setSkuList(''); // Limpiar al terminar
+        showNotification(`Búsqueda finalizada. Revisar resultados en la tabla.`, 'info');
+        console.log("SKU Lookup finished.");
+    };
+
     const processFiles = (fileList) => {
         const newProducts = [];
         let completed = 0;
@@ -37,7 +106,7 @@ const CatalogIngestion = () => {
             const reader = new FileReader();
             reader.onload = (event) => {
                 try {
-                    const data = parseFiltronHtml(event.target.result);
+                    const data = parseCatalogHtml(event.target.result);
                     if (data.sku) {
                         newProducts.push({
                             ...data,
@@ -93,9 +162,23 @@ const CatalogIngestion = () => {
             setParsedProducts([]); // Clear table on success
         } catch (error) {
             console.error("Bulk upload error:", error);
-            const errorMsg = error.response?.data?.detail || error.message;
+
+            // Extract meaningful message from Pydantic or generic error
+            let errorMsg = error.message;
+            if (error.response?.data?.detail) {
+                const detail = error.response.data.detail;
+                if (typeof detail === 'string') {
+                    errorMsg = detail;
+                } else if (Array.isArray(detail)) {
+                    // Pydantic validation errors
+                    errorMsg = detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(' | ');
+                } else if (typeof detail === 'object') {
+                    errorMsg = JSON.stringify(detail);
+                }
+            }
+
             showNotification(`Error en la carga masiva: ${errorMsg}`, 'error');
-            setUploadStatus(prev => ({ ...prev, errors: [errorMsg] }));
+            setUploadStatus(prev => ({ ...prev, errors: [...prev.errors, errorMsg] }));
         } finally {
             setIsProcessing(false);
         }
@@ -122,14 +205,17 @@ const CatalogIngestion = () => {
                             Ingesta Inteligente de Catálogo
                         </h1>
                         <p style={{ color: '#94a3b8', marginTop: '0.5rem' }}>
-                            Sube múltiples archivos HTML de Filtron para poblar tu inventario con especificaciones completas.
+                            Sube archivos HTML o ingresa códigos SKU para poblar tu inventario automáticamente desde fuentes oficiales.
                         </p>
                     </div>
                     {parsedProducts.length > 0 && (
                         <div style={{ display: 'flex', gap: '1rem' }}>
                             <Button
                                 variant="secondary"
-                                onClick={() => setParsedProducts([])}
+                                onClick={() => {
+                                    setParsedProducts([]);
+                                    setUploadStatus({ total: 0, current: 0, errors: [] });
+                                }}
                                 disabled={isProcessing}
                             >
                                 Limpiar Todo
@@ -145,6 +231,80 @@ const CatalogIngestion = () => {
                             </Button>
                         </div>
                     )}
+                </div>
+
+                {/* Sección de Ingesta por SKU */}
+                <div style={{
+                    background: '#1e293b',
+                    borderRadius: '1rem',
+                    border: '1px solid #334155',
+                    padding: '1.5rem',
+                    marginBottom: '2rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1rem'
+                }}>
+                    <h3 style={{ color: 'white', margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Database size={18} color="#eab308" />
+                        Opción A: Ingesta por Códigos (Auto-Lookup)
+                    </h3>
+                    <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>
+                        Ingresa uno o más códigos (SKU) separados por salto de línea para buscarlos en el catálogo oficial de WIX/Filtron.
+                    </p>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                        <textarea
+                            placeholder="WA6214&#10;WA6215&#10;..."
+                            value={skuList}
+                            onChange={(e) => setSkuList(e.target.value)}
+                            disabled={isSearching}
+                            style={{
+                                flex: 1,
+                                background: '#0f172a',
+                                border: '1px solid #334155',
+                                borderRadius: '0.5rem',
+                                color: 'white',
+                                padding: '0.75rem',
+                                minHeight: '80px',
+                                fontFamily: 'monospace',
+                                resize: 'vertical',
+                                opacity: isSearching ? 0.5 : 1
+                            }}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '150px' }}>
+                            <Button
+                                variant="primary"
+                                onClick={handleSkuLookup}
+                                loading={isSearching}
+                                disabled={!skuList.trim() || isProcessing}
+                                style={{ alignSelf: 'stretch' }}
+                            >
+                                🔍 Buscar en Catálogo
+                            </Button>
+                            {isSearching && (
+                                <div style={{ fontSize: '0.75rem', color: '#eab308', textAlign: 'center', fontWeight: 'bold' }}>
+                                    Procesando {uploadStatus.current} de {uploadStatus.total}...
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    {isSearching && (
+                        <div style={{ width: '100%', height: '4px', background: '#0f172a', borderRadius: '2px', overflow: 'hidden' }}>
+                            <div style={{
+                                width: `${(uploadStatus.current / uploadStatus.total) * 100}%`,
+                                height: '100%',
+                                background: '#eab308',
+                                transition: 'width 0.3s'
+                            }} />
+                        </div>
+                    )}
+                </div>
+
+                {/* Sección de Archivos */}
+                <div style={{ marginBottom: '1rem' }}>
+                    <h3 style={{ color: 'white', margin: '0 0 1rem 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Upload size={18} color="#eab308" />
+                        Opción B: Subir Archivos HTML
+                    </h3>
                 </div>
 
                 {parsedProducts.length === 0 ? (

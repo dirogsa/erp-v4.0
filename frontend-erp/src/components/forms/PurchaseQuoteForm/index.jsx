@@ -25,6 +25,7 @@ const PurchaseQuoteForm = ({
         currency: 'SOLES',
         items: [],
         notes: '',
+        amount_in_words: '',
         ...initialData
     });
 
@@ -145,6 +146,25 @@ const PurchaseQuoteForm = ({
                 readOnly={readOnly}
                 isPurchase={true} // Specify it's for purchase (uses Cost instead of Price)
             />
+
+            <div style={{ marginTop: '1rem' }}>
+                <label style={{ display: 'block', color: '#3b82f6', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem' }}>Importe en Letras (Legal)</label>
+                <input
+                    type="text"
+                    value={formData.amount_in_words || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, amount_in_words: e.target.value.toUpperCase() }))}
+                    placeholder="Ej: SON: CIENTO NOVENTA Y OCHO Y 00/100 SOLES"
+                    disabled={readOnly}
+                    style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #3b82f644',
+                        borderRadius: '0.25rem',
+                        color: 'white'
+                    }}
+                />
+            </div>
 
             <div style={{ marginTop: '1rem' }}>
                 <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Notas</label>

@@ -27,6 +27,14 @@ async def generate_marketing_sku():
     sku = await inventory_service.generate_marketing_sku()
     return {"sku": sku}
 
+@router.get("/external-lookup")
+async def external_lookup(sku: str):
+    """
+    Busca en catálogos externos y devuelve el HTML.
+    """
+    html_content = await inventory_service.external_lookup(sku)
+    return {"html": html_content}
+
 @router.post("/products", response_model=Product)
 async def create_product(
     product: Product, 

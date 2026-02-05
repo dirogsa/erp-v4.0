@@ -215,7 +215,7 @@ const Sales = () => {
                 <div style={{ backgroundColor: '#1e293b', padding: '2rem', borderRadius: '0.5rem' }}>
                     <QuoteForm
                         initialData={selectedQuote}
-                        onSubmit={selectedQuote ? handleUpdateQuote : handleCreateQuote}
+                        onSubmit={(selectedQuote && selectedQuote.quote_number) ? handleUpdateQuote : handleCreateQuote}
                         onCancel={() => {
                             setShowCreateQuote(false);
                             setSelectedQuote(null);
@@ -818,18 +818,21 @@ const Sales = () => {
                             customer: {
                                 ruc: data.customer.ruc,
                                 name: data.customer.name,
-                                address: '',
+                                address: data.customer.address || '',
+                                delivery_address: data.customer.address || '',
                                 branches: []
                             },
                             customer_ruc: data.customer.ruc,
                             customer_name: data.customer.name,
+                            delivery_address: data.customer.address || '',
                             items: data.items.map(item => ({
                                 product_sku: item.product_sku,
                                 product_name: item.product_name,
                                 quantity: item.quantity,
                                 unit_price: item.unit_price,
                                 subtotal: item.subtotal
-                            }))
+                            })),
+                            amount_in_words: data.amount_in_words || ''
                         };
                         setSelectedQuote(mappedQuote);
                         setShowCreateQuote(true);
@@ -885,16 +888,24 @@ const Sales = () => {
                                             const mappedQuote = {
                                                 date: doc.date,
                                                 currency: doc.currency,
-                                                customer: { ruc: doc.customer.ruc, name: doc.customer.name, address: '', branches: [] },
+                                                customer: {
+                                                    ruc: doc.customer.ruc,
+                                                    name: doc.customer.name,
+                                                    address: doc.customer.address || '',
+                                                    delivery_address: doc.customer.address || '',
+                                                    branches: []
+                                                },
                                                 customer_ruc: doc.customer.ruc,
                                                 customer_name: doc.customer.name,
+                                                delivery_address: doc.customer.address || '',
                                                 items: doc.items.map(item => ({
                                                     product_sku: item.product_sku,
                                                     product_name: item.product_name,
                                                     quantity: item.quantity,
                                                     unit_price: item.unit_price,
                                                     subtotal: item.subtotal
-                                                }))
+                                                })),
+                                                amount_in_words: doc.amount_in_words || ''
                                             };
                                             setSelectedQuote(mappedQuote);
                                             setShowCreateQuote(true);

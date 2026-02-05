@@ -210,6 +210,7 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             issuer_info=quote.issuer_info,
             payment_terms=quote.payment_terms,
             due_date=quote.due_date,
+            amount_in_words=quote.amount_in_words,
             source=quote.source,
             date=quote.date
         )
@@ -241,6 +242,7 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             issuer_info=quote.issuer_info,
             payment_terms=quote.payment_terms,
             due_date=quote.due_date,
+            amount_in_words=quote.amount_in_words,
             source=quote.source,
             date=quote.date
         )

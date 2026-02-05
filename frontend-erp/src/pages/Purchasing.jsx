@@ -386,7 +386,8 @@ const Purchasing = () => {
                                 quantity: item.quantity,
                                 unit_cost: item.unit_price,
                                 subtotal: item.subtotal
-                            }))
+                            })),
+                            amount_in_words: data.amount_in_words || ''
                         };
                         setSelectedQuote(mappedQuote);
                         setShowCreateQuote(true);
@@ -452,7 +453,8 @@ const Purchasing = () => {
                                                     quantity: item.quantity,
                                                     unit_cost: item.unit_price,
                                                     subtotal: item.subtotal
-                                                }))
+                                                })),
+                                                amount_in_words: doc.amount_in_words || ''
                                             };
                                             setSelectedQuote(mappedQuote);
                                             setShowCreateQuote(true);

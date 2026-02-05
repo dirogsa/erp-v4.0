@@ -131,24 +131,19 @@ const ConversionConfirmationModal = ({
                                             </tr>
                                         ))}
                                         {/* Also show fully available items for completeness if user wants to see "what is reserved" for them too */}
-                                        {previewData.stock_check?.available_items?.map((item, idx) => {
-                                            // Only show here if NOT in missing items (partial coverage). 
-                                            // Backend splits: if partial, it puts partial quantity in available AND remainder in missing. 
-                                            // We should avoid duplicating visually if possible, but distinct rows is OK for logical split.
-                                            // Actually, simplest is to just list them.
-                                            return (
-                                                <tr key={`avail-${idx}`} style={{ borderBottom: '1px solid #334155' }}>
-                                                    <td style={{ padding: '0.5rem', color: '#d1fae5' }}>
-                                                        <div>{item.product_sku}</div>
-                                                    </td>
-                                                    <td style={{ padding: '0.5rem', textAlign: 'center' }}>{item.quantity}</td>
-                                                    <td style={{ padding: '0.5rem', textAlign: 'center', color: '#94a3b8' }}>{item.stock_info?.physical || '-'}</td>
-                                                    <td style={{ padding: '0.5rem', textAlign: 'center', color: '#fbbf24' }}>{item.stock_info?.committed || 0}</td>
-                                                    <td style={{ padding: '0.5rem', textAlign: 'center', color: '#10b981' }}>{item.quantity}</td>
-                                                    <td style={{ padding: '0.5rem', textAlign: 'center' }}>0</td>
-                                                </tr>
-                                            );
-                                        })}
+                                        {previewData.stock_check?.available_items?.map((item, idx) => (
+                                            <tr key={`avail-${idx}`} style={{ borderBottom: '1px solid #334155' }}>
+                                                <td style={{ padding: '0.5rem', color: '#d1fae5' }}>
+                                                    <div style={{ fontWeight: '500' }}>{item.product_name || 'Producto'}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{item.product_sku}</div>
+                                                </td>
+                                                <td style={{ padding: '0.5rem', textAlign: 'center' }}>{item.quantity}</td>
+                                                <td style={{ padding: '0.5rem', textAlign: 'center', color: '#94a3b8' }}>{item.stock_info?.physical || '-'}</td>
+                                                <td style={{ padding: '0.5rem', textAlign: 'center', color: '#fbbf24' }}>{item.stock_info?.committed || 0}</td>
+                                                <td style={{ padding: '0.5rem', textAlign: 'center', color: '#10b981' }}>{item.quantity}</td>
+                                                <td style={{ padding: '0.5rem', textAlign: 'center' }}>0</td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                             </div>

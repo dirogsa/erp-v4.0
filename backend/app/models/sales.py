@@ -117,6 +117,7 @@ class SalesOrder(Document):
     
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
+    amount_in_words: Optional[str] = None
 
     # Origen del pedido
     source: str = "ERP"
@@ -147,6 +148,7 @@ class SalesQuote(Document):
     payment_terms: Optional[dict] = None
     due_date: Optional[datetime] = None
     notes: Optional[str] = None
+    amount_in_words: Optional[str] = None
     
     # Origen del pedido
     source: str = "ERP"

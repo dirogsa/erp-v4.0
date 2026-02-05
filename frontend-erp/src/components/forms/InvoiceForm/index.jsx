@@ -20,10 +20,10 @@ const InvoiceForm = ({
 
     const [formData, setFormData] = useState(() => ({
         sunat_number: '',
-        invoice_date: new Date().toISOString().split('T')[0],
+        invoice_date: order?.date ? order.date.split('T')[0] : new Date().toISOString().split('T')[0],
         due_date: order?.due_date ? order.due_date.split('T')[0] : '',
         notes: '',
-        amount_in_words: '',
+        amount_in_words: order?.amount_in_words || '',
         payment_terms: order?.payment_terms || { type: 'CASH', installments: [] }
     }));
 
@@ -34,7 +34,9 @@ const InvoiceForm = ({
         if (order) {
             setFormData(prev => ({
                 ...prev,
+                invoice_date: order.date ? order.date.split('T')[0] : prev.invoice_date,
                 due_date: order.due_date ? order.due_date.split('T')[0] : '',
+                amount_in_words: order.amount_in_words || '',
                 payment_terms: order.payment_terms || { type: 'CASH', installments: [] }
             }));
 

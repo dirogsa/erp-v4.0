@@ -5,7 +5,14 @@ from app.exceptions.business_exceptions import NotFoundException, ValidationExce
 from app.models.auth import User
 from app.services.audit_service import AuditService
 from app.services.brand_service import ensure_brands_exist
+from app.services.catalog_service import perform_catalog_lookup
 import re
+
+async def external_lookup(sku: str) -> str:
+    """
+    Busca un producto en catálogos externos delegando al servicio de catálogos.
+    """
+    return await perform_catalog_lookup(sku)
 
 async def generate_marketing_sku() -> str:
     now = datetime.now()
@@ -74,8 +81,52 @@ async def get_products(
         size=limit
     )
 
-async def get_product_by_sku(sku: str) -> Product:
+async def find_product_robustly(sku: str) -> Optional[Product]:
+    """
+    Busat un producto de forma robusta. 
+    Maneja SKUs "sucios" que vienen de XMLs (ej: "AC31011C AZUMI").
+    """
+    if not sku:
+        return None
+
+    # 1. Búsqueda exacta
     product = await Product.find_one(Product.sku == sku)
+    if product:
+        return product
+
+    # 2. Limpiar espacios
+    clean_sku = sku.strip()
+    if clean_sku != sku:
+        product = await Product.find_one(Product.sku == clean_sku)
+        if product:
+            return product
+
+    # 3. Si tiene espacios, probar con la primera palabra (Caso común en SUNAT: "CODIGO MARCA")
+    if ' ' in clean_sku:
+        first_word = clean_sku.split()[0]
+        product = await Product.find_one(Product.sku == first_word)
+        if product:
+            return product
+
+    # 4. Búsqueda por coincidencia parcial si el SKU sucio empieza por un SKU conocido
+    # Evitamos falsos positivos pidiendo mínimo 4 caracteres
+    if len(clean_sku) > 4:
+        # Buscamos productos que empiecen con los primeros 4 caracteres
+        prefix = clean_sku[:4]
+        potentials = await Product.find({"sku": {"$regex": f"^{prefix}"}}).to_list()
+        for p in potentials:
+            # Si el SKU sucio empieza exactamente por el SKU del inventario
+            # y es seguido por un espacio o es casi igual
+            if clean_sku.startswith(p.sku):
+                # Validar que o termina ahí o le sigue un espacio/separador
+                remainder = clean_sku[len(p.sku):]
+                if not remainder or remainder[0] in [' ', '-', '/', '_']:
+                    return p
+
+    return None
+
+async def get_product_by_sku(sku: str) -> Product:
+    product = await find_product_robustly(sku)
     if not product:
         raise NotFoundException("Product", sku)
     return product
@@ -516,28 +567,34 @@ async def check_stock_availability(items: List[Dict[str, Any]]) -> Dict[str, Any
         sku = item.get("product_sku")
         required_qty = float(item.get("quantity", 0))
         
-        product = await Product.find_one(Product.sku == sku)
+        product = await find_product_robustly(sku)
+        
+        # Use found product's SKU for committed stock if available
+        lookup_sku = product.sku if product else sku
+        committed = float(committed_stock.get(lookup_sku, 0))
+
         if not product:
             missing_items.append({
                 "product_sku": sku,
                 "required_quantity": required_qty,
                 "available_quantity": 0,
                 "stock_physical": 0,
-                "stock_committed": 0,
+                "stock_committed": committed,
                 "missing_quantity": required_qty,
-                "product_name": "Product Not Found",
+                "product_name": "Producto No Encontrado",
                 "unit_price": item.get("unit_price")
             })
             continue
-            
+        
+        product_name = product.name
         physical_stock = float(product.stock_current)
-        committed = float(committed_stock.get(sku, 0))
         available_real = max(0, physical_stock - committed)
         
         # Logic: We can fulfill if available_real >= required_qty
         if available_real >= required_qty:
             available_items.append({
                 "product_sku": sku,
+                "product_name": product_name,
                 "quantity": required_qty,
                 "unit_price": item.get("unit_price"),
                 "stock_info": {

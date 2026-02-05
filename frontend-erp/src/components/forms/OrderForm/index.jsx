@@ -29,6 +29,8 @@ const OrderForm = ({
         delivery_address: '',
         delivery_branch_name: '',
         payment_terms: { type: 'CASH', installments: [] }, // Default
+        notes: '',
+        amount_in_words: '',
         ...initialData
     });
 
@@ -39,6 +41,8 @@ const OrderForm = ({
                 ...prev,
                 ...initialData,
                 payment_terms: initialData.payment_terms || { type: 'CASH', installments: [] },
+                // Asegurar que la dirección de entrega se extraiga si viene anidada en customer
+                delivery_address: initialData.delivery_address || initialData.customer?.delivery_address || initialData.customer?.address || '',
                 // Reconstruct customer object if it doesn't exist but we have flat fields
                 customer: initialData.customer || {
                     name: initialData.customer_name || '',
@@ -132,6 +136,46 @@ const OrderForm = ({
                 onItemsChange={handleItemsChange}
                 readOnly={readOnly}
             />
+
+            <div style={{ marginTop: '1rem' }}>
+                <label style={{ display: 'block', color: '#10b981', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem' }}>Importe en Letras (Legal)</label>
+                <input
+                    type="text"
+                    value={formData.amount_in_words || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, amount_in_words: e.target.value.toUpperCase() }))}
+                    placeholder="Ej: SON: CIENTO NOVENTA Y OCHO Y 00/100 SOLES"
+                    disabled={readOnly}
+                    style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #10b98144',
+                        borderRadius: '0.25rem',
+                        color: 'white'
+                    }}
+                />
+            </div>
+
+            <div style={{ marginTop: '1rem' }}>
+                <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Notas / Observaciones</label>
+                <textarea
+                    style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #334155',
+                        borderRadius: '0.375rem',
+                        color: 'white',
+                        minHeight: '100px',
+                        outline: 'none',
+                        resize: 'vertical'
+                    }}
+                    value={formData.notes || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Notas adicionales o términos de la orden..."
+                    readOnly={readOnly}
+                />
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
                 <OrderSummary items={formData.items} />

@@ -5,59 +5,111 @@ export const parseUBLXml = (xmlString) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlString, "text/xml");
 
-    // Helper to get text content correctly handling namespaces
+    // Helper to find an element regardless of prefix
+    const findElement = (parent, tagName) => {
+        if (!parent) return null;
+        const localName = tagName.includes(':') ? tagName.split(':')[1] : tagName;
+
+        // Try exact match
+        let elements = parent.getElementsByTagName(tagName);
+        if (elements.length > 0) return elements[0];
+
+        // Try local name
+        elements = parent.getElementsByTagName(localName);
+        if (elements.length > 0) return elements[0];
+
+        // Manual search in descendants
+        const all = parent.getElementsByTagName('*');
+        for (let i = 0; i < all.length; i++) {
+            if (all[i].localName === localName) return all[i];
+        }
+        return null;
+    };
+
+    // Helper to get text content from a tag
     const getTagText = (parent, tagName) => {
-        const elements = parent.getElementsByTagName(tagName);
-        return elements.length > 0 ? elements[0].textContent.trim() : '';
+        const el = findElement(parent, tagName);
+        return el ? el.textContent.trim() : '';
+    };
+
+    // Helper to extract address from a Party element
+    const extractAddress = (party) => {
+        if (!party) return '';
+
+        const addrNode = findElement(party, 'cac:RegistrationAddress') ||
+            findElement(party, 'cac:PostalAddress') ||
+            findElement(party, 'cac:PhysicalLocation');
+
+        if (!addrNode) return getTagText(party, 'cbc:Line');
+
+        const line = getTagText(addrNode, 'cbc:Line');
+        const district = getTagText(addrNode, 'cbc:District');
+        const city = getTagText(addrNode, 'cbc:CityName');
+        const region = getTagText(addrNode, 'cbc:CountrySubentity');
+
+        // Build composite address
+        let parts = [];
+        if (line) parts.push(line);
+        if (district) parts.push(district);
+        if (city) parts.push(city);
+        if (region && region !== city) parts.push(region);
+
+        if (parts.length > 0) return parts.join(', ');
+
+        const street = getTagText(addrNode, 'cbc:StreetName');
+        if (street) return street + (city ? `, ${city}` : '');
+
+        return getTagText(party, 'cbc:Line');
     };
 
     // 1. Basic Info
-    const documentId = getTagText(xmlDoc, 'cbc:ID') || getTagText(xmlDoc, 'ID');
-    const issueDate = getTagText(xmlDoc, 'cbc:IssueDate') || getTagText(xmlDoc, 'IssueDate');
-    const currencyRaw = getTagText(xmlDoc, 'cbc:DocumentCurrencyCode') || getTagText(xmlDoc, 'DocumentCurrencyCode');
+    const documentId = getTagText(xmlDoc, 'cbc:ID');
+    const issueDate = getTagText(xmlDoc, 'cbc:IssueDate');
+    const currencyRaw = getTagText(xmlDoc, 'cbc:DocumentCurrencyCode');
     const currency = currencyRaw === 'PEN' ? 'SOLES' : (currencyRaw === 'USD' ? 'DOLARES' : currencyRaw);
 
     // 2. Supplier Info
-    const supplierParty = xmlDoc.getElementsByTagName('cac:AccountingSupplierParty')[0] || xmlDoc.getElementsByTagName('AccountingSupplierParty')[0];
+    const supplierParty = findElement(xmlDoc, 'cac:AccountingSupplierParty');
     const supplierRuc = supplierParty ? getTagText(supplierParty, 'cbc:ID') : '';
     const supplierName = supplierParty ? (getTagText(supplierParty, 'cbc:RegistrationName') || getTagText(supplierParty, 'cbc:Name')) : '';
-    const supplierAddress = supplierParty ? getTagText(supplierParty, 'cbc:Line') : '';
+    const supplierAddress = extractAddress(supplierParty);
 
     // 3. Customer Info
-    const customerParty = xmlDoc.getElementsByTagName('cac:AccountingCustomerParty')[0] || xmlDoc.getElementsByTagName('AccountingCustomerParty')[0];
+    const customerParty = findElement(xmlDoc, 'cac:AccountingCustomerParty');
     const customerRuc = customerParty ? getTagText(customerParty, 'cbc:ID') : '';
     const customerName = customerParty ? (getTagText(customerParty, 'cbc:RegistrationName') || getTagText(customerParty, 'cbc:Name')) : '';
+    const customerAddress = extractAddress(customerParty);
 
     // 4. Totals
-    const legalTotal = xmlDoc.getElementsByTagName('cac:LegalMonetaryTotal')[0] || xmlDoc.getElementsByTagName('LegalMonetaryTotal')[0];
+    const legalTotal = findElement(xmlDoc, 'cac:LegalMonetaryTotal');
     const totalAmount = parseFloat(getTagText(legalTotal, 'cbc:PayableAmount') || '0');
 
     // 5. Items (InvoiceLine)
-    const lines = Array.from(xmlDoc.getElementsByTagName('cac:InvoiceLine')).length > 0
-        ? Array.from(xmlDoc.getElementsByTagName('cac:InvoiceLine'))
-        : Array.from(xmlDoc.getElementsByTagName('InvoiceLine'));
+    const lineElements = xmlDoc.getElementsByTagName('cac:InvoiceLine');
+    const lines = lineElements.length > 0 ? Array.from(lineElements) : Array.from(xmlDoc.getElementsByTagName('InvoiceLine'));
 
     const items = lines.map(line => {
         const lineId = getTagText(line, 'cbc:ID');
-        const itemInfo = line.getElementsByTagName('cac:Item')[0] || line.getElementsByTagName('Item')[0];
+        const itemInfo = findElement(line, 'cac:Item');
 
-        // SKU: Buscar en SellersItemIdentification, si no, usar ID de línea
         let productSku = '';
         if (itemInfo) {
-            const sellersId = itemInfo.getElementsByTagName('cac:SellersItemIdentification')[0] || itemInfo.getElementsByTagName('SellersItemIdentification')[0];
-            if (sellersId) productSku = getTagText(sellersId, 'cbc:ID');
+            const sellersId = findElement(itemInfo, 'cac:SellersItemIdentification');
+            if (sellersId) {
+                const rawSku = getTagText(sellersId, 'cbc:ID');
+                // Si el SKU tiene espacios (ej: "AC31011C AZUMI"), tomamos solo la primera parte
+                productSku = rawSku.includes(' ') ? rawSku.split(/\s+/)[0] : rawSku;
+            }
         }
         if (!productSku) productSku = lineId;
 
         const productName = getTagText(line, 'cbc:Description');
         const quantity = parseFloat(getTagText(line, 'cbc:InvoicedQuantity') || '0');
 
-        // PRICES logic
         let unitPriceIncTax = 0;
         let basePriceNet = parseFloat(getTagText(line, 'cbc:PriceAmount') || '0');
 
-        // Look for AlternativeConditionPrice (Type 01 = Price with Tax)
-        const pricingRefs = line.getElementsByTagName('cac:AlternativeConditionPrice') || line.getElementsByTagName('AlternativeConditionPrice');
+        const pricingRefs = line.getElementsByTagName('cac:AlternativeConditionPrice');
         for (let ref of Array.from(pricingRefs)) {
             const typeCode = getTagText(ref, 'cbc:PriceTypeCode');
             if (typeCode === '01') {
@@ -66,7 +118,6 @@ export const parseUBLXml = (xmlString) => {
             }
         }
 
-        // Si no encontramos precio con impuestos (01), lo calculamos sumando el IGV o usamos el base
         const finalUnitPrice = unitPriceIncTax > 0 ? unitPriceIncTax : (basePriceNet * 1.18);
 
         return {
@@ -80,13 +131,25 @@ export const parseUBLXml = (xmlString) => {
         };
     });
 
+    // 6. Extraction of "SON: ..." (Amount in words)
+    // In SUNAT UBL 2.1, this is usually a cbc:Note at the root level with languageLocaleID="1000"
+    let amountInWords = '';
+    const notesElements = xmlDoc.getElementsByTagName('cbc:Note');
+    for (let i = 0; i < notesElements.length; i++) {
+        if (notesElements[i].getAttribute('languageLocaleID') === '1000') {
+            amountInWords = notesElements[i].textContent.trim();
+            break;
+        }
+    }
+
     return {
         document_number: documentId,
         date: issueDate,
         currency,
         supplier: { ruc: supplierRuc, name: supplierName, address: supplierAddress },
-        customer: { ruc: customerRuc, name: customerName },
+        customer: { ruc: customerRuc, name: customerName, address: customerAddress },
         items,
-        total_amount: Math.round(totalAmount * 100) / 100
+        total_amount: Math.round(totalAmount * 100) / 100,
+        amount_in_words: amountInWords
     };
 };

@@ -45,6 +45,7 @@ class PurchaseOrder(Document):
     items: List[OrderItem]
     status: OrderStatus = OrderStatus.PENDING
     total_amount: float = 0.0
+    amount_in_words: Optional[str] = None
 
     @field_validator('total_amount')
     @classmethod
@@ -72,6 +73,7 @@ class PurchaseQuote(Document):
     status: QuoteStatus = QuoteStatus.DRAFT
     total_amount: float = 0.0
     notes: Optional[str] = None
+    amount_in_words: Optional[str] = None
     
     @field_validator('total_amount')
     @classmethod
@@ -90,6 +92,7 @@ class PurchaseInvoice(Document):
     invoice_date: datetime = datetime.now()
     items: List[OrderItem]
     total_amount: float = 0.0
+    amount_in_words: Optional[str] = None
     
     # Control de pagos
     payment_status: PaymentStatus = PaymentStatus.PENDING

@@ -115,7 +115,8 @@ async def convert_quote_to_order(quote_number: str) -> Dict[str, Any]:
         supplier_name=quote.supplier_name,
         items=quote.items,
         status=OrderStatus.PENDING,
-        total_amount=quote.total_amount
+        total_amount=quote.total_amount,
+        amount_in_words=quote.amount_in_words
     )
     
     saved_order = await create_order(order)
@@ -288,7 +289,8 @@ async def create_invoice(
         items=order.items,
         total_amount=order.total_amount,
         payment_status=payment_status,
-        amount_paid=round(amount_paid, 3)
+        amount_paid=round(amount_paid, 3),
+        amount_in_words=order.amount_in_words
     )
     
     if amount_paid > 0 and payment_date:

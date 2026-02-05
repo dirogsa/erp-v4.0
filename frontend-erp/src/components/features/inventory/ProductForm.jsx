@@ -4,7 +4,7 @@ import Input from '../../common/Input';
 import Button from '../../common/Button';
 import Select from '../../common/Select';
 import { useNotification } from '../../../hooks/useNotification';
-import { parseFiltronHtml } from '../../../utils/filtronParser';
+import { parseCatalogHtml } from '../../../utils/catalogParsers';
 
 const ProductForm = ({
     initialData = null,
@@ -16,6 +16,49 @@ const ProductForm = ({
 }) => {
     const { showNotification } = useNotification();
     const isEditMode = !!(initialData && initialData.sku);
+    const [isSearching, setIsSearching] = useState(false);
+
+    const handleAutoLookup = async () => {
+        if (!formData.sku) {
+            showNotification('Ingresa un SKU para buscar', 'error');
+            return;
+        }
+
+        setIsSearching(true);
+        try {
+            const response = await inventoryService.externalLookup(formData.sku);
+            const html = response.data.html;
+            if (html) {
+                const data = parseCatalogHtml(html);
+                if (!data.sku) {
+                    showNotification('No se encontró el producto en el catálogo oficial', 'error');
+                    return;
+                }
+
+                // Merge data into form
+                setFormData(prev => ({
+                    ...prev,
+                    sku: data.sku || prev.sku,
+                    name: data.name || prev.name,
+                    ean: data.ean || prev.ean,
+                    brand: data.brand || prev.brand,
+                    image_url: data.image_url ? (data.brand === 'WIX' ? `https://wixeurope.com${data.image_url}` : `https://filtron.eu${data.image_url}`) : prev.image_url,
+                    manual_pdf_url: data.manual_pdf_url ? (data.brand === 'WIX' ? `https://wixeurope.com${data.manual_pdf_url}` : `https://filtron.eu${data.manual_pdf_url}`) : prev.manual_pdf_url,
+                    tech_bulletin: data.tech_bulletin || prev.tech_bulletin,
+                    specs: data.specs.length > 0 ? data.specs : prev.specs,
+                    applications: data.applications.length > 0 ? [...prev.applications, ...data.applications] : prev.applications,
+                    equivalences: data.equivalences.length > 0 ? [...prev.equivalences, ...data.equivalences] : prev.equivalences,
+                }));
+
+                showNotification(`Datos oficiales de ${data.sku} recuperados correctamente`, 'success');
+            }
+        } catch (error) {
+            console.error("Error in auto-lookup", error);
+            showNotification('Error al consultar el catálogo externo', 'error');
+        } finally {
+            setIsSearching(false);
+        }
+    };
 
     const [formData, setFormData] = useState({
         sku: '',
@@ -150,7 +193,7 @@ const ProductForm = ({
         reader.onload = (event) => {
             try {
                 const content = event.target.result;
-                const data = parseFiltronHtml(content);
+                const data = parseCatalogHtml(content);
 
                 if (!data.sku) {
                     showNotification('No se pudo detectar un SKU en el archivo. ¿Es un catálogo válido?', 'error');
@@ -325,6 +368,16 @@ const ProductForm = ({
                         </div>
                         {!isEditMode && !isViewMode && (
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    onClick={handleAutoLookup}
+                                    loading={isSearching}
+                                    style={{ marginBottom: '1rem', height: '42px', background: '#3b82f6', minWidth: '50px' }}
+                                    title="Buscar automáticamente en el catálogo oficial"
+                                >
+                                    🔍
+                                </Button>
                                 <input
                                     type="file"
                                     id="filtron-import-input"
@@ -337,9 +390,9 @@ const ProductForm = ({
                                     variant="secondary"
                                     onClick={() => document.getElementById('filtron-import-input').click()}
                                     style={{ marginBottom: '1rem', height: '42px', background: '#eab308', color: '#000' }}
-                                    title="Importar desde Catálogo Filtron (.html)"
+                                    title="Importar ficha técnica desde archivo HTML del catálogo"
                                 >
-                                    ⚡ Importar Filtron
+                                    ⚡ Importar desde Catálogo
                                 </Button>
                                 {formData.type === 'MARKETING' && (
                                     <Button

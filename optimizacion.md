@@ -1,49 +1,51 @@
-# Plan de Optimización: Integración de Datos Técnicos y Mejora de UX (Filtron-Powered)
+# Plan de Implementación: Búsqueda Inteligente de Productos (Auto-Lookup)
 
-Este documento detalla la estrategia para transformar la carga de productos en un proceso semi-automático y enriquecido, utilizando la "materia prima" extraída de los catálogos técnicos de Filtron y Wix.
-
----
-
-## 🔝 Fase 1: El "Cerebro" de Importación (Parser)
-Desarrollar una lógica que transforme el HTML descargado en objetos JSON compatibles con el ERP.
-
-- **Identificadores:** Extracción de SKU (OE 688) y **EAN-13** (5904608006882).
-- **Dimensiones:** Mapeo automático de A, B, C, H a la tabla de `specs`.
-- **Aplicaciones:** Conversión de las tablas de compatibilidad (Audi, Seat, VW) a la lista de `applications`.
-- **Media:** Captura de URLs de imágenes (normal, plain, extra) y del PDF de instrucciones técnicas.
+Este plan describe cómo automatizar el llenado de fichas técnicas simplemente ingresando el código (SKU) del producto, utilizando el Backend como motor de búsqueda y extracción.
 
 ---
 
-## ⚙️ Fase 2: Rediseño del Formulario (`ProductForm.jsx`)
-Para aprovechar estos datos, el formulario debe evolucionar para recibir más información de valor.
+## 🏗️ 1. Arquitectura del Sistema (Flujo de Datos)
 
-### 2.1 Nuevos Campos y Secciones
-- [ ] **Campo EAN:** Añadir un campo específico para el Código de Barras (EAN).
-- [ ] **Sección de Boletín Técnico:** Crear un campo de "Aviso para Vendedores/Clientes" que almacene las notas de montaje (ej: "Asegurar que la junta esté en la ranura superior").
-- [ ] **Recurso Externo PDF:** Campo para almacenar el link al manual técnico oficial del fabricante.
-- [ ] **Galería Extendida:** Permitir más de una imagen (Imagen Real vs. Dibujo Técnico).
+Para evitar bloqueos de seguridad del navegador (CORS), utilizaremos el siguiente flujo:
 
-### 2.2 Mejoras de UX (Experiencia de Usuario)
-- [ ] **Botón de Acción Rápida:** Colocar un botón "⚡ Importar Catálogo" en la cabecera del formulario.
-- [ ] **Modo de Previsualización de Importación:** Al cargar el archivo, mostrar un resumen de lo encontrado:
-    *   *Se encontraron 157 aplicaciones vehiculares.*
-    *   *Se encontraron 4 medidas técnicas.*
-    *   *Se encontró 1 boletín de seguridad.*
-- [ ] **Auto-Categorización:** Si el HTML dice "Filtro de Aceite", el selector de categorías debe posicionarse automáticamente.
+1. **Usuario:** Ingresa un código en el campo SKU (ej. `WA6214`) y presiona el botón **🔍 Buscar**.
+2. **Frontend (React):** Realiza una petición `GET` a nuestro propio servidor: `/api/inventory/external-lookup?sku=WA6214`.
+3. **Backend (Python/FastAPI):**
+    - Se conecta a la web oficial (Wix o Filtron) simulando una búsqueda.
+    - Captura el HTML resultante de la ficha técnica.
+    - Devuelve este HTML crudo al Frontend.
+4. **Frontend (React):** 
+    - Recibe el HTML.
+    - Utiliza la función existente `parseCatalogHtml` para extraer: **EAN, Medidas, Aplicaciones y Galería de imágenes**.
+    - Actualiza los campos del formulario automáticamente.
 
 ---
 
-## 🛡️ Fase 3: Integración de Equivalencias (Cruces)
-- [ ] **Sincronización de Sustitutos:** El formulario debe poder importar la lista de códigos de otras marcas (Mann, Bosch, etc.) directamente a la pestaña de `equivalences`.
-- [ ] **Buscador de Equivalencias:** Implementar una lógica que permita que, si un cliente pide un MANN HU719/7x, el ERP sepa instantáneamente que es el equivalente al Filtron OE 688 importado.
+## ⚙️ 2. Detalles Técnicos por Capa
+
+### A. Backend (Logística de Búsqueda)
+Se creará un nuevo servicio en `backend/app/services/catalog_service.py` que:
+- Detecte el patrón del código (Ej: si empieza con `WA` es Wix, si es solo números/prefijos conocidos es Filtron).
+- Realice una petición `POST` o `GET` a la URL del catálogo correspondiente.
+- Implemente un **User-Agent** profesional para evitar ser detectado como bot básico.
+
+### B. Frontend (Mejora de UX en `ProductForm.jsx`)
+- **Nuevo Botón:** Al lado del campo SKU, se añadirá un botón circular con un icono de lupa (🔍).
+- **Estado de Carga:** El botón cambiará a un "loading" mientras el backend hace la consulta.
+- **Auto-Llenado Inteligente:** Si el usuario ya escribió algo manualmente, el sistema preguntará si desea sobrescribir los datos con la información oficial encontrada.
 
 ---
 
-## 🚀 Fase 4: Ventajas en el Punto de Venta (Shop & ERP)
-- [ ] **Ficha Técnica Profesional:** La tienda online mostrará automáticamente el dibujo técnico y las aplicaciones que importamos, dando confianza al comprador.
-- [ ] **Alerta de Instalación:** Al facturar, el sistema mostrará un pop-up con la nota técnica importada del catálogo para evitar errores del mecánico.
+## 🎯 3. Beneficios y Escalabilidad
+
+- **Cero Errores Manuales:** Se eliminan errores de dedo al transcribir medidas o aplicaciones.
+- **Velocidad:** Crear un producto nuevo pasará de tomar 5 minutos a solo **10 segundos**.
+- **Independencia de Archivos:** Ya no será necesario descargar y subir archivos `.html` manualmente, aunque la opción seguirá disponible como respaldo.
+- **Soporte Multi-Marca:** El sistema será capaz de identificar y buscar en diferentes fuentes según el formato del código ingresado.
 
 ---
 
-> **Estado Actual:** Planeación.
-> **Próximo Paso:** Creación del script `filtronParser.js` y modificación de la estructura de datos en el Backend para aceptar EAN y Boletines Técnicos.
+## 🚀 Próximos Pasos (Tras aprobación)
+1. Implementar el endpoint `/external-lookup` en el backend.
+2. Conectar el botón de búsqueda en `ProductForm.jsx`.
+3. Validar la extracción de imágenes directamente desde las URLs oficiales.
