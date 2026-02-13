@@ -1,7 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { analyticsService } from '../../../services/api';
+import { formatCurrency, formatDate } from '../../../utils/formatters';
 
 const ProductDetailsView = ({ product, onClose }) => {
-    const [activeTab, setActiveTab] = useState('specs'); // specs, apps, crosses
+    const [activeTab, setActiveTab] = useState('specs'); // specs, apps, crosses, sales
+    const [salesHistory, setSalesHistory] = useState([]);
+    const [loadingSales, setLoadingSales] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === 'sales' && product?.sku) {
+            fetchSalesHistory();
+        }
+    }, [activeTab, product?.sku]);
+
+    const fetchSalesHistory = async () => {
+        setLoadingSales(true);
+        try {
+            const res = await analyticsService.getProductHistory(product.sku);
+            setSalesHistory(res.data);
+        } catch (error) {
+            console.error("Error loading sales history", error);
+        } finally {
+            setLoadingSales(false);
+        }
+    };
 
     if (!product) return null;
 
@@ -116,11 +138,12 @@ const ProductDetailsView = ({ product, onClose }) => {
 
                 {/* Tabs Header */}
                 <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid #1e293b', marginBottom: '2rem' }}>
-                    {['specs', 'apps', 'crosses', 'marketing'].map(tab => {
+                    {['specs', 'apps', 'crosses', 'sales', 'marketing'].map(tab => {
                         const labels = {
-                            specs: '📏 Medidas y Especificaciones',
+                            specs: '📏 Medidas',
                             apps: '🚗 Aplicaciones',
                             crosses: '🔄 Equivalencias',
+                            sales: '💰 Historial de Ventas',
                             marketing: '🎁 Marketing'
                         };
                         // Solo mostrar marketing tab si aplica
@@ -268,6 +291,68 @@ const ProductDetailsView = ({ product, onClose }) => {
                                 </table>
                             ) : (
                                 <p style={{ color: '#64748b', fontStyle: 'italic' }}>No hay equivalencias registradas.</p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* SALES TAB */}
+                    {activeTab === 'sales' && (
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                <h3 style={{ color: '#fff', fontSize: '1.1rem', margin: 0 }}>Historial de Precios de Venta</h3>
+                                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                                    Mostrando últimas transacciones facturadas
+                                </div>
+                            </div>
+
+                            {loadingSales ? (
+                                <div style={{ color: '#94a3b8', padding: '2rem', textAlign: 'center' }}>Cargando historial...</div>
+                            ) : salesHistory.length > 0 ? (
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                        <thead>
+                                            <tr style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', borderBottom: '1px solid #1e293b' }}>
+                                                <th style={{ padding: '12px 1rem' }}>Fecha</th>
+                                                <th style={{ padding: '12px 1rem' }}>Cliente</th>
+                                                <th style={{ padding: '12px 1rem' }}>Documento</th>
+                                                <th style={{ padding: '12px 1rem', textAlign: 'center' }}>Cant.</th>
+                                                <th style={{ padding: '12px 1rem', textAlign: 'right' }}>Precio Unit.</th>
+                                                <th style={{ padding: '12px 1rem', textAlign: 'right' }}>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {salesHistory.map((sale, i) => (
+                                                <tr key={i} style={{ borderBottom: '1px solid #0f172a', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background = '#1e293b'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                    <td style={{ padding: '1rem', color: '#cbd5e1' }}>{formatDate(sale.date)}</td>
+                                                    <td style={{ padding: '1rem' }}>
+                                                        <div style={{ color: '#fff', fontWeight: '500' }}>{sale.customer_name}</div>
+                                                        <div style={{ color: '#64748b', fontSize: '0.75rem' }}>RUC: {sale.customer_ruc}</div>
+                                                    </td>
+                                                    <td style={{ padding: '1rem', color: '#94a3b8', fontFamily: 'monospace' }}>{sale.document_number}</td>
+                                                    <td style={{ padding: '1rem', textAlign: 'center', color: '#fff' }}>{sale.quantity}</td>
+                                                    <td style={{ padding: '1rem', textAlign: 'right', color: '#10b981', fontWeight: '600' }}>
+                                                        {sale.currency} {formatCurrency(sale.unit_price).replace('S/', '').replace('$', '')}
+                                                    </td>
+                                                    <td style={{ padding: '1rem', textAlign: 'right', color: '#fff' }}>
+                                                        {sale.currency} {formatCurrency(sale.unit_price * sale.quantity).replace('S/', '').replace('$', '')}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div style={{
+                                    padding: '3rem',
+                                    textAlign: 'center',
+                                    background: '#1e293b22',
+                                    borderRadius: '1rem',
+                                    border: '1px dashed #334155',
+                                    color: '#64748b'
+                                }}>
+                                    <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🔍</div>
+                                    No se han encontrado ventas facturadas para este producto todavía.
+                                </div>
                             )}
                         </div>
                     )}

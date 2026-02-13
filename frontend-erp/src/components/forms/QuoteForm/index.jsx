@@ -28,6 +28,7 @@ const QuoteForm = ({
         items: [],
         delivery_address: '',
         delivery_branch_name: '',
+        requested_by: null,
         date: new Date().toISOString().split('T')[0],
         due_date: '',
         currency: 'SOLES',
@@ -43,6 +44,7 @@ const QuoteForm = ({
             setFormData(prev => ({
                 ...prev,
                 ...initialData,
+                requested_by: initialData.requested_by || null,
                 date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
                 due_date: initialData.due_date ? initialData.due_date.split('T')[0] : '',
                 currency: initialData.currency || 'SOLES',
@@ -52,7 +54,8 @@ const QuoteForm = ({
                     name: initialData.customer_name || '',
                     ruc: initialData.customer_ruc || '',
                     address: initialData.delivery_address || '',
-                    branches: []
+                    branches: [],
+                    contacts: []
                 },
                 items: (initialData.items || []).map(item => ({
                     ...item,
@@ -69,7 +72,8 @@ const QuoteForm = ({
             customer_ruc: customerData.ruc,
             customer_name: customerData.name,
             delivery_address: customerData.delivery_address || customerData.address,
-            delivery_branch_name: customerData.delivery_branch_name
+            delivery_branch_name: customerData.delivery_branch_name,
+            // Mantener solicitado por si ya estaba (o resetear si cambia de cliente drásticamente)
         }));
     };
 
@@ -107,6 +111,7 @@ const QuoteForm = ({
             due_date: formData.due_date || null,
             items: formData.items,
             total_amount: total,
+            requested_by: formData.requested_by,
             issuer_info: activeCompany // Snapshot active company info at creation time
         };
 
@@ -165,6 +170,8 @@ const QuoteForm = ({
             <CustomerSelector
                 value={formData.customer}
                 onChange={handleCustomerChange}
+                requestedBy={formData.requested_by}
+                onRequestedByChange={(requested_by) => setFormData({ ...formData, requested_by })}
                 readOnly={readOnly}
                 required
             />

@@ -32,6 +32,7 @@ import Audit from './pages/Audit';
 import SalesPolicies from './pages/SalesPolicies';
 import PriceUpdateMasive from './pages/PriceUpdateMasive';
 import CatalogIngestion from './pages/CatalogIngestion';
+import StaffManagement from './pages/StaffManagement';
 
 
 
@@ -92,6 +93,7 @@ function App() {
                         <Route path="/audit" element={<Audit />} />
                         <Route path="/sales-policies" element={<SalesPolicies />} />
                         <Route path="/price-update" element={<PriceUpdateMasive />} />
+                        <Route path="/staff" element={<StaffManagement />} />
                       </Routes>
 
                     </Layout>

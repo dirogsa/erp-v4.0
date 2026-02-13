@@ -41,11 +41,15 @@ const SalesInvoiceReceipt = ({
                         showPaymentDetails={false}
                         amountInWords={invoice.amount_in_words || ''}
                         paymentTerms={invoice.payment_terms}
+                        requestedBy={invoice.requested_by}
                         // Issuer Info (Snapshot) - Fallback to defaults (defined in ReceiptHeader) if missing
                         companyName={invoice.issuer_info?.name}
                         companyRuc={invoice.issuer_info?.ruc}
                         companyAddress={invoice.issuer_info?.address}
                         companyPhone={invoice.issuer_info?.phone}
+                        companyBankName={invoice.issuer_info?.bank_name}
+                        companyAccountSoles={invoice.issuer_info?.account_soles}
+                        companyAccountDollars={invoice.issuer_info?.account_dollars}
                     />
                 </div>
             </DualReceiptWrapper>

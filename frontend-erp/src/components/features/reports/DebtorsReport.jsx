@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import PrintableModal from '../../common/receipt/PrintableModal';
 import DualReceiptWrapper from '../../common/receipt/DualReceiptWrapper';
-import { analyticsService, salesService } from '../../../services/api';
+import { analyticsService, salesService, staffService } from '../../../services/api';
+import { useQuery } from '@tanstack/react-query';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
 import { useCompany } from '../../../context/CompanyContext'; // Import Context
 import Button from '../../common/Button';
@@ -12,7 +13,8 @@ const DebtorsReportPrintable = ({
     formatCurrency,
     formatDate,
     selectedCustomer,
-    format = 'A5_SINGLE'
+    format = 'A5_SINGLE',
+    staff = []
 }) => {
     const companyName = activeCompany?.name || 'Empresa';
     const companyRuc = activeCompany?.ruc || '-';
@@ -269,7 +271,11 @@ const DebtorsReportPrintable = ({
                         }}>
                             {(() => {
                                 const dept = activeCompany?.departments?.find(d => d.name.toLowerCase().includes('cobranza'));
-                                return (dept?.lead_email || activeCompany?.email || 'ventas@empresa.com').toLowerCase();
+                                if (dept?.staff_id) {
+                                    const member = staff.find(s => s._id === dept.staff_id);
+                                    if (member?.email) return member.email.toLowerCase();
+                                }
+                                return (activeCompany?.email || 'ventas@empresa.com').toLowerCase();
                             })()}
                         </div>
                     </div>
@@ -298,6 +304,12 @@ const DebtorsReport = ({ visible, onClose }) => {
     const [selectedCustomer, setSelectedCustomer] = useState('');
     const [statusFilter, setStatusFilter] = useState('pending');
     const [reportData, setReportData] = useState(null);
+
+    const { data: staff = [] } = useQuery({
+        queryKey: ['staff', 'active'],
+        queryFn: () => staffService.getStaff({ active_only: true }).then(res => res.data),
+        enabled: visible
+    });
 
     // Load customers for filter
     useEffect(() => {
@@ -410,6 +422,7 @@ const DebtorsReport = ({ visible, onClose }) => {
                         formatCurrency={formatCurrency}
                         formatDate={formatDate}
                         selectedCustomer={selectedCustomer}
+                        staff={staff}
                     />
                 </DualReceiptWrapper>
             ) : (

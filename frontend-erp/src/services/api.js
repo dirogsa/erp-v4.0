@@ -201,7 +201,8 @@ export const analyticsService = {
   getDashboard: () => api.get('/analytics/dashboard'),
   getDebtorsReport: (customerId = '', status = 'pending') => api.get('/analytics/reports/debtors', { params: { customer_id: customerId || undefined, status_filter: status } }),
   getSalesReport: (startDate, endDate) => api.get('/analytics/reports/sales', { params: { start_date: startDate, end_date: endDate } }),
-  getInventoryValuation: () => api.get('/analytics/reports/inventory-valuation')
+  getInventoryValuation: () => api.get('/analytics/reports/inventory-valuation'),
+  getProductHistory: (sku) => api.get(`/analytics/products/${sku}/history`)
 };
 
 export const companyService = {
@@ -263,6 +264,14 @@ export const auditService = {
     if (module) url += `&module=${module}`;
     return api.delete(url);
   },
+};
+
+export const staffService = {
+  getStaff: (params) => api.get('/staff', { params }),
+  getStaffMember: (id) => api.get(`/staff/${id}`),
+  createStaff: (data) => api.post('/staff', data),
+  updateStaff: (id, data) => api.put(`/staff/${id}`, data),
+  deleteStaff: (id) => api.delete(`/staff/${id}`),
 };
 
 export default api;

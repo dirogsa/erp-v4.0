@@ -28,6 +28,7 @@ const OrderForm = ({
         items: [],
         delivery_address: '',
         delivery_branch_name: '',
+        requested_by: null,
         payment_terms: { type: 'CASH', installments: [] }, // Default
         notes: '',
         amount_in_words: '',
@@ -40,6 +41,7 @@ const OrderForm = ({
             setFormData(prev => ({
                 ...prev,
                 ...initialData,
+                requested_by: initialData.requested_by || null,
                 payment_terms: initialData.payment_terms || { type: 'CASH', installments: [] },
                 // Asegurar que la dirección de entrega se extraiga si viene anidada en customer
                 delivery_address: initialData.delivery_address || initialData.customer?.delivery_address || initialData.customer?.address || '',
@@ -48,7 +50,8 @@ const OrderForm = ({
                     name: initialData.customer_name || '',
                     ruc: initialData.customer_ruc || '',
                     address: initialData.delivery_address || '',
-                    branches: [] // We might not have branches in order data, that's fine for read-only
+                    branches: [],
+                    contacts: []
                 },
                 // Calculate subtotal for items if missing (backend doesn't send it)
                 items: (initialData.items || []).map(item => ({
@@ -116,6 +119,7 @@ const OrderForm = ({
             ...formData,
             total_amount: total,
             tax_amount: tax,
+            requested_by: formData.requested_by,
             issuer_info: activeCompany // Snapshot
         };
 
@@ -127,6 +131,8 @@ const OrderForm = ({
             <CustomerSelector
                 value={formData.customer}
                 onChange={handleCustomerChange}
+                requestedBy={formData.requested_by}
+                onRequestedByChange={(requested_by) => setFormData({ ...formData, requested_by })}
                 readOnly={readOnly}
                 required
             />

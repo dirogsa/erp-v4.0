@@ -16,6 +16,7 @@ const ReceiptHeader = ({
     customerName,
     customerRuc,
     customerAddress,
+    requestedBy,
     currency = "SOLES",
     amountInWords = "",
     paymentTerms
@@ -85,6 +86,15 @@ const ReceiptHeader = ({
                         <span className="label-normal">Dirección:</span>
                         <span className="value-normal">{customerAddress || '-'}</span>
                     </div>
+                    {/* Requested By - Contact Person */}
+                    {requestedBy?.name && (
+                        <div className="customer-sub-row" style={{ marginTop: '2px', borderTop: '0.5px dashed #ccc', paddingTop: '2px' }}>
+                            <span className="label-normal" style={{ fontSize: '9px' }}>Solicitado por:</span>
+                            <span className="value-normal" style={{ fontSize: '10px', fontWeight: '500' }}>
+                                {requestedBy.name} {requestedBy.phone ? `(${requestedBy.phone})` : ''}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Columna Derecha: Fecha */}

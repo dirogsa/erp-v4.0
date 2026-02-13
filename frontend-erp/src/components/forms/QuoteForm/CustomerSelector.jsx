@@ -8,13 +8,16 @@ import { useNotification } from '../../../hooks/useNotification';
 const CustomerSelector = ({
     value,
     onChange,
+    requestedBy,
+    onRequestedByChange,
     readOnly = false,
     required = false
 }) => {
-    const { getCustomerByRuc, customers } = useCustomers();
+    const { getCustomerByRuc } = useCustomers();
     const { showNotification } = useNotification();
     const [ruc, setRuc] = useState(value?.ruc || '');
     const [loading, setLoading] = useState(false);
+    const [isManualContact, setIsManualContact] = useState(false);
 
     // Actualizar RUC local si cambia el valor externo
     useEffect(() => {
@@ -38,11 +41,10 @@ const CustomerSelector = ({
             } else {
                 showNotification('Cliente no encontrado', 'warning');
                 // Limpiar selección pero mantener RUC
-                onChange({ ruc, name: '', address: '', branches: [] });
+                onChange({ ruc, name: '', address: '', branches: [], contacts: [] });
             }
         } catch (error) {
             console.error('Error searching customer:', error);
-            // El hook ya muestra notificación de error si falla la API
         } finally {
             setLoading(false);
         }
@@ -66,15 +68,31 @@ const CustomerSelector = ({
         }
     };
 
+    const handleContactSelect = (e) => {
+        const contactName = e.target.value;
+        if (contactName === 'NEW') {
+            setIsManualContact(true);
+            onRequestedByChange({ name: '', phone: '' });
+        } else if (contactName === 'NONE') {
+            setIsManualContact(false);
+            onRequestedByChange(null);
+        } else {
+            const contact = value.contacts?.find(c => c.name === contactName);
+            setIsManualContact(false);
+            onRequestedByChange(contact ? { name: contact.name, phone: contact.phone } : null);
+        }
+    };
+
     return (
         <div style={{
             padding: '1.5rem',
             backgroundColor: '#1e293b',
             borderRadius: '0.5rem',
-            marginBottom: '1.5rem'
+            marginBottom: '1.5rem',
+            border: '1px solid #334155'
         }}>
-            <h3 style={{ marginBottom: '1rem', color: '#e2e8f0', fontSize: '1.1rem' }}>
-                Datos del Cliente
+            <h3 style={{ marginBottom: '1rem', color: '#e2e8f0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                👤 Datos del Cliente
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -107,7 +125,7 @@ const CustomerSelector = ({
                     value={value?.name || ''}
                     onChange={(e) => onChange({ ...value, name: e.target.value })}
                     placeholder="Nombre del cliente"
-                    disabled={readOnly} // Permitir edición manual si no se encuentra
+                    disabled={readOnly}
                     required={required}
                 />
 
@@ -137,22 +155,77 @@ const CustomerSelector = ({
                         ℹ️ Cliente sin sucursales registradas.
                     </div>
                 )}
+            </div>
 
-                <div style={{ gridColumn: 'span 2' }}>
-                    <Input
-                        label="Dirección de Entrega Final"
-                        value={value?.delivery_address || value?.address || ''}
-                        onChange={(e) => onChange({ ...value, delivery_address: e.target.value })}
-                        disabled={readOnly || (!!value?.delivery_branch_name && value.delivery_branch_name !== 'MAIN')}
-                        placeholder="Especifique dirección de envío"
-                        required={required}
-                    />
-                    {value?.delivery_branch_name && (
-                        <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '-0.5rem' }}>
-                            * Usando dirección vinculada a la sucursal {value.delivery_branch_name}
+            {/* --- SECCIÓN SOLICITADO POR (TRABAJADOR) --- */}
+            {value?.name && (
+                <div style={{
+                    marginTop: '1.5rem',
+                    padding: '1rem',
+                    background: '#0f172a',
+                    borderRadius: '8px',
+                    borderLeft: '4px solid #10b981'
+                }}>
+                    <h4 style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '1rem' }}>📞 Solicitado por (Contacto):</h4>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '1rem', alignItems: 'end' }}>
+                        <div className="form-group">
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', marginBottom: '0.4rem' }}>Seleccionar trabajador</label>
+                            <select
+                                onChange={handleContactSelect}
+                                value={isManualContact ? 'NEW' : (requestedBy?.name || 'NONE')}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.5rem',
+                                    background: '#1e293b',
+                                    border: '1px solid #334155',
+                                    color: 'white',
+                                    borderRadius: '4px',
+                                    outline: 'none'
+                                }}
+                                disabled={readOnly}
+                            >
+                                <option value="NONE">-- Ninguno (Opcional) --</option>
+                                {value.contacts?.map((c, i) => (
+                                    <option key={i} value={c.name}>{c.name} ({c.position || 'Trabajador'})</option>
+                                ))}
+                                <option value="NEW">+ Añadir nombre manualmente...</option>
+                            </select>
+                        </div>
+
+                        <Input
+                            label="Nombre"
+                            value={requestedBy?.name || ''}
+                            onChange={(e) => onRequestedByChange({ ...requestedBy, name: e.target.value })}
+                            placeholder="Nombre de quien pide"
+                            disabled={!isManualContact || readOnly}
+                        />
+
+                        <Input
+                            label="Teléfono"
+                            value={requestedBy?.phone || ''}
+                            onChange={(e) => onRequestedByChange({ ...requestedBy, phone: e.target.value })}
+                            placeholder="Número de contacto"
+                            disabled={!isManualContact || readOnly}
+                        />
+                    </div>
+                    {isManualContact && !readOnly && (
+                        <p style={{ color: '#fbbf24', fontSize: '0.7rem', marginTop: '0.5rem' }}>
+                            ⚠️ Este nombre solo se guardará en esta cotización. Para guardarlo permanentemente, agréguelo en el perfil del cliente.
                         </p>
                     )}
                 </div>
+            )}
+
+            <div style={{ marginTop: '1rem' }}>
+                <Input
+                    label="Dirección de Entrega Final"
+                    value={value?.delivery_address || value?.address || ''}
+                    onChange={(e) => onChange({ ...value, delivery_address: e.target.value })}
+                    disabled={readOnly || (!!value?.delivery_branch_name && value.delivery_branch_name !== 'MAIN')}
+                    placeholder="Especifique dirección de envío"
+                    required={required}
+                />
             </div>
         </div>
     );

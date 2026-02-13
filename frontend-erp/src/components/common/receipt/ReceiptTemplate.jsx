@@ -29,6 +29,7 @@ const ReceiptTemplate = ({
     currency = "SOLES", // Moneda original del documento (usualmente SOLES)
     amountInWords = "",
     paymentTerms = null,
+    requestedBy = null,
 
     // Props inyectados por PrintableModal para conversión visual
     format = 'A5_SINGLE',
@@ -101,6 +102,7 @@ const ReceiptTemplate = ({
                 customerName={partyInfo?.name}
                 customerRuc={partyInfo?.ruc}
                 customerAddress={partyInfo?.address}
+                requestedBy={requestedBy}
 
                 currency={displayCurrencyText} // Texto "SOLES" o "DOLARES"
                 currencySymbol={currencySymbol} // Símbolo para formateo

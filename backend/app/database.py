@@ -50,6 +50,7 @@ async def init_db():
                 "app.models.auth.User",
                 "app.models.auth.B2BApplication",
                 "app.models.auth.ActivityLog",
+                "app.models.staff.Staff",
                 "app.models.pricing.PricingRule",
                 "app.models.marketing.LoyaltyConfig"
             ],

@@ -5,8 +5,7 @@ from datetime import datetime
 
 class Department(BaseModel):
     name: str # e.g., "Cobranzas", "Ventas", "Logística"
-    lead_name: str
-    lead_email: Optional[str] = None
+    staff_id: Optional[str] = None # Link to Staff member
 
 class Company(Document):
     name: str

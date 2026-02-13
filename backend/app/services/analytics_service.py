@@ -182,3 +182,28 @@ async def get_inventory_valuation() -> Dict[str, Any]:
         "total_retail_value": round(total_retail_value, 2),
         "product_count": len(items)
     }
+
+async def get_product_price_history(sku: str) -> List[Dict[str, Any]]:
+    """
+    Obtiene el historial de precios de venta reales para un producto específico,
+    revisando todas las facturas emitidas.
+    """
+    # Buscamos facturas que contengan el SKU en sus items
+    invoices = await SalesInvoice.find({"items.product_sku": sku}).sort("-invoice_date").to_list()
+    
+    history = []
+    for inv in invoices:
+        # Encontrar el item específico dentro de la factura
+        for item in inv.items:
+            if item.product_sku == sku:
+                history.append({
+                    "date": inv.invoice_date,
+                    "customer_name": inv.customer_name,
+                    "customer_ruc": inv.customer_ruc,
+                    "document_number": inv.sunat_number or inv.invoice_number,
+                    "quantity": item.quantity,
+                    "unit_price": item.unit_price,
+                    "currency": inv.currency.value if hasattr(inv, 'currency') and inv.currency else 'PEN'
+                })
+    
+    return history

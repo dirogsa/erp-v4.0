@@ -28,10 +28,12 @@ const CustomerForm = ({
         risk_score: 'C',
         internal_notes: '',
         digital_dossier: [],
+        contacts: [],
         ...initialData
     });
 
     const branches = formData.branches || [];
+    const contacts = formData.contacts || [];
 
     // Reset form when initialData ID changes (crucial for React modal reuse)
     useEffect(() => {
@@ -51,6 +53,7 @@ const CustomerForm = ({
             risk_score: 'C',
             internal_notes: '',
             digital_dossier: [],
+            contacts: [],
             ...initialData
         } : {
             name: '',
@@ -67,7 +70,8 @@ const CustomerForm = ({
             allowed_terms: [0],
             risk_score: 'C',
             internal_notes: '',
-            digital_dossier: []
+            digital_dossier: [],
+            contacts: []
         };
         setFormData(resetData);
     }, [initialData?._id]);
@@ -80,6 +84,41 @@ const CustomerForm = ({
         is_main: false,
         is_active: true
     });
+
+    const [newContact, setNewContact] = useState({
+        name: '',
+        phone: '',
+        email: '',
+        position: '',
+        is_active: true
+    });
+
+    const handleAddContact = () => {
+        if (!newContact.name) {
+            showNotification('El nombre del contacto es obligatorio', 'warning');
+            return;
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            contacts: [...(prev.contacts || []), { ...newContact }]
+        }));
+
+        setNewContact({
+            name: '',
+            phone: '',
+            email: '',
+            position: '',
+            is_active: true
+        });
+    };
+
+    const handleRemoveContact = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            contacts: (prev.contacts || []).filter((_, i) => i !== index)
+        }));
+    };
 
     const handleAddBranch = () => {
         if (!newBranch.branch_name || !newBranch.address) {
@@ -162,18 +201,20 @@ const CustomerForm = ({
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="contacto@empresa.com"
                 />
-                <Input
-                    label="Teléfono"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+51 999 999 999"
-                />
-                <Input
-                    label="Dirección Principal"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Av. Principal 123"
-                />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <Input
+                        label="Teléfono"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        placeholder="+51 999 999 999"
+                    />
+                    <Input
+                        label="Dirección Principal"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="Av. Principal 123"
+                    />
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                         <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Clasificación de Cliente (Tier)</label>
@@ -336,14 +377,14 @@ const CustomerForm = ({
                     </div>
                 </div>
 
-                {/* Sección de Sucursales */}
-                <div style={{ marginTop: '1rem', padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
-                    <h4 style={{ marginBottom: '1rem', color: '#e2e8f0' }}>Sucursales</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    {/* Sección de Sucursales */}
+                    <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+                        <h4 style={{ marginBottom: '1rem', color: '#e2e8f0' }}>🏢 Sucursales</h4>
 
-                    {/* Lista de sucursales */}
-                    {branches.length > 0 && (
-                        <div style={{ marginBottom: '1rem' }}>
-                            {branches.map((branch, index) => (
+                        {/* Lista de sucursales */}
+                        <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '1rem' }}>
+                            {branches.length > 0 ? branches.map((branch, index) => (
                                 <div key={index} style={{
                                     padding: '0.75rem',
                                     background: '#0f172a',
@@ -353,68 +394,101 @@ const CustomerForm = ({
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                                         <div style={{ flex: 1 }}>
-                                            <strong style={{ color: 'white' }}>{branch.branch_name}</strong>
-                                            {branch.is_main && <span style={{ color: '#3b82f6', marginLeft: '0.5rem' }}>(Principal)</span>}
-                                            <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: '0.25rem 0' }}>{branch.address}</p>
-                                            {branch.contact_person && <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>Contacto: {branch.contact_person}</p>}
+                                            <strong style={{ color: 'white', fontSize: '0.85rem' }}>{branch.branch_name}</strong>
+                                            {branch.is_main && <span style={{ color: '#3b82f6', fontSize: '0.75rem', marginLeft: '0.5rem' }}>(Principal)</span>}
+                                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.2rem 0' }}>{branch.address}</p>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.25rem' }}>
                                             {!branch.is_main && (
-                                                <Button
-                                                    size="small"
-                                                    variant="secondary"
+                                                <button
+                                                    type="button"
                                                     onClick={() => handleToggleMainBranch(index)}
-                                                >
-                                                    Principal
-                                                </Button>
+                                                    style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '0.75rem' }}
+                                                >⭐</button>
                                             )}
-                                            <Button
-                                                size="small"
-                                                variant="danger"
+                                            <button
+                                                type="button"
                                                 onClick={() => handleRemoveBranch(index)}
-                                            >
-                                                Eliminar
-                                            </Button>
+                                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}
+                                            >🗑️</button>
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                            )) : <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center' }}>Sin sucursales</p>}
                         </div>
-                    )}
 
-                    {/* Formulario para agregar sucursal */}
-                    <div style={{ display: 'grid', gap: '0.75rem', padding: '1rem', background: '#0f172a', borderRadius: '6px' }}>
-                        <h5 style={{ margin: 0, color: '#e2e8f0' }}>Agregar Sucursal</h5>
-                        <Input
-                            placeholder="Nombre de sucursal *"
-                            value={newBranch.branch_name}
-                            onChange={e => setNewBranch({ ...newBranch, branch_name: e.target.value })}
-                        />
-                        <Input
-                            placeholder="Dirección *"
-                            value={newBranch.address}
-                            onChange={e => setNewBranch({ ...newBranch, address: e.target.value })}
-                        />
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                            <Input
-                                placeholder="Persona de contacto"
-                                value={newBranch.contact_person}
-                                onChange={e => setNewBranch({ ...newBranch, contact_person: e.target.value })}
+                        {/* Agregar sucursal resumido */}
+                        <div style={{ display: 'grid', gap: '0.5rem', padding: '0.75rem', background: '#0f172a', borderRadius: '6px' }}>
+                            <input
+                                placeholder="Nombre sucursal *"
+                                value={newBranch.branch_name}
+                                onChange={e => setNewBranch({ ...newBranch, branch_name: e.target.value })}
+                                style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #334155', backgroundColor: '#1e293b', color: 'white', fontSize: '0.8rem' }}
                             />
-                            <Input
-                                placeholder="Teléfono"
-                                value={newBranch.phone}
-                                onChange={e => setNewBranch({ ...newBranch, phone: e.target.value })}
+                            <input
+                                placeholder="Dirección *"
+                                value={newBranch.address}
+                                onChange={e => setNewBranch({ ...newBranch, address: e.target.value })}
+                                style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #334155', backgroundColor: '#1e293b', color: 'white', fontSize: '0.8rem' }}
                             />
+                            <Button onClick={handleAddBranch} variant="secondary" size="small" type="button">+ Agregar</Button>
                         </div>
-                        <Button
-                            onClick={handleAddBranch}
-                            disabled={!newBranch.branch_name || !newBranch.address}
-                            variant="secondary"
-                            size="small"
-                        >
-                            + Agregar Sucursal
-                        </Button>
+                    </div>
+
+                    {/* Sección de Trabajadores / Contactos */}
+                    <div style={{ padding: '1rem', background: '#1e293b', borderRadius: '8px' }}>
+                        <h4 style={{ marginBottom: '1rem', color: '#e2e8f0' }}>👥 Trabajadores (Contactos)</h4>
+
+                        {/* Lista de contactos */}
+                        <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '1rem' }}>
+                            {contacts.length > 0 ? contacts.map((contact, index) => (
+                                <div key={index} style={{
+                                    padding: '0.75rem',
+                                    background: '#0f172a',
+                                    borderRadius: '6px',
+                                    marginBottom: '0.5rem',
+                                    border: '1px solid #334155'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <strong style={{ color: 'white', fontSize: '0.85rem' }}>{contact.name}</strong>
+                                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.2rem 0' }}>{contact.phone || 'Sin teléfono'}</p>
+                                            {contact.position && <p style={{ fontSize: '0.7rem', color: '#3b82f6', margin: 0 }}>{contact.position}</p>}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveContact(index)}
+                                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem' }}
+                                        >🗑️</button>
+                                    </div>
+                                </div>
+                            )) : <p style={{ color: '#64748b', fontSize: '0.85rem', textAlign: 'center' }}>Sin contactos registrados</p>}
+                        </div>
+
+                        {/* Agregar contacto resumido */}
+                        <div style={{ display: 'grid', gap: '0.5rem', padding: '0.75rem', background: '#0f172a', borderRadius: '6px' }}>
+                            <input
+                                placeholder="Nombre trabajador *"
+                                value={newContact.name}
+                                onChange={e => setNewContact({ ...newContact, name: e.target.value })}
+                                style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #334155', backgroundColor: '#1e293b', color: 'white', fontSize: '0.8rem' }}
+                            />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                                <input
+                                    placeholder="Teléfono"
+                                    value={newContact.phone}
+                                    onChange={e => setNewContact({ ...newContact, phone: e.target.value })}
+                                    style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #334155', backgroundColor: '#1e293b', color: 'white', fontSize: '0.8rem' }}
+                                />
+                                <input
+                                    placeholder="Cargo"
+                                    value={newContact.position}
+                                    onChange={e => setNewContact({ ...newContact, position: e.target.value })}
+                                    style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #334155', backgroundColor: '#1e293b', color: 'white', fontSize: '0.8rem' }}
+                                />
+                            </div>
+                            <Button onClick={handleAddContact} variant="secondary" size="small" type="button">+ Agregar Trabajador</Button>
+                        </div>
                     </div>
                 </div>
             </div>

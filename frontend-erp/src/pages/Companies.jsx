@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useCompany } from '../context/CompanyContext';
-import { companyService } from '../services/api';
+import { companyService, staffService } from '../services/api';
 import { useNotification } from '../hooks/useNotification';
+import { useQuery } from '@tanstack/react-query';
 import Button from '../components/common/Button';
 import Table from '../components/common/Table';
 
@@ -17,6 +18,12 @@ const Companies = () => {
         name: '', ruc: '', address: '', phone: '', email: '',
         bank_name: '', account_soles: '', account_dollars: '',
         departments: []
+    });
+
+    const { data: staff = [] } = useQuery({
+        queryKey: ['staff', 'active'],
+        queryFn: () => staffService.getStaff({ active_only: true }).then(res => res.data),
+        enabled: isModalOpen
     });
 
     const handleOpenModal = (company = null) => {
@@ -38,7 +45,7 @@ const Companies = () => {
     const addDept = () => {
         setFormData({
             ...formData,
-            departments: [...(formData.departments || []), { name: '', lead_name: '', lead_email: '' }]
+            departments: [...(formData.departments || []), { name: '', staff_id: '' }]
         });
     };
 
@@ -182,27 +189,56 @@ const Companies = () => {
                                 {(formData.departments || []).map((dept, index) => (
                                     <div key={index} style={{
                                         display: 'grid',
-                                        gridTemplateColumns: '1fr 1fr 1.5fr auto',
-                                        gap: '0.5rem',
+                                        gridTemplateColumns: '1.2fr 1.8fr auto',
+                                        gap: '0.75rem',
                                         marginBottom: '0.75rem',
-                                        padding: '0.75rem',
-                                        backgroundColor: '#f8fafc',
-                                        borderRadius: '0.5rem',
+                                        padding: '1rem',
+                                        backgroundColor: '#1e293b',
+                                        border: '1px solid #334155',
+                                        borderRadius: '0.75rem',
                                         alignItems: 'end'
                                     }}>
                                         <div>
-                                            <label style={{ fontSize: '0.7rem' }}>Área (ej: Cobranzas)</label>
-                                            <input className="input-field" value={dept.name} onChange={e => handleDeptChange(index, 'name', e.target.value)} placeholder="Área" required />
+                                            <label style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.3rem', display: 'block' }}>Área (ej: Cobranzas)</label>
+                                            <input
+                                                className="input-field"
+                                                value={dept.name}
+                                                onChange={e => handleDeptChange(index, 'name', e.target.value)}
+                                                placeholder="Nombre del Área"
+                                                required
+                                                style={{ backgroundColor: '#0f172a' }}
+                                            />
                                         </div>
                                         <div>
-                                            <label style={{ fontSize: '0.7rem' }}>Encargado/Lead</label>
-                                            <input className="input-field" value={dept.lead_name} onChange={e => handleDeptChange(index, 'lead_name', e.target.value)} placeholder="Nombre" required />
+                                            <label style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.3rem', display: 'block' }}>Seleccionar Encargado (De RRHH)</label>
+                                            <select
+                                                value={dept.staff_id || ''}
+                                                onChange={e => handleDeptChange(index, 'staff_id', e.target.value)}
+                                                required
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.625rem',
+                                                    backgroundColor: '#0f172a',
+                                                    border: '1px solid #334155',
+                                                    borderRadius: '0.375rem',
+                                                    color: 'white',
+                                                    outline: 'none'
+                                                }}
+                                            >
+                                                <option value="">-- Seleccionar Colaborador --</option>
+                                                {staff.map(s => (
+                                                    <option key={s._id} value={s._id}>
+                                                        {s.full_name} ({s.position})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {dept.staff_id && (
+                                                <div style={{ fontSize: '0.65rem', color: '#10b981', marginTop: '0.25rem' }}>
+                                                    📧 {staff.find(s => s._id === dept.staff_id)?.email || 'Sin correo registrado'}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div>
-                                            <label style={{ fontSize: '0.7rem' }}>Correo (Opcional)</label>
-                                            <input className="input-field" type="email" value={dept.lead_email || ''} onChange={e => handleDeptChange(index, 'lead_email', e.target.value)} placeholder="email@..." />
-                                        </div>
-                                        <Button variant="danger" size="small" type="button" onClick={() => removeDept(index)}>✕</Button>
+                                        <Button variant="danger" size="small" type="button" onClick={() => removeDept(index)} style={{ marginBottom: '2px' }}>✕</Button>
                                     </div>
                                 ))}
                                 {(!formData.departments || formData.departments.length === 0) && (

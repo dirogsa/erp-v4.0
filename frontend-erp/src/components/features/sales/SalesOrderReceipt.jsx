@@ -38,11 +38,17 @@ const SalesOrderReceipt = ({
                         })) || []}
                         totalAmount={order.total_amount}
                         showPaymentDetails={false}
+                        paymentTerms={order.payment_terms}
+                        requestedBy={order.requested_by}
+                        notes={order.notes}
                         // Issuer Info (Snapshot)
                         companyName={order.issuer_info?.name}
                         companyRuc={order.issuer_info?.ruc}
                         companyAddress={order.issuer_info?.address}
                         companyPhone={order.issuer_info?.phone}
+                        companyBankName={order.issuer_info?.bank_name}
+                        companyAccountSoles={order.issuer_info?.account_soles}
+                        companyAccountDollars={order.issuer_info?.account_dollars}
                     />
                 </div>
             </DualReceiptWrapper>

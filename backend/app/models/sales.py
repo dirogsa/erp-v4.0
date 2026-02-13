@@ -12,6 +12,15 @@ class OrderStatus(str, Enum):
     CANCELLED = "CANCELLED"  # Cancelada
     BACKORDER = "BACKORDER"  # En espera de stock
     CONVERTED = "CONVERTED"  # Backorder convertido (no mostrar en UI)
+    CONVERTED_TO_ORDER = "CONVERTED_TO_ORDER" # For legacy or specific flows
+
+class CustomerContact(BaseModel):
+    """Contacto de un cliente (Persona que solicita)"""
+    name: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    position: Optional[str] = None
+    is_active: bool = True
 
 class Currency(str, Enum):
     PEN = "PEN"
@@ -49,6 +58,13 @@ class SalesPolicy(Document):
     class Settings:
         name = "sales_policies"
 
+class IssuerInfoDepartment(BaseModel):
+    """Snapshot del encargado de área al momento de emitir el documento"""
+    name: str 
+    staff_name: str
+    staff_email: Optional[str] = None
+    staff_phone: Optional[str] = None
+
 class IssuerInfo(BaseModel):
     """Información de la empresa emisora al momento de la creación"""
     name: str
@@ -64,8 +80,8 @@ class IssuerInfo(BaseModel):
     account_soles: Optional[str] = None
     account_dollars: Optional[str] = None
     
-    # Organizational structure
-    departments: List[dict] = []
+    # Organizational structure (Snapshot)
+    departments: List[IssuerInfoDepartment] = []
 
 class OrderItem(BaseModel):
     product_sku: str
@@ -108,6 +124,7 @@ class SalesOrder(Document):
     loyalty_points_spent: int = 0    # Puntos canjeados en esta orden
     due_date: Optional[datetime] = None
     currency: Currency = Currency.PEN
+    requested_by: Optional[CustomerContact] = None # Persona que solicitó el pedido
     
     # Términos de pago (Opcional, para créditos)
 
@@ -135,6 +152,9 @@ class SalesOrder(Document):
 
     class Settings:
         name = "sales_orders"
+        indexes = [
+            "items.product_sku"
+        ]
 
 class SalesQuote(Document):
     """Cotización de venta (Proforma) - No reserva stock"""
@@ -153,6 +173,7 @@ class SalesQuote(Document):
     payment_terms: Optional[dict] = None
     due_date: Optional[datetime] = None
     currency: Currency = Currency.PEN
+    requested_by: Optional[CustomerContact] = None # Persona que solicitó la cotización
     notes: Optional[str] = None
     amount_in_words: Optional[str] = None
     
@@ -181,6 +202,7 @@ class SalesInvoice(Document):
     invoice_date: datetime = datetime.now()
     due_date: Optional[datetime] = None
     currency: Currency = Currency.PEN
+    requested_by: Optional[CustomerContact] = None # Persona vinculada a la factura
     items: List[OrderItem]
     total_amount: float = 0.0
     
@@ -211,6 +233,9 @@ class SalesInvoice(Document):
 
     class Settings:
         name = "sales_invoices"
+        indexes = [
+            "items.product_sku"
+        ]
 
 # ... CustomerBranch and Customer skipped (no issuer info needed) ...
 
@@ -246,6 +271,7 @@ class Customer(Document):
     classification: UserTier = UserTier.STANDARD
     custom_discount_percent: float = 0.0 # Descuento adicional (opcional)
     branches: List[CustomerBranch] = []  # Sucursales del cliente
+    contacts: List[CustomerContact] = [] # Trabajadores/Contactos del cliente
     
     # --- Gestión de Créditos y Riesgos (Control Interno) ---
     status_credit: bool = False         # Habilitado para pagar a plazos
@@ -284,6 +310,7 @@ class SalesNote(Document):
     total_amount: float = 0.0
     notes: Optional[str] = None
     currency: Currency = Currency.PEN
+    requested_by: Optional[CustomerContact] = None # Persona vinculada a la nota
     
     # Referencia a guía de retorno si hubo devolución de stock
     return_guide_id: Optional[str] = None

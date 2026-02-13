@@ -2,6 +2,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from beanie import PydanticObjectId
 from app.models.sales import SalesQuote, QuoteStatus, SalesOrder, OrderStatus, OrderItem
+from app.services.sales_service import resolve_issuer_info
 from app.services import sales_service, inventory_service
 from app.models.inventory import Product
 from app.models.marketing import LoyaltyConfig
@@ -57,6 +58,10 @@ async def get_quote(quote_number: str) -> SalesQuote:
     return quote
 
 async def create_quote(quote: SalesQuote) -> SalesQuote:
+    # Resolve Staff IDs for the snapshot
+    if quote.issuer_info:
+        quote.issuer_info = await resolve_issuer_info(quote.issuer_info if isinstance(quote.issuer_info, dict) else quote.issuer_info.dict())
+
     # Generate Sequential Quote Number: CV-YY-####
     year_prefix = datetime.now().strftime('%y')
     prefix = f"CV-{year_prefix}"
@@ -117,6 +122,7 @@ async def update_quote(quote_number: str, quote_data: SalesQuote) -> SalesQuote:
     quote.payment_terms = quote_data.payment_terms
     quote.due_date = quote_data.due_date
     quote.notes = quote_data.notes
+    quote.requested_by = quote_data.requested_by # Update contact snapshot
     quote.total_amount = round(sum(item.quantity * item.unit_price for item in quote_data.items), 3)
 
     # Recalculate/Ensure points for updated items
@@ -212,7 +218,8 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             due_date=quote.due_date,
             amount_in_words=quote.amount_in_words,
             source=quote.source,
-            date=quote.date
+            date=quote.date,
+            requested_by=quote.requested_by
         )
 
         
@@ -244,7 +251,8 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             due_date=quote.due_date,
             amount_in_words=quote.amount_in_words,
             source=quote.source,
-            date=quote.date
+            date=quote.date,
+            requested_by=quote.requested_by
         )
 
         

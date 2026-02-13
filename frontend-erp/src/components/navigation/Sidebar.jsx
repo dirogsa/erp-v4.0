@@ -10,10 +10,21 @@ const Sidebar = ({ isOpen, onClose }) => {
     const { user, logout } = useAuth();
     const { activeCompany } = useCompany();
 
-    // Filter menu items based on user role
-    const filteredMenu = MENU_CONFIG.filter(item =>
-        hasAccess(user?.role, item.roles)
-    );
+    // Filter menu items based on user role recursively
+    const filteredMenu = MENU_CONFIG
+        .filter(item => hasAccess(user?.role, item.roles))
+        .map(item => {
+            if (item.isGroup && item.children) {
+                return {
+                    ...item,
+                    children: item.children.filter(child =>
+                        !child.roles || hasAccess(user?.role, child.roles)
+                    )
+                };
+            }
+            return item;
+        })
+        .filter(item => !item.isGroup || (item.children && item.children.length > 0));
 
     const handleNavigate = () => {
         // Close sidebar on mobile after navigation

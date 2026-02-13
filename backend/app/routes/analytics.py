@@ -22,3 +22,7 @@ async def get_sales_report(start_date: str, end_date: str):
 @router.get("/reports/inventory-valuation")
 async def get_inventory_valuation():
     return await analytics_service.get_inventory_valuation()
+
+@router.get("/products/{sku}/history")
+async def get_product_price_history(sku: str):
+    return await analytics_service.get_product_price_history(sku)

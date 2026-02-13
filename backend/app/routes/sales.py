@@ -150,6 +150,20 @@ async def update_customer_branch(id: PydanticObjectId, branch_index: int, branch
 async def delete_customer_branch(id: PydanticObjectId, branch_index: int):
     return await sales_service.delete_customer_branch(id, branch_index)
 
+# ==================== CUSTOMER CONTACTS ====================
+
+@router.post("/customers/{id}/contacts", response_model=Customer)
+async def add_customer_contact(id: PydanticObjectId, contact: dict):
+    return await sales_service.add_customer_contact(id, contact)
+
+@router.put("/customers/{id}/contacts/{contact_index}", response_model=Customer)
+async def update_customer_contact(id: PydanticObjectId, contact_index: int, contact: dict):
+    return await sales_service.update_customer_contact(id, contact_index, contact)
+
+@router.delete("/customers/{id}/contacts/{contact_index}", response_model=Customer)
+async def delete_customer_contact(id: PydanticObjectId, contact_index: int):
+    return await sales_service.delete_customer_contact(id, contact_index)
+
 # ==================== DISPATCH ====================
 
 @router.post("/invoices/{invoice_number}/dispatch")

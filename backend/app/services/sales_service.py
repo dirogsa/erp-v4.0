@@ -1,9 +1,9 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from beanie import PydanticObjectId
-from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, OrderStatus, Payment, CustomerBranch, SalesQuote, QuoteStatus
-from app.models.inventory import Product, DeliveryGuide, GuideType, GuideStatus, GuideItem, MovementType, StockMovement
 from app.models.auth import User
+from app.models.staff import Staff
+from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, OrderStatus, Payment, CustomerBranch, SalesQuote, QuoteStatus, IssuerInfo, IssuerInfoDepartment
 from app.models.marketing import LoyaltyConfig
 
 
@@ -11,6 +11,43 @@ from app.services import inventory_service, audit_service
 from app.services.audit_service import AuditService
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, DuplicateEntityException
 from app.schemas.common import PaginatedResponse
+
+# ==================== HELPERS ====================
+
+async def resolve_issuer_info(issuer_data: dict) -> IssuerInfo:
+    """Invierte los IDs de Staff en nombres/emails reales para el snapshot final"""
+    if not issuer_data:
+        return None
+        
+    resolved_depts = []
+    departments = issuer_data.get("departments", [])
+    
+    for dept in departments:
+        staff_id = dept.get("staff_id")
+        name = dept.get("name")
+        
+        staff_member = None
+        if staff_id:
+            staff_member = await Staff.get(staff_id)
+            
+        if staff_member:
+            resolved_depts.append(IssuerInfoDepartment(
+                name=name,
+                staff_name=staff_member.full_name,
+                staff_email=staff_member.email,
+                staff_phone=staff_member.phone
+            ))
+        else:
+            # Fallback if staff not found or no ID (legacy or missing)
+            resolved_depts.append(IssuerInfoDepartment(
+                name=name,
+                staff_name=dept.get("lead_name", "N/A"),
+                staff_email=dept.get("lead_email")
+            ))
+            
+    # Clean data to build IssuerInfo
+    clean_data = {k: v for k, v in issuer_data.items() if k != "departments"}
+    return IssuerInfo(**clean_data, departments=resolved_depts)
 
 # ==================== ORDERS ====================
 
@@ -78,6 +115,10 @@ async def get_product_sales_history(sku: str, limit: int = 10, customer_ruc: Opt
     return history
 
 async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesOrder:
+    # Resolve Staff IDs into actual names for the snapshot
+    if order.issuer_info:
+        order.issuer_info = await resolve_issuer_info(order.issuer_info if isinstance(order.issuer_info, dict) else order.issuer_info.dict())
+
     # Generate sequential order number: OV-YY-####
     year_prefix = datetime.now().strftime('%y')
     prefix = f"OV-{year_prefix}"
@@ -407,7 +448,10 @@ async def create_invoice(
     items_to_invoice: Optional[List[Any]] = None, # List of {product_sku, quantity}
     user: Optional[User] = None
 ) -> SalesInvoice:
-    
+    # Resolve Staff IDs for the snapshot
+    if issuer_info:
+        issuer_info = await resolve_issuer_info(issuer_info)
+
     order = await SalesOrder.find_one(SalesOrder.order_number == order_number)
     if not order:
         raise NotFoundException("Order", order_number)
@@ -503,7 +547,8 @@ async def create_invoice(
         amount_paid=round(amount_paid, 3),
         amount_in_words=amount_in_words,
         payment_terms=payment_terms or order.payment_terms,
-        issuer_info=issuer_info or order.issuer_info
+        issuer_info=issuer_info or order.issuer_info,
+        requested_by=order.requested_by # Carry over contact snapshot
     )
     
     if amount_paid > 0 and payment_date:
@@ -747,8 +792,9 @@ async def update_customer(id: PydanticObjectId, customer_data: Customer) -> Cust
     customer.classification = customer_data.classification
     customer.custom_discount_percent = customer_data.custom_discount_percent
     
-    # Ensure branches is at least an empty list
+    # Ensure lists are at least empty
     customer.branches = customer_data.branches if customer_data.branches is not None else []
+    customer.contacts = customer_data.contacts if customer_data.contacts is not None else []
     
     await customer.save()
 
@@ -798,13 +844,62 @@ async def update_customer_branch(id: PydanticObjectId, branch_index: int, branch
         raise NotFoundException("Branch", str(branch_index))
     
     if branch.is_main:
-        for i, b in enumerate(customer.branches):
-            if i != branch_index:
-                b.is_main = False
+        for b in customer.branches:
+            b.is_main = False
     
     customer.branches[branch_index] = branch
     await customer.save()
     return customer
+
+# ==================== CUSTOMER CONTACTS ====================
+
+async def add_customer_contact(id: PydanticObjectId, contact: Any) -> Customer:
+    customer = await Customer.get(id)
+    if not customer:
+        raise NotFoundException("Customer", str(id))
+    
+    # contact can be a dict or CustomerContact
+    from app.models.sales import CustomerContact
+    if isinstance(contact, dict):
+        contact_obj = CustomerContact(**contact)
+    else:
+        contact_obj = contact
+
+    customer.contacts.append(contact_obj)
+    await customer.save()
+    return customer
+
+async def update_customer_contact(id: PydanticObjectId, contact_index: int, contact_data: Any) -> Customer:
+    customer = await Customer.get(id)
+    if not customer:
+        raise NotFoundException("Customer", str(id))
+    
+    if contact_index < 0 or contact_index >= len(customer.contacts):
+        raise NotFoundException("Contact", str(contact_index))
+    
+    from app.models.sales import CustomerContact
+    if isinstance(contact_data, dict):
+        new_contact = CustomerContact(**contact_data)
+    else:
+        new_contact = contact_data
+        
+    customer.contacts[contact_index] = new_contact
+    await customer.save()
+    return customer
+
+async def delete_customer_contact(id: PydanticObjectId, contact_index: int) -> Customer:
+    customer = await Customer.get(id)
+    if not customer:
+        raise NotFoundException("Customer", str(id))
+    
+    if contact_index < 0 or contact_index >= len(customer.contacts):
+        raise NotFoundException("Contact", str(contact_index))
+    
+    customer.contacts.pop(contact_index)
+    await customer.save()
+    return customer
+
+# ==================== DISPATCH ====================
 
 async def delete_customer_branch(id: PydanticObjectId, branch_index: int) -> Customer:
     customer = await Customer.get(id)
