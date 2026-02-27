@@ -713,3 +713,49 @@ async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[
         "total_impact": round(total_impact, 3),
         "details": results
     }
+
+async def smart_search(query: str) -> Dict[str, Any]:
+    """
+    Realiza una búsqueda inteligente:
+    1. Busca en la base de datos local (SKU, Nombre, Equivalencias, Aplicaciones).
+    2. Si no hay resultados de alta confianza, intenta resolver la equivalencia externamente.
+    """
+    query_clean = query.strip().upper()
+    
+    # 1. Búsqueda Local
+    # Priorizamos coincidencias exactas en SKU o Equivalencias
+    local_products = await Product.find({
+        "$or": [
+            {"sku": query_clean},
+            {"equivalences.code": query_clean},
+            {"ean": query_clean}
+        ]
+    }).to_list()
+    
+    # Si no hay exactos, búsqueda parcial (ya implementada en get_products pero la simplificamos aquí para Smart Search)
+    if not local_products:
+        local_products = await Product.find({
+            "$or": [
+                {"name": {"$regex": query_clean, "$options": "i"}},
+                {"equivalences.code": {"$regex": query_clean, "$options": "i"}},
+                {"sku": {"$regex": query_clean, "$options": "i"}}
+            ]
+        }).limit(10).to_list()
+
+    # 2. Búsqueda Externa (Resolución de Cruces)
+    # Si el query parece un código de marca (no tiene espacios y tiene longitud decente)
+    external_data = None
+    if len(query_clean) > 3 and not local_products:
+        try:
+            # Delegar al servicio de catálogo
+            from app.services.catalog_service import lookup_cross_references
+            external_data = await lookup_cross_references(query_clean)
+        except Exception as e:
+            logger.error(f"Error resolving external cross-refs for {query_clean}: {e}")
+
+    return {
+        "query": query,
+        "local_results": local_products,
+        "external_results": external_data, # Lista de [{brand, code, internal_equivalent_sku}]
+        "timestamp": datetime.now()
+    }

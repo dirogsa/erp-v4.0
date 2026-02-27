@@ -70,6 +70,7 @@ export const inventoryService = {
   registerTransfer: (transferData) => api.post('/inventory/transfer-out', transferData),
   reconcileStock: (adjustments) => api.post('/inventory/reconcile', adjustments),
   externalLookup: (sku) => api.get(`/inventory/external-lookup?sku=${encodeURIComponent(sku)}`),
+  smartSearch: (query) => api.get(`/inventory/smart-search?q=${encodeURIComponent(query)}`),
 };
 
 export const priceService = {

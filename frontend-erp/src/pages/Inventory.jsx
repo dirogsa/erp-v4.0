@@ -11,6 +11,7 @@ import Pagination from '../components/common/Table/Pagination';
 import { useProducts } from '../hooks/useProducts';
 import { categoryService } from '../services/api';
 import ProductDetailsView from '../components/features/inventory/ProductDetailsView';
+import SmartSearch from '../components/features/inventory/SmartSearch';
 
 const Inventory = ({ forcedType = null }) => {
     const defaultTab = forcedType === 'MARKETING' ? 'marketing' : 'products';
@@ -106,6 +107,20 @@ const Inventory = ({ forcedType = null }) => {
                         }}
                     >
                         📦 Productos
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('smart-search')}
+                        style={{
+                            padding: '1rem 2rem',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: activeTab === 'smart-search' ? '2px solid #ffc107' : 'none',
+                            color: activeTab === 'smart-search' ? '#ffc107' : '#94a3b8',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        🔎 Búsqueda Inteligente
                     </button>
                     <button
                         onClick={() => setActiveTab('transfers')}
@@ -221,6 +236,8 @@ const Inventory = ({ forcedType = null }) => {
             {activeTab === 'prices' && <PriceManagement />}
 
             {activeTab === 'loyalty' && <LoyaltyManagement />}
+
+            {activeTab === 'smart-search' && <SmartSearch />}
 
             {/* Modal de Producto */}
             {showProductModal && (

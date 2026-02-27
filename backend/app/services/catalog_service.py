@@ -200,3 +200,60 @@ async def perform_catalog_lookup(sku: str) -> str:
             
         # Último recurso: WIX
         return await lookup_wix_filter(sku_clean)
+
+async def lookup_cross_references(code: str) -> List[Dict[str, Any]]:
+    """
+    Busca cruces de referencias en el catálogo de WIX y otros si es necesario.
+    Extrae la tabla de equivalencias.
+    """
+    code_clean = code.strip().upper()
+    html = await lookup_wix_filter(code_clean)
+    
+    if not html:
+        return []
+
+    soup = BeautifulSoup(html, 'html.parser')
+    results = []
+
+    # Wix Europe suele mostrar las equivalencias en una tabla con id 'product-table-sizes' 
+    # o similar si es una página de producto.
+    # Si es una página de búsqueda, hay que encontrar los enlaces.
+    
+    # Intentar detectar si estamos en una página de producto (donde sale el dibujo y specs)
+    # y hay una sección de "Equivalentes" o "Cross References"
+    
+    table = soup.find('table', {'id': 'product-table-sizes'}) # Este ID es común en Wix/Filtron para specs
+    # Pero las equivalencias suelen estar en otra parte o en una tabla diferente.
+    
+    # Wix Filters (US) usa un formato diferente. 
+    # Wix Europe tiene una sección de "Intercambios" o "Referencias cruzadas".
+    
+    # Busquemos todas las tablas y veamos cuál tiene encabezados de marcas
+    tables = soup.find_all('table')
+    for t in tables:
+        headers = [th.text.strip().lower() for th in t.find_all('th')]
+        if any(h in headers for h in ['marca', 'brand', 'fabricante', 'manufacturer', 'referencia', 'number']):
+            # Esta es probablemente nuestra tabla
+            rows = t.find_all('tr')[1:] # Saltar encabezado
+            for row in rows:
+                cols = row.find_all('td')
+                if len(cols) >= 2:
+                    brand = cols[0].text.strip()
+                    ref_code = cols[1].text.strip()
+                    
+                    # Limpiar el ref_code (a veces tiene espacios)
+                    ref_code_clean = ref_code.replace(' ', '')
+                    
+                    results.append({
+                        "brand": brand,
+                        "code": ref_code,
+                        "code_clean": ref_code_clean,
+                        "source": "WIX Europe"
+                    })
+    
+    # Si no encontramos nada en tablas, buscar en el texto por patrones (más complejo)
+    
+    # Post-proceso: Buscar si alguno de estos códigos ya lo tenemos nosotros
+    # Para no saturar el servicio, esto se puede hacer en el smart_search
+    
+    return results

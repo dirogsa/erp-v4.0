@@ -35,6 +35,13 @@ async def external_lookup(sku: str):
     html_content = await inventory_service.external_lookup(sku)
     return {"html": html_content}
 
+@router.get("/smart-search")
+async def smart_search(q: str):
+    """
+    Búsqueda inteligente: local + externa con parseo.
+    """
+    return await inventory_service.smart_search(q)
+
 @router.post("/products", response_model=Product)
 async def create_product(
     product: Product, 
