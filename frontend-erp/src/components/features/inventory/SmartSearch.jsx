@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useSmartSearch } from '../../hooks/useSmartSearch';
-import Button from '../../components/common/Button';
-import Input from '../../components/common/Input';
-import { inventoryService } from '../../services/api';
+import { useSmartSearch } from '../../../hooks/useSmartSearch';
+import Button from '../../common/Button';
+import Input from '../../common/Input';
+import { inventoryService } from '../../../services/api';
 import ProductDetailsView from './ProductDetailsView';
 
 const SmartSearch = () => {

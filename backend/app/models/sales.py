@@ -114,7 +114,8 @@ class SalesOrder(Document):
     """Orden de venta (Proforma) - Inmutable después de facturar"""
     order_number: Optional[str] = None  # SALE-0001, SALE-0002, etc.
     customer_name: str
-    customer_email: Optional[str] = None # Added for shop user linking
+    customer_email: Optional[str] = None # Contact email (Optional)
+    customer_username: Optional[str] = None # Link to User.username (Unique ID)
     customer_ruc: str  # RUC del cliente para referencia
     date: datetime = datetime.now()
     items: List[OrderItem]
@@ -162,6 +163,7 @@ class SalesQuote(Document):
     customer_name: str
     customer_ruc: str
     customer_email: Optional[str] = None
+    customer_username: Optional[str] = None
     date: datetime = datetime.now()
     valid_until: Optional[datetime] = None
     items: List[OrderItem]

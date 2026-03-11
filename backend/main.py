@@ -14,20 +14,23 @@ app = FastAPI(title="ERP System API", version="1.0.0")
 
 app.add_exception_handler(BusinessException, business_exception_handler)
 
-# Configuración de CORS - Permite localhost y URLs en producción
+# Configuración de CORS
 origins = [
     "http://localhost:5173",  # Frontend ERP
     "http://localhost:5174",  # Frontend Shop
+    "http://localhost:5175",  # Frontend Mobile
     "http://localhost:3000",
 ]
 
 # Agregar URLs de producción desde configuraciones
 if settings.ALLOWED_ORIGINS:
-    origins.extend([o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()])
+    env_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+    origins.extend(env_origins)
 
+# Asegurar que localhost siempre esté permitido en desarrollo
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

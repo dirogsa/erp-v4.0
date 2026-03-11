@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import List, Optional
-from ..models.inventory import Product, TechnicalSpec, CrossReference, Application, VehicleBrand, SearchLog
+from ..models.inventory import Product, TechnicalSpec, CrossReference, Application, VehicleBrand, SearchLog, Notification
 from app.models.auth import User, UserRole
 from app.models.sales import SalesOrder, OrderItem, IssuerInfo, SalesQuote, OrderStatus
 from app.routes.auth import get_optional_user, get_current_user
@@ -10,6 +10,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 from ..services.pricing_service import get_product_price_for_user
+from ..services.risk_service import RiskService
+from ..models.sales import SalesInvoice
 
 router = APIRouter(prefix="/shop", tags=["Shop"])
 
@@ -24,9 +26,11 @@ async def get_shop_brands():
 async def get_shop_profile(current_user: User = Depends(get_current_user)):
     """Returns the authenticated user's profile with stats"""
     return {
+        "username": current_user.username,
         "full_name": current_user.full_name,
         "email": current_user.email,
         "role": current_user.role,
+        "ruc_linked": current_user.ruc_linked,
         "loyalty_points": current_user.loyalty_points,
         "cumulative_sales": current_user.cumulative_sales,
         "created_at": current_user.created_at
@@ -34,16 +38,72 @@ async def get_shop_profile(current_user: User = Depends(get_current_user)):
 
 @router.get("/orders", response_model=List[SalesOrder])
 async def get_shop_orders(current_user: User = Depends(get_current_user)):
-    """Returns the history of orders for the current user"""
-    # Find orders by customer email
-    orders = await SalesOrder.find(SalesOrder.customer_email == current_user.email).to_list()
+    """Returns the history of orders for the current user or their company"""
+    from beanie.operators import In
+    
+    query = {"$or": []}
+    if current_user.ruc_linked:
+        query["$or"].append({"customer_ruc": current_user.ruc_linked})
+    
+    query["$or"].append({"customer_username": current_user.username})
+    
+    # If a user is SUPERADMIN/ADMIN, maybe allow seeing more? 
+    # But user specifically asked for "de acuerdo la sesion basnadose en el ruc"
+    
+    orders = await SalesOrder.find(query).to_list()
     return sorted(orders, key=lambda x: x.date, reverse=True)
 
 @router.get("/quotes", response_model=List[SalesQuote])
 async def get_shop_quotes(current_user: User = Depends(get_current_user)):
-    """Returns the history of quotations for the current user"""
-    quotes = await SalesQuote.find(SalesQuote.customer_email == current_user.email).to_list()
+    """Returns the history of quotations for the current user or their company"""
+    query = {"$or": []}
+    if current_user.ruc_linked:
+        query["$or"].append({"customer_ruc": current_user.ruc_linked})
+    
+    query["$or"].append({"customer_username": current_user.username})
+    
+    quotes = await SalesQuote.find(query).to_list()
     return sorted(quotes, key=lambda x: x.date, reverse=True)
+
+@router.get("/financial-status")
+async def get_financial_status(current_user: User = Depends(get_current_user)):
+    """Returns the user's debt, overdue invoices, and credit limit"""
+    if not current_user.ruc_linked:
+        return {
+            "has_account": False,
+            "total_debt": 0.0,
+            "overdue_count": 0,
+            "credit_limit": 0.0,
+            "available_credit": 0.0
+        }
+    
+    from app.models.sales import Customer
+    customer = await Customer.find_one(Customer.ruc == current_user.ruc_linked)
+    
+    total_debt = await RiskService.calculate_current_debt(current_user.ruc_linked)
+    overdue_invoices = await RiskService.check_overdue_invoices(current_user.ruc_linked)
+    
+    credit_limit = customer.credit_limit if customer else 0.0
+    
+    return {
+        "has_account": True,
+        "total_debt": total_debt,
+        "overdue_count": len(overdue_invoices),
+        "credit_limit": credit_limit,
+        "available_credit": max(0, credit_limit - total_debt),
+        "ruc": current_user.ruc_linked,
+        "company_name": customer.name if customer else current_user.full_name
+    }
+
+@router.get("/invoices")
+async def get_shop_invoices(current_user: User = Depends(get_current_user)):
+    """Returns the history of invoices for the current user's RUC"""
+    if not current_user.ruc_linked:
+        return []
+    
+    invoices = await SalesInvoice.find(SalesInvoice.customer_ruc == current_user.ruc_linked).to_list()
+    # Sort by date descending
+    return sorted(invoices, key=lambda x: x.date, reverse=True)
 
 @router.get("/payment-options")
 async def get_shop_payment_options(current_user: Optional[User] = Depends(get_optional_user)):
@@ -209,6 +269,7 @@ async def redeem_prize(
     redeem_order = SalesOrder(
         customer_name=current_user.full_name,
         customer_email=current_user.email,
+        customer_username=current_user.username,
         customer_ruc=current_user.ruc_linked or "CANJE",
         items=[order_item],
         status=OrderStatus.PENDING,
@@ -285,7 +346,8 @@ async def get_shop_products(
                 {"equivalences.code": {"$regex": search, "$options": "i"}},
                 {"applications.make": {"$regex": search, "$options": "i"}},
                 {"applications.model": {"$regex": search, "$options": "i"}},
-                {"specs.value": {"$regex": search, "$options": "i"}}
+                {"specs.value": {"$regex": search, "$options": "i"}},
+                {"specs.name": {"$regex": search, "$options": "i"}}
             ]
     if category:
         query["category_id"] = category
@@ -453,6 +515,7 @@ async def checkout(
     new_quote = SalesQuote(
         customer_name=req.customer_name,
         customer_email=current_user.email if current_user else None,
+        customer_username=current_user.username if current_user else None,
         customer_ruc=req.customer_ruc,
         items=order_items,
         delivery_address=req.delivery_address,
@@ -464,7 +527,6 @@ async def checkout(
     )
 
     from app.services import sales_quotes_service
-    from app.services import sales_quotes_service
     created_quote = await sales_quotes_service.create_quote(new_quote)
 
 
@@ -474,3 +536,57 @@ async def checkout(
         "quote_number": created_quote.quote_number,
         "total_amount": created_quote.total_amount
     }
+
+@router.get("/predictive-order", response_model=List[ShopProductResponse])
+async def get_predictive_order(current_user: User = Depends(get_current_user)):
+    """Analiza compras pasadas y sugiere un pedido de reabastecimiento"""
+    if not current_user.ruc_linked:
+        return []
+    
+    # 1. Buscar facturas pasadas
+    from app.models.sales import SalesInvoice
+    invoices = await SalesInvoice.find(SalesInvoice.customer_ruc == current_user.ruc_linked).to_list()
+    
+    if not invoices:
+        return []
+        
+    # 2. Contar frecuencia de SKUs
+    sku_freq = {}
+    for inv in invoices:
+        for item in inv.items:
+            sku_freq[item.product_sku] = sku_freq.get(item.product_sku, 0) + item.quantity
+
+    # 3. Obtener los 10 más comprados
+    top_skus = sorted(sku_freq.items(), key=lambda x: x[1], reverse=True)[:10]
+    sku_list = [s[0] for s in top_skus]
+    
+    # 4. Obtener datos actuales de esos productos
+    products = await Product.find({"sku": {"$in": sku_list}, "is_active_in_shop": True}).to_list()
+    
+    # Resolve pricing
+    role = current_user.role
+    response_items = []
+    for p in products:
+        price = p.price_wholesale if role == UserRole.CUSTOMER_B2B else p.price_retail
+        response_items.append(ShopProductResponse(
+            **p.model_dump(exclude={"id"}),
+            price=price
+        ))
+        
+    return response_items
+
+@router.get("/notifications", response_model=List[Notification])
+async def get_notifications(current_user: User = Depends(get_current_user)):
+    """Obtiene las notificaciones del usuario actual"""
+    user_id_str = str(current_user.id)
+    notifications = await Notification.find(Notification.user_id == user_id_str).sort("-created_at").limit(20).to_list()
+    return notifications
+
+@router.post("/notifications/{notif_id}/read")
+async def mark_notification_read(notif_id: str, current_user: User = Depends(get_current_user)):
+    """Marca una notificación como leída"""
+    notif = await Notification.get(notif_id)
+    if notif and notif.user_id == str(current_user.id):
+        notif.is_read = True
+        await notif.save()
+    return {"status": "ok"}

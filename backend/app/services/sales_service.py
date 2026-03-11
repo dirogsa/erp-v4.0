@@ -164,16 +164,16 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
     # Verify User Balance if points are spent
     user = None
     if points_spent > 0:
-        if not order.customer_email:
-             # Try to find user by RUC if email not provided (less robust but helpful fallback)
-             # But usually frontend sends customer_email if linked.
-             # If no email, we can't deduct points from a user account clearly.
-             # Assume customer_email is populated if user logged in.
-             print("Warning: Redemption order without customer_email")
+        if not order.customer_username and not order.customer_email:
+             # Try to find user by RUC if no username/email provided
+             print("Warning: Redemption order without customer identifier")
         else:
-             user = await User.find_one(User.email == order.customer_email)
+             if order.customer_username:
+                 user = await User.find_one(User.username == order.customer_username)
+             else:
+                 user = await User.find_one(User.email == order.customer_email)
              if not user:
-                 raise ValidationException(f"User not found for email {order.customer_email}")
+                 raise ValidationException(f"User not found for ID {order.customer_username or order.customer_email}")
              
              if (user.loyalty_points or 0) < points_spent:
                  raise ValidationException(f"Insufficient points. Required: {points_spent}, Available: {user.loyalty_points}")
@@ -216,9 +216,12 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
     await order.insert()
 
     # Update User Points if linked (Gain and Spend)
-    if order.customer_email:
+    if order.customer_username or order.customer_email:
         if not user:
-             user = await User.find_one(User.email == order.customer_email)
+             if order.customer_username:
+                 user = await User.find_one(User.username == order.customer_username)
+             else:
+                 user = await User.find_one(User.email == order.customer_email)
              
         if user:
             # Deduct spent points (Always from public loyalty_points as it's for Shop redemptions)

@@ -88,6 +88,18 @@ class SearchLog(Document):
     class Settings:
         name = "search_logs"
 
+class Notification(Document):
+    user_id: str
+    title: str
+    message: str
+    notification_type: str  # "ORDER_UPDATE", "CREDIT_UPDATE", "NEW_PRODUCT", "PROMO"
+    is_read: bool = False
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    link: Optional[str] = None # Para navegar a un pedido o producto específico
+
+    class Settings:
+        name = "notifications"
+
 class TechnicalSpec(BaseModel):
     """Especificación técnica unitaria (Ej: A, mm, 120)"""
     label: str  # A, B, C, H, OD, F, G
