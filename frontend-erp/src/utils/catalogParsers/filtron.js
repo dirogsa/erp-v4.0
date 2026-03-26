@@ -7,6 +7,8 @@ export const parseFiltron = (doc, domain) => {
         sku: '',
         name: '',
         ean: '',
+        type: 'COMMERCIAL',        // <--- Forzamos el tipo solicitado
+        is_active_in_shop: false,  // <--- Forzamos el estado inactivo por defecto
         category_name: '',
         image_url: '',
         tech_drawing_url: '',
@@ -25,18 +27,13 @@ export const parseFiltron = (doc, domain) => {
         // Format: "Filtros de aceite: OP520/1"
         if (text.includes(':')) {
             const parts = text.split(':');
-            data.category_name = parts[0].trim();
+            // Limpiamos plurales y nombres genéricos (ej: "Filtros de aceite" -> "Filtro de Aceite")
+            let cat = parts[0].trim().replace(/s$/i, '').replace(/os /i, 'o ');
+            data.category_name = cat.charAt(0).toUpperCase() + cat.slice(1);
+            
             // PRIMERO reemplazamos '/' por '-' para sanitizar el SKU antes de usarlo
             data.sku = parts[1].replace('...', '').trim().replace(/\//g, '-');
-
-            // Meaningful Name & Singularization
-            let cat = data.category_name;
-            if (cat.startsWith('Filtros')) {
-                cat = cat.replace('Filtros', 'Filtro');
-            } else if (cat.endsWith('s') && !cat.endsWith('ss')) {
-                cat = cat.slice(0, -1);
-            }
-            data.name = `${cat} ${data.sku}`;
+            data.name = `${data.category_name} ${data.sku}`;
         } else {
             data.sku = text.replace('...', '').trim().replace(/\//g, '-');
             data.name = `${data.sku}`; // Fallback simple

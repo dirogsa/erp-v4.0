@@ -7,6 +7,8 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp') => {
         sku: '',
         name: '',
         ean: '',
+        type: 'COMMERCIAL',        // <--- Forzamos el tipo solicitado
+        is_active_in_shop: false,  // <--- Forzamos el estado inactivo por defecto
         category_name: '',
         image_url: '',
         tech_drawing_url: '',

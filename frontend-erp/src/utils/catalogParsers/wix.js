@@ -8,6 +8,8 @@ export const parseWix = (doc, domain) => {
         sku: '',
         name: '',
         ean: '',
+        type: 'COMMERCIAL',        // <--- Forzamos el tipo solicitado
+        is_active_in_shop: false,  // <--- Forzamos el estado inactivo por defecto
         status: '',
         category_name: '',
         description: '',
@@ -28,7 +30,10 @@ export const parseWix = (doc, domain) => {
             const ldData = JSON.parse(ldJsonScript.innerText);
             if (ldData.name) data.name = ldData.name;
             if (ldData.description) data.description = ldData.description;
-            if (ldData.sku) data.sku = ldData.sku.replace('_WIX', ''); // Limpiamos el sufijo interno de WIX
+            if (ldData.sku) {
+                // Eliminamos cualquier variante de Wix para estandarizar el SKU interno
+                data.sku = ldData.sku.replace(/_WIX$|-WIX$| WIX$/i, '').trim(); 
+            }
             if (ldData.image) data.image_url = ldData.image;
         } catch (e) {
             console.warn("Error parsing JSON-LD", e);
@@ -94,7 +99,7 @@ export const parseWix = (doc, domain) => {
                 const value = tds[1].innerText.trim();
                 data.specs.push({
                     label,
-                    measure_type: value.includes('mm') ? 'mm' : (value.includes('x') ? 'thread' : 'unit'),
+                    measure_type: value.includes('mm') ? 'mm' : (value.includes('x') ? 'thread' : 'other'),
                     value: value.replace(' mm', '')
                 });
             }

@@ -192,6 +192,9 @@ async def bulk_create_products(products: List[Product], user: Optional[User] = N
             existing.image_url = p_data.image_url or existing.image_url
             existing.manual_pdf_url = p_data.manual_pdf_url or existing.manual_pdf_url
             existing.tech_bulletin = p_data.tech_bulletin or existing.tech_bulletin
+            existing.category_name = p_data.category_name or existing.category_name
+            existing.status = p_data.status or existing.status
+            if p_data.image_gallery: existing.image_gallery = p_data.image_gallery
             
             # Reemplazar listas técnicas con la versión oficial del catálogo
             if p_data.specs: existing.specs = p_data.specs

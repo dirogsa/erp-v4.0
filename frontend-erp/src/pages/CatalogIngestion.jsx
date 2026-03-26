@@ -17,6 +17,8 @@ const CatalogIngestion = () => {
     const [uploadStatus, setUploadStatus] = useState({ total: 0, current: 0, errors: [] });
     const [editingProduct, setEditingProduct] = useState(null);
     const [editingIndex, setEditingIndex] = useState(null);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [lastProcessedCount, setLastProcessedCount] = useState(0);
 
     const handleFileDrop = (e) => {
         e.preventDefault();
@@ -158,6 +160,8 @@ const CatalogIngestion = () => {
 
             await inventoryService.bulkCreateProducts(productsToUpload);
 
+            setLastProcessedCount(productsToUpload.length);
+            setShowSuccessModal(true);
             showNotification('¡Ingesta masiva completada con éxito!', 'success');
             setParsedProducts([]); // Clear table on success
         } catch (error) {
@@ -601,6 +605,102 @@ const CatalogIngestion = () => {
                             <Button variant="secondary" onClick={() => setEditingProduct(null)}>Cancelar</Button>
                             <Button variant="primary" onClick={handleSaveProduct} style={{ background: '#eab308', color: '#000' }}>
                                 Guardar Cambios
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Overlay de Procesamiento Masivo */}
+            {isProcessing && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 2000,
+                    backdropFilter: 'blur(8px)'
+                }}>
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                        <Rocket 
+                            size={64} 
+                            color="#eab308" 
+                            style={{ 
+                                animation: 'bounce 1s infinite', 
+                                marginBottom: '1.5rem' 
+                            }} 
+                        />
+                        <h2 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '0.5rem' }}>
+                            Ingestando Productos...
+                        </h2>
+                        <p style={{ color: '#94a3b8', fontSize: '1rem' }}>
+                            Por favor espera, estamos procesando {parsedProducts.length} productos en el servidor.
+                        </p>
+                        
+                        <div style={{ 
+                            marginTop: '2rem', 
+                            width: '300px', 
+                            height: '6px', 
+                            background: '#334155', 
+                            borderRadius: '3px', 
+                            overflow: 'hidden' 
+                        }}>
+                            <div style={{
+                                width: '100%',
+                                height: '100%',
+                                background: 'linear-gradient(90deg, #eab308, #3b82f6, #eab308)',
+                                backgroundSize: '200% 100%',
+                                animation: 'shimmer 1.5s infinite linear'
+                            }} />
+                        </div>
+                        
+                        <style>{`
+                            @keyframes shimmer {
+                                0% { background-position: -200% 0; }
+                                100% { background-position: 200% 0; }
+                            }
+                            @keyframes bounce {
+                                0%, 100% { transform: translateY(0); }
+                                50% { transform: translateY(-10px); }
+                            }
+                        `}</style>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Éxito */}
+            {showSuccessModal && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '1rem'
+                }}>
+                    <div style={{
+                        background: '#1e293b', width: '100%', maxWidth: '450px', borderRadius: '1.5rem', border: '1px solid #334155', padding: '2rem', textAlign: 'center',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                    }}>
+                        <div style={{
+                            width: '80px', height: '80px', background: '#065f46', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem'
+                        }}>
+                            <CheckCircle size={48} color="#34d399" />
+                        </div>
+                        
+                        <h2 style={{ color: 'white', fontSize: '1.75rem', marginBottom: '1rem' }}>
+                            ¡Carga Exitosa!
+                        </h2>
+                        
+                        <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '2rem' }}>
+                            Se han procesado correctly <strong>{lastProcessedCount} productos</strong> en tu inventario.
+                        </p>
+                        
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                            <Button 
+                                variant="primary" 
+                                onClick={() => setShowSuccessModal(false)}
+                                style={{ background: '#34d399', color: '#064e3b', fontWeight: 'bold', padding: '0.75rem 2rem' }}
+                            >
+                                Aceptar
                             </Button>
                         </div>
                     </div>

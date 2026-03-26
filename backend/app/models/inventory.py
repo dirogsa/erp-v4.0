@@ -69,6 +69,12 @@ class ProductType(str, Enum):
     COMMERCIAL = "COMMERCIAL" # Productos para venta (ej. Filtros)
     MARKETING = "MARKETING"   # Artículos de publicidad/regalos (ej. Polos, Paneles)
 
+class ProductStatus(str, Enum):
+    AVAILABLE = "AVAILABLE"
+    DISCONTINUED = "DISCONTINUED"
+    OUT_OF_STOCK = "OUT_OF_STOCK"
+    PENDING_REVIEW = "PENDING_REVIEW"
+
 class VehicleBrand(Document):
     name: Indexed(str, unique=True)
     origin: BrandOrigin = BrandOrigin.OTHER
@@ -182,6 +188,11 @@ class Product(Document):
     
     is_new: bool = False # Manual flag for catalog "Novedades"
     is_active_in_shop: bool = False # Control visibility in frontend-shop
+    
+    # Adiciones para compatibilidad con scrapers
+    category_name: Optional[str] = None
+    status: ProductStatus = ProductStatus.AVAILABLE
+    image_gallery: List[Dict[str, Any]] = []
     
     created_at: datetime = datetime.now()
 
