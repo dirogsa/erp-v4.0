@@ -155,6 +155,7 @@ class Product(Document):
     description: Optional[str] = None
     image_url: Optional[str] = None
     weight_g: float = 0.0
+    shape: Optional[str] = None
     type: ProductType = ProductType.COMMERCIAL
     
     # Category & Attributes

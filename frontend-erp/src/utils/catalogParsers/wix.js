@@ -17,6 +17,8 @@ export const parseWix = (doc, domain) => {
         image_gallery: [], // Nueva característica: galería completa
         tech_drawing_url: '',
         manual_pdf_url: '',
+        weight_g: 0,
+        shape: '',
         specs: [],
         applications: [],
         equivalences: [], // Aquí mapearemos OE-Numbers y Cross-References
@@ -46,10 +48,30 @@ export const parseWix = (doc, domain) => {
         data.sku = titleName.innerText.trim();
     }
     
+    const categoryMap = {
+        'OIL FILTER': 'Filtro de Aceite',
+        'AIR FILTER': 'Filtro de Aire',
+        'CABIN FILTER': 'Filtro de Cabina',
+        'CABIN AIR FILTER': 'Filtro de Cabina',
+        'FUEL FILTER': 'Filtro de Combustible',
+        'HYDRAULIC FILTER': 'Filtro Hidráulico',
+        'TRANSMISSION FILTER': 'Filtro de Transmisión',
+        'COOLANT FILTER': 'Filtro de Refrigerante',
+        'ADBLUE FILTER': 'Filtro AdBlue',
+        'UREA FILTER': 'Filtro de Urea',
+        'DRYING AGENT CARTRIDGE': 'Filtro Secador',
+        'SEPARATOR': 'Filtro Separador',
+        'DESSICANT CARTRIDGE': 'Cartucho Secador de Aire',
+        'STEERING FILTER': 'Filtro de Dirección',
+        'WATER SEPARATOR': 'Filtro Trampa de Agua'
+    };
+
     const categoryEl = doc.querySelector('.cmp-product__title-family');
     if (categoryEl) {
-        data.category_name = categoryEl.innerText.trim();
-        if (!data.name) data.name = `${data.category_name} ${data.sku}`;
+        const rawCat = categoryEl.innerText.trim().toUpperCase();
+        data.category_name = categoryMap[rawCat] || categoryEl.innerText.trim();
+        // Construimos el nombre estándar: [Categoría] WIX [SKU]
+        data.name = `${data.category_name} ${data.brand} ${data.sku}`.trim();
     }
 
     // 3. EAN / GTIN
@@ -97,6 +119,20 @@ export const parseWix = (doc, domain) => {
             if (tds.length >= 2) {
                 const label = tds[0].innerText.trim();
                 const value = tds[1].innerText.trim();
+                
+                // Mapeo específico para Peso y Forma en Wix
+                if (/Weight|Peso|Mass/i.test(label)) {
+                    // Extract number and convert to grams if it's in lb
+                    const numMatch = value.match(/[\d.]+/);
+                    if (numMatch) {
+                        let val = parseFloat(numMatch[0]);
+                        if (value.toLowerCase().includes('lb')) val = val * 453.592;
+                        data.weight_g = Math.round(val * 10) / 10;
+                    }
+                } else if (/Shape|Forma|Style/i.test(label)) {
+                    data.shape = value;
+                }
+
                 data.specs.push({
                     label,
                     measure_type: value.includes('mm') ? 'mm' : (value.includes('x') ? 'thread' : 'other'),

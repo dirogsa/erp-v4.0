@@ -13,6 +13,8 @@ export const parseFiltron = (doc, domain) => {
         image_url: '',
         tech_drawing_url: '',
         manual_pdf_url: '',
+        weight_g: 0,
+        shape: '',
         specs: [],
         applications: [],
         equivalences: [],
@@ -27,16 +29,20 @@ export const parseFiltron = (doc, domain) => {
         // Format: "Filtros de aceite: OP520/1"
         if (text.includes(':')) {
             const parts = text.split(':');
-            // Limpiamos plurales y nombres genéricos (ej: "Filtros de aceite" -> "Filtro de Aceite")
-            let cat = parts[0].trim().replace(/s$/i, '').replace(/os /i, 'o ');
+            // Limpiamos plurales (ej: "Filtros de aceite" -> "Filtro de Aceite")
+            let cat = parts[0].trim()
+                .replace(/s$/i, '')
+                .replace(/os /i, 'o ')
+                .replace(/Asentamiento/i, 'Aire'); // Algunas traducciones extrañas
+            
             data.category_name = cat.charAt(0).toUpperCase() + cat.slice(1);
             
             // PRIMERO reemplazamos '/' por '-' para sanitizar el SKU antes de usarlo
             data.sku = parts[1].replace('...', '').trim().replace(/\//g, '-');
-            data.name = `${data.category_name} ${data.sku}`;
+            data.name = `${data.category_name} ${data.brand} ${data.sku}`;
         } else {
             data.sku = text.replace('...', '').trim().replace(/\//g, '-');
-            data.name = `${data.sku}`; // Fallback simple
+            data.name = `${data.brand} ${data.sku}`; // Fallback simple
         }
     }
 
@@ -117,6 +123,16 @@ export const parseFiltron = (doc, domain) => {
             const label = divs[0].innerText.trim().replace(':', '');
             const value = divs[1].innerText.trim();
             if (label && value && !/APLICACIÓN|ESTADO|PRODUCTO|IMAGEN/i.test(label)) {
+                // Mapeo específico para Peso y Forma en Filtron
+                if (/Masa|Peso|Weight|Mass/i.test(label)) {
+                    const numMatch = value.match(/[\d.]+/);
+                    if (numMatch) {
+                        data.weight_g = parseFloat(numMatch[0]);
+                    }
+                } else if (/Kształt|Forma|Shape/i.test(label)) {
+                    data.shape = value;
+                }
+
                 data.specs.push({
                     label,
                     measure_type: /Rosca|Thread|UNF|G\d/i.test(label) ? 'thread' : 'mm',

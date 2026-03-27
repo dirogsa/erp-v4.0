@@ -491,6 +491,19 @@ const CatalogIngestion = () => {
                                         value={editingProduct.name}
                                         onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
                                     />
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        <Input
+                                            label="Peso (g)"
+                                            type="number"
+                                            value={editingProduct.weight_g}
+                                            onChange={(e) => setEditingProduct({ ...editingProduct, weight_g: parseFloat(e.target.value) || 0 })}
+                                        />
+                                        <Input
+                                            label="Forma / Estilo"
+                                            value={editingProduct.shape}
+                                            onChange={(e) => setEditingProduct({ ...editingProduct, shape: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 

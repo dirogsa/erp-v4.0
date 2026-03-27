@@ -4,6 +4,8 @@ import Loading from '../components/common/Loading';
 import Input from '../components/common/Input';
 import OrderForm from '../components/forms/OrderForm';
 import OrdersTable from '../components/features/sales/OrdersTable';
+import { useNotification } from '../hooks/useNotification';
+import { Upload, FileText, CheckCircle, AlertCircle, Trash2, Database, Rocket, Edit3, X } from 'lucide-react';
 import InvoicesTable from '../components/features/sales/InvoicesTable';
 import OrderDetailModal from '../components/features/sales/OrderDetailModal';
 import InvoiceDetailModal from '../components/features/sales/InvoiceDetailModal';
@@ -21,6 +23,7 @@ import QuotesTable from '../components/features/sales/QuotesTable';
 import QuoteForm from '../components/forms/QuoteForm';
 import QuoteDetailModal from '../components/features/sales/QuoteDetailModal';
 import SalesQuoteReceipt from '../components/features/sales/SalesQuoteReceipt';
+import { salesQuotesService } from '../services/api';
 
 import ConversionConfirmationModal from '../components/features/sales/ConversionConfirmationModal';
 import BackorderConversionPreviewModal from '../components/features/sales/BackorderConversionPreviewModal';
@@ -32,6 +35,7 @@ import GuidesTable from '../components/features/sales/GuidesTable';
 import GuideFormModal from '../components/features/sales/GuideFormModal';
 import DeliveryGuideReceipt from '../components/features/sales/DeliveryGuideReceipt';
 import XMLImportModal from '../components/common/XMLImportModal';
+import XMLReviewModal from '../components/features/sales/XMLReviewModal';
 import { formatCurrency } from '../utils/formatters';
 
 const Sales = () => {
@@ -67,8 +71,16 @@ const Sales = () => {
     const [selectedGuide, setSelectedGuide] = useState(null);
     const [showXMLImportModal, setShowXMLImportModal] = useState(false);
     const [xmlBatch, setXmlBatch] = useState([]); // Batch state
+    const [selectedXmlForReview, setSelectedXmlForReview] = useState(null);
 
     const [sourceFilter, setSourceFilter] = useState('');
+
+    // Bulk Processing States
+    const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [lastProcessedCount, setLastProcessedCount] = useState({ created: 0, skipped: 0, pending: 0 });
+    const [totalToProcess, setTotalToProcess] = useState(0);
+    const [currentProcessing, setCurrentProcessing] = useState(0);
 
     // Hooks
     const {
@@ -811,34 +823,63 @@ const Sales = () => {
                 type="SALES"
                 onConfirm={(batch) => {
                     if (batch.length === 1) {
-                        const data = batch[0];
-                        const mappedQuote = {
-                            date: data.date,
-                            currency: data.currency,
-                            customer: {
-                                ruc: data.customer.ruc,
-                                name: data.customer.name,
-                                address: data.customer.address || '',
-                                delivery_address: data.customer.address || '',
-                                branches: []
-                            },
-                            customer_ruc: data.customer.ruc,
-                            customer_name: data.customer.name,
-                            delivery_address: data.customer.address || '',
-                            items: data.items.map(item => ({
-                                product_sku: item.product_sku,
-                                product_name: item.product_name,
-                                quantity: item.quantity,
-                                unit_price: item.unit_price,
-                                subtotal: item.subtotal
-                            })),
-                            amount_in_words: data.amount_in_words || ''
-                        };
-                        setSelectedQuote(mappedQuote);
-                        setShowCreateQuote(true);
+                        setSelectedXmlForReview(batch[0]);
+                        setShowXMLImportModal(false);
                     } else {
                         setXmlBatch(batch);
+                        setShowXMLImportModal(false);
                     }
+                }}
+            />
+
+            <XMLReviewModal
+                visible={!!selectedXmlForReview}
+                doc={selectedXmlForReview}
+                onClose={() => setSelectedXmlForReview(null)}
+                onConfirm={async (doc) => {
+                    // Verificación de duplicados (Individual)
+                    try {
+                        const existingRes = await salesQuotesService.getQuotes(1, 1, doc.document_number);
+                        if (existingRes.data.total > 0) {
+                            alert(`⚠️ El documento ${doc.document_number} ya existe en el sistema. No se duplicará.`);
+                            setSelectedXmlForReview(null);
+                            return;
+                        }
+                    } catch (err) {
+                        console.error("Error al verif. duplicados:", err);
+                    }
+
+                    const mappedQuote = {
+                        date: doc.date,
+                        currency: 'PEN',
+                        external_reference: doc.document_number,
+                        customer: {
+                            ruc: doc.customer.ruc,
+                            name: doc.customer.name,
+                            address: doc.customer.address || '',
+                            delivery_address: doc.customer.address || '',
+                            branches: []
+                        },
+                        customer_ruc: doc.customer.ruc,
+                        customer_name: doc.customer.name,
+                        delivery_address: doc.customer.address || '',
+                        items: doc.items.map(item => ({
+                            product_sku: item.product_sku,
+                            product_name: item.product_name,
+                            quantity: Math.round(item.quantity) || 0,
+                            unit_price: item.unit_price,
+                            subtotal: item.subtotal
+                        })),
+                        amount_in_words: doc.amount_in_words || '',
+                        source: 'XML_IMPORT',
+                        internal_notes: `Importado de Factura XML ${doc.document_number}. Emisor: ${doc.emitter_identity}. T.C: ${doc.exchange_rate}`
+                    };
+                    
+                    // Remover de la lista solo si vamos a procesar
+                    setXmlBatch(prev => prev.filter(x => x.document_number !== doc.document_number));
+                    setSelectedXmlForReview(null);
+                    setSelectedQuote(mappedQuote);
+                    setShowCreateQuote(true);
                 }}
             />
 
@@ -857,11 +898,95 @@ const Sales = () => {
                         <div>
                             <h3 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <span style={{ backgroundColor: '#10b981', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '0.5rem', fontSize: '0.9rem' }}>{xmlBatch.length}</span>
-                                Facturas de Cliente por Revisar
+                                Documentos para Cotizar
                             </h3>
-                            <p style={{ margin: '0.25rem 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>Confirme o edite para emitir las cotizaciones de venta.</p>
+                            <p style={{ margin: '0.25rem 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>Verifique uno a uno o procese todos masivamente como cotizaciones.</p>
                         </div>
-                        <Button variant="secondary" onClick={() => setXmlBatch([])}>Limpiar todo</Button>
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <Button
+                                variant="primary"
+                                style={{ backgroundColor: '#10b981', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}
+                                onClick={async () => {
+                                    // 1. Filtrar documentos válidos para proceso masivo (Soles y Cuadrados)
+                                    const processable = [];
+                                    const pending = [];
+
+                                    for (const doc of xmlBatch) {
+                                        const isSoles = (doc.currency === 'SOLES' || doc.currency === 'PEN');
+                                        const systemTotal = doc.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+                                        const isBalanced = Math.abs(systemTotal - doc.total_amount) < 0.01;
+
+                                        if (isSoles && isBalanced) {
+                                            processable.push(doc);
+                                        } else {
+                                            pending.push(doc);
+                                        }
+                                    }
+
+                                    if (processable.length === 0) {
+                                        alert("No hay documentos en Soles con cuadre perfecto para procesar en masa. Por favor, revíselos individualmente.");
+                                        return;
+                                    }
+
+                                    if (window.confirm(`Se procesarán ${processable.length} documentos automáticos. ${pending.length} quedarán pendientes para revisión manual. ¿Desea continuar?`)) {
+                                        setIsBulkProcessing(true);
+                                        setTotalToProcess(processable.length);
+                                        setCurrentProcessing(0);
+                                        
+                                        let createdCount = 0;
+                                        let skipCount = 0;
+
+                                        for (const doc of processable) {
+                                            setCurrentProcessing(prev => prev + 1);
+                                            // Verificación de duplicados (Bulk)
+                                            try {
+                                                const existingRes = await salesQuotesService.getQuotes(1, 1, doc.document_number);
+                                                if (existingRes.data.total > 0) {
+                                                    skipCount++;
+                                                    continue;
+                                                }
+                                            } catch (err) { }
+
+                                            const mappedQuote = {
+                                                date: doc.date,
+                                                currency: 'PEN',
+                                                external_reference: doc.document_number,
+                                                customer: {
+                                                    ruc: doc.customer.ruc,
+                                                    name: doc.customer.name,
+                                                    address: doc.customer.address || '',
+                                                    delivery_address: doc.customer.address || '',
+                                                    branches: []
+                                                },
+                                                customer_ruc: doc.customer.ruc,
+                                                customer_name: doc.customer.name,
+                                                delivery_address: doc.customer.address || '',
+                                                items: doc.items.map(item => ({
+                                                    product_sku: item.product_sku,
+                                                    product_name: item.product_name,
+                                                    quantity: Math.round(item.quantity) || 0,
+                                                    unit_price: Math.round(item.unit_price * 100) / 100,
+                                                    subtotal: Math.round((item.quantity * item.unit_price) * 100) / 100
+                                                })),
+                                                amount_in_words: doc.amount_in_words || '',
+                                                source: 'XML_IMPORT_BULK',
+                                                internal_notes: `Importación masiva XML. Ref: ${doc.document_number}. Validado automáticamente.`
+                                            };
+                                            await createQuote(mappedQuote);
+                                            createdCount++;
+                                        }
+                                        
+                                        setLastProcessedCount({ created: createdCount, skipped: skipCount, pending: pending.length });
+                                        setXmlBatch(pending);
+                                        setIsBulkProcessing(false);
+                                        setShowSuccessModal(true);
+                                    }
+                                }}
+                            >
+                                ✅ Aceptar y Generar Todo (Soles & Cuadrados)
+                            </Button>
+                            <Button variant="secondary" onClick={() => setXmlBatch([])}>Limpiar todo</Button>
+                        </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
@@ -876,7 +1001,10 @@ const Sales = () => {
                                 alignItems: 'center'
                             }}>
                                 <div>
-                                    <div style={{ fontWeight: 'bold', color: 'white' }}>{doc.document_number}</div>
+                                    <div style={{ fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        {doc.document_number}
+                                        <span style={{ fontSize: '0.65rem', backgroundColor: '#334155', color: '#94a3b8', padding: '0.1rem 0.4rem', borderRadius: '0.3rem' }}>📅 {doc.date}</span>
+                                    </div>
                                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{doc.customer.name}</div>
                                     <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 'bold', marginTop: '0.4rem' }}>{formatCurrency(doc.total_amount)}</div>
                                 </div>
@@ -885,31 +1013,7 @@ const Sales = () => {
                                         size="small"
                                         variant="primary"
                                         onClick={() => {
-                                            const mappedQuote = {
-                                                date: doc.date,
-                                                currency: doc.currency,
-                                                customer: {
-                                                    ruc: doc.customer.ruc,
-                                                    name: doc.customer.name,
-                                                    address: doc.customer.address || '',
-                                                    delivery_address: doc.customer.address || '',
-                                                    branches: []
-                                                },
-                                                customer_ruc: doc.customer.ruc,
-                                                customer_name: doc.customer.name,
-                                                delivery_address: doc.customer.address || '',
-                                                items: doc.items.map(item => ({
-                                                    product_sku: item.product_sku,
-                                                    product_name: item.product_name,
-                                                    quantity: item.quantity,
-                                                    unit_price: item.unit_price,
-                                                    subtotal: item.subtotal
-                                                })),
-                                                amount_in_words: doc.amount_in_words || ''
-                                            };
-                                            setSelectedQuote(mappedQuote);
-                                            setShowCreateQuote(true);
-                                            setXmlBatch(prev => prev.filter((_, i) => i !== idx));
+                                            setSelectedXmlForReview(doc);
                                         }}
                                     >
                                         Revisar
@@ -923,6 +1027,117 @@ const Sales = () => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Overlay de Procesamiento Masivo */}
+            {isBulkProcessing && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 2000,
+                    backdropFilter: 'blur(8px)'
+                }}>
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                        <Rocket 
+                            size={64} 
+                            color="#10b981" 
+                            style={{ 
+                                animation: 'bounce 1s infinite', 
+                                marginBottom: '1.5rem' 
+                            }} 
+                        />
+                        <h2 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '0.5rem' }}>
+                            Generando Cotizaciones...
+                        </h2>
+                        <p style={{ color: '#94a3b8', fontSize: '1rem' }}>
+                            Procesando {currentProcessing} de {totalToProcess} documentos.
+                        </p>
+                        
+                        <div style={{ 
+                            marginTop: '2rem', 
+                            width: '300px', 
+                            height: '6px', 
+                            background: '#334155', 
+                            borderRadius: '3px', 
+                            overflow: 'hidden' 
+                        }}>
+                            <div style={{
+                                width: `${(currentProcessing / totalToProcess) * 100}%`,
+                                height: '100%',
+                                background: 'linear-gradient(90deg, #10b981, #3b82f6, #10b981)',
+                                backgroundSize: '200% 100%',
+                                animation: 'shimmer 1.5s infinite linear'
+                            }} />
+                        </div>
+                        
+                        <style>{`
+                            @keyframes shimmer {
+                                0% { background-position: -200% 0; }
+                                100% { background-position: 200% 0; }
+                            }
+                            @keyframes bounce {
+                                0%, 100% { transform: translateY(0); }
+                                50% { transform: translateY(-10px); }
+                            }
+                            @keyframes slideUp {
+                                from { transform: translateY(20px); opacity: 0; }
+                                to { transform: translateY(0); opacity: 1; }
+                            }
+                        `}</style>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Éxito */}
+            {showSuccessModal && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '1rem'
+                }}>
+                    <div style={{
+                        background: '#1e293b', width: '100%', maxWidth: '450px', borderRadius: '1.5rem', border: '1px solid #334155', padding: '2rem', textAlign: 'center',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                    }}>
+                        <div style={{
+                            width: '80px', height: '80px', background: '#065f46', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem'
+                        }}>
+                            <CheckCircle size={48} color="#34d399" />
+                        </div>
+                        
+                        <h2 style={{ color: 'white', fontSize: '1.75rem', marginBottom: '1rem' }}>
+                            ¡Proceso Completado!
+                        </h2>
+                        
+                        <div style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '2rem', textAlign: 'left', backgroundColor: '#0f172a', padding: '1rem', borderRadius: '0.75rem' }}>
+                            <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>🚀 Cotizaciones generadas:</span>
+                                <span style={{ color: '#34d399', fontWeight: 'bold' }}>{lastProcessedCount.created}</span>
+                            </div>
+                            <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>⚠️ Saltadas (Duplicados):</span>
+                                <span style={{ color: '#eab308', fontWeight: 'bold' }}>{lastProcessedCount.skipped}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>⏳ Pendientes de revisión:</span>
+                                <span style={{ color: '#94a3b8', fontWeight: 'bold' }}>{lastProcessedCount.pending}</span>
+                            </div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                            <Button 
+                                variant="primary" 
+                                onClick={() => setShowSuccessModal(false)}
+                                style={{ background: '#34d399', color: '#064e3b', fontWeight: 'bold', padding: '0.75rem 2rem' }}
+                            >
+                                Aceptar
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -13,6 +13,8 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp') => {
         image_url: '',
         tech_drawing_url: '',
         manual_pdf_url: '',
+        weight_g: 0,
+        shape: '',
         specs: [],
         applications: [],
         equivalences: [],
@@ -49,8 +51,10 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp') => {
         else if (catName === 'AIR FILTER') catName = 'Filtro de Aire';
         else if (catName === 'FUEL FILTER') catName = 'Filtro de Combustible';
         else if (catName === 'TRANSMISSION FILTER') catName = 'Filtro de Transmisión';
+        else if (catName === 'HYDRAULIC FILTER') catName = 'Filtro Hidráulico';
 
-        data.name = `${catName} ${data.sku}`;
+        data.category_name = catName;
+        data.name = `${catName} ${data.brand} ${data.sku}`;
     }
 
     // 2. Image
@@ -79,6 +83,16 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp') => {
             const label = nameEl.innerText.trim();
             const value = valEl.innerText.trim();
             if (value) {
+                // Mapeo específico para Peso y Forma en Azumi
+                if (/Weight|Peso|Mass/i.test(label)) {
+                    const numMatch = value.match(/[\d.]+/);
+                    if (numMatch) {
+                        data.weight_g = parseFloat(numMatch[0]);
+                    }
+                } else if (/Shape|Forma|Type/i.test(label)) {
+                    data.shape = value;
+                }
+
                 data.specs.push({
                     label: label,
                     measure_type: (label === 'Length' || label === 'Width' || label === 'Thickness' || label === 'Height') ? 'mm' : 'other',

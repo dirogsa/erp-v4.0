@@ -106,27 +106,29 @@ export const parseUBLXml = (xmlString) => {
         const productName = getTagText(line, 'cbc:Description');
         const quantity = parseFloat(getTagText(line, 'cbc:InvoicedQuantity') || '0');
 
-        let unitPriceIncTax = 0;
-        let basePriceNet = parseFloat(getTagText(line, 'cbc:PriceAmount') || '0');
+        let priceIncTax = 0;
+        let priceNet = parseFloat(getTagText(line, 'cbc:PriceAmount') || '0');
 
+        // SUNAT Catalog 16: 01 = Price including tax, 02 = Net price (but SUNAT UBL usually uses AlternativeConditionPrice for 01)
         const pricingRefs = line.getElementsByTagName('cac:AlternativeConditionPrice');
         for (let ref of Array.from(pricingRefs)) {
             const typeCode = getTagText(ref, 'cbc:PriceTypeCode');
             if (typeCode === '01') {
-                unitPriceIncTax = parseFloat(getTagText(ref, 'cbc:PriceAmount') || '0');
+                priceIncTax = parseFloat(getTagText(ref, 'cbc:PriceAmount') || '0');
                 break;
             }
         }
 
-        const finalUnitPrice = unitPriceIncTax > 0 ? unitPriceIncTax : (basePriceNet * 1.18);
+        // Si no viene el precio con IGV explícito, lo calculamos del neto
+        const unitPriceWithTax = priceIncTax > 0 ? priceIncTax : (priceNet * 1.18);
 
         return {
             product_sku: productSku,
             product_name: productName,
             quantity: quantity,
-            unit_price: Math.round(finalUnitPrice * 100) / 100,
-            net_unit_price: Math.round(basePriceNet * 100) / 100,
-            subtotal: Math.round((quantity * finalUnitPrice) * 100) / 100,
+            unit_price: unitPriceWithTax, // Guardamos el valor completo, la UI redondeará
+            net_unit_price: priceNet,
+            subtotal: quantity * unitPriceWithTax,
             tax_status: getTagText(line, 'cbc:TaxExemptionReasonCode') || '10'
         };
     });

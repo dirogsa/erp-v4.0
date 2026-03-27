@@ -24,7 +24,8 @@ async def get_quotes(
     if search:
         query["$or"] = [
             {"quote_number": {"$regex": search, "$options": "i"}},
-            {"customer_name": {"$regex": search, "$options": "i"}}
+            {"customer_name": {"$regex": search, "$options": "i"}},
+            {"external_reference": {"$regex": search, "$options": "i"}}
         ]
     
     if status:

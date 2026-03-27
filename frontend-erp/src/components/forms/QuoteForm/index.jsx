@@ -31,7 +31,7 @@ const QuoteForm = ({
         requested_by: null,
         date: new Date().toISOString().split('T')[0],
         due_date: '',
-        currency: 'SOLES',
+        currency: 'PEN',
         payment_terms: { type: 'CASH', installments: [] },
         notes: '',
         amount_in_words: '',
@@ -160,8 +160,8 @@ const QuoteForm = ({
                                 outline: 'none'
                             }}
                         >
-                            <option value="SOLES">S/ Soles</option>
-                            <option value="DOLARES">$ Dólares</option>
+                            <option value="PEN">S/ Soles</option>
+                            <option value="USD">$ Dólares</option>
                         </select>
                     </div>
                 </div>

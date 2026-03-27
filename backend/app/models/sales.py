@@ -181,6 +181,7 @@ class SalesQuote(Document):
     
     # Origen del pedido
     source: str = "ERP"
+    external_reference: Optional[str] = None # ID de documento externo (ej: Factura XML Proveedor)
 
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
