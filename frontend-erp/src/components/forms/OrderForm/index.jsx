@@ -5,6 +5,7 @@ import OrderSummary from './OrderSummary';
 import Button from '../../common/Button';
 import { useNotification } from '../../../hooks/useNotification';
 import { useCompany } from '../../../context/CompanyContext';
+import { numberToWords } from '../../../utils/numberToWords';
 
 import PaymentInfoSection from './PaymentInfoSection';
 
@@ -91,6 +92,16 @@ const OrderForm = ({
         return formData.items.reduce((sum, item) => sum + item.subtotal, 0);
     };
 
+    const total = calculateTotal();
+
+    // Auto-update amount in words
+    useEffect(() => {
+        if (!readOnly) {
+            const words = numberToWords(total, formData.currency || 'PEN');
+            setFormData(prev => ({ ...prev, amount_in_words: words }));
+        }
+    }, [total, formData.currency, readOnly]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -110,8 +121,7 @@ const OrderForm = ({
             return;
         }
 
-        // Calcular totales finales
-        const total = calculateTotal();
+        // total is already calculated above
         const subtotal = total / 1.18;
         const tax = total - subtotal;
 
@@ -191,7 +201,7 @@ const OrderForm = ({
                 <PaymentInfoSection
                     value={formData.payment_terms}
                     onChange={handlePaymentTermsChange}
-                    totalAmount={calculateTotal()}
+                    totalAmount={total}
                 />
             )}
 

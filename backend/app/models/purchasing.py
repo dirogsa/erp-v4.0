@@ -16,8 +16,10 @@ class PaymentStatus(str, Enum):
 
 class OrderItem(BaseModel):
     product_sku: str
+    product_name: Optional[str] = None  # Added to store manual names
     quantity: int
     unit_cost: float
+    is_custom: bool = False  # Track if product was manually text-entered
 
     @field_validator('unit_cost')
     @classmethod
@@ -41,11 +43,15 @@ class PurchaseOrder(Document):
     """Orden de compra - Inmutable después de facturar"""
     order_number: Optional[str] = None  # ORD-0001, ORD-0002, etc.
     supplier_name: str
+    supplier_ruc: Optional[str] = None
+    supplier_address: Optional[str] = None
     date: datetime = datetime.now()
     items: List[OrderItem]
     status: OrderStatus = OrderStatus.PENDING
     total_amount: float = 0.0
     amount_in_words: Optional[str] = None
+    currency: str = "SOLES"
+    show_prices: bool = True
 
     @field_validator('total_amount')
     @classmethod
@@ -67,6 +73,9 @@ class PurchaseQuote(Document):
     """Solicitud de Cotización (RFQ)"""
     quote_number: Optional[str] = None  # RFQ-0001
     supplier_name: str
+    supplier_ruc: Optional[str] = None
+    supplier_address: Optional[str] = None
+    supplier_email: Optional[str] = None
     date: datetime = datetime.now()
     valid_until: Optional[datetime] = None
     items: List[OrderItem]
@@ -74,6 +83,11 @@ class PurchaseQuote(Document):
     total_amount: float = 0.0
     notes: Optional[str] = None
     amount_in_words: Optional[str] = None
+    
+    # UI Metadata
+    currency: str = "SOLES"
+    show_prices: bool = False
+    issuer_info: Optional[dict] = None
     
     @field_validator('total_amount')
     @classmethod
@@ -89,6 +103,8 @@ class PurchaseInvoice(Document):
     invoice_number: str  # F001-00001
     order_number: str  # Referencia a la orden (ORD-0001)
     supplier_name: str  # Denormalizado para queries rápidas
+    supplier_ruc: Optional[str] = None
+    supplier_address: Optional[str] = None
     invoice_date: datetime = datetime.now()
     items: List[OrderItem]
     total_amount: float = 0.0
@@ -117,6 +133,7 @@ class PurchaseInvoice(Document):
 
 class Supplier(Document):
     name: str
+    ruc: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None

@@ -7,6 +7,7 @@ import Button from '../../common/Button';
 import Input from '../../common/Input';
 import { useNotification } from '../../../hooks/useNotification';
 import { useCompany } from '../../../context/CompanyContext';
+import { numberToWords } from '../../../utils/numberToWords';
 
 const QuoteForm = ({
     initialData = null,
@@ -84,6 +85,16 @@ const QuoteForm = ({
         }));
     };
 
+    const total = formData.items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+
+    // Auto-update amount in words
+    useEffect(() => {
+        if (!readOnly) {
+            const words = numberToWords(total, formData.currency);
+            setFormData(prev => ({ ...prev, amount_in_words: words }));
+        }
+    }, [total, formData.currency, readOnly]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -103,9 +114,7 @@ const QuoteForm = ({
             return;
         }
 
-        // Calcular totales finales
-        const total = formData.items.reduce((sum, item) => sum + item.subtotal, 0);
-
+        // total is already calculated above
         const quotePayload = {
             ...formData,
             due_date: formData.due_date || null,

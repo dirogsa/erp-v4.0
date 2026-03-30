@@ -120,23 +120,24 @@ const Millones = (num) => {
 }
 
 export const numberToWords = (num, currency = 'PEN') => {
-    if (!num) return "";
+    if (num === undefined || num === null) return "";
     
     // Validar tipo
     const data = {
-        entero: Math.floor(num),
-        decimal: Math.round((num - Math.floor(num)) * 100),
+        entero: Math.floor(Math.abs(num)),
+        decimal: Math.round((Math.abs(num) - Math.floor(Math.abs(num))) * 100),
     };
 
     let currencyName = "";
-    if (currency === 'PEN') currencyName = "SOLES";
-    else if (currency === 'USD') currencyName = "DÓLARES AMERICANOS";
+    if (currency === 'PEN' || currency === 'SOLES') currencyName = "SOLES";
+    else if (currency === 'USD' || currency === 'DOLARES' || currency === 'DÓLARES') currencyName = "DÓLARES AMERICANOS";
+    else currencyName = currency;
 
     if (data.decimal < 10) data.decimal = `0${data.decimal}`;
 
     let words = Millones(data.entero);
     if(words.trim() === "") words = "CERO";
 
-    // Formato estándar: SON: [LETRAS] CON [DECIMALES]/100 [MONEDA]
-    return `${words} CON ${data.decimal}/100 ${currencyName}`;
+    // Formato estándar SUNAT: SON: [LETRAS] Y [DECIMALES]/100 [MONEDA]
+    return `SON: ${words} Y ${data.decimal}/100 ${currencyName}`;
 }

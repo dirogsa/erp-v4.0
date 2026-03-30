@@ -149,6 +149,42 @@
     margin-top: 10mm;
 }
 
+/* RFQ COMPACT MODE - Optimization for Inquiry Documents */
+.format-rfq .receipt-content {
+    font-size: 8.5px !important;
+}
+
+.format-rfq .receipt-header-container {
+    gap: 2mm !important;
+    margin-bottom: 2mm !important;
+}
+
+.format-rfq .receipt-top-section {
+    padding-bottom: 1.5mm !important;
+}
+
+.format-rfq .receipt-details-grid {
+    padding: 2mm 3mm !important;
+    gap: 2mm !important;
+}
+
+.format-rfq .receipt-body {
+    margin-top: 2mm !important;
+}
+
+.format-rfq .receipt-items-table th {
+    padding: 2mm 1.5mm !important;
+    font-size: 8px !important;
+}
+
+.format-rfq .receipt-items-table td {
+    padding: 1.5mm 1.5mm !important;
+}
+
+.format-rfq .receipt-product-name {
+    font-size: 9px !important;
+}
+
 .watermark-text {
     position: absolute;
     top: 50%;
@@ -244,7 +280,7 @@
 .receipt-invoice-col {
     border: 2px solid #000;
     border-radius: 1mm;
-    padding: 3mm 5mm;
+    padding: 2mm 5mm;
     text-align: center;
     min-width: 50mm;
     background: #fafafa;
@@ -254,7 +290,7 @@
     font-size: 9px;
     font-weight: 800;
     line-height: 1.2;
-    margin-bottom: 1.5mm;
+    margin-bottom: 1mm;
     letter-spacing: 0.5px;
 }
 
@@ -399,24 +435,30 @@
 
 .receipt-items-table th:nth-child(1),
 .receipt-items-table td:nth-child(1) {
-    width: auto;
-    text-align: left;
+    width: 10mm;
+    text-align: center;
 }
 
 .receipt-items-table th:nth-child(2),
 .receipt-items-table td:nth-child(2) {
-    width: 15mm;
-    text-align: center;
+    width: 20mm;
+    text-align: left;
 }
 
 .receipt-items-table th:nth-child(3),
 .receipt-items-table td:nth-child(3) {
-    width: 25mm;
-    text-align: right;
+    width: auto;
+    text-align: left;
 }
 
 .receipt-items-table th:nth-child(4),
 .receipt-items-table td:nth-child(4) {
+    width: 20mm;
+    text-align: right;
+}
+
+.receipt-items-table th:nth-child(5),
+.receipt-items-table td:nth-child(5) {
     width: 25mm;
     text-align: right;
 }

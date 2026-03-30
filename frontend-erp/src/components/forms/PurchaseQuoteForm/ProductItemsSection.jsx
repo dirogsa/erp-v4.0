@@ -1,175 +1,270 @@
-import React, { useState, useEffect } from 'react';
-import Input from '../../common/Input';
+import React, { useState, useEffect, useRef } from 'react';
 import Button from '../../common/Button';
 import Table from '../../common/Table';
-import ProductSearchInput from '../../common/ProductSearchInput';
-import { useProducts } from '../../../hooks/useProducts';
+import { inventoryService } from '../../../services/api';
 import { formatCurrency } from '../../../utils/formatters';
+import PurchaseQuickImportModal from '../../features/purchasing/PurchaseQuickImportModal';
 
 const ProductItemsSection = ({
     items = [],
     onItemsChange,
     readOnly = false,
-    isPurchase = false
+    showPrices = false
 }) => {
-    // Keep for initial load if needed, but search handles it
-    const { } = useProducts();
-    const [selectedProduct, setSelectedProduct] = useState(null);
-    const [quantity, setQuantity] = useState(1);
-    const [unitCost, setUnitCost] = useState(0);
+    const [rows, setRows] = useState([]);
+    const [searchResults, setSearchResults] = useState([]);
+    const [activeSearchRow, setActiveSearchRow] = useState(null);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [importModalVisible, setImportModalVisible] = useState(false);
+    
+    const gridRef = useRef([]);
 
-    const [searchKey, setSearchKey] = useState(0);
-
-    // When product selected, update suggested cost
+    // Sync items from parent to rows
     useEffect(() => {
-        if (selectedProduct) {
-            // For purchase, we might default to 0 or last cost. 
-            // selectedProduct might have a 'cost' field from DB.
-            setUnitCost(selectedProduct.cost || 0);
+        if (!items || items.length === 0) {
+            setRows([{ _id: Date.now(), product_sku: '', product_name: '', quantity: 1, unit_cost: 0, subtotal: 0, is_custom: false }]);
+        } else {
+            setRows(items.map((item, idx) => ({
+                ...item,
+                _id: item._id || Date.now() + idx
+            })).concat(readOnly ? [] : [{ _id: Date.now() + 9999, product_sku: '', product_name: '', quantity: 1, unit_cost: 0, subtotal: 0, is_custom: false }]));
         }
-    }, [selectedProduct]);
+    }, [items.length, readOnly]);
 
-    const handleAddItem = () => {
-        if (!selectedProduct || quantity <= 0 || unitCost < 0) return;
+    const updateParent = (currentRows) => {
+        const validItems = currentRows.filter(r => 
+            (r.product_sku && r.product_sku.trim() !== '') || 
+            (r.product_name && r.product_name.trim() !== '')
+        );
+        onItemsChange(validItems);
+    };
 
-        const newItem = {
-            product_sku: selectedProduct.sku,
-            product_name: selectedProduct.name,
-            quantity: parseInt(quantity),
-            unit_cost: parseFloat(unitCost),
-            subtotal: parseInt(quantity) * parseFloat(unitCost)
+    const handleRowChange = (index, field, value) => {
+        const newRows = [...rows];
+        newRows[index] = { ...newRows[index], [field]: value };
+
+        if (field === 'quantity' || field === 'unit_cost') {
+            const q = parseFloat(newRows[index].quantity) || 0;
+            const c = parseFloat(newRows[index].unit_cost) || 0;
+            newRows[index].subtotal = q * c;
+        }
+
+        // If editing name manually, mark as custom
+        if (field === 'product_name') {
+            newRows[index].is_custom = true;
+        }
+
+        setRows(newRows);
+        updateParent(newRows);
+    };
+
+    const handleProductSearch = async (rowIndex, query) => {
+        const newRows = [...rows];
+        newRows[rowIndex] = { 
+            ...newRows[rowIndex], 
+            product_sku: query,
+            is_custom: true // Mark as custom while typing/searching
         };
+        setRows(newRows);
+        updateParent(newRows);
 
-        onItemsChange([...items, newItem]);
-
-        // Reset fields
-        setSelectedProduct(null);
-        setQuantity(1);
-        setUnitCost(0);
-        setSearchKey(prev => prev + 1); // Force reset of search input
-    };
-
-    const handleRemoveItem = (index) => {
-        const newItems = items.filter((_, i) => i !== index);
-        onItemsChange(newItems);
-    };
-
-    const handleCostChange = (index, newCost) => {
-        const updatedItems = [...items];
-        updatedItems[index].unit_cost = parseFloat(newCost);
-        updatedItems[index].subtotal = updatedItems[index].quantity * parseFloat(newCost);
-        onItemsChange(updatedItems);
-    };
-
-    const columns = [
-        { label: 'SKU', key: 'product_sku' },
-        { label: 'Producto', key: 'product_name' },
-        { label: 'Cantidad', key: 'quantity', align: 'center' },
-        {
-            label: 'Costo Unit.',
-            key: 'unit_cost',
-            align: 'right',
-            render: (val, row, index) => readOnly ? formatCurrency(val) : (
-                <input
-                    type="number"
-                    value={val}
-                    onChange={(e) => handleCostChange(index, e.target.value)}
-                    style={{
-                        width: '80px',
-                        padding: '0.25rem',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #334155',
-                        color: 'white',
-                        borderRadius: '0.25rem',
-                        textAlign: 'right'
-                    }}
-                    step="0.01"
-                />
-            )
-        },
-        {
-            label: 'Subtotal',
-            key: 'subtotal',
-            align: 'right',
-            render: (val) => formatCurrency(val)
-        },
-        !readOnly && {
-            label: 'Acciones',
-            key: 'actions',
-            align: 'center',
-            render: (_, row, index) => (
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                    <Button
-                        variant="danger"
-                        size="small"
-                        onClick={() => handleRemoveItem(index)}
-                        title="Eliminar"
-                    >
-                        ✕
-                    </Button>
-                </div>
-            )
+        if (query.length >= 3) {
+            setActiveSearchRow(rowIndex);
+            setSearchLoading(true);
+            try {
+                const res = await inventoryService.getProducts(1, 10, query);
+                setSearchResults(res.data.items);
+            } catch (err) {
+                setSearchResults([]);
+            } finally {
+                setSearchLoading(false);
+            }
+        } else {
+            setActiveSearchRow(null);
         }
-    ].filter(Boolean);
+    };
+
+    const selectProduct = (rowIndex, product) => {
+        const newRows = [...rows];
+        newRows[rowIndex] = {
+            ...newRows[rowIndex],
+            product_sku: product.sku,
+            product_name: product.name,
+            unit_cost: product.cost || 0,
+            subtotal: (product.cost || 0) * (newRows[rowIndex].quantity || 1),
+            is_custom: false
+        };
+        setRows(newRows);
+        setActiveSearchRow(null);
+
+        if (rowIndex === rows.length - 1) {
+            addRow();
+        }
+        updateParent(newRows);
+    };
+
+    const addRow = () => {
+        setRows(prev => [...prev, { _id: Date.now(), product_sku: '', product_name: '', quantity: 1, unit_cost: 0, subtotal: 0, is_custom: false }]);
+    };
+
+    const removeRow = (index) => {
+        const newRows = rows.filter((_, i) => i !== index);
+        if (newRows.length === 0 && !readOnly) {
+            newRows.push({ _id: Date.now(), product_sku: '', product_name: '', quantity: 1, unit_cost: 0, subtotal: 0, is_custom: false });
+        }
+        setRows(newRows);
+        updateParent(newRows);
+    };
+
+    const handleImport = (importedItems) => {
+        const currentValidRows = rows.filter(r => r.product_sku);
+        const newRows = [...currentValidRows, ...importedItems.map((item, idx) => ({ ...item, _id: Date.now() + idx }))];
+        if (!readOnly) {
+            newRows.push({ _id: Date.now() + 9999, product_sku: '', product_name: '', quantity: 1, unit_cost: 0, subtotal: 0, is_custom: false });
+        }
+        setRows(newRows);
+        updateParent(newRows);
+    };
+
+    const handleExportCopy = () => {
+        const validRows = rows.filter(r => r.product_sku && r.product_sku.trim() !== '');
+        if (validRows.length === 0) return;
+        const header = ["Cant.", "SKU", "Producto", ...(showPrices ? ["Costo Unit.", "Subtotal"] : [])].join('\t');
+        const body = validRows.map(r => [
+            r.quantity,
+            r.product_sku, 
+            r.product_name, 
+            ...(showPrices ? [r.unit_cost, r.subtotal] : [])
+        ].join('\t')).join('\n');
+        navigator.clipboard.writeText(`${header}\n${body}`);
+    };
 
     return (
-        <div style={{
-            padding: '1.5rem',
-            backgroundColor: '#1e293b',
-            borderRadius: '0.5rem',
-            marginBottom: '1.5rem'
-        }}>
-            <h3 style={{ marginBottom: '1rem', color: '#e2e8f0', fontSize: '1.1rem' }}>
-                Productos
-            </h3>
-
-            {!readOnly && (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '2fr 1fr 1fr auto',
-                    gap: '1rem',
-                    alignItems: 'end',
-                    marginBottom: '1.5rem',
-                    padding: '1rem',
-                    backgroundColor: '#0f172a',
-                    borderRadius: '0.375rem'
-                }}>
-                    <ProductSearchInput
-                        key={searchKey}
-                        onSelect={setSelectedProduct}
-                        label="Producto (escriba 3 letras)"
-                    />
-                    <Input
-                        label="Cantidad"
-                        type="number"
-                        value={quantity}
-                        onChange={(e) => setQuantity(e.target.value)}
-                        min="1"
-                    />
-                    <Input
-                        label="Costo Unit."
-                        type="number"
-                        value={unitCost}
-                        onChange={(e) => setUnitCost(e.target.value)}
-                        min="0"
-                        step="0.01"
-                    />
-                    <div style={{ marginBottom: '1rem' }}>
-                        <Button
-                            onClick={handleAddItem}
-                            disabled={!selectedProduct}
-                            variant="success"
-                        >
-                            Agregar
+        <div style={{ backgroundColor: '#1e293b', borderRadius: '0.5rem', padding: '1.25rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 style={{ margin: 0, color: '#e2e8f0', fontSize: '1.1rem' }}>
+                    {showPrices ? 'Cotización de Compra' : 'Solicitud de Cotización (RFQ)'}
+                </h3>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {!readOnly && (
+                        <Button variant="secondary" size="small" onClick={() => setImportModalVisible(true)} style={{ fontSize: '0.8rem' }}>
+                            🚀 Importar Excel
                         </Button>
-                    </div>
+                    )}
+                    <Button variant="secondary" size="small" onClick={handleExportCopy} style={{ fontSize: '0.8rem', backgroundColor: '#334155' }}>
+                        📋 Copiar a Excel
+                    </Button>
                 </div>
-            )}
+            </div>
 
-            <Table
-                columns={columns}
-                data={items}
-                emptyMessage="No hay productos agregados"
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                <thead>
+                    <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', textAlign: 'left' }}>
+                        <th style={{ padding: '0.75rem', width: '8%', textAlign: 'center' }}>Cant.</th>
+                        <th style={{ padding: '0.75rem', width: '20%' }}>SKU / Código</th>
+                        <th style={{ padding: '0.75rem', width: showPrices ? '32%' : '62%' }}>Nombre del Producto</th>
+                        {showPrices && (
+                            <>
+                                <th style={{ padding: '0.75rem', width: '15%', textAlign: 'right' }}>Costo Unit.</th>
+                                <th style={{ padding: '0.75rem', width: '15%', textAlign: 'right' }}>Total</th>
+                            </>
+                        )}
+                        {!readOnly && <th style={{ padding: '0.75rem', width: '10%', textAlign: 'center' }}>Acc.</th>}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row, index) => (
+                        <tr key={row._id} style={{ borderBottom: '1px solid #1e293b' }}>
+                            <td style={{ padding: '0.5rem' }}>
+                                <input
+                                    type="number"
+                                    value={row.quantity}
+                                    onChange={(e) => handleRowChange(index, 'quantity', e.target.value)}
+                                    style={{ width: '100%', padding: '0.5rem', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '0.25rem', color: 'white', textAlign: 'center' }}
+                                    readOnly={readOnly}
+                                />
+                            </td>
+                            <td style={{ padding: '0.5rem', position: 'relative' }}>
+                                {readOnly ? (
+                                    <div style={{ color: '#cbd5e1', fontSize: '0.85rem' }}>{row.product_sku}</div>
+                                ) : (
+                                    <>
+                                        <input
+                                            type="text"
+                                            value={row.product_sku}
+                                            onChange={(e) => handleProductSearch(index, e.target.value)}
+                                            placeholder="SKU..."
+                                            style={{ width: '100%', padding: '0.5rem', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '0.25rem', color: 'white' }}
+                                        />
+                                        {row.is_custom && <div style={{ fontSize: '0.6rem', color: '#eab308', marginTop: '2px' }}>⚠️ NUEVO</div>}
+                                        
+                                        {activeSearchRow === index && searchResults.length > 0 && (
+                                            <div style={{ position: 'absolute', top: '100%', left: 0, width: '200%', zIndex: 100, backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '0.375rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)', maxHeight: '200px', overflowY: 'auto' }}>
+                                                {searchResults.map(p => (
+                                                    <div key={p.sku} onClick={() => selectProduct(index, p)} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid #334155', color: 'white', transition: 'background 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor='#334155'} onMouseLeave={(e) => e.target.style.backgroundColor='transparent'}>
+                                                        <div style={{ fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
+                                                            <span>{p.sku}</span>
+                                                            <span style={{ fontSize: '0.7rem', color: '#10b981' }}>{formatCurrency(p.cost)}</span>
+                                                        </div>
+                                                        <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>{p.name}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </td>
+                            <td style={{ padding: '0.5rem' }}>
+                                {readOnly ? (
+                                    <div style={{ color: 'white' }}>{row.product_name}</div>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        value={row.product_name}
+                                        onChange={(e) => handleRowChange(index, 'product_name', e.target.value)}
+                                        placeholder="Nombre del producto..."
+                                        style={{ 
+                                            width: '100%', 
+                                            padding: '0.5rem', 
+                                            backgroundColor: '#1e293b', 
+                                            border: '1px solid #334155', 
+                                            borderRadius: '0.25rem', 
+                                            color: row.is_custom ? '#eab308' : 'white',
+                                            fontStyle: row.is_custom ? 'italic' : 'normal'
+                                        }}
+                                    />
+                                )}
+                            </td>
+                            {showPrices && (
+                                <>
+                                    <td style={{ padding: '0.5rem' }}>
+                                        <input
+                                            type="number"
+                                            value={row.unit_cost}
+                                            onChange={(e) => handleRowChange(index, 'unit_cost', e.target.value)}
+                                            style={{ width: '100%', padding: '0.5rem', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '0.25rem', color: 'white', textAlign: 'right' }}
+                                            readOnly={readOnly}
+                                        />
+                                    </td>
+                                    <td style={{ padding: '0.5rem', textAlign: 'right', color: '#cbd5e1', fontWeight: 'bold' }}>
+                                        {formatCurrency(row.subtotal)}
+                                    </td>
+                                </>
+                            )}
+                            {!readOnly && (
+                                <td style={{ textAlign: 'center' }}>
+                                    <button onClick={() => removeRow(index)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1.25rem' }}>&times;</button>
+                                </td>
+                            )}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+
+            <PurchaseQuickImportModal
+                visible={importModalVisible}
+                onClose={() => setImportModalVisible(false)}
+                onImport={handleImport}
             />
         </div>
     );

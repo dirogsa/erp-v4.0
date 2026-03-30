@@ -8,6 +8,7 @@ const PurchaseQuotesTable = ({
     quotes = [],
     loading = false,
     onView,
+    onEdit,
     onConvert,
     onDelete
 }) => {
@@ -48,20 +49,27 @@ const PurchaseQuotesTable = ({
                         <>
                             <Button
                                 size="small"
+                                variant="warning"
+                                onClick={(e) => { e.stopPropagation(); onEdit(quote); }}
+                            >
+                                Editar
+                            </Button>
+                            <Button
+                                size="small"
                                 variant="success"
                                 onClick={(e) => { e.stopPropagation(); onConvert(quote); }}
                             >
                                 Convertir
                             </Button>
-                            <Button
-                                size="small"
-                                variant="danger"
-                                onClick={(e) => { e.stopPropagation(); onDelete(quote); }}
-                            >
-                                Eliminar
-                            </Button>
                         </>
                     )}
+                    <Button
+                        size="small"
+                        variant="danger"
+                        onClick={(e) => { e.stopPropagation(); onDelete(quote); }}
+                    >
+                        Eliminar
+                    </Button>
                 </div>
             )
         }

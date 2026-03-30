@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Input from '../../common/Input';
-import Button from '../../common/Button';
-import Select from '../../common/Select'; // Assuming we have a Select component
+import Select from '../../common/Select';
 import { useSuppliers } from '../../../hooks/useSuppliers';
-import { useNotification } from '../../../hooks/useNotification';
 
 const SupplierSelector = ({
     value,
@@ -12,7 +10,6 @@ const SupplierSelector = ({
     required = false
 }) => {
     const { suppliers, loading } = useSuppliers();
-    const { showNotification } = useNotification();
 
     // Transform suppliers for Select component
     const supplierOptions = suppliers.map(s => ({
@@ -29,12 +26,13 @@ const SupplierSelector = ({
             onChange({
                 ...value,
                 name: selectedSupplier.name,
+                ruc: selectedSupplier.ruc || '',
                 email: selectedSupplier.email || '',
                 phone: selectedSupplier.phone || '',
                 address: selectedSupplier.address || ''
             });
         } else {
-            // Allow custom input or clear
+            // Allow custom input
             onChange({
                 ...value,
                 name: selectedName
@@ -44,31 +42,66 @@ const SupplierSelector = ({
 
     return (
         <div style={{
-            padding: '1.5rem',
+            padding: '1.25rem',
             backgroundColor: '#1e293b',
             borderRadius: '0.5rem',
-            marginBottom: '1.5rem'
+            marginBottom: '1rem',
+            border: '1px solid #334155'
         }}>
             <h3 style={{ marginBottom: '1rem', color: '#e2e8f0', fontSize: '1.1rem' }}>
-                Datos del Proveedor
+                🏢 Datos del Proveedor
             </h3>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <Select
-                    label="Proveedor"
+                    label="Nombre Comercial / Razón Social"
                     value={value?.name || ''}
                     onChange={handleSupplierSelect}
                     options={supplierOptions}
                     disabled={readOnly || loading}
                     required={required}
-                    placeholder="Seleccione un proveedor"
+                    placeholder="Busque o seleccione su proveedor..."
                 />
 
                 <Input
-                    label="Email"
+                    label="RUC / Tax ID"
+                    value={value?.ruc || ''}
+                    onChange={(e) => onChange({ ...value, ruc: e.target.value })}
+                    disabled={readOnly}
+                    placeholder="R.U.C. del proveedor"
+                />
+
+                <Input
+                    label="Email de Contacto"
                     value={value?.email || ''}
                     onChange={(e) => onChange({ ...value, email: e.target.value })}
                     disabled={readOnly}
+                    placeholder="proveedor@ejemplo.com"
+                />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <label style={{ 
+                    fontSize: '0.85rem', 
+                    fontWeight: '600', 
+                    color: '#94a3b8', 
+                    marginBottom: '0.5rem' 
+                }}>Dirección Fiscal</label>
+                <input
+                    type="text"
+                    value={value?.address || ''}
+                    onChange={(e) => onChange({ ...value, address: e.target.value })}
+                    disabled={readOnly}
+                    placeholder="Dirección completa del proveedor..."
+                    style={{
+                        padding: '0.5rem 0.75rem',
+                        backgroundColor: '#0f172a',
+                        border: '1px solid #334155',
+                        borderRadius: '0.375rem',
+                        color: 'white',
+                        fontSize: '0.9rem',
+                        outline: 'none'
+                    }}
                 />
             </div>
         </div>

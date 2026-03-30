@@ -19,7 +19,10 @@ const ReceiptHeader = ({
     requestedBy,
     currency = "SOLES",
     amountInWords = "",
-    paymentTerms
+    paymentTerms,
+    showPrices = true,
+    showBankAccounts = true,
+    partyType = "Cliente"
 }) => {
     // Helper to format payment type
     const getPaymentType = () => {
@@ -45,7 +48,7 @@ const ReceiptHeader = ({
                     <div className="company-name">{companyName}</div>
                     <div className="company-details">{companyAddress}</div>
                     <div className="company-details">Tel: {companyPhone}</div>
-                    {(companyAccountSoles || companyAccountDollars) && (
+                    {(companyAccountSoles || companyAccountDollars) && showBankAccounts && (
                         <div className="company-details" style={{ marginTop: '4px', fontSize: '9px' }}>
                             <div><strong>{companyBankName}:</strong></div>
                             {companyAccountSoles && <div>S/: {companyAccountSoles}</div>}
@@ -62,9 +65,11 @@ const ReceiptHeader = ({
                     <div className="invoice-ruc">
                         RUC: {companyRuc}
                     </div>
-                    <div className="invoice-number">
-                        {documentNumber ? `N° ${documentNumber}` : ''}
-                    </div>
+                    {documentNumber && (
+                        <div className="invoice-number">
+                           N° {documentNumber}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -73,7 +78,7 @@ const ReceiptHeader = ({
                 {/* Columna Izquierda: Cliente (Priority) */}
                 <div className="receipt-customer-col">
                     <div className="customer-row">
-                        <span className="label">Cliente:</span>
+                        <span className="label">{partyType}:</span>
                         <span className="value">{customerName || '-'}</span>
                     </div>
                     {/* RUC Row - No Bold */}
@@ -103,20 +108,23 @@ const ReceiptHeader = ({
                         <span className="label">Fecha:</span>
                         <span className="value">{formatDate(documentDate)}</span>
                     </div>
-                    <div className="meta-row">
-                        <span className="label">Moneda:</span>
-                        <span className="value">{currency}</span>
-                    </div>
-                    {/* Payment Info Added */}
-                    <div className="meta-row">
-                        <span className="label">Pago:</span>
-                        <span className="value">{getPaymentType()}</span>
-                    </div>
+                    {showPrices && (
+                        <>
+                            <div className="meta-row">
+                                <span className="label">Moneda:</span>
+                                <span className="value">{currency}</span>
+                            </div>
+                            <div className="meta-row">
+                                <span className="label">Pago:</span>
+                                <span className="value">{getPaymentType()}</span>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
             {/* Monto en letras - Ultra compacto */}
-            {amountInWords && (
+            {amountInWords && showPrices && (
                 <div className="receipt-amount-words">
                     <strong>SON:</strong> {amountInWords}
                 </div>

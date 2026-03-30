@@ -387,6 +387,7 @@ async def update_supplier(id: PydanticObjectId, supplier_data: Supplier) -> Supp
         raise NotFoundException("Supplier", str(id))
     
     supplier.name = supplier_data.name
+    supplier.ruc = supplier_data.ruc
     supplier.email = supplier_data.email
     supplier.phone = supplier_data.phone
     supplier.address = supplier_data.address

@@ -3,7 +3,14 @@ import SupplierSelector from './SupplierSelector';
 import QuoteSummary from '../QuoteForm/QuoteSummary'; // Reuse QuoteSummary
 import Button from '../../common/Button';
 import { useNotification } from '../../../hooks/useNotification';
-import ProductItemsSection from './ProductItemsSection'; // Need to check if I can reuse or create new
+import ProductItemsSection from './ProductItemsSection';
+import { numberToWords } from '../../../utils/numberToWords';
+import { useCompany } from '../../../context/CompanyContext';
+
+const formatDateForInput = (dateString) => {
+    if (!dateString) return new Date().toISOString().split('T')[0];
+    return dateString.split('T')[0];
+};
 
 const PurchaseQuoteForm = ({
     initialData = null,
@@ -21,11 +28,13 @@ const PurchaseQuoteForm = ({
             phone: '',
             address: ''
         },
+        date: new Date().toISOString().split('T')[0],
         delivery_date: '',
         currency: 'SOLES',
         items: [],
         notes: '',
         amount_in_words: '',
+        show_prices: false,
         ...initialData
     });
 
@@ -61,6 +70,18 @@ const PurchaseQuoteForm = ({
         }));
     };
 
+    const total = formData.items.reduce((sum, item) => sum + (item.quantity * (item.unit_cost || 0)), 0);
+
+    // Auto-update amount in words
+    useEffect(() => {
+        if (!readOnly) {
+            const words = numberToWords(total, formData.currency);
+            setFormData(prev => ({ ...prev, amount_in_words: words }));
+        }
+    }, [total, formData.currency, readOnly]);
+
+    const { activeCompany } = useCompany();
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -74,12 +95,15 @@ const PurchaseQuoteForm = ({
             return;
         }
 
-        const total = formData.items.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
-
+        // Prepare the payload with denormalized supplier info for the backend
         const quotePayload = {
             ...formData,
             items: formData.items,
-            total_amount: total
+            total_amount: total,
+            supplier_ruc: formData.supplier?.ruc,
+            supplier_address: formData.supplier?.address,
+            supplier_email: formData.supplier?.email,
+            issuer_info: activeCompany // Save which company is creating this
         };
 
         onSubmit(quotePayload);
@@ -93,14 +117,14 @@ const PurchaseQuoteForm = ({
                 borderRadius: '0.5rem',
                 marginBottom: '1rem',
                 display: 'grid',
-                gridTemplateColumns: 'minmax(200px, 1fr) 150px',
+                gridTemplateColumns: '1.5fr 1fr 1.5fr',
                 gap: '1rem'
             }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <label style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Fecha de Solicitud</label>
                     <input
                         type="date"
-                        value={formData.date || new Date().toISOString().split('T')[0]}
+                        value={formatDateForInput(formData.date)}
                         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                         disabled={readOnly}
                         style={{
@@ -131,6 +155,25 @@ const PurchaseQuoteForm = ({
                         <option value="DOLARES">$ Dólares</option>
                     </select>
                 </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <label style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Tipo de Consulta</label>
+                    <select
+                        value={formData.show_prices ? 'WITH_PRICE' : 'ONLY_LIST'}
+                        onChange={(e) => setFormData({ ...formData, show_prices: e.target.value === 'WITH_PRICE' })}
+                        disabled={readOnly}
+                        style={{
+                            padding: '0.5rem',
+                            backgroundColor: '#0f172a',
+                            border: '1px solid #334155',
+                            borderRadius: '0.25rem',
+                            color: 'white',
+                            outline: 'none'
+                        }}
+                    >
+                        <option value="ONLY_LIST">📝 Solo Lista (Solicitar Precios)</option>
+                        <option value="WITH_PRICE">💰 Con Precios (Registrar Respuesta)</option>
+                    </select>
+                </div>
             </div>
 
             <SupplierSelector
@@ -144,27 +187,29 @@ const PurchaseQuoteForm = ({
                 items={formData.items}
                 onItemsChange={handleItemsChange}
                 readOnly={readOnly}
-                isPurchase={true} // Specify it's for purchase (uses Cost instead of Price)
+                showPrices={formData.show_prices}
             />
 
-            <div style={{ marginTop: '1rem' }}>
-                <label style={{ display: 'block', color: '#3b82f6', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem' }}>Importe en Letras (Legal)</label>
-                <input
-                    type="text"
-                    value={formData.amount_in_words || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, amount_in_words: e.target.value.toUpperCase() }))}
-                    placeholder="Ej: SON: CIENTO NOVENTA Y OCHO Y 00/100 SOLES"
-                    disabled={readOnly}
-                    style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        backgroundColor: '#0f172a',
-                        border: '1px solid #3b82f644',
-                        borderRadius: '0.25rem',
-                        color: 'white'
-                    }}
-                />
-            </div>
+            {formData.show_prices && (
+                <div style={{ marginTop: '1rem' }}>
+                    <label style={{ display: 'block', color: '#3b82f6', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem' }}>Importe en Letras (Legal)</label>
+                    <input
+                        type="text"
+                        value={formData.amount_in_words || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, amount_in_words: e.target.value.toUpperCase() }))}
+                        placeholder="Ej: SON: CIENTO NOVENTA Y OCHO Y 00/100 SOLES"
+                        disabled={readOnly}
+                        style={{
+                            width: '100%',
+                            padding: '0.5rem',
+                            backgroundColor: '#0f172a',
+                            border: '1px solid #3b82f644',
+                            borderRadius: '0.25rem',
+                            color: 'white'
+                        }}
+                    />
+                </div>
+            )}
 
             <div style={{ marginTop: '1rem' }}>
                 <label style={{ display: 'block', color: '#94a3b8', marginBottom: '0.5rem' }}>Notas</label>
@@ -184,9 +229,11 @@ const PurchaseQuoteForm = ({
                 />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <QuoteSummary items={formData.items} isPurchase={true} currency={formData.currency} />
-            </div>
+            {formData.show_prices && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                    <QuoteSummary items={formData.items} isPurchase={true} currency={formData.currency} />
+                </div>
+            )}
 
             {!readOnly && (
                 <div style={{

@@ -7,6 +7,7 @@ import PaymentInfoSection from '../OrderForm/PaymentInfoSection'; // Reuse from 
 import { useNotification } from '../../../hooks/useNotification';
 import { formatCurrency } from '../../../utils/formatters';
 import { useCompany } from '../../../context/CompanyContext';
+import { numberToWords } from '../../../utils/numberToWords';
 
 const InvoiceForm = ({
     order,
@@ -58,6 +59,14 @@ const InvoiceForm = ({
     }, [order]);
 
     const totalToInvoice = selectedItems.reduce((sum, item) => sum + (item.qty_to_invoice * item.unit_price), 0);
+
+    // Auto-update amount in words
+    useEffect(() => {
+        if (!loading) {
+            const words = numberToWords(totalToInvoice, order?.currency || 'PEN');
+            setFormData(prev => ({ ...prev, amount_in_words: words }));
+        }
+    }, [totalToInvoice, order?.currency, loading]);
 
     const isPurchase = type === 'purchase';
     const entityLabel = isPurchase ? 'Proveedor' : 'Cliente';
