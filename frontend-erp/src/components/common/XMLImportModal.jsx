@@ -135,11 +135,21 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                                         {batchData.map((doc, idx) => (
                                             <tr key={idx} style={{ borderBottom: '1px solid #1e293b' }}>
                                                 <td style={{ padding: '0.85rem 1rem' }}>
-                                                    <div style={{ fontWeight: '700', color: 'white' }}>{doc.document_number}</div>
+                                                    <div style={{ fontWeight: '700', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        {doc.document_number}
+                                                        {doc.document_type === 'CREDIT_NOTE' && (
+                                                            <span style={{ backgroundColor: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem' }}>NOTA DE CRÉDITO</span>
+                                                        )}
+                                                    </div>
+                                                    {doc.document_type === 'CREDIT_NOTE' && doc.related_document && (
+                                                        <div style={{ fontSize: '0.75rem', color: '#fca5a5', marginTop: '2px' }}>Aplica a: {doc.related_document}</div>
+                                                    )}
                                                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{doc.supplier.name} ({doc.supplier.ruc})</div>
                                                 </td>
                                                 <td style={{ textAlign: 'center', padding: '1rem', color: '#cbd5e1' }}>{doc.date}</td>
-                                                <td style={{ textAlign: 'right', padding: '1rem', fontWeight: '800', color: '#60a5fa' }}>{formatCurrency(doc.total_amount)}</td>
+                                                <td style={{ textAlign: 'right', padding: '1rem', fontWeight: '800', color: doc.document_type === 'CREDIT_NOTE' ? '#ef4444' : '#60a5fa' }}>
+                                                    {doc.document_type === 'CREDIT_NOTE' ? '-' : ''}{formatCurrency(doc.total_amount)}
+                                                </td>
                                                 <td style={{ textAlign: 'center', padding: '1rem' }}>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); setBatchData(prev => prev.filter((_, i) => i !== idx)); }}

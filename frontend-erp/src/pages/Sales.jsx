@@ -821,13 +821,69 @@ const Sales = () => {
                 visible={showXMLImportModal}
                 onClose={() => setShowXMLImportModal(false)}
                 type="SALES"
-                onConfirm={(batch) => {
-                    if (batch.length === 1) {
-                        setSelectedXmlForReview(batch[0]);
+                onConfirm={async (batch) => {
+                    const creditNotes = batch.filter(d => d.document_type === 'CREDIT_NOTE');
+                    const regularDocs = batch.filter(d => d.document_type !== 'CREDIT_NOTE');
+
+                    if (creditNotes.length > 0) {
+                        for (const cn of creditNotes) {
+                            if (!cn.related_document) {
+                                alert(`❌ La Nota de Crédito ${cn.document_number} no tiene un documento original de referencia en el XML y no puede ser procesada automáticamente.`);
+                                continue;
+                            }
+                            
+                            // Analizar el código de SUNAT (Catálogo 09) para inferir la acción de inventario
+                            let isReturn = false;
+                            let userInteractionNeeded = true;
+                            const sunatCode = cn.discrepancy_code;
+                            const sunatReason = cn.discrepancy_reason || 'Sin descripción';
+                            
+                            // Detectar automáticamente basado en los códigos más certeros (SUNAT UBL 2.1)
+                            if (sunatCode === '06' || sunatCode === '07') {
+                                // 06: Devolución total, 07: Devolución por ítem
+                                isReturn = true;
+                                userInteractionNeeded = window.confirm(`📌 NOTA DE CRÉDITO XML: ${cn.document_number}\n\nSUNAT indica: "${sunatReason}" (Código ${sunatCode})\n\nEl sistema la marcará como DEVOLUCIÓN DE INVENTARIO automáticamente.\n\n¿Desea proceder y que el stock retorne a almacén?`);
+                                if (!userInteractionNeeded) continue; // Canceló
+                                userInteractionNeeded = false; // Ya resolvió
+                            } else if (sunatCode === '04' || sunatCode === '05') {
+                                // 04: Descuento global, 05: Descuento por ítem
+                                isReturn = false;
+                                userInteractionNeeded = window.confirm(`📌 NOTA DE CRÉDITO XML: ${cn.document_number}\n\nSUNAT indica: "${sunatReason}" (Código ${sunatCode})\n\nEl sistema aplicará la nota puramente a nivel FINANCIERO (no devolverá stock, ya que es un descuento).\n\n¿Desea proceder?`);
+                                if (!userInteractionNeeded) continue; // Canceló
+                                userInteractionNeeded = false;
+                            }
+                            
+                            // Si es Anulación (01), Cancelación (02), etc., requerir confirmación explícita
+                            if (userInteractionNeeded) {
+                                isReturn = window.confirm(`📌 NOTA DE CRÉDITO XML DETECTADA\nDocumento: ${cn.document_number}\nAplica a Factura: ${cn.related_document}\n\nMotivo SUNAT: "${sunatReason}"\n\nDebido a que este motivo puede o no implicar que la mercadería retornó, ¿Desea que el sistema REINGRESE físicamente el stock de estos ítems al almacén?\n\n[ACEPTAR] = Sí, reingresar stock.\n[CANCELAR] = No, es un ajuste solo monetario/error.`);
+                            }
+                            
+                            try {
+                                const payload = {
+                                    items: cn.items.map(i => ({ 
+                                        product_sku: i.product_sku, 
+                                        quantity: Math.round(i.quantity) || 1 
+                                    })),
+                                    reason: isReturn ? 'RETURN' : 'ERROR',
+                                    notes: `Importado de XML SUNAT: ${cn.document_number}. Emisor: ${cn.supplier?.name}`
+                                };
+                                await createNote(cn.related_document, 'CREDIT', payload);
+                                alert(`✅ Nota de Crédito ${cn.document_number} registrada y vinculada a la factura ${cn.related_document}.`);
+                            } catch (e) {
+                                alert(`⚠️ Error al procesar la NC ${cn.document_number}:\n\n- Asegúrate de que la factura origen (${cn.related_document}) ya esté importada en el ERP.\n- Asegúrate de que las cantidades de la nota no superen las de la factura original.`);
+                            }
+                        }
+                    }
+
+                    if (regularDocs.length === 1) {
+                        setSelectedXmlForReview(regularDocs[0]);
+                        setShowXMLImportModal(false);
+                    } else if (regularDocs.length > 1) {
+                        setXmlBatch(regularDocs);
                         setShowXMLImportModal(false);
                     } else {
-                        setXmlBatch(batch);
-                        setShowXMLImportModal(false);
+                        // Triggers closure if only credit notes were processed
+                        setShowXMLImportModal(false); 
                     }
                 }}
             />

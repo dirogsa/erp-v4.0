@@ -62,11 +62,36 @@ export const parseUBLXml = (xmlString) => {
         return getTagText(party, 'cbc:Line');
     };
 
-    // 1. Basic Info
+    // 1. Basic Info & Document Type
     const documentId = getTagText(xmlDoc, 'cbc:ID');
     const issueDate = getTagText(xmlDoc, 'cbc:IssueDate');
     const currencyRaw = getTagText(xmlDoc, 'cbc:DocumentCurrencyCode');
     const currency = currencyRaw === 'PEN' ? 'SOLES' : (currencyRaw === 'USD' ? 'DOLARES' : currencyRaw);
+    
+    // Check if it's a Credit Note
+    const isCreditNote = !!findElement(xmlDoc, 'CreditNote');
+    const documentType = isCreditNote ? 'CREDIT_NOTE' : 'INVOICE';
+
+    // 1.5 Billing Reference & Discrepancy (For Credit Notes)
+    let relatedDocument = null;
+    let discrepancyCode = null;
+    let discrepancyReason = null;
+
+    if (isCreditNote) {
+        // Obtenemos la factura a la que aplica
+        const billingRef = findElement(xmlDoc, 'cac:BillingReference');
+        if (billingRef) {
+            const invoiceRef = findElement(billingRef, 'cac:InvoiceDocumentReference');
+            relatedDocument = invoiceRef ? getTagText(invoiceRef, 'cbc:ID') : '';
+        }
+
+        // Obtenemos el Motivo SUNAT (Catálogo 09)
+        const discrepancy = findElement(xmlDoc, 'cac:DiscrepancyResponse');
+        if (discrepancy) {
+            discrepancyCode = getTagText(discrepancy, 'cbc:ResponseCode');
+            discrepancyReason = getTagText(discrepancy, 'cbc:Description');
+        }
+    }
 
     // 2. Supplier Info
     const supplierParty = findElement(xmlDoc, 'cac:AccountingSupplierParty');
@@ -84,9 +109,13 @@ export const parseUBLXml = (xmlString) => {
     const legalTotal = findElement(xmlDoc, 'cac:LegalMonetaryTotal');
     const totalAmount = parseFloat(getTagText(legalTotal, 'cbc:PayableAmount') || '0');
 
-    // 5. Items (InvoiceLine)
-    const lineElements = xmlDoc.getElementsByTagName('cac:InvoiceLine');
-    const lines = lineElements.length > 0 ? Array.from(lineElements) : Array.from(xmlDoc.getElementsByTagName('InvoiceLine'));
+    // 5. Items (InvoiceLine or CreditNoteLine)
+    let lineElements = xmlDoc.getElementsByTagName('cac:InvoiceLine');
+    if (lineElements.length === 0) lineElements = xmlDoc.getElementsByTagName('InvoiceLine');
+    if (lineElements.length === 0) lineElements = xmlDoc.getElementsByTagName('cac:CreditNoteLine');
+    if (lineElements.length === 0) lineElements = xmlDoc.getElementsByTagName('CreditNoteLine');
+
+    const lines = Array.from(lineElements);
 
     const items = lines.map(line => {
         const lineId = getTagText(line, 'cbc:ID');
@@ -104,7 +133,8 @@ export const parseUBLXml = (xmlString) => {
         if (!productSku) productSku = lineId;
 
         const productName = getTagText(line, 'cbc:Description');
-        const quantity = parseFloat(getTagText(line, 'cbc:InvoicedQuantity') || '0');
+        // In CreditNotes, quantity tag might be cbc:CreditedQuantity instead of cbc:InvoicedQuantity
+        const quantity = parseFloat(getTagText(line, 'cbc:InvoicedQuantity') || getTagText(line, 'cbc:CreditedQuantity') || '0');
 
         let priceIncTax = 0;
         let priceNet = parseFloat(getTagText(line, 'cbc:PriceAmount') || '0');
@@ -145,6 +175,10 @@ export const parseUBLXml = (xmlString) => {
     }
 
     return {
+        document_type: documentType,
+        related_document: relatedDocument,
+        discrepancy_code: discrepancyCode,
+        discrepancy_reason: discrepancyReason,
         document_number: documentId,
         date: issueDate,
         currency,
