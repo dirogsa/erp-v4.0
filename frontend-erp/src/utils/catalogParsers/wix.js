@@ -88,26 +88,55 @@ export const parseWix = (doc, domain) => {
         data.status = rawStatus === 'A' ? 'AVAILABLE' : 'DISCONTINUED';
     }
 
-    // 5. Galería de Imágenes (Extracción del JSON de Adobe)
-    const galleryEl = doc.querySelector('.cmp-product__gallery');
-    if (galleryEl) {
-        try {
-            const galleryData = JSON.parse(galleryEl.getAttribute('data-g-binding-gallery-items') || '[]');
-            data.image_gallery = galleryData.map(item => ({
-                label: item.label,
-                url: item.path,
-                is_dim: item.path.includes('-dim') || /dim/i.test(item.label)
-            }));
-            
-            // Priorizamos la imagen que no tenga el sufijo de caja si es posible
-            const mainImg = galleryData.find(i => !i.path.includes('box')) || galleryData[0];
-            if (mainImg) data.image_url = mainImg.path;
+    // 5. Galería de Imágenes (Extracción del JSON de Adobe + Escaneo Manual)
+    const gallerySection = doc.querySelector('.cmp-product__full-detail-image-carousel');
+    if (gallerySection) {
+        const galleryItems = [];
+        const foundUrls = new Set();
 
-            // Extraer plano técnico si existe en la galería
-            const dimImg = data.image_gallery.find(i => i.is_dim);
+        // Intento 1: JSON de Adobe (data-g-binding-gallery-items)
+        const galleryEl = gallerySection.querySelector('[data-g-binding-gallery-items]');
+        if (galleryEl) {
+            try {
+                const galleryData = JSON.parse(galleryEl.getAttribute('data-g-binding-gallery-items') || '[]');
+                galleryData.forEach(item => {
+                    if (item.path && !foundUrls.has(item.path)) {
+                        galleryItems.push({
+                            label: item.label || 'Producto',
+                            url: item.path,
+                            is_dim: item.path.includes('-dim') || /dim|plano/i.test(item.label)
+                        });
+                        foundUrls.add(item.path);
+                    }
+                });
+            } catch (e) {
+                console.warn("Error parsing Gallery JSON", e);
+            }
+        }
+
+        // Intento 2: Escaneo manual de cualquier <img> en el carrusel (Fuga de imágenes)
+        gallerySection.querySelectorAll('img.cmp-product__gallery-img').forEach(img => {
+            const src = img.getAttribute('src');
+            if (src && !foundUrls.has(src)) {
+                galleryItems.push({
+                    label: img.getAttribute('alt') || 'Vista adicional',
+                    url: src,
+                    is_dim: src.includes('-dim')
+                });
+                foundUrls.add(src);
+            }
+        });
+
+        if (galleryItems.length > 0) {
+            data.image_gallery = galleryItems;
+            
+            // Priorizamos la imagen principal (evitamos caja o plano técnico como main)
+            const mainImg = galleryItems.find(i => !i.url.includes('box') && !i.is_dim) || galleryItems[0];
+            if (mainImg) data.image_url = mainImg.url;
+
+            // Extraer plano técnico si existe
+            const dimImg = galleryItems.find(i => i.is_dim);
             if (dimImg) data.tech_drawing_url = dimImg.url;
-        } catch (e) {
-            console.warn("Error parsing Gallery JSON", e);
         }
     }
 
@@ -187,23 +216,132 @@ export const parseWix = (doc, domain) => {
         });
     }
 
-    // 8. OE-Numbers (Equivalencias Originales)
-    const oePanel = doc.querySelector('#oeNumbers');
-    if (oePanel) {
-        const rows = oePanel.querySelectorAll('.cmp-table table tr');
-        rows.forEach(row => {
-            const tds = row.querySelectorAll('td');
-            if (tds.length >= 2) {
-                const brand = tds[0].innerText.trim();
-                const code = tds[1].innerText.trim();
-                data.equivalences.push({
-                    brand,
-                    code,
-                    is_original: true // Por estar en la sección OE
+    // 8. OE-Numbers y Cross-References (Equivalencias) - REDISEÑO TOTAL PARA WIX GLOBAL/EU
+    const equivalents = [];
+
+    // Función auxiliar para limpiar y agregar equivalencia
+    const addEquivalence = (brandRaw, codeRaw, sourceLabel = "") => {
+        const brand = (brandRaw || "").trim().toUpperCase();
+        let code = (codeRaw || "").trim().toUpperCase(); // No quitamos espacios internos para no romper formatos OEM
+
+        if (!brand || !code || brand.length < 2 || code.length < 2) return;
+        
+        // Evitar capturar encabezados genéricos o ruido
+        const isHeader = /MARCA|BRAND|PRODUCENT|MAKER|NUMER|CODE|PART|REFERENCIA|EQUIVALENCIA/i.test(brand) || 
+                        /MARCA|BRAND|PRODUCENT|CODE|NUMER|PART|REFERENCIA/i.test(code);
+        if (isHeader) return;
+
+        // Evitar duplicados
+        if (!equivalents.some(e => e.brand === brand && e.code === code)) {
+            equivalents.push({
+                brand,
+                code,
+                is_original: sourceLabel.toUpperCase().includes('OE') || /FORD|VW|BOSCH|MANN/i.test(brand)
+            });
+        }
+    };
+
+    // Estrategia A: Secciones OE/CROSS identificadas por ID o Título de Acordeón
+    const sectionSelectors = [
+        '#oeNumbers', '#crossReferences', 
+        '[id*="oeNumbers"]', '[id*="crossReferences"]',
+        '[id*="oe-numbers"]', '[id*="cross-references"]'
+    ];
+    const sections = doc.querySelectorAll(sectionSelectors.join(','));
+    
+    sections.forEach(section => {
+        const sectionTitle = (section.querySelector('.cmp-accordion__title')?.textContent || section.id || "OE").toUpperCase();
+        
+        // 1. Caso: Acordeón anidado (Wix Europe/Global)
+        // Estructura: #oeNumbers -> .cmp-accordion__item (Brand) -> .cmp-text (Codes list li)
+        const nestedItems = section.querySelectorAll('.cmp-accordion__item');
+        if (nestedItems.length > 0) {
+            nestedItems.forEach(item => {
+                const brandName = item.querySelector('.cmp-accordion__title')?.textContent?.trim();
+                if (!brandName) return;
+
+                // Buscar celdas en tablas, grid, o listas (MODIFICADO: Agregamos li, p, span)
+                const codes = item.querySelectorAll('td, li, p, span, .aem-GridColumn');
+                codes.forEach(node => {
+                    // Solo tomamos nodos que sean hijos directos del contenido o list-items
+                    // Evitamos procesar el título de la marca como código
+                    const text = node.textContent.trim();
+                    if (text && text !== brandName && text.length > 2 && text.length < 50) {
+                        // Si el nodo tiene muchos hijos, probablemente no sea el código directamente
+                        if (node.children.length > 1 && !node.classList.contains('aem-GridColumn')) return;
+                        
+                        addEquivalence(brandName, text, sectionTitle);
+                    }
+                });
+            });
+        }
+
+        // 2. Caso: Tabla estándar (2 columnas: Marca | Código)
+        if (equivalents.length === 0) {
+            section.querySelectorAll('tr').forEach(row => {
+                const cells = row.querySelectorAll('td, .aem-GridColumn');
+                if (cells.length >= 2) {
+                    addEquivalence(cells[0].textContent, cells[1].textContent, sectionTitle);
+                } else if (cells.length === 1) {
+                    // Marca en fila superior o similar
+                    const code = cells[0].textContent.trim();
+                    const groupTitle = row.closest('.cmp-accordion__item')?.querySelector('.cmp-accordion__title')?.textContent;
+                    if (groupTitle && groupTitle !== sectionTitle) {
+                        addEquivalence(groupTitle, code, sectionTitle);
+                    }
+                }
+            });
+        }
+    });
+
+    // Estrategia B: Escaneo Global (Búsqueda por palabras clave si las secciones fallan o para atrapar fugas)
+    doc.querySelectorAll('.cmp-accordion__item').forEach(item => {
+        const title = (item.querySelector('.cmp-accordion__title')?.textContent || "").toUpperCase();
+        if (/OE-NUMBERS|CROSS REFERENCES|EQUIVALENCIAS|REFERENCIAS|REFERENCIAS CRUZADAS/i.test(title)) {
+            
+            // Si ya procesamos esto en Estrategia A por ID, saltamos si ya tenemos datos
+            // Pero si no, buscamos marcas anidadas
+            const brands = item.querySelectorAll('.cmp-accordion__item');
+            if (brands.length > 0) {
+                brands.forEach(brandBox => {
+                    const brand = brandBox.querySelector('.cmp-accordion__title')?.textContent?.trim();
+                    if (!brand) return;
+                    brandBox.querySelectorAll('li, td, .cmp-text p').forEach(node => {
+                        const code = node.textContent.trim();
+                        if (code && code !== brand) addEquivalence(brand, code, title);
+                    });
+                });
+            } else {
+                // Si no hay sub-acordeones, buscamos tablas o listas directamente
+                item.querySelectorAll('tr, li').forEach(node => {
+                    if (node.tagName === 'LI') {
+                        const brand = item.querySelector('.cmp-accordion__title')?.textContent?.trim();
+                        addEquivalence(brand, node.textContent, title);
+                    } else {
+                        const tds = node.querySelectorAll('td');
+                        if (tds.length >= 2) addEquivalence(tds[0].textContent, tds[1].textContent, title);
+                    }
+                });
+            }
+        }
+    });
+
+    // Estrategia C: Búsqueda agresiva en cualquier tabla que huela a filtros
+    if (equivalents.length === 0) {
+        doc.querySelectorAll('table').forEach(table => {
+            const text = table.textContent.toUpperCase();
+            if (/MANN|BOSCH|MAHLE|FORD|VW|TOYOTA|HENGST|FRAM|FIAT|IVECO/i.test(text)) {
+                table.querySelectorAll('tr').forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 2) {
+                        addEquivalence(cells[0].textContent, cells[1].textContent, "Deep Scan");
+                    }
                 });
             }
         });
     }
+
+    data.equivalences = equivalents;
 
     // 9. Descargas / Manuales
     const downloadsPanel = doc.querySelector('#downloads');

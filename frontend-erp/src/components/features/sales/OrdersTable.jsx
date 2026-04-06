@@ -18,11 +18,18 @@ const OrdersTable = ({
             label: 'N° Orden',
             key: 'order_number',
             render: (val, order) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {val}
-                    {order.source === 'SHOP' && (
-                        <span className="status-badge approved" style={{ fontSize: '0.6rem', padding: '0.1rem 0.3rem' }}>TIENDA</span>
-                    )}
+                <div>
+                   <div style={{ fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                       {val}
+                       {order.source === 'SHOP' && (
+                           <span className="status-badge approved" style={{ fontSize: '0.55rem', padding: '0.1rem 0.2rem' }}>TIENDA</span>
+                       )}
+                   </div>
+                   {order.issuer_info?.name && (
+                       <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginTop: '0.1rem' }}>
+                           {order.issuer_info.name.split(' ')[0]}
+                       </div>
+                   )}
                 </div>
             )
         },

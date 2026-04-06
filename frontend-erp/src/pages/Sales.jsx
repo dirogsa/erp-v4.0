@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from '../components/common/Button';
 import Loading from '../components/common/Loading';
 import Input from '../components/common/Input';
@@ -36,9 +36,11 @@ import GuideFormModal from '../components/features/sales/GuideFormModal';
 import DeliveryGuideReceipt from '../components/features/sales/DeliveryGuideReceipt';
 import XMLImportModal from '../components/common/XMLImportModal';
 import XMLReviewModal from '../components/features/sales/XMLReviewModal';
+import { useCompany } from '../context/CompanyContext';
 import { formatCurrency } from '../utils/formatters';
 
 const Sales = () => {
+    const { activeCompany, companies } = useCompany();
     const [activeTab, setActiveTab] = useState('quotes');
     const [showCreateOrder, setShowCreateOrder] = useState(false);
     const [showCreateQuote, setShowCreateQuote] = useState(false);
@@ -70,7 +72,18 @@ const Sales = () => {
     const [showGuideReceipt, setShowGuideReceipt] = useState(false);
     const [selectedGuide, setSelectedGuide] = useState(null);
     const [showXMLImportModal, setShowXMLImportModal] = useState(false);
-    const [xmlBatch, setXmlBatch] = useState([]); // Batch state
+    const [xmlBatch, setXmlBatch] = useState(() => {
+        const savedBatch = localStorage.getItem('erp_sales_xml_batch');
+        if (savedBatch) {
+            try {
+                return JSON.parse(savedBatch);
+            } catch (err) {
+                console.error("Error loading XML Batch initial state:", err);
+                return [];
+            }
+        }
+        return [];
+    });
     const [selectedXmlForReview, setSelectedXmlForReview] = useState(null);
 
     const [sourceFilter, setSourceFilter] = useState('');
@@ -82,10 +95,20 @@ const Sales = () => {
     const [totalToProcess, setTotalToProcess] = useState(0);
     const [currentProcessing, setCurrentProcessing] = useState(0);
 
+    // Persistence: Save xmlBatch to localStorage on change
+    useEffect(() => {
+        localStorage.setItem('erp_sales_xml_batch', JSON.stringify(xmlBatch));
+    }, [xmlBatch]);
+
+    // Reset page when tab changes
+    useEffect(() => {
+        setPage(1);
+    }, [activeTab]);
+
     // Hooks
     const {
         orders,
-        pagination,
+        pagination: ordersPagination,
         loading: ordersLoading,
         createOrder,
         deleteOrder,
@@ -94,16 +117,18 @@ const Sales = () => {
 
     const {
         invoices,
+        pagination: invoicesPagination,
         loading: invoicesLoading,
         createInvoice,
         registerPayment,
         createDispatchGuide,
         deleteInvoice,
         fetchInvoices
-    } = useSalesInvoices();
+    } = useSalesInvoices({ page, limit, search });
 
     const {
         quotes,
+        pagination: quotesPagination,
         loading: quotesLoading,
         createQuote,
         deleteQuote,
@@ -117,20 +142,37 @@ const Sales = () => {
     });
 
 
+    const { showNotification } = useNotification();
     const {
         notes,
+        pagination: notesPagination,
         loading: notesLoading,
         createNote
     } = useSalesNotes({ page, limit, search });
 
     const {
         guides,
+        pagination: guidesPagination,
         loading: guidesLoading,
         createGuide,
         dispatchGuide,
         deliverGuide,
         cancelGuide
     } = useDeliveryGuides({ page, limit, search });
+
+    // Helper to intelligently decide issuer (from XML RUC match or Fallback to Active)
+    const resolveIssuerFromDoc = (doc) => {
+        if (!doc || !doc.supplier?.ruc || !companies) return activeCompany;
+        
+        const xmlRuc = doc.supplier.ruc.replace(/\D/g, '');
+        const matched = companies.find(c => {
+            const companyRuc = c.ruc ? c.ruc.replace(/\D/g, '') : '';
+            return companyRuc === xmlRuc;
+        });
+
+        if (matched) return matched;
+        return activeCompany;
+    };
 
     // Handlers
     const handleCreateOrder = async (orderData) => {
@@ -406,8 +448,8 @@ const Sales = () => {
                     />
 
                     <Pagination
-                        current={pagination.current}
-                        total={pagination.total}
+                        current={ordersPagination.current}
+                        total={ordersPagination.total}
                         onChange={setPage}
                         pageSize={limit}
                         onPageSizeChange={(newSize) => {
@@ -449,8 +491,8 @@ const Sales = () => {
                     />
 
                     <Pagination
-                        current={pagination.current}
-                        total={pagination.total}
+                        current={ordersPagination.current}
+                        total={ordersPagination.total}
                         onChange={setPage}
                         pageSize={limit}
                         onPageSizeChange={(newSize) => {
@@ -488,8 +530,8 @@ const Sales = () => {
                     />
 
                     <Pagination
-                        current={pagination.current}
-                        total={pagination.total}
+                        current={ordersPagination.current}
+                        total={ordersPagination.total}
                         onChange={setPage}
                         pageSize={limit}
                         onPageSizeChange={(newSize) => {
@@ -583,8 +625,8 @@ const Sales = () => {
                         }}
                     />
                     <Pagination
-                        current={pagination.current}
-                        total={pagination.total}
+                        current={quotesPagination.current}
+                        total={quotesPagination.total}
                         onChange={setPage}
                         pageSize={limit}
                         onPageSizeChange={(newSize) => {
@@ -594,31 +636,53 @@ const Sales = () => {
                     />
                 </>
             ) : activeTab === 'invoices' ? (
-                <InvoicesTable
-                    invoices={invoices}
-                    loading={invoicesLoading}
-                    onView={(invoice) => {
-                        setSelectedInvoice(invoice);
-                        setShowInvoiceReceipt(true);
-                    }}
-                    onRegisterPayment={(invoice) => {
-                        setSelectedInvoice(invoice);
-                        setShowPaymentInfoModal(true);
-                    }}
-                    onDispatch={(invoice) => {
-                        setSelectedInvoice(invoice);
-                        setShowGuideFormModal(true);
-                    }}
-                    onDelete={(invoice) => {
-                        if (window.confirm('¿Está seguro de eliminar esta factura? Esto revertirá la orden asociada a PENDIENTE.')) {
-                            deleteInvoice(invoice.invoice_number);
-                        }
-                    }}
-                    onEmitNote={(invoice) => {
-                        setSelectedInvoice(invoice);
-                        setShowNoteEmissionModal(true);
-                    }}
-                />
+                <>
+                    <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
+                        <Input
+                            placeholder="Buscar factura o cliente..."
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setPage(1);
+                            }}
+                        />
+                    </div>
+                    <InvoicesTable
+                        invoices={invoices}
+                        loading={invoicesLoading}
+                        onView={(invoice) => {
+                            setSelectedInvoice(invoice);
+                            setShowInvoiceReceipt(true);
+                        }}
+                        onRegisterPayment={(invoice) => {
+                            setSelectedInvoice(invoice);
+                            setShowPaymentInfoModal(true);
+                        }}
+                        onDispatch={(invoice) => {
+                            setSelectedInvoice(invoice);
+                            setShowGuideFormModal(true);
+                        }}
+                        onDelete={(invoice) => {
+                            if (window.confirm('¿Está seguro de eliminar esta factura? Esto revertirá la orden asociada a PENDIENTE.')) {
+                                deleteInvoice(invoice.invoice_number);
+                            }
+                        }}
+                        onEmitNote={(invoice) => {
+                            setSelectedInvoice(invoice);
+                            setShowNoteEmissionModal(true);
+                        }}
+                    />
+                    <Pagination
+                        current={invoicesPagination.current}
+                        total={invoicesPagination.total}
+                        onChange={setPage}
+                        pageSize={limit}
+                        onPageSizeChange={(newSize) => {
+                            setLimit(newSize);
+                            setPage(1);
+                        }}
+                    />
+                </>
             ) : activeTab === 'notes' ? (
                 <>
                     <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
@@ -636,8 +700,8 @@ const Sales = () => {
                         loading={notesLoading}
                     />
                     <Pagination
-                        current={pagination.current}
-                        total={pagination.total}
+                        current={notesPagination.current}
+                        total={notesPagination.total}
                         onChange={setPage}
                         pageSize={limit}
                         onPageSizeChange={(newSize) => {
@@ -687,8 +751,8 @@ const Sales = () => {
                         }}
                     />
                     <Pagination
-                        current={pagination.current}
-                        total={pagination.total}
+                        current={guidesPagination.page || guidesPagination.current}
+                        total={guidesPagination.pages || guidesPagination.total}
                         onChange={setPage}
                         pageSize={limit}
                         onPageSizeChange={(newSize) => {
@@ -875,14 +939,24 @@ const Sales = () => {
                         }
                     }
 
-                    if (regularDocs.length === 1) {
-                        setSelectedXmlForReview(regularDocs[0]);
-                        setShowXMLImportModal(false);
-                    } else if (regularDocs.length > 1) {
-                        setXmlBatch(regularDocs);
+                    if (regularDocs.length > 0) {
+                        const normalize = (num) => String(num || '').trim().replace(/\s+/g, '');
+                        const existingNumbers = new Set(xmlBatch.map(d => normalize(d.document_number)));
+                        
+                        const newDocs = regularDocs.filter(d => {
+                            const num = normalize(d.document_number);
+                            return !existingNumbers.has(num);
+                        });
+                        
+                        if (newDocs.length < regularDocs.length) {
+                            showNotification(`${regularDocs.length - newDocs.length} documentos ignorados por estar ya en la lista de pendientes.`, 'info');
+                        }
+                        
+                        if (newDocs.length > 0) {
+                            setXmlBatch(prev => [...prev, ...newDocs]);
+                        }
                         setShowXMLImportModal(false);
                     } else {
-                        // Triggers closure if only credit notes were processed
                         setShowXMLImportModal(false); 
                     }
                 }}
@@ -928,6 +1002,7 @@ const Sales = () => {
                         })),
                         amount_in_words: doc.amount_in_words || '',
                         source: 'XML_IMPORT',
+                        issuer_info: resolveIssuerFromDoc(doc),
                         internal_notes: `Importado de Factura XML ${doc.document_number}. Emisor: ${doc.emitter_identity}. T.C: ${doc.exchange_rate}`
                     };
                     
@@ -1026,6 +1101,7 @@ const Sales = () => {
                                                 })),
                                                 amount_in_words: doc.amount_in_words || '',
                                                 source: 'XML_IMPORT_BULK',
+                                                issuer_info: resolveIssuerFromDoc(doc),
                                                 internal_notes: `Importación masiva XML. Ref: ${doc.document_number}. Validado automáticamente.`
                                             };
                                             await createQuote(mappedQuote);
@@ -1060,6 +1136,19 @@ const Sales = () => {
                                     <div style={{ fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         {doc.document_number}
                                         <span style={{ fontSize: '0.65rem', backgroundColor: '#334155', color: '#94a3b8', padding: '0.1rem 0.4rem', borderRadius: '0.3rem' }}>📅 {doc.date}</span>
+                                    </div>
+                                    <div style={{ 
+                                        fontSize: '0.75rem', 
+                                        color: '#3b82f6', 
+                                        background: 'rgba(59, 130, 246, 0.1)', 
+                                        padding: '0.2rem 0.5rem',
+                                        borderRadius: '0.4rem',
+                                        display: 'inline-block',
+                                        marginBottom: '0.5rem',
+                                        fontWeight: '700',
+                                        border: '1px solid rgba(59, 130, 246, 0.2)'
+                                    }}>
+                                        🏢 {resolveIssuerFromDoc(doc)?.name || 'EMISOR DESCONOCIDO'}
                                     </div>
                                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{doc.customer.name}</div>
                                     <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 'bold', marginTop: '0.4rem' }}>{formatCurrency(doc.total_amount)}</div>

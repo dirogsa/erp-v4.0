@@ -12,12 +12,12 @@ async def init_db():
         return
 
     print(f"DB: [DEBUG] Connecting to MongoDB URI: {mongo_uri[:25]}...")
-    # Add timeouts to avoid hanging infinitely
+    # Add timeouts to avoid hanging infinitely, but give it enough time for SSL handshake
     client = AsyncIOMotorClient(
         mongo_uri,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=5000,
-        socketTimeoutMS=5000
+        serverSelectionTimeoutMS=30000,
+        connectTimeoutMS=30000,
+        socketTimeoutMS=30000
     )
     db_name = settings.MONGO_DB_NAME
     print(f"DB: [DEBUG] Using database: {db_name}")
@@ -60,5 +60,6 @@ async def init_db():
         print("DB: [DEBUG] init_db completed successfully.")
     except Exception as e:
         print(f"DB: [ERROR] init_db failed: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        print("DB: [HINT] This error often occurs if your IP is not whitelisted in MongoDB Atlas or if firewall is blocking port 27017.")
+        # Re-raise the exception so startup fails instead of hanging in an uninitialized state
+        raise e

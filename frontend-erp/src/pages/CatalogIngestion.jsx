@@ -13,6 +13,7 @@ const CatalogIngestion = () => {
     const [parsedProducts, setParsedProducts] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+    const [isParsing, setIsParsing] = useState(false);
     const [skuList, setSkuList] = useState('');
     const [uploadStatus, setUploadStatus] = useState({ total: 0, current: 0, errors: [] });
     const [editingProduct, setEditingProduct] = useState(null);
@@ -100,34 +101,49 @@ const CatalogIngestion = () => {
         console.log("SKU Lookup finished.");
     };
 
-    const processFiles = (fileList) => {
+    const processFiles = async (fileList) => {
+        setIsParsing(true);
+        setUploadStatus({ total: fileList.length, current: 0, errors: [] });
         const newProducts = [];
-        let completed = 0;
-
-        fileList.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
+        
+        try {
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
                 try {
-                    const data = parseCatalogHtml(event.target.result);
+                    const text = await file.text();
+                    const data = parseCatalogHtml(text);
+                    
                     if (data.sku) {
                         newProducts.push({
                             ...data,
                             _file: file.name,
-                            _status: 'pending' // pending, success, error
+                            _status: 'pending'
                         });
                     }
                 } catch (err) {
                     console.error(`Error parsing ${file.name}:`, err);
-                } finally {
-                    completed++;
-                    if (completed === fileList.length) {
-                        setParsedProducts(prev => [...prev, ...newProducts]);
-                        showNotification(`${newProducts.length} archivos procesados correctamente`, 'success');
-                    }
                 }
-            };
-            reader.readAsText(file);
-        });
+                
+                setUploadStatus(prev => ({
+                    ...prev,
+                    current: i + 1
+                }));
+                
+                if (i % 5 === 0) await new Promise(r => setTimeout(r, 10));
+            }
+
+            if (newProducts.length > 0) {
+                setParsedProducts(prev => [...prev, ...newProducts]);
+                showNotification(`${newProducts.length} archivos procesados correctamente`, 'success');
+            } else {
+                showNotification('No se pudieron extraer productos de los archivos seleccionados', 'warning');
+            }
+        } catch (globalErr) {
+            console.error("Error global en processFiles:", globalErr);
+            showNotification('Error crítico al procesar archivos', 'error');
+        } finally {
+            setIsParsing(false);
+        }
     };
 
     const removeProduct = (index) => {
@@ -209,7 +225,10 @@ const CatalogIngestion = () => {
                             Ingesta Inteligente de Catálogo
                         </h1>
                         <p style={{ color: '#94a3b8', marginTop: '0.5rem' }}>
-                            Sube archivos HTML o ingresa códigos SKU para poblar tu inventario automáticamente desde fuentes oficiales.
+                            Sube archivos HTML o ingresa códigos SKU para poblar tu inventario automáticamente desde fuentes oficiales. 
+                            <span style={{ color: '#60a5fa', fontWeight: 'bold', marginLeft: '0.5rem' }}>
+                                (Los productos existentes se actualizarán con la nueva información)
+                            </span>
                         </p>
                     </div>
                     {parsedProducts.length > 0 && (
@@ -341,6 +360,7 @@ const CatalogIngestion = () => {
                                     <th style={{ padding: '1rem', textAlign: 'left' }}>EAN</th>
                                     <th style={{ padding: '1rem', textAlign: 'center' }}>Medidas</th>
                                     <th style={{ padding: '1rem', textAlign: 'center' }}>Aplicaciones</th>
+                                    <th style={{ padding: '1rem', textAlign: 'center' }}>Equivalencias</th>
                                     <th style={{ padding: '1rem', textAlign: 'right' }}>Acciones</th>
                                 </tr>
                             </thead>
@@ -358,6 +378,19 @@ const CatalogIngestion = () => {
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                                             <span style={{ background: '#334155', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.8rem' }}>
                                                 {p.applications.length}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                            <span style={{ 
+                                                background: p.equivalences?.length > 0 ? '#1e3a8a' : '#334155', 
+                                                color: p.equivalences?.length > 0 ? '#60a5fa' : '#94a3b8',
+                                                padding: '0.2rem 0.6rem', 
+                                                borderRadius: '1rem', 
+                                                fontSize: '0.8rem',
+                                                fontWeight: p.equivalences?.length > 0 ? 'bold' : 'normal',
+                                                border: p.equivalences?.length > 0 ? '1px solid #3b82f6' : '1px solid transparent'
+                                            }}>
+                                                {p.equivalences?.length || 0}
                                             </span>
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -624,7 +657,53 @@ const CatalogIngestion = () => {
                 </div>
             )}
 
-            {/* Overlay de Procesamiento Masivo */}
+            {/* Overlay de Procesamiento de Archivos (Nuevo) */}
+            {isParsing && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.9)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 2000,
+                    backdropFilter: 'blur(8px)'
+                }}>
+                    <div style={{ textAlign: 'center', padding: '2rem' }}>
+                        <div style={{ 
+                            fontSize: '4rem', 
+                            marginBottom: '1.5rem',
+                            animation: 'bounce 1s infinite'
+                        }}>📂</div>
+                        <h2 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '0.5rem' }}>
+                            Analizando Catálogos HTML...
+                        </h2>
+                        <p style={{ color: '#94a3b8', fontSize: '1rem' }}>
+                            Procesando {uploadStatus.current} de {uploadStatus.total} archivos.
+                        </p>
+                        
+                        <div style={{ 
+                            marginTop: '2rem', 
+                            width: '300px', 
+                            height: '6px', 
+                            background: '#334155', 
+                            borderRadius: '3px', 
+                            overflow: 'hidden' 
+                        }}>
+                            <div style={{
+                                width: `${(uploadStatus.current / uploadStatus.total) * 100}%`,
+                                height: '100%',
+                                background: 'linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6)',
+                                backgroundSize: '200% 100%',
+                                animation: 'shimmer 1.5s infinite linear'
+                            }} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Overlay de Procesamiento Masivo Final */}
             {isProcessing && (
                 <div style={{
                     position: 'fixed',
@@ -669,17 +748,6 @@ const CatalogIngestion = () => {
                                 animation: 'shimmer 1.5s infinite linear'
                             }} />
                         </div>
-                        
-                        <style>{`
-                            @keyframes shimmer {
-                                0% { background-position: -200% 0; }
-                                100% { background-position: 200% 0; }
-                            }
-                            @keyframes bounce {
-                                0%, 100% { transform: translateY(0); }
-                                50% { transform: translateY(-10px); }
-                            }
-                        `}</style>
                     </div>
                 </div>
             )}
@@ -704,7 +772,7 @@ const CatalogIngestion = () => {
                         </h2>
                         
                         <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '2rem' }}>
-                            Se han procesado correctly <strong>{lastProcessedCount} productos</strong> en tu inventario.
+                            Se han procesado correctamente <strong>{lastProcessedCount} productos</strong> en tu inventario.
                         </p>
                         
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
@@ -719,6 +787,22 @@ const CatalogIngestion = () => {
                     </div>
                 </div>
             )}
+
+            {/* Estilos Globales para Animaciones */}
+            <style>{`
+                @keyframes shimmer {
+                    0% { background-position: -200% 0; }
+                    100% { background-position: 200% 0; }
+                }
+                @keyframes bounce {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-10px); }
+                }
+                @keyframes slideUp {
+                    from { transform: translateY(20px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+            `}</style>
         </Layout>
     );
 };

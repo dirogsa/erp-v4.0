@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import sys
 from typing import List, Dict, Any, Type, Optional
 from datetime import datetime
 from beanie import Document
@@ -86,6 +87,9 @@ class DataExchangeService:
         model: Type[Document] = config["model"]
         parent_key = config["key"]
         items_field = config["items_field"]
+        
+        # Aumentar el límite de tamaño de campo para evitar errores con JSONs o textos largos
+        csv.field_size_limit(sys.maxsize)
         
         reader = csv.DictReader(io.StringIO(csv_content))
         

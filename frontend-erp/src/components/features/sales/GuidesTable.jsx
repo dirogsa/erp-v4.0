@@ -40,10 +40,17 @@ const GuidesTable = ({
         {
             label: 'N° Interno',
             key: 'guide_number',
-            render: (value) => (
-                <span style={{ fontWeight: '500', color: '#3b82f6' }}>
-                    {value}
-                </span>
+            render: (value, row) => (
+                <div>
+                    <span style={{ fontWeight: '500', color: '#3b82f6' }}>
+                        {value}
+                    </span>
+                    {row.issuer_info?.name && (
+                        <div style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', marginTop: '0.1rem' }}>
+                            {row.issuer_info.name.split(' ')[0]}
+                        </div>
+                    )}
+                </div>
             )
         },
         {

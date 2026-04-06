@@ -13,7 +13,20 @@ const QuotesTable = ({
     onDelete
 }) => {
     const columns = [
-        { label: 'N° Cotización', key: 'quote_number' },
+        {
+            label: 'N° Cotización',
+            key: 'quote_number',
+            render: (val, quote) => (
+                <div>
+                    <div style={{ fontWeight: '600' }}>{val}</div>
+                    {quote.issuer_info?.name && (
+                        <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginTop: '0.1rem' }}>
+                            {quote.issuer_info.name.split(' ')[0]} {/* Show first word or short version */}
+                        </div>
+                    )}
+                </div>
+            )
+        },
         { label: 'Cliente', key: 'customer_name' },
         {
             label: 'Fecha',
@@ -37,16 +50,17 @@ const QuotesTable = ({
             key: 'source',
             align: 'center',
             render: (val) => (
-                <span style={{
-                    fontSize: '0.75rem',
+                <span title={val === 'SHOP' ? 'Viene de Tienda Online' : 'Creado en ERP'} style={{
+                    fontSize: '0.7rem',
                     fontWeight: 'bold',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: '0.5rem',
-                    backgroundColor: val === 'SHOP' ? '#10b98122' : '#3b82f622',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.3rem',
                     color: val === 'SHOP' ? '#10b981' : '#3b82f6',
-                    border: `1px solid ${val === 'SHOP' ? '#10b981' : '#3b82f6'}`
                 }}>
-                    {val === 'SHOP' ? '🛒 TIENDA' : '🏢 ERP'}
+                    {val === 'SHOP' ? '🛒' : '🏢'} 
+                    <span style={{ fontSize: '0.6rem' }}>{val}</span>
                 </span>
             )
         },

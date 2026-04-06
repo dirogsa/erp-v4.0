@@ -20,7 +20,9 @@ const InvoicesTable = ({
             render: (val, invoice) => (
                 <div>
                     <div style={{ fontWeight: 'bold', color: 'white' }}>{invoice.sunat_number || 'Borrador'}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Int: {invoice.invoice_number}</div>
+                    <div style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', marginTop: '0.1rem' }}>
+                        {invoice.issuer_info?.name?.split(' ')[0] || 'S/E'} | Int: {invoice.invoice_number}
+                    </div>
                 </div>
             )
         },

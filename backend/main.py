@@ -62,7 +62,6 @@ app.include_router(staff.router)
 async def start_db():
     print("Backend: Initializing Database...")
     await init_db()
-    print("Backend: Database initialized successfully")
     
     # Automatic warehouse creation removed to allow manual management
     pass

@@ -3,7 +3,13 @@ import { analyticsService } from '../../../services/api';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
 
 const ProductDetailsView = ({ product, onClose }) => {
-    const [activeTab, setActiveTab] = useState('specs'); // specs, apps, crosses, sales
+    const [activeTab, setActiveTab] = useState('specs');
+    const [currentImage, setCurrentImage] = useState(product.image_url);
+
+    // Update current image if product changes
+    useEffect(() => {
+        setCurrentImage(product.image_url);
+    }, [product.image_url]); // specs, apps, crosses, sales
     const [salesHistory, setSalesHistory] = useState([]);
     const [loadingSales, setLoadingSales] = useState(false);
 
@@ -63,7 +69,13 @@ const ProductDetailsView = ({ product, onClose }) => {
     );
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', color: '#e2e8f0' }}>
+        <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            height: '100%', 
+            color: '#e2e8f0',
+            overflow: 'hidden' // Ensure the main container doesn't scroll, only the content
+        }}>
 
             {/* Header / Hero Section */}
             <div style={{
@@ -73,27 +85,85 @@ const ProductDetailsView = ({ product, onClose }) => {
                 background: '#0f172a',
                 borderBottom: '1px solid #1e293b'
             }}>
-                {/* Product Image */}
-                <div style={{
-                    width: '180px',
-                    height: '180px',
-                    borderRadius: '1rem',
-                    overflow: 'hidden',
-                    background: '#1e293b',
-                    border: '1px solid #334155',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                }}>
-                    {product.image_url ? (
-                        <img
-                            src={product.image_url}
-                            alt={product.name}
-                            style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fff' }}
-                        />
-                    ) : (
-                        <span style={{ fontSize: '3rem', opacity: 0.2 }}>📦</span>
+                {/* Product Image & Gallery */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '220px', flexShrink: 0 }}>
+                    <div style={{
+                        width: '100%',
+                        height: '220px',
+                        borderRadius: '1rem',
+                        overflow: 'hidden',
+                        background: '#1e293b',
+                        border: '1px solid #334155',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        position: 'relative'
+                    }}>
+                        {currentImage ? (
+                            <img
+                                src={currentImage}
+                                alt={product.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fff' }}
+                            />
+                        ) : (
+                            <span style={{ fontSize: '4rem', opacity: 0.2 }}>📦</span>
+                        )}
+                        
+                        {/* Tech Drawing Badge */}
+                        {product.tech_drawing_url && currentImage === product.tech_drawing_url && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '0.5rem',
+                                right: '0.5rem',
+                                background: '#3b82f6',
+                                color: 'white',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                                textTransform: 'uppercase',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                            }}>
+                                Plano Técnico
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Gallery Thumbnails */}
+                    {product.image_gallery && product.image_gallery.length > 1 && (
+                        <div style={{ 
+                            display: 'flex', 
+                            gap: '0.5rem', 
+                            overflowX: 'auto', 
+                            padding: '0.5rem 0',
+                            scrollbarWidth: 'none' // Firefox
+                        }}>
+                            <style>{`
+                                .thumb-gallery::-webkit-scrollbar { display: none; }
+                            `}</style>
+                            <div className="thumb-gallery" style={{ display: 'flex', gap: '0.5rem' }}>
+                                {product.image_gallery.map((img, idx) => (
+                                    <div 
+                                        key={idx}
+                                        onClick={() => setCurrentImage(img.url)}
+                                        style={{
+                                            width: '50px',
+                                            height: '50px',
+                                            borderRadius: '6px',
+                                            border: `2px solid ${currentImage === img.url ? '#3b82f6' : '#1e293b'}`,
+                                            cursor: 'pointer',
+                                            overflow: 'hidden',
+                                            background: '#fff',
+                                            transition: 'all 0.2s',
+                                            flexShrink: 0,
+                                            boxShadow: currentImage === img.url ? '0 0 8px rgba(59, 130, 246, 0.5)' : 'none'
+                                        }}
+                                    >
+                                        <img src={img.url} alt={img.label} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     )}
                 </div>
 
@@ -134,7 +204,14 @@ const ProductDetailsView = ({ product, onClose }) => {
             </div>
 
             {/* Content Tabs */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#020617', padding: '0 2rem 2rem 2rem' }}>
+            <div style={{ 
+                flex: 1, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                background: '#020617', 
+                padding: '0 2rem 2rem 2rem',
+                minHeight: 0 // Crucial for flex scroll
+            }}>
 
                 {/* Tabs Header */}
                 <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid #1e293b', marginBottom: '2rem' }}>
@@ -173,7 +250,27 @@ const ProductDetailsView = ({ product, onClose }) => {
                 </div>
 
                 {/* Tab Content */}
-                <div style={{ flex: 1, overflowY: 'auto' }}>
+                <div className="custom-scrollbar" style={{ 
+                    flex: 1, 
+                    overflowY: 'auto',
+                    minHeight: 0, // Crucial for flex scroll
+                    paddingRight: '0.5rem' // Space for scrollbar
+                }}>
+                    <style>{`
+                        .custom-scrollbar::-webkit-scrollbar {
+                            width: 8px;
+                        }
+                        .custom-scrollbar::-webkit-scrollbar-track {
+                            background: #0f172a;
+                        }
+                        .custom-scrollbar::-webkit-scrollbar-thumb {
+                            background: #334155;
+                            border-radius: 4px;
+                        }
+                        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                            background: #475569;
+                        }
+                    `}</style>
 
                     {/* SPECS TAB */}
                     {activeTab === 'specs' && (

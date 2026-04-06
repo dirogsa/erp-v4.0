@@ -10,7 +10,20 @@ const SalesNotesTable = ({
     onView
 }) => {
     const columns = [
-        { label: 'N° Nota', key: 'note_number' },
+        {
+            label: 'N° Nota',
+            key: 'note_number',
+            render: (val, note) => (
+                <div>
+                    <div style={{ fontWeight: '600' }}>{val}</div>
+                    {note.issuer_info?.name && (
+                        <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginTop: '0.1rem' }}>
+                            {note.issuer_info.name.split(' ')[0]}
+                        </div>
+                    )}
+                </div>
+            )
+        },
         { label: 'Factura Ref.', key: 'invoice_number' },
         { label: 'Cliente', key: 'customer_name' },
         {
