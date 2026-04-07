@@ -6,24 +6,36 @@ import {
     ChevronRightIcon, 
     CheckCircleIcon, 
     ClockIcon,
-    DocumentArrowDownIcon
+    DocumentArrowDownIcon,
+    ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { generateQuotationPDF } from '../utils/generateQuotationPDF';
-
-// Build a WhatsApp text link for a quick summary notification
-const buildWhatsAppLink = (quote) => {
-    const lines = (quote.items || []).map(i => `  • ${i.quantity}x ${i.product_name || i.name || i.product_sku} → S/ ${((i.quantity || 0) * (i.unit_price || 0)).toFixed(2)}`).join('%0A');
-    const total = (quote.total_amount || 0).toFixed(2);
-    const msg = `🧾 *COTIZACIÓN DIROGSA*%0A%0ANro: *${quote.quote_number || 'S/N'}*%0AFecha: ${new Date(quote.date).toLocaleDateString()}%0A%0ADetalle:%0A${lines}%0A%0A💰 *TOTAL: S/ ${total}*%0A%0A_Generado desde DIROGSA Mobile_`;
-    return `https://wa.me/?text=${msg}`;
-};
 
 const OrdersPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [quotes, setQuotes] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [copiedId, setCopiedId] = useState(null); // tracks which card's text was copied
+
+    const buildSummaryText = (quote) => {
+        const lines = (quote.items || []).map(
+            i => `  • ${i.quantity}x ${i.product_name || i.product_sku} → S/ ${((i.quantity || 0) * (i.unit_price || 0)).toFixed(2)}`
+        ).join('\n');
+        const total = (quote.total_amount || 0).toFixed(2);
+        return `🧾 COTIZACIÓN DIROGSA\n\nNro: ${quote.quote_number || 'S/N'}\nFecha: ${new Date(quote.date).toLocaleDateString()}\n\nDetalle:\n${lines}\n\n💰 TOTAL: S/ ${total}\n\n_Generado desde DIROGSA Mobile_`;
+    };
+
+    const handleCopy = async (quote) => {
+        try {
+            await navigator.clipboard.writeText(buildSummaryText(quote));
+            setCopiedId(quote.quote_number);
+            setTimeout(() => setCopiedId(null), 2500);
+        } catch {
+            alert('No se pudo copiar. Intente de nuevo.');
+        }
+    };
 
     useEffect(() => {
         if (!user) {
@@ -148,26 +160,30 @@ const OrdersPage = () => {
                                     </button>
                                 </div>
 
-                                {/* WhatsApp Actions */}
+                                {/* Share Actions: 2-col grid */}
                                 <div className="grid grid-cols-2 gap-2 mt-3">
-                                    {/* Share PDF file natively */}
+                                    {/* Enviar PDF por WhatsApp (native share) */}
                                     <button
                                         onClick={() => generateQuotationPDF(quote, quote.items || [], 'share')}
-                                        className="flex items-center justify-center gap-1.5 bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all"
+                                        className="flex items-center justify-center gap-1.5 bg-[#25D366]/10 border border-[#25D366]/30 text-[#25D366] py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all"
                                     >
                                         <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                                         Enviar PDF
                                     </button>
-                                    {/* Send WhatsApp text summary */}
-                                    <a
-                                        href={buildWhatsAppLink(quote)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-1.5 bg-[#128C7E]/10 border border-[#128C7E]/30 text-[#128C7E] py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all"
+                                    {/* Copiar Resumen al portapapeles */}
+                                    <button
+                                        onClick={() => handleCopy(quote)}
+                                        className={`flex items-center justify-center gap-1.5 py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-widest active:scale-95 transition-all border ${
+                                            copiedId === quote.quote_number
+                                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                                                : 'bg-brand-surface border-brand-border text-brand-muted'
+                                        }`}
                                     >
-                                        <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                                        Resumen
-                                    </a>
+                                        {copiedId === quote.quote_number
+                                            ? <><ClipboardDocumentCheckIcon className="h-4 w-4" /> ¡Copiado!</>
+                                            : <><ClipboardDocumentCheckIcon className="h-4 w-4" /> Copiar Texto</>
+                                        }
+                                    </button>
                                 </div>
                             </div>
                         ))}
