@@ -50,3 +50,18 @@ services:
     envVars:
       - key: VITE_API_URL
         sync: false
+
+  # Frontend Mobile Static Site
+  - type: web
+    name: erp-mobile
+    runtime: static
+    rootDir: frontend-mobile
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false
