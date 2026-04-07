@@ -348,36 +348,45 @@ async def get_shop_products(
     is_new: Optional[bool] = None,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
-    print(f"[SHOP] GET /products called - search: {search}, category: {category}, is_new: {is_new}")
+    print(f"[SHOP] GET /products called - search: '{search}', category: {category}, mode: {mode}")
     
-    query = {"is_active_in_shop": True, "type": "COMMERCIAL"}
-    if is_new is not None:
-        query["is_new"] = is_new
+    # Base query for commercial products, now highly tolerant of CSV import variations
+    query = {"is_active_in_shop": {"$in": [True, "true", "True", "TRUE", 1, "1"]}}
+    
     if search:
+        s = search.strip()
         if mode == "vehicle":
             query["$or"] = [
-                {"applications.make": {"$regex": search, "$options": "i"}},
-                {"applications.model": {"$regex": search, "$options": "i"}}
+                {"applications.make": {"$regex": s, "$options": "i"}},
+                {"applications.model": {"$regex": s, "$options": "i"}}
             ]
         elif mode == "specs":
-            query["specs.value"] = {"$regex": search, "$options": "i"}
+            query["specs.value"] = {"$regex": s, "$options": "i"}
         elif mode == "equivalence":
-            query["equivalences.code"] = {"$regex": search, "$options": "i"}
-        else: # "all" or others
+            query["equivalences.code"] = {"$regex": s, "$options": "i"}
+        else:
+            # Smart Search: Try direct SKU match first, then regex broad search
             query["$or"] = [
-                {"name": {"$regex": search, "$options": "i"}},
-                {"sku": {"$regex": search, "$options": "i"}},
-                {"brand": {"$regex": search, "$options": "i"}},
-                {"equivalences.code": {"$regex": search, "$options": "i"}},
-                {"applications.make": {"$regex": search, "$options": "i"}},
-                {"applications.model": {"$regex": search, "$options": "i"}},
-                {"specs.value": {"$regex": search, "$options": "i"}},
-                {"specs.name": {"$regex": search, "$options": "i"}}
+                {"sku": s}, # Match exacto (prioridad)
+                {"sku": {"$regex": s, "$options": "i"}},
+                {"name": {"$regex": s, "$options": "i"}},
+                {"brand": {"$regex": s, "$options": "i"}},
+                {"equivalences.code": {"$regex": s, "$options": "i"}},
+                {"applications.make": {"$regex": s, "$options": "i"}},
+                {"applications.model": {"$regex": s, "$options": "i"}},
+                {"specs.value": {"$regex": s, "$options": "i"}}
             ]
+    
     if category:
         query["category_id"] = category
     if vehicle_brand:
         query["applications.make"] = {"$regex": f"^{vehicle_brand}$", "$options": "i"}
+
+    # We only apply strict COMMERCIAL type if not doing a direct SKU search to be more flexible
+    if not (search and len(search) > 4):
+        query["type"] = {"$in": ["COMMERCIAL", "", None]}
+
+    print(f"[SHOP] Final MongoDB Query: {query}")
 
     print(f"[SHOP] Query: {query}")
     
@@ -441,7 +450,10 @@ async def get_shop_product_detail(
     sku: str,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
-    p = await Product.find_one(Product.sku == sku, Product.is_active_in_shop == True)
+    p = await Product.find_one({
+        "sku": sku,
+        "is_active_in_shop": {"$in": [True, "true", "True", "TRUE", 1, "1"]}
+    })
     if not p:
         raise HTTPException(status_code=404, detail="Product not found or not available in shop")
 

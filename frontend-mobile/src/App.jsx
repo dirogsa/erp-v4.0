@@ -25,7 +25,7 @@ function App() {
     );
 
     // List of pages where we DON'T want the BottomNav
-    const hideNavOn = ['/product', '/login', '/search'];
+    const hideNavOn = ['/login'];
     const shouldHideNav = hideNavOn.some(path => location.pathname.startsWith(path));
 
     return (

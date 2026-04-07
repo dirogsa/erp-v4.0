@@ -15,9 +15,10 @@ const SearchPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
-    const searchType = queryParams.get('type'); // 'dimensions' or null (code)
+    const searchType = queryParams.get('type');
+    const initialQuery = queryParams.get('q') || ''; // Read initial search from URL
 
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState(initialQuery);
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [stats, setStats] = useState(null);

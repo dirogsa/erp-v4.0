@@ -6,8 +6,8 @@
   -webkit-tap-highlight-color: transparent;
 
   /* DIROGSA INDUSTRIAL - Olive & Carbon (Professional & Rugged) */
-  --brand-bg: #1A1B1E;       /* Carbon Grey */
-  --brand-surface: #25262B;   /* Industrial Surface */
+  --brand-bg: #25262B;      /* Graphite Grey - More depth than black */
+  --brand-surface: #2C2E33; /* Industrial Surface */
   --brand-primary: #849669;   /* Tactical Olive Green */
   --brand-secondary: #A9AF90; /* Soft Olive Sage */
   --brand-text: #E9ECEF;      /* Bone White (Low Strain) */

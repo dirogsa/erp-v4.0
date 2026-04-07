@@ -53,7 +53,6 @@ const Inventory = ({ forcedType = null }) => {
         type: forcedType || (activeTab === 'products' ? 'COMMERCIAL' : '')
     });
 
-    console.log('[Inventory] Render - Tab:', activeTab, 'Loading:', loading, 'Products count:', products?.length);
     if (error) console.error('[Inventory] Error loading products:', error);
 
     const handleCreate = async (data) => {
@@ -274,7 +273,14 @@ const Inventory = ({ forcedType = null }) => {
                                 </div>
                                 <div style={{ overflowY: 'auto', maxHeight: 'calc(95vh - 80px)' }}>
                                     <ProductForm
-                                        initialData={selectedProduct || { type: forcedType || (activeTab === 'marketing' ? 'MARKETING' : 'COMMERCIAL') }}
+                                        initialData={selectedProduct ? {
+                                            ...selectedProduct,
+                                            category_id: selectedProduct.category_id || '',
+                                            type: selectedProduct.type || 'COMMERCIAL'
+                                        } : { 
+                                            type: forcedType || (activeTab === 'marketing' ? 'MARKETING' : 'COMMERCIAL'),
+                                            category_id: '',
+                                        }}
                                         onSubmit={selectedProduct ? handleUpdate : handleCreate}
                                         onCancel={() => setShowProductModal(false)}
                                         loading={loading}
