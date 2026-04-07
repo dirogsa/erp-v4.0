@@ -1,3 +1,4 @@
+from typing import List, Dict, Any, Optional
 import requests
 from bs4 import BeautifulSoup
 from app.exceptions.business_exceptions import ValidationException
