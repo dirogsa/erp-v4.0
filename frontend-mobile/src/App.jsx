@@ -30,7 +30,7 @@ function App() {
 
     return (
         <CartProvider>
-            <div className="min-h-screen bg-slate-50">
+            <div className="min-h-screen bg-brand-bg pb-20">
                 <Routes>
                     <Route path="/" element={<PublicHomePage />} />
                     <Route path="/dashboard" element={isAuthenticated ? <HomePage /> : <Navigate to="/login" />} />
@@ -44,7 +44,7 @@ function App() {
                     <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} />
                 </Routes>
 
-                {isAuthenticated && !shouldHideNav && <BottomNav />}
+                {!shouldHideNav && <BottomNav />}
             </div>
         </CartProvider>
     );
