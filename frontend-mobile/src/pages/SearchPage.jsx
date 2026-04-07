@@ -54,10 +54,8 @@ const SearchPage = () => {
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
-    // Focus input on mount
-    useEffect(() => {
-        if (searchInput.current) searchInput.current.focus();
-    }, []);
+    // Removed programmatic focus on mount to prevent the Android Back button bug 
+    // where hiding the keyboard also triggers history.back() because the focus wasn't user-initiated.
 
     return (
         <div className="bg-brand-bg min-h-screen text-brand-text flex flex-col font-sans">
