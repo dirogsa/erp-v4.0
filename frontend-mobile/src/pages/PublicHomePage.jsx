@@ -49,18 +49,18 @@ const PublicHomePage = () => {
 
     // Tab States & Data Loading
     const [codeSearch, setCodeSearch] = useState('');
-    const [vehiclesData, setVehiclesData] = useState([]);
+    const [brands, setBrands] = useState([]);
     const [selectedMake, setSelectedMake] = useState('');
     const [selectedModel, setSelectedModel] = useState('');
 
     useEffect(() => {
         const loadInitialData = async () => {
             try {
-                const [vRes, pRes] = await Promise.all([
-                    shopService.getSynchronizedVehicles(),
+                const [bRes, pRes] = await Promise.all([
+                    shopService.getVehicleBrands(),
                     shopService.getProducts({ limit: 6 })
                 ]);
-                setVehiclesData(vRes.data || []);
+                setBrands(bRes.data || []);
                 setPopularProducts(pRes.data.items || []);
             } catch (err) {
                 console.error("Home initialization failed", err);
@@ -68,6 +68,16 @@ const PublicHomePage = () => {
         };
         loadInitialData();
     }, []);
+
+    // Get available models for selected make
+    const availableModels = brands.find(b => b.name === selectedMake)?.models || [];
+
+    const handleVehicleSearch = () => {
+        if (!selectedMake) return;
+        let url = `/search?type=vehicle&make=${encodeURIComponent(selectedMake)}`;
+        if (selectedModel) url += `&model=${encodeURIComponent(selectedModel)}`;
+        navigate(url);
+    };
 
     return (
         <div className="min-h-screen bg-brand-bg text-brand-text flex flex-col font-sans pb-32">
@@ -167,13 +177,31 @@ const PublicHomePage = () => {
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-400 space-y-4">
                             <select 
                                 value={selectedMake}
-                                onChange={(e) => setSelectedMake(e.target.value)}
+                                onChange={(e) => {
+                                    setSelectedMake(e.target.value);
+                                    setSelectedModel('');
+                                }}
                                 className="w-full bg-brand-bg border border-brand-border h-14 rounded-xl px-4 text-[10px] font-black text-white focus:outline-none uppercase appearance-none"
                             >
-                                <option value="">-- SELECCIONE MARCA --</option>
-                                {vehiclesData.map(v => <option key={v.make} value={v.make}>{v.make}</option>)}
+                                <option value="">-- MARCA VEHÍCULO --</option>
+                                {brands.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
                             </select>
-                            <button className="w-full border-2 border-brand-primary text-brand-primary h-12 rounded-xl font-black uppercase text-[10px] tracking-widest">
+
+                            <select 
+                                value={selectedModel}
+                                onChange={(e) => setSelectedModel(e.target.value)}
+                                disabled={!selectedMake}
+                                className="w-full bg-brand-bg border border-brand-border h-14 rounded-xl px-4 text-[10px] font-black text-white focus:outline-none uppercase appearance-none disabled:opacity-30 disabled:grayscale"
+                            >
+                                <option value="">-- MODELO (OPCIONAL) --</option>
+                                {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+
+                            <button 
+                                onClick={handleVehicleSearch}
+                                disabled={!selectedMake}
+                                className="w-full bg-brand-primary text-brand-bg h-12 rounded-xl font-black uppercase text-[10px] tracking-widest disabled:opacity-50"
+                            >
                                 VER CATÁLOGO
                             </button>
                         </div>
@@ -185,16 +213,6 @@ const PublicHomePage = () => {
                             <span className="text-[10px] font-black uppercase tracking-widest">Editor de Medidas</span>
                         </div>
                     )}
-                </div>
-            </section>
-
-            <section className="px-6 py-6">
-                <div className="flex items-center gap-2 mb-6 px-1">
-                    <FireIcon className="h-5 w-5 text-brand-primary" />
-                    <h2 className="text-sm font-black text-white uppercase tracking-tighter">Filtros más pedidos</h2>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    {popularProducts.map(p => <MobileProductCard key={p.sku} product={p} />)}
                 </div>
             </section>
 

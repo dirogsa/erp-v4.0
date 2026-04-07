@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage';
 import ProductDetailPage from './pages/ProductDetailPage';
 import SearchPage from './pages/SearchPage';
 import NotificationsPage from './pages/NotificationsPage';
+import OrdersPage from './pages/OrdersPage';
 
 function App() {
     const { isAuthenticated, loading } = useAuth();
@@ -24,8 +25,8 @@ function App() {
         </div>
     );
 
-    // List of pages where we DON'T want the BottomNav
-    const hideNavOn = ['/login'];
+    // The user explicitly requested the BottomNav to ALWAYS be visible, even on the login screen
+    const hideNavOn = []; // Previously contained '/login'
     const shouldHideNav = hideNavOn.some(path => location.pathname.startsWith(path));
 
     return (
@@ -39,6 +40,7 @@ function App() {
                     <Route path="/notifications" element={<NotificationsPage />} />
                     <Route path="/prizes" element={<PrizesPage />} />
                     <Route path="/cart" element={<CartPage />} />
+                    <Route path="/orders" element={isAuthenticated ? <OrdersPage /> : <Navigate to="/login" />} />
                     <Route path="/product/:sku" element={<ProductDetailPage />} />
                     <Route path="/profile" element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} />
                     <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} />

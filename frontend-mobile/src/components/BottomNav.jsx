@@ -1,20 +1,23 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
     HomeIcon,
     TagIcon,
     GiftIcon,
     UserIcon,
     ShoppingCartIcon,
-    MagnifyingGlassIcon
+    MagnifyingGlassIcon,
+    ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 
 const BottomNav = () => {
+    const location = useLocation();
+    
     const navItems = [
         { name: 'Inicio', icon: HomeIcon, path: '/' },
         { name: 'Buscar', icon: MagnifyingGlassIcon, path: '/search' },
         { name: 'Carrito', icon: ShoppingCartIcon, path: '/cart' },
-        { name: 'Premios', icon: GiftIcon, path: '/prizes' },
+        { name: 'Pedidos', icon: ClipboardDocumentListIcon, path: '/orders' },
         { name: 'Perfil', icon: UserIcon, path: '/profile' },
     ];
 

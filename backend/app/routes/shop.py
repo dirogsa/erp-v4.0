@@ -17,7 +17,7 @@ router = APIRouter(prefix="/shop", tags=["Shop"])
 
 @router.get("/brands", response_model=List[VehicleBrand])
 async def get_shop_brands():
-    """Returns all vehicle brands for the shop frontend"""
+    """Returns static vehicle brands from the specialized collection (highly optimized)"""
     return await VehicleBrand.find_all().to_list()
 
 @router.get("/vehicles")
@@ -345,10 +345,11 @@ async def get_shop_products(
     category: Optional[str] = None,
     mode: Optional[str] = "all",
     vehicle_brand: Optional[str] = None,
+    vehicle_model: Optional[str] = None,
     is_new: Optional[bool] = None,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
-    print(f"[SHOP] GET /products called - search: '{search}', category: {category}, mode: {mode}")
+    print(f"[SHOP] GET /products called - search: '{search}', make: {vehicle_brand}, model: {vehicle_model}")
     
     # Base query for commercial products, now highly tolerant of CSV import variations
     query = {"is_active_in_shop": {"$in": [True, "true", "True", "TRUE", 1, "1"]}}
@@ -379,8 +380,19 @@ async def get_shop_products(
     
     if category:
         query["category_id"] = category
-    if vehicle_brand:
+        
+    # Precise Vehicle Filtering
+    if vehicle_brand and vehicle_model:
+        query["applications"] = {
+            "$elemMatch": {
+                "make": {"$regex": f"^{vehicle_brand}$", "$options": "i"},
+                "model": {"$regex": f"^{vehicle_model}$", "$options": "i"}
+            }
+        }
+    elif vehicle_brand:
         query["applications.make"] = {"$regex": f"^{vehicle_brand}$", "$options": "i"}
+    elif vehicle_model:
+        query["applications.model"] = {"$regex": f"^{vehicle_model}$", "$options": "i"}
 
     # We only apply strict COMMERCIAL type if not doing a direct SKU search to be more flexible
     if not (search and len(search) > 4):

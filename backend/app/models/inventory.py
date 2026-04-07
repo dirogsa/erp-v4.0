@@ -80,6 +80,7 @@ class VehicleBrand(Document):
     origin: BrandOrigin = BrandOrigin.OTHER
     logo_url: Optional[str] = None
     is_popular: bool = False
+    models: List[str] = [] # Cache of associated models for performance
     
     class Settings:
         name = "vehicle_brands"

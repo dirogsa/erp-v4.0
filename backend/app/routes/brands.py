@@ -17,26 +17,50 @@ async def get_brands(origin: Optional[BrandOrigin] = None):
 @router.post("/sync")
 async def sync_brands(current_user: User = Depends(get_current_user)):
     """
-    Escanea todos los productos y extrae marcas de vehículos de las aplicaciones.
-    Crea nuevas marcas en estado 'OTHER' si no existen.
+    Escanea todos los productos y extrae marcas Y modelos de vehículos.
+    Este proceso es el que alimenta la lista estática para que el Shop sea instantáneo.
     """
     if current_user.role not in [UserRole.ADMIN, UserRole.SUPERADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    # Obtener todas las marcas únicas de las aplicaciones de los productos de forma segura
+    # Pipeline maestro para agrupar marcas con todos sus modelos únicos
     pipeline = [
         {"$match": {"applications": {"$exists": True, "$not": {"$size": 0}}}},
         {"$unwind": "$applications"},
-        {"$group": {"_id": "$applications.make"}},
-        {"$match": {"_id": {"$ne": None, "$regex": ".+"}}}
+        {"$group": {
+            "_id": {"$toUpper": "$applications.make"},
+            "models": {"$addToSet": {"$toUpper": "$applications.model"}}
+        }},
+        {"$match": {"_id": {"$ne": None, "$regex": ".+"}}},
+        {"$sort": {"_id": 1}}
     ]
     
-    results = await Product.aggregate(pipeline).to_list()
-    makes = [r["_id"] for r in results]
+    results = await Product.get_pymongo_collection().aggregate(pipeline).to_list(None)
     
-    await ensure_brands_exist(makes)
+    processed_count = 0
+    for res in results:
+        make_name = res["_id"].strip().upper()
+        # Filtrar modelos inválidos (vacíos o null)
+        model_list = sorted([m.strip().upper() for m in res["models"] if m and str(m).strip()])
+        
+        # Actualizar o Crear marca
+        brand = await VehicleBrand.find_one(VehicleBrand.name == make_name)
+        if brand:
+            brand.models = model_list
+            await brand.save()
+        else:
+            new_brand = VehicleBrand(
+                name=make_name,
+                origin=BrandOrigin.OTHER,
+                models=model_list
+            )
+            await new_brand.insert()
+        processed_count += 1
             
-    return {"message": f"Sync completed. {len(makes)} brands processed.", "makes": makes}
+    return {
+        "message": f"Sincronización exitosa. {processed_count} marcas actualizadas con sus modelos.",
+        "brands_processed": processed_count
+    }
 
 @router.put("/{name}")
 async def update_brand(name: str, brand_data: VehicleBrand, current_user: User = Depends(get_current_user)):
