@@ -4,6 +4,7 @@ import { CartProvider } from './context/CartContext';
 import BottomNav from './components/BottomNav';
 import CatalogPage from './pages/CatalogPage';
 import HomePage from './pages/HomePage';
+import PublicHomePage from './pages/PublicHomePage';
 import LoginPage from './pages/LoginPage';
 import CartPage from './pages/CartPage';
 import PrizesPage from './pages/PrizesPage';
@@ -31,7 +32,8 @@ function App() {
         <CartProvider>
             <div className="min-h-screen bg-slate-50">
                 <Routes>
-                    <Route path="/" element={isAuthenticated ? <HomePage /> : <Navigate to="/login" />} />
+                    <Route path="/" element={<PublicHomePage />} />
+                    <Route path="/dashboard" element={isAuthenticated ? <HomePage /> : <Navigate to="/login" />} />
                     <Route path="/catalog" element={<CatalogPage />} />
                     <Route path="/search" element={<SearchPage />} />
                     <Route path="/notifications" element={<NotificationsPage />} />
@@ -39,7 +41,7 @@ function App() {
                     <Route path="/cart" element={<CartPage />} />
                     <Route path="/product/:sku" element={<ProductDetailPage />} />
                     <Route path="/profile" element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} />
-                    <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" />} />
+                    <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} />
                 </Routes>
 
                 {isAuthenticated && !shouldHideNav && <BottomNav />}

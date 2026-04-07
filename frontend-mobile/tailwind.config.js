@@ -7,6 +7,14 @@ export default {
     theme: {
         extend: {
             colors: {
+                brand: {
+                    primary: 'var(--brand-primary)',
+                    secondary: 'var(--brand-secondary)',
+                    bg: 'var(--brand-bg)',
+                    surface: 'var(--brand-surface)',
+                    text: 'var(--brand-text)',
+                    muted: 'var(--brand-muted)',
+                },
                 primary: {
                     50: '#f0f9ff',
                     100: '#e0f2fe',

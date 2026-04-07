@@ -16,7 +16,7 @@ const LoginPage = () => {
         setLoading(true);
         try {
             await login(username, password);
-            navigate('/');
+            navigate('/dashboard');
         } catch (err) {
             setError('Credenciales inválidas o error de conexión');
         } finally {
