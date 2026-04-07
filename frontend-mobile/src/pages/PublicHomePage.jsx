@@ -1,174 +1,197 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
     MagnifyingGlassIcon, 
     UserIcon,
     ChevronRightIcon,
-    ShieldCheckIcon,
-    TagIcon,
-    TruckIcon
+    Bars3Icon,
+    ArrowsPointingInIcon,
+    Squares2X2Icon
 } from '@heroicons/react/24/outline';
+import { shopService } from '../services/api';
 
 const PublicHomePage = () => {
-    const [activeBrand, setActiveBrand] = useState('wix'); // 'wix' or 'asakashi'
-    const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
+    const [codeSearch, setCodeSearch] = useState('');
+    
+    // Section 02 - Vehicles (Synchronized)
+    const [vehiclesData, setVehiclesData] = useState([]); // Array of {make, models}
+    const [selectedMake, setSelectedMake] = useState('');
+    const [selectedModel, setSelectedModel] = useState('');
+    
+    // Section 03 - Measurements (Standard A-H labels)
+    const [specs, setSpecs] = useState({
+        a: '', b: '', c: '', d: '', e: '', f: '', g: '', h: ''
+    });
+    const [forma, setForma] = useState('');
 
-    const handleSearch = (e) => {
-        if (e.key === 'Enter' || e.type === 'click') {
-            if (searchQuery.trim()) {
-                navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+    useEffect(() => {
+        const loadVehicles = async () => {
+            try {
+                // This connects directly to your ERP master product list
+                const res = await shopService.getSynchronizedVehicles();
+                setVehiclesData(res.data || []);
+            } catch (err) {
+                console.error("Master list synchronization failed", err);
             }
+        };
+        loadVehicles();
+    }, []);
+
+    const handleCodeSearch = (e) => {
+        if (e.key === 'Enter' || e.type === 'click') {
+            if (codeSearch.trim()) navigate(`/search?q=${encodeURIComponent(codeSearch)}`);
         }
     };
 
+    const handleVehicleSearch = () => {
+        const query = selectedModel === 'TODOS' ? selectedMake : `${selectedMake} ${selectedModel}`;
+        navigate(`/catalog?brand=${selectedMake}&model=${selectedModel}`);
+    };
+
+    const handleSpecChange = (key, value) => {
+        setSpecs(prev => ({ ...prev, [key]: value }));
+    };
+
     return (
-        <div className={`min-h-screen brand-transition bg-brand-bg text-brand-text brand-${activeBrand}`}>
-            {/* Header / Brand Switcher */}
-            <header className="px-6 pt-12 pb-6 border-b border-brand-surface sticky top-0 bg-brand-bg/80 backdrop-blur-md z-50 flex justify-between items-center">
-                <div className="flex bg-brand-surface p-1 rounded-2xl border border-brand-muted/20">
-                    <button 
-                        onClick={() => setActiveBrand('wix')}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                            activeBrand === 'wix' 
-                            ? 'bg-brand-primary text-brand-bg shadow-lg shadow-brand-primary/20' 
-                            : 'text-brand-muted'
-                        }`}
-                    >
-                        WIX
-                    </button>
-                    <button 
-                        onClick={() => setActiveBrand('asakashi')}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                            activeBrand === 'asakashi' 
-                            ? 'bg-brand-primary text-brand-bg shadow-lg shadow-brand-primary/20' 
-                            : 'text-brand-muted'
-                        }`}
-                    >
-                        ASAKASHI
-                    </button>
+        <div className="min-h-screen brand-transition bg-brand-bg text-brand-text flex flex-col font-sans">
+            {/* Header DIROGSA */}
+            <header className="px-6 pt-10 pb-4 flex justify-between items-center bg-brand-bg/80 backdrop-blur-md sticky top-0 z-50 border-b border-brand-border/30">
+                <div className="flex flex-col">
+                    <span className="text-xl font-black tracking-tighter text-white italic">DIROGSA</span>
+                    <span className="text-[7px] font-bold uppercase tracking-[0.3em] text-brand-primary">Terminal de Filtración</span>
                 </div>
-                
-                <Link to="/login" className="p-3 bg-brand-surface rounded-2xl border border-brand-muted/10 group active:scale-95 transition-all">
+                <Link to="/login" className="p-2.5 bg-brand-surface rounded-xl border border-brand-border active:scale-90 transition-all">
                     <UserIcon className="h-5 w-5 text-brand-primary" />
                 </Link>
             </header>
 
-            <main className="px-6 py-8">
-                {/* Hero Section */}
-                <div className="mb-12">
-                    <div className="flex gap-2 mb-3">
-                        <span className="text-[10px] bg-brand-primary/10 text-brand-primary border border-brand-primary/30 px-3 py-1 rounded-full font-black tracking-widest uppercase">
-                            Premium Filters
-                        </span>
+            <main className="px-6 py-6 pb-20 space-y-10">
+                
+                {/* 01. BÚSQUEDA POR CÓDIGO - IMPROVED FOR SMALL SCREENS */}
+                <section>
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em]">01. Código / Equivalencia</span>
                     </div>
-                    <h1 className="text-4xl font-black leading-[1.1] mb-4">
-                        {activeBrand === 'wix' ? 'El filtro que tu motor merece.' : 'Ingeniería Japonesa a tu alcance.'}
-                    </h1>
-                    <p className="text-brand-muted text-sm leading-relaxed mb-8 max-w-[80%]">
-                        {activeBrand === 'wix' 
-                            ? 'Tecnología estadounidense para máxima durabilidad y rendimiento en condiciones extremas.' 
-                            : 'Precisión y flujo optimizado para los motores más modernos del mercado.'}
-                    </p>
-
-                    {/* Search Bar - Principal CTA */}
-                    <div className="relative group">
-                        <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-                            <MagnifyingGlassIcon className="h-5 w-5 text-brand-muted group-focus-within:text-brand-primary transition-colors" />
+                    <div className="space-y-3">
+                        <div className="relative">
+                            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-muted" />
+                            <input 
+                                type="text" 
+                                value={codeSearch}
+                                onChange={(e) => setCodeSearch(e.target.value)}
+                                onKeyDown={handleCodeSearch}
+                                placeholder="DIGITE CÓDIGO DIRECTO..."
+                                className="w-full bg-brand-surface h-14 pl-12 pr-6 rounded-xl border border-brand-border focus:border-brand-primary/50 text-base font-black tracking-tighter placeholder:text-brand-muted/20 focus:outline-none shadow-sm"
+                            />
                         </div>
-                        <input 
-                            type="text" 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={handleSearch}
-                            placeholder="Buscar por código o equivalencia..."
-                            className="w-full bg-brand-surface h-16 pl-14 pr-6 rounded-[2rem] border-2 border-brand-muted/10 focus:border-brand-primary focus:outline-none text-sm font-bold tracking-tight transition-all placeholder:text-brand-muted/50"
-                        />
                         <button 
-                            onClick={handleSearch}
-                            className="absolute right-3 top-3 bottom-3 bg-brand-primary px-6 flex items-center justify-center rounded-[1.5rem] shadow-lg shadow-brand-primary/20 active:scale-95 transition-all"
+                            onClick={handleCodeSearch}
+                            className="w-full bg-brand-primary h-12 rounded-xl text-[10px] font-black uppercase text-brand-bg active:scale-95 transition-all shadow-lg"
                         >
-                            <ChevronRightIcon className="h-5 w-5 text-brand-bg font-black" />
+                            BUSCAR POR CÓDIGO
                         </button>
                     </div>
-                </div>
+                </section>
 
-                {/* Main Categories Section (The rest of the code is the same) */}
-                <div className="grid grid-cols-2 gap-4 mb-12">
-                    <div className="bg-brand-surface p-6 rounded-[2.5rem] border border-brand-muted/10 flex flex-col items-center text-center group active:scale-[0.98] transition-all">
-                        <div className="h-14 w-14 bg-brand-bg rounded-2xl flex items-center justify-center mb-4 shadow-inner ring-1 ring-brand-muted/10 group-hover:scale-110 transition-transform">
-                            🛢️
+                {/* 02. CATÁLOGO VEHICULAR - MASTER LIST SYNC */}
+                <section>
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em]">02. Marca y Modelo</span>
+                    </div>
+                    <div className="bg-brand-surface/50 border border-brand-border p-5 rounded-2xl space-y-4">
+                        <div className="grid grid-cols-1 gap-4">
+                            <select 
+                                value={selectedMake}
+                                onChange={(e) => { setSelectedMake(e.target.value); setSelectedModel(''); }}
+                                className="bg-brand-bg h-14 rounded-xl border border-brand-border text-xs font-black px-4 uppercase text-white appearance-none focus:outline-none focus:border-brand-primary/50"
+                            >
+                                <option value="">-- SELECCIONE MARCA --</option>
+                                {vehiclesData.map(v => (
+                                    <option key={v.make} value={v.make}>{v.make}</option>
+                                ))}
+                            </select>
+                            
+                            <select 
+                                value={selectedModel}
+                                disabled={!selectedMake}
+                                onChange={(e) => setSelectedModel(e.target.value)}
+                                className={`bg-brand-bg h-14 rounded-xl border border-brand-border text-xs font-black px-4 uppercase text-white appearance-none focus:outline-none focus:border-brand-primary/50 ${!selectedMake && 'opacity-30'}`}
+                            >
+                                <option value="">-- SELECCIONE MODELO --</option>
+                                {selectedMake && (
+                                    <>
+                                        <option value="TODOS">- TODOS LOS MODELOS -</option>
+                                        {vehiclesData.find(v => v.make === selectedMake)?.models.map(m => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </>
+                                )}
+                            </select>
                         </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1">Filtros de</span>
-                        <span className="text-sm font-black">Aceite</span>
+                        <button 
+                            disabled={!selectedMake || !selectedModel}
+                            onClick={handleVehicleSearch}
+                            className="w-full bg-brand-surface border-2 border-brand-primary h-12 rounded-xl text-[10px] font-black uppercase text-brand-primary active:scale-95 transition-all disabled:opacity-20"
+                        >
+                            IDENTIFICAR POR VEHÍCULO
+                        </button>
                     </div>
-                    <div className="bg-brand-surface p-6 rounded-[2.5rem] border border-brand-muted/10 flex flex-col items-center text-center group active:scale-[0.98] transition-all">
-                        <div className="h-14 w-14 bg-brand-bg rounded-2xl flex items-center justify-center mb-4 shadow-inner ring-1 ring-brand-muted/10 group-hover:scale-110 transition-transform">
-                            🌬️
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-muted mb-1">Filtros de</span>
-                        <span className="text-sm font-black">Aire</span>
-                    </div>
-                </div>
+                </section>
 
-                {/* Brand Showcase Section */}
-                <div className="mb-12">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-black tracking-tight italic uppercase">Destaque {activeBrand}</h2>
-                        <div className="h-px flex-1 mx-4 bg-brand-muted/10"></div>
+                {/* 03. BÚSQUEDA TÉCNICA - A TO H LABELS */}
+                <section>
+                    <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em]">03. Medidas Técnicas (A-H)</span>
                     </div>
-
-                    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 pr-10">
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="min-w-[70%] bg-brand-surface rounded-[2.5rem] p-6 border border-brand-muted/10 shadow-xl shadow-brand-bg/10 relative overflow-hidden group">
-                                <div className="relative z-10 flex flex-col h-full">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="bg-brand-bg px-3 py-1 rounded-full text-[9px] font-black text-brand-primary uppercase border border-brand-muted/20">
-                                            Stock Disponible
-                                        </div>
-                                        <span className="text-sm font-black text-brand-primary">S/ 45.00</span>
-                                    </div>
-                                    <div className="h-32 w-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500">
-                                        <div className={`h-24 w-24 rounded-full ${activeBrand === 'wix' ? 'bg-black' : 'bg-white shadow-xl'} flex items-center justify-center border border-brand-muted/10`}>
-                                            <span className="text-xs font-black">BOX</span>
-                                        </div>
-                                    </div>
-                                    <h3 className="text-sm font-black mb-1">FILTRO {activeBrand.toUpperCase()} {i}500S</h3>
-                                    <p className="text-[10px] text-brand-muted uppercase font-bold">Equivalencia: PH2870A</p>
+                    <div className="bg-brand-surface border border-brand-border p-5 rounded-2xl shadow-xl">
+                        <div className="grid grid-cols-4 gap-3 mb-5">
+                            {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(letter => (
+                                <div key={letter} className="flex flex-col gap-1.5">
+                                    <label className="text-[9px] font-black text-brand-muted uppercase text-center">{letter}</label>
+                                    <input 
+                                        type="text" 
+                                        value={specs[letter]}
+                                        onChange={(e) => handleSpecChange(letter, e.target.value)}
+                                        placeholder="0"
+                                        className="bg-brand-bg h-10 rounded-lg text-center font-black text-xs text-brand-primary border border-brand-border focus:outline-none focus:border-brand-primary/40 shadow-inner"
+                                    />
                                 </div>
-                                <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-brand-primary/5 rounded-full blur-2xl"></div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                            ))}
+                        </div>
+                        
+                        <div className="mb-5 px-1">
+                            <label className="text-[9px] font-black text-brand-muted uppercase tracking-widest mb-1.5 block italic">Forma (Opcional)</label>
+                            <select 
+                                value={forma}
+                                onChange={(e) => setForma(e.target.value)}
+                                className="w-full bg-brand-bg h-12 rounded-xl border border-brand-border text-[10px] font-black px-4 uppercase text-brand-primary appearance-none focus:outline-none"
+                            >
+                                <option value="">-- CUALQUIER FORMA --</option>
+                                <option value="REDONDO">REDONDO/CILÍNDRICO</option>
+                                <option value="PANEL">PANEL / RECTANGULAR</option>
+                                <option value="OVALADO">OVALADO</option>
+                                <option value="ESPECIAL">FORMA ESPECIAL</option>
+                            </select>
+                        </div>
 
-                {/* Features Bar */}
-                <div className="grid grid-cols-3 gap-6 py-8 border-y border-brand-muted/10 mb-12">
-                    <div className="flex flex-col items-center text-center gap-2">
-                        <TruckIcon className="h-5 w-5 text-brand-primary" />
-                        <span className="text-[8px] font-black uppercase tracking-tighter text-brand-muted leading-tight">Envíos a todo el país</span>
+                        <button 
+                            onClick={() => navigate('/search?type=dimensions')}
+                            className="w-full bg-brand-primary h-12 rounded-xl text-[10px] font-black uppercase text-brand-bg active:scale-95 transition-all flex items-center justify-center gap-2"
+                        >
+                            <ArrowsPointingInIcon className="h-4 w-4" />
+                            BUSCAR POR MEDIDAS
+                        </button>
                     </div>
-                    <div className="flex flex-col items-center text-center gap-2">
-                        <TagIcon className="h-5 w-5 text-brand-primary" />
-                        <span className="text-[8px] font-black uppercase tracking-tighter text-brand-muted leading-tight">Precios de Mayorista</span>
-                    </div>
-                    <div className="flex flex-col items-center text-center gap-2">
-                        <ShieldCheckIcon className="h-5 w-5 text-brand-primary" />
-                        <span className="text-[8px] font-black uppercase tracking-tighter text-brand-muted leading-tight">Garantía Asegurada</span>
-                    </div>
-                </div>
+                </section>
 
-                {/* Login Redirect Section */}
-                <div className="bg-brand-primary p-8 rounded-[3rem] text-brand-bg flex flex-col items-center text-center shadow-2xl shadow-brand-primary/20 mb-10">
-                    <h3 className="text-xl font-black mb-2">¿Ya eres cliente?</h3>
-                    <p className="text-[11px] font-bold opacity-80 mb-6 max-w-[80%] uppercase tracking-widest">
-                        Accede a tu historial, recompensas y descuentos especiales.
-                    </p>
-                    <Link to="/login" className="w-full bg-brand-bg text-brand-primary py-4 rounded-2xl text-xs font-black uppercase tracking-widest active:scale-95 transition-all">
-                        Iniciar Sesión Ahora
-                    </Link>
-                </div>
             </main>
+
+            <footer className="px-8 py-10 flex flex-col items-center gap-2 opacity-20 mt-auto">
+                <span className="text-[8px] font-black uppercase tracking-widest">Dirogsa v4.0</span>
+                <div className="h-px w-20 bg-brand-muted"></div>
+                <span className="text-[7px] font-black uppercase tracking-[0.4em]">Engineered for Excellence</span>
+            </footer>
         </div>
     );
 };

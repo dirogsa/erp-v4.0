@@ -20,6 +20,31 @@ async def get_shop_brands():
     """Returns all vehicle brands for the shop frontend"""
     return await VehicleBrand.find_all().to_list()
 
+@router.get("/vehicles")
+async def get_synchronized_vehicles():
+    """Returns a list of all makes and models available in the ACTIVE master product list"""
+    # Filter products that are active in shop to ensure relevance
+    pipeline = [
+        {"$match": {
+            "is_active_in_shop": True, 
+            "applications": {"$exists": True, "$not": {"$size": 0}}
+        }},
+        {"$unwind": "$applications"},
+        {"$group": {
+            "_id": {"$toUpper": "$applications.make"}, # Normalizamos a Mayúsculas
+            "models": {"$addToSet": {"$toUpper": "$applications.model"}}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+    
+    results = await Product.get_pymongo_collection().aggregate(pipeline).to_list(length=None)
+    
+    # Format: [{"make": "TOYOTA", "models": ["YARIS", "HILUX", ...]}, ...]
+    return [
+        {"make": r["_id"], "models": sorted(r["models"])} 
+        for r in results if r["_id"]
+    ]
+
 # Removed local calculate_item_price in favor of services.pricing_service.get_product_price_for_user
 
 @router.get("/profile")

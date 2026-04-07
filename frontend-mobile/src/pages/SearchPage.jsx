@@ -5,17 +5,29 @@ import {
     MagnifyingGlassIcon,
     ChevronLeftIcon,
     AdjustmentsHorizontalIcon,
-    QrCodeIcon
+    QrCodeIcon,
+    ArrowsPointingInIcon,
+    TagIcon
 } from '@heroicons/react/24/outline';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const SearchPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const queryParams = new URLSearchParams(location.search);
+    const searchType = queryParams.get('type'); // 'dimensions' or null (code)
+
     const [searchTerm, setSearchTerm] = useState('');
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [stats, setStats] = useState(null);
     const searchInput = useRef(null);
+
+    // Initial placeholder based on type
+    const getPlaceholder = () => {
+        if (searchType === 'dimensions') return "Ej: 100x150x25 o Redondo...";
+        return "Ingrese Código o Equivalencia...";
+    };
 
     // Debounce search
     useEffect(() => {
@@ -47,46 +59,44 @@ const SearchPage = () => {
     }, []);
 
     return (
-        <div className="bg-slate-50 min-h-screen pb-24">
+        <div className="bg-brand-bg min-h-screen text-brand-text flex flex-col font-sans">
             {/* Header / Search Input */}
-            <div className="bg-white px-4 pt-12 pb-4 sticky top-0 z-50 border-b border-slate-100 shadow-sm">
+            <div className="bg-brand-bg/80 backdrop-blur-xl px-4 pt-12 pb-4 sticky top-0 z-50 border-b border-brand-border/50">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => navigate(-1)}
-                        className="p-2 bg-slate-100 rounded-xl text-slate-600 active:scale-95 transition-all"
+                        className="p-2.5 bg-brand-surface rounded-xl border border-brand-border text-brand-text active:scale-95 transition-all"
                     >
-                        <ChevronLeftIcon className="h-6 w-6" />
+                        <ChevronLeftIcon className="h-5 w-5" />
                     </button>
+                    
                     <div className="flex-1 relative">
-                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-primary-500" />
+                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-primary" />
                         <input
                             ref={searchInput}
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Marca, Modelo, SKU o Medida..."
-                            className="w-full pl-12 pr-4 py-3.5 bg-slate-100 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-primary-500 transition-all"
+                            placeholder={getPlaceholder()}
+                            className="w-full pl-12 pr-4 py-3.5 bg-brand-surface border border-brand-border rounded-xl text-sm font-bold focus:ring-1 focus:ring-brand-primary focus:outline-none transition-all placeholder:text-brand-muted/40"
                         />
                         {searchTerm && (
                             <button
                                 onClick={() => setSearchTerm('')}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-muted font-bold"
                             >
                                 ×
                             </button>
                         )}
                     </div>
-                    <button className="p-2 bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200">
-                        <QrCodeIcon className="h-6 w-6" />
-                    </button>
                 </div>
 
                 {stats && (
                     <div className="flex items-center justify-between mt-4 px-1">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            {stats.total} productos encontrados
+                        <p className="text-[10px] font-black text-brand-muted uppercase tracking-widest">
+                            {stats.total} resultados encontrados
                         </p>
-                        <button className="flex items-center gap-1 text-[10px] font-black text-primary-600 uppercase border-b-2 border-primary-50">
+                        <button className="flex items-center gap-1 text-[10px] font-black text-brand-primary uppercase">
                             <AdjustmentsHorizontalIcon className="h-4 w-4" /> Filtros
                         </button>
                     </div>
@@ -94,90 +104,70 @@ const SearchPage = () => {
             </div>
 
             {/* Content Section */}
-            <div className="p-4">
+            <main className="p-4 flex-1">
                 {searchTerm.length < 3 && searchTerm.length > 0 && (
                     <div className="text-center py-20">
-                        <p className="text-slate-400 text-sm font-medium">Sigue escribiendo para buscar...</p>
+                        <p className="text-brand-muted text-xs font-bold uppercase tracking-widest">Buscando...</p>
                     </div>
                 )}
 
                 {loading ? (
-                    <div className="grid grid-cols-2 gap-4 animate-pulse">
+                    <div className="grid grid-cols-2 gap-4">
                         {[1, 2, 3, 4, 5, 6].map(i => (
-                            <div key={i} className="bg-white h-56 rounded-3xl border border-slate-50"></div>
+                            <div key={i} className="bg-brand-surface h-56 rounded-3xl border border-brand-border animate-pulse"></div>
                         ))}
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 gap-4">
-                        {results.map(prod => {
-                            // Detect if match was by equivalence
-                            const isEquiv = prod.equivalences?.some(eq => eq.code.toLowerCase().includes(searchTerm.toLowerCase()));
-
-                            return (
-                                <div key={prod.sku} className="relative">
-                                    {isEquiv && (
-                                        <div className="absolute top-2 right-2 z-10">
-                                            <span className="bg-amber-100 text-amber-700 text-[8px] font-black px-1.5 py-0.5 rounded-md border border-amber-200">
-                                                COINCIDENCIA
-                                            </span>
-                                        </div>
-                                    )}
-                                    <MobileProductCard
-                                        product={prod}
-                                        onAddToCart={(p) => console.log("Added:", p.sku)}
-                                    />
-                                </div>
-                            );
-                        })}
+                        {results.map(prod => (
+                            <MobileProductCard
+                                key={prod.sku}
+                                product={prod}
+                                onAddToCart={(p) => console.log("Added:", p.sku)}
+                            />
+                        ))}
                     </div>
                 )}
 
                 {results.length === 0 && searchTerm.length >= 3 && !loading && (
                     <div className="text-center py-20 px-10">
-                        <div className="h-20 w-20 bg-slate-100 text-slate-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <MagnifyingGlassIcon className="h-10 w-10" />
+                        <div className="h-16 w-16 bg-brand-surface border border-brand-border text-brand-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                            <MagnifyingGlassIcon className="h-8 w-8" />
                         </div>
-                        <h3 className="text-lg font-black text-slate-900 mb-1">Cero Resultados</h3>
-                        <p className="text-sm text-slate-500 font-medium">No encontramos nada que coincida con "{searchTerm}".</p>
-                        <button
-                            onClick={() => setSearchTerm('')}
-                            className="text-primary-600 font-bold text-sm mt-6 underline"
-                        >
-                            Ver otros productos
-                        </button>
+                        <h3 className="text-sm font-black text-white mb-1 uppercase tracking-tighter">Sin coincidencias</h3>
+                        <p className="text-[10px] text-brand-muted font-bold uppercase tracking-widest leading-relaxed">No encontramos resultados para "{searchTerm}". Revisa el código e intenta nuevamente.</p>
                     </div>
                 )}
 
                 {results.length === 0 && searchTerm === '' && (
-                    <div className="space-y-8 mt-4">
-                        <section>
-                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Búsquedas Frecuentes</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {['Aceite 10W40', 'Toyota Hilux', 'Filtro Aire', 'Nissan Sentra', 'WA9567'].map(tag => (
-                                    <button
-                                        key={tag}
-                                        onClick={() => setSearchTerm(tag)}
-                                        className="bg-white px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-slate-100 shadow-sm active:bg-slate-50"
-                                    >
-                                        {tag}
-                                    </button>
-                                ))}
+                    <div className="space-y-8 mt-10">
+                        <section className="text-center px-6">
+                            <div className="inline-flex p-3 bg-brand-surface border border-brand-border rounded-2xl mb-4">
+                                {searchType === 'dimensions' ? <ArrowsPointingInIcon className="h-6 w-6 text-brand-primary" /> : <TagIcon className="h-6 w-6 text-brand-primary" />}
                             </div>
+                            <h4 className="text-sm font-black text-white uppercase tracking-tighter mb-2">
+                                {searchType === 'dimensions' ? "Búsqueda por Dimensiones" : "Búsqueda por Código Técnico"}
+                            </h4>
+                            <p className="text-[10px] text-brand-muted font-bold uppercase tracking-[0.1em] leading-relaxed">
+                                {searchType === 'dimensions' 
+                                    ? "Utiliza milímetros o pulgadas para identificar el filtro físicamente." 
+                                    : "Ingresa el código original del fabricante o cualquier equivalencia de mercado."}
+                            </p>
                         </section>
 
-                        <section className="bg-primary-900 p-6 rounded-[2.5rem] relative overflow-hidden">
-                            <div className="relative z-10 text-white">
-                                <h4 className="text-xl font-black mb-2 leading-tight">¿Tienes el código QR?</h4>
-                                <p className="text-xs text-primary-200 font-medium mb-6">Escanea el código de la caja para encontrarlo instantáneamente.</p>
-                                <button className="bg-white text-primary-900 px-6 py-3 rounded-2xl text-xs font-black uppercase shadow-xl active:scale-95 transition-all">
-                                    Abrir Escáner
+                        <section className="p-8 bg-brand-surface border border-brand-border rounded-[2.5rem] relative overflow-hidden">
+                            <div className="relative z-10">
+                                <h4 className="text-lg font-black mb-1 text-white underline decoration-brand-primary decoration-4 underline-offset-4">ESCÁNER QR</h4>
+                                <p className="text-[10px] text-brand-muted font-bold uppercase tracking-widest mb-6">Identificación instantánea</p>
+                                <button className="w-full bg-brand-primary text-brand-bg px-6 py-4 rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all">
+                                    Activar Cámara
                                 </button>
                             </div>
-                            <QrCodeIcon className="absolute -bottom-10 -right-10 h-40 w-40 text-white/5" />
+                            <QrCodeIcon className="absolute -bottom-6 -right-6 h-32 w-32 text-white/5" />
                         </section>
                     </div>
                 )}
-            </div>
+            </main>
         </div>
     );
 };

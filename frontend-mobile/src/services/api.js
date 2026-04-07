@@ -21,6 +21,7 @@ export const shopService = {
     getProductBySku: (sku) => api.get(`/shop/products/${sku}`),
     getCategories: () => api.get('/categories'),
     getVehicleBrands: () => api.get('/shop/brands'),
+    getSynchronizedVehicles: () => api.get('/shop/vehicles'),
     getPaymentOptions: () => api.get('/shop/payment-options'),
     getInvoices: () => api.get('/shop/invoices'),
     checkout: (data) => api.post('/shop/checkout', data),
