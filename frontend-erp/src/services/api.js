@@ -112,7 +112,8 @@ export const purchasingService = {
   createSupplier: (supplier) => api.post('/purchasing/suppliers', supplier),
   deleteSupplier: (id) => api.delete(`/purchasing/suppliers/${id}`),
   updateSupplier: (id, supplier) => api.put(`/purchasing/suppliers/${id}`, supplier),
-
+  importInvoiceXml: (xmlData, autoReception = true, exchangeRate = null) => 
+    api.post('/purchasing/import-invoice-xml', { xml_data: xmlData, auto_reception: autoReception, exchange_rate: exchangeRate }),
 };
 
 export const purchaseQuotesService = {
@@ -185,6 +186,8 @@ export const salesService = {
   getCustomerBranches: (customerId) => api.get(`/sales/customers/${customerId}/branches`),
   updateCustomerBranch: (customerId, branchIndex, branch) => api.put(`/sales/customers/${customerId}/branches/${branchIndex}`, branch),
   deleteCustomerBranch: (customerId, branchIndex) => api.delete(`/sales/customers/${customerId}/branches/${branchIndex}`),
+  importInvoiceXml: (xml_data, auto_guide = true, exchange_rate = null) => 
+    api.post('/sales/import-invoice-xml', { xml_data, auto_guide, exchange_rate }),
 };
 
 export const deliveryService = {
@@ -273,6 +276,10 @@ export const staffService = {
   createStaff: (data) => api.post('/staff', data),
   updateStaff: (id, data) => api.put(`/staff/${id}`, data),
   deleteStaff: (id) => api.delete(`/staff/${id}`),
+};
+export const financeService = {
+  getExchangeRate: (date) => api.get(`/finance/exchange-rate/${date}`),
+  saveExchangeRate: (date, data) => api.post(`/finance/exchange-rate/${date}`, data),
 };
 
 export default api;

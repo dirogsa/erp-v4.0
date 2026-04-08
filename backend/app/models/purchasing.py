@@ -16,16 +16,19 @@ class PaymentStatus(str, Enum):
 
 class OrderItem(BaseModel):
     product_sku: str
-    product_name: Optional[str] = None  # Added to store manual names
+    product_name: Optional[str] = None
     quantity: int
-    unit_cost: float
-    is_custom: bool = False  # Track if product was manually text-entered
+    unit_value: float = 0.0 # Sin IGV (Costo Base)
+    unit_price: float = 0.0 # Con IGV (Costo Final)
+    unit_cost: float = 0.0  # Legacy retrocompatibility
+    tax_rate: float = 0.18
+    is_custom: bool = False
 
-    @field_validator('unit_cost')
+    @field_validator('unit_value', 'unit_price', 'unit_cost')
     @classmethod
     def round_cost(cls, v):
-        """Redondear a 3 decimales"""
-        return round(v, 3) if v is not None else v
+        """Redondear a 4 decimales"""
+        return round(v, 4) if v is not None else v
 
 class Payment(BaseModel):
     """Registro individual de un pago"""
@@ -51,6 +54,7 @@ class PurchaseOrder(Document):
     total_amount: float = 0.0
     amount_in_words: Optional[str] = None
     currency: str = "SOLES"
+    exchange_rate: Optional[float] = None
     show_prices: bool = True
 
     @field_validator('total_amount')
@@ -109,6 +113,7 @@ class PurchaseInvoice(Document):
     items: List[OrderItem]
     total_amount: float = 0.0
     amount_in_words: Optional[str] = None
+    exchange_rate: Optional[float] = None
     
     # Control de pagos
     payment_status: PaymentStatus = PaymentStatus.PENDING
@@ -137,6 +142,7 @@ class Supplier(Document):
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    ubigeo: Optional[str] = None
     created_at: datetime = datetime.now()
 
     class Settings:

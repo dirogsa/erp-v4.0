@@ -476,3 +476,132 @@ async def create_reception_guide(invoice_number: str, notes: str, created_by: st
         "guide_number": guide_number,
         "items_count": len(guide_items)
     }
+
+async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_rate: Optional[float] = None) -> PurchaseInvoice:
+    """Importación directa de factura de proveedor XML saltando cotización/orden manual"""
+    from app.models.purchasing import PurchaseOrder, PurchaseInvoice, OrderStatus, PaymentStatus
+    from app.models.inventory import DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
+    
+    # 1. Crear Orden de Compra Interna (Estado: RECIBIDA/FACTURADA)
+    year_prefix = datetime.now().strftime('%y')
+    prefix = f"OC-{year_prefix}"
+    last_order = await PurchaseOrder.find({"order_number": {"$regex": f"^{prefix}"}}).sort("-order_number").limit(1).to_list()
+    
+    new_num = 1
+    if last_order and last_order[0].order_number:
+        try:
+            parts = last_order[0].order_number.split('-')
+            if len(parts) == 3:
+                new_num = int(parts[2]) + 1
+        except: pass
+    
+    order_number = f"{prefix}-{new_num:04d}"
+    
+    order_items = []
+    from app.models.purchasing import OrderItem
+    for item in data.get('items', []):
+        order_items.append(OrderItem(
+            product_sku=item['product_sku'],
+            quantity=item['quantity'],
+            unit_value=item.get('unit_value', item['unit_price'] / 1.18),
+            unit_price=item['unit_price'],
+            unit_cost=item['unit_price'], # Legacy compatibility
+            tax_rate=item.get('tax_rate', 0.18),
+            is_custom=True
+        ))
+        
+    order = PurchaseOrder(
+        order_number=order_number,
+        supplier_name=data['supplier']['name'], 
+        supplier_ruc=data['supplier']['ruc'],
+        supplier_address=data['supplier'].get('address'),
+        items=order_items,
+        status=OrderStatus.INVOICED,
+        total_amount=data['total_amount'],
+        currency=data.get('currency', 'SOLES'),
+        exchange_rate=exchange_rate,
+        date=datetime.fromisoformat(data['date'])
+    )
+    await order.insert()
+    
+    # 2. Crear Factura de Proveedor
+    prefix_inv = f"FC-{year_prefix}"
+    last_inv = await PurchaseInvoice.find({"invoice_number": {"$regex": f"^{prefix_inv}"}}).sort("-invoice_number").limit(1).to_list()
+    
+    new_num_inv = 1
+    if last_inv and last_inv[0].invoice_number:
+        try:
+            parts = last_inv[0].invoice_number.split('-')
+            if len(parts) == 3:
+                new_num_inv = int(parts[2]) + 1
+        except: pass
+    
+    invoice_number = f"{prefix_inv}-{new_num_inv:04d}"
+    
+    invoice = PurchaseInvoice(
+        invoice_number=invoice_number,
+        sunat_number=data.get('sunat_number'),
+        order_number=order_number,
+        supplier_name=order.supplier_name,
+        invoice_date=order.date,
+        items=order.items,
+        total_amount=order.total_amount,
+        currency=order.currency,
+        exchange_rate=exchange_rate,
+        payment_status=PaymentStatus.PAID,
+        amount_paid=order.total_amount,
+        reception_status="PENDING"
+    )
+    await invoice.insert()
+    
+    # 3. Auto-Recepción (Aumento de stock)
+    if auto_reception:
+        prefix_g = f"GC-{year_prefix}"
+        last_g = await DeliveryGuide.find({"guide_number": {"$regex": f"^{prefix_g}"}}).sort("-guide_number").limit(1).to_list()
+        new_num_g = 1
+        if last_g and last_g[0].guide_number:
+            try:
+                parts = last_g[0].guide_number.split('-')
+                if len(parts) == 3:
+                    new_num_g = int(parts[2]) + 1
+            except: pass
+        guide_number = f"{prefix_g}-{new_num_g:04d}"
+        
+        guide_items = []
+        for item in order.items:
+            product = await inventory_service.get_product_by_sku(item.product_sku)
+            guide_items.append(GuideItem(
+                sku=item.product_sku,
+                product_name=product.name,
+                quantity=item.quantity,
+                unit_cost=item.unit_cost
+            ))
+            
+            # Movimiento de inventario (IN)
+            await inventory_service.register_movement(
+                sku=item.product_sku,
+                quantity=item.quantity,
+                movement_type=MovementType.IN,
+                reference=guide_number,
+                date=order.date,
+                unit_cost=item.unit_cost
+            )
+            
+        guide = DeliveryGuide(
+            guide_number=guide_number,
+            guide_type=GuideType.RECEPTION,
+            status=GuideStatus.DELIVERED,
+            invoice_number=invoice_number,
+            order_number=order_number,
+            customer_name=order.supplier_name, # En recepción el supplier es el 'customer' de la guía
+            items=guide_items,
+            issue_date=order.date,
+            delivery_date=order.date
+        )
+        await guide.insert()
+        
+        invoice.reception_status = "RECEIVED"
+        invoice.guide_id = str(guide.id)
+        await invoice.save()
+
+    return invoice

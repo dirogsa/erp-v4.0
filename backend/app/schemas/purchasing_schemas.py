@@ -18,3 +18,8 @@ class PaymentRegistration(BaseModel):
 class ReceptionRequest(BaseModel):
     notes: Optional[str] = None
     created_by: str
+
+class InvoiceXmlImport(BaseModel):
+    xml_data: dict
+    auto_reception: bool = True
+    exchange_rate: Optional[float] = None

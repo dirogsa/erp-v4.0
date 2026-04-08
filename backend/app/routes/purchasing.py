@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from beanie import PydanticObjectId
 from app.models.purchasing import PurchaseOrder, PurchaseInvoice, Supplier, PaymentStatus
 from app.services import purchasing_service
-from app.schemas.purchasing_schemas import InvoiceCreation, PaymentRegistration, ReceptionRequest
+from app.schemas.purchasing_schemas import InvoiceCreation, PaymentRegistration, ReceptionRequest, InvoiceXmlImport
 from app.schemas.common import PaginatedResponse
 
 router = APIRouter(prefix="/purchasing", tags=["Purchasing"])
@@ -102,4 +102,11 @@ async def create_reception_guide(invoice_number: str, reception_data: ReceptionR
         invoice_number,
         reception_data.notes,
         reception_data.created_by
+    )
+@router.post("/import-invoice-xml", response_model=PurchaseInvoice)
+async def import_invoice_xml(request: InvoiceXmlImport):
+    return await purchasing_service.import_invoice_xml(
+        request.xml_data, 
+        request.auto_reception, 
+        request.exchange_rate
     )

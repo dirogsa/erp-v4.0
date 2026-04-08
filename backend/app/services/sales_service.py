@@ -7,6 +7,7 @@ from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, 
 from app.models.marketing import LoyaltyConfig
 
 
+from app.models.inventory import Product, DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
 from app.services import inventory_service, audit_service
 from app.services.audit_service import AuditService
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, DuplicateEntityException
@@ -1019,3 +1020,151 @@ async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str
         "items_count": len(guide_items),
         "delivery_address": invoice.delivery_address
     }
+
+async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate: Optional[float] = None, user: Optional[User] = None) -> SalesInvoice:
+    """Importación directa de factura XML saltando cotización/orden manual"""
+    from app.models.sales import OrderItem, OrderStatus, PaymentStatus, SalesOrder, SalesInvoice
+    from app.models.inventory import DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
+    
+    # 1. Crear Orden de Venta Interna (Estado: FACTURADA)
+    year_prefix = datetime.now().strftime('%y')
+    prefix = f"OV-{year_prefix}"
+    last_order = await SalesOrder.find({"order_number": {"$regex": f"^{prefix}"}}).sort("-order_number").limit(1).to_list()
+    
+    new_num = 1
+    if last_order and last_order[0].order_number:
+        try:
+            parts = last_order[0].order_number.split('-')
+            if len(parts) == 3:
+                new_num = int(parts[2]) + 1
+        except: pass
+    
+    order_number = f"{prefix}-{new_num:04d}"
+    
+    order_items = []
+    for item in data.get('items', []):
+        order_items.append(OrderItem(
+            product_sku=item['product_sku'],
+            quantity=item['quantity'],
+            unit_value=item.get('unit_value', item['unit_price'] / 1.18),
+            unit_price=item['unit_price'],
+            tax_rate=item.get('tax_rate', 0.18),
+            invoiced_quantity=item['quantity']
+        ))
+        
+    order = SalesOrder(
+        order_number=order_number,
+        customer_name=data['customer']['name'],
+        customer_ruc=data['customer']['ruc'],
+        customer_address=data['customer'].get('address'),
+        items=order_items,
+        status=OrderStatus.INVOICED,
+        total_amount=data['total_amount'],
+        currency=data.get('currency', 'SOLES'),
+        exchange_rate=exchange_rate,
+        date=datetime.fromisoformat(data['date']),
+        payment_terms={
+            "mode": data.get('payment_terms', 'Contado'),
+            "installments": data.get('installments', [])
+        },
+        source="XML_IMPORT",
+        issuer_info=await resolve_issuer_info(data.get('issuer_info')) if data.get('issuer_info') else None
+    )
+    await order.insert()
+    
+    # 2. Crear Factura vinculada
+    prefix_inv = f"FV-{year_prefix}"
+    last_inv = await SalesInvoice.find({"invoice_number": {"$regex": f"^{prefix_inv}"}}).sort("-invoice_number").limit(1).to_list()
+    
+    new_num_inv = 1
+    if last_inv and last_inv[0].invoice_number:
+        try:
+            parts = last_inv[0].invoice_number.split('-')
+            if len(parts) == 3:
+                new_num_inv = int(parts[2]) + 1
+        except: pass
+    
+    invoice_number = f"{prefix_inv}-{new_num_inv:04d}"
+    
+    invoice = SalesInvoice(
+        invoice_number=invoice_number,
+        sunat_number=data.get('sunat_number'),
+        order_number=order_number,
+        customer_name=order.customer_name,
+        customer_ruc=order.customer_ruc,
+        invoice_date=order.date,
+        due_date=order.date, # Simplificado para importación historial
+        items=order.items,
+        total_amount=order.total_amount,
+        currency=order.currency,
+        exchange_rate=exchange_rate,
+        payment_status=PaymentStatus.PAID,
+        amount_paid=order.total_amount,
+        issuer_info=order.issuer_info,
+        dispatch_status="PENDING"
+    )
+    await invoice.insert()
+    
+    # 3. Auto-Guía (Descuento de stock)
+    if auto_guide:
+        prefix_g = f"GV-{year_prefix}"
+        last_g = await DeliveryGuide.find({"guide_number": {"$regex": f"^{prefix_g}"}}).sort("-guide_number").limit(1).to_list()
+        new_num_g = 1
+        if last_g and last_g[0].guide_number:
+            try:
+                parts = last_g[0].guide_number.split('-')
+                if len(parts) == 3:
+                    new_num_g = int(parts[2]) + 1
+            except: pass
+        guide_number = f"{prefix_g}-{new_num_g:04d}"
+        
+        guide_items = []
+        for item in order_items:
+            product = await inventory_service.get_product_by_sku(item.product_sku)
+            guide_items.append(GuideItem(
+                sku=item.product_sku,
+                product_name=product.name,
+                quantity=item.quantity,
+                unit_cost=product.cost
+            ))
+            
+            # Movimiento de inventario
+            await inventory_service.register_movement(
+                sku=item.product_sku,
+                quantity=item.quantity,
+                movement_type=MovementType.OUT,
+                reference=guide_number,
+                date=order.date
+            )
+            
+        guide = DeliveryGuide(
+            guide_number=guide_number,
+            guide_type=GuideType.DISPATCH,
+            status=GuideStatus.COMPLETED,
+            invoice_number=invoice_number,
+            order_number=order_number,
+            customer_name=order.customer_name,
+            customer_ruc=order.customer_ruc,
+            items=guide_items,
+            issue_date=order.date,
+            dispatch_date=order.date,
+            delivery_date=order.date,
+            created_by=user.username if user else "SYSTEM"
+        )
+        await guide.insert()
+        
+        invoice.dispatch_status = "DISPATCHED"
+        invoice.guide_id = str(guide.id)
+        await invoice.save()
+
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="IMPORT",
+            module="SALES",
+            description=f"Importación XML Directa: {invoice.sunat_number or invoice_number}",
+            entity_id=str(invoice.id),
+            entity_name=invoice.sunat_number or invoice_number
+        )
+        
+    return invoice

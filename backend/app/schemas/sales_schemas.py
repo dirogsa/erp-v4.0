@@ -45,3 +45,8 @@ class SalesPolicyUpdate(BaseModel):
 class SalesPolicyResponse(SalesPolicyUpdate):
     last_updated: str
     updated_by: Optional[str] = None
+
+class InvoiceXmlImport(BaseModel):
+    xml_data: dict
+    auto_guide: bool = True
+    exchange_rate: Optional[float] = None

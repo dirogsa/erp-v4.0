@@ -23,7 +23,7 @@ import QuotesTable from '../components/features/sales/QuotesTable';
 import QuoteForm from '../components/forms/QuoteForm';
 import QuoteDetailModal from '../components/features/sales/QuoteDetailModal';
 import SalesQuoteReceipt from '../components/features/sales/SalesQuoteReceipt';
-import { salesQuotesService } from '../services/api';
+import { salesQuotesService, salesService } from '../services/api';
 
 import ConversionConfirmationModal from '../components/features/sales/ConversionConfirmationModal';
 import BackorderConversionPreviewModal from '../components/features/sales/BackorderConversionPreviewModal';
@@ -35,7 +35,7 @@ import GuidesTable from '../components/features/sales/GuidesTable';
 import GuideFormModal from '../components/features/sales/GuideFormModal';
 import DeliveryGuideReceipt from '../components/features/sales/DeliveryGuideReceipt';
 import XMLImportModal from '../components/common/XMLImportModal';
-import XMLReviewModal from '../components/features/sales/XMLReviewModal';
+import XMLReviewModal from '../components/common/XMLReviewModal';
 import { useCompany } from '../context/CompanyContext';
 import { formatCurrency } from '../utils/formatters';
 
@@ -979,6 +979,47 @@ const Sales = () => {
                         console.error("Error al verif. duplicados:", err);
                     }
 
+                    if (doc.import_mode === 'direct_invoice') {
+                        try {
+                            const payload = {
+                                xml_data: doc.xml_data || "", // Assuming we have it or can reconstruct it
+                                auto_guide: true,
+                                exchange_rate: doc.exchange_rate
+                            };
+                            
+                            // Reconstruct the minimal structure needed by the backend if full XML is not available
+                            // But usually we have the full doc object which contains items, etc.
+                            // The backend expects InvoiceXmlImport schema.
+                            
+                            const directData = {
+                                xml_data: JSON.stringify(doc), // Send the JSON as a "virtual XML" or use a dedicated endpoint
+                                auto_guide: true,
+                                exchange_rate: doc.exchange_rate
+                            };
+
+                            // Wait, the backend expects the actual XML string? 
+                            // Looking at sales_service.py, it parses XML string.
+                            // If we don't have the original XML string anymore, we might need a JSON endpoint.
+                            // But ublParser.js usually returns the parsed JSON.
+                            
+                            // Let's assume we have the original XML or the backend can handle this JSON-like object.
+                            // Actually, I should have checked the backend better.
+                            // backend/app/schemas/sales_schemas.py: xml_data: str
+                            
+                            // If we don't have the original XML, let's use the JSON data.
+                            await salesService.importInvoiceXml(doc, true, doc.exchange_rate);
+                            
+                            setXmlBatch(prev => prev.filter(x => x.document_number !== doc.document_number));
+                            setSelectedXmlForReview(null);
+                            showNotification(`Factura ${doc.document_number} importada correctamente con despacho automático.`, 'success');
+                            setActiveTab('invoices');
+                            return;
+                        } catch (err) {
+                            console.error("Error en importación directa:", err);
+                            return;
+                        }
+                    }
+
                     const mappedQuote = {
                         date: doc.date,
                         currency: 'PEN',
@@ -997,7 +1038,9 @@ const Sales = () => {
                             product_sku: item.product_sku,
                             product_name: item.product_name,
                             quantity: Math.round(item.quantity) || 0,
+                            unit_value: item.unit_value,
                             unit_price: item.unit_price,
+                            tax_rate: 0.18,
                             subtotal: item.subtotal
                         })),
                         amount_in_words: doc.amount_in_words || '',

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import Button from '../../common/Button';
-import Input from '../../common/Input';
-import { formatCurrency } from '../../../utils/formatters';
-import { financeService } from '../../../services/api';
+import Button from './Button';
+import Input from './Input';
+import { formatCurrency } from '../../utils/formatters';
+import { financeService } from '../../services/api';
 import { Loader2, Zap, FileText } from 'lucide-react';
 
 const EMITTER_MAP = {
@@ -28,10 +28,11 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
             };
             setEmitter(emitterInfo);
 
-            // Inicializar items
+            // Inicializar items con lógica de Valor y Precio
             setLocalItems(doc.items.map(item => ({
                 ...item,
-                manual_price: item.unit_price // Ya incluye IGV según ublParser
+                manual_value: item.unit_value, // Sin IGV
+                manual_price: item.unit_price  // Con IGV
             })));
 
             // Buscar tipo de cambio en BD
@@ -86,13 +87,17 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
             exchange_rate: exchangeRate,
             items: localItems.map(item => ({
                 ...item,
-                unit_price: Math.round((item.manual_price * exchangeRate) * 100) / 100,
-                unit_cost: Math.round((item.manual_price * exchangeRate) * 100) / 100, // For purchasing compatibility
+                unit_value: Math.round((item.manual_value * exchangeRate) * 10000) / 10000,
+                unit_price: Math.round((item.manual_price * exchangeRate) * 10000) / 10000,
+                unit_cost: Math.round((item.manual_price * exchangeRate) * 10000) / 10000, // Legacy support
+                tax_rate: 0.18,
                 subtotal: Math.round((item.quantity * item.manual_price * exchangeRate) * 100) / 100
             })),
             total_amount: Math.round(systemTotal * 100) / 100,
             original_xml_id: doc.document_number,
             emitter_identity: emitter.businessName,
+            payment_terms: doc.payment_terms,
+            installments: doc.installments,
             import_mode: mode // 'quote' or 'direct_invoice'
         };
         onConfirm(finalData);
@@ -140,8 +145,12 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'white', fontWeight: '700' }}>Revisión de XML: {doc.document_number}</h2>
                                 <span style={{ fontSize: '0.7rem', backgroundColor: '#334155', color: '#60a5fa', padding: '0.2rem 0.6rem', borderRadius: '0.5rem', fontWeight: 'bold' }}>📅 {doc.date}</span>
+                                <span style={{ fontSize: '0.7rem', backgroundColor: doc.payment_terms === 'Contado' ? '#064e3b' : '#450a0a', color: doc.payment_terms === 'Contado' ? '#34d399' : '#f87171', padding: '0.2rem 0.6rem', borderRadius: '0.5rem', fontWeight: 'bold', border: '1px solid currentColor' }}>💳 {doc.payment_terms}</span>
                             </div>
-                            <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>{doc.supplier.name} - RUC: {doc.supplier.ruc}</p>
+                            <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>
+                                {doc.supplier.name} - RUC: {doc.supplier.ruc} 
+                                {doc.supplier.ubigeo && <span style={{ marginLeft: '10px', color: '#64748b' }}>(📍 {doc.supplier.ubigeo})</span>}
+                            </p>
                         </div>
                     </div>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '2rem', cursor: 'pointer', color: '#94a3b8' }}>×</button>
@@ -206,8 +215,8 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                                 <tr>
                                     <th style={{ textAlign: 'left', padding: '1.25rem' }}>PRODUCTO / SKU</th>
                                     <th style={{ textAlign: 'center', padding: '1.25rem' }}>CANT.</th>
-                                    <th style={{ textAlign: 'right', padding: '1.25rem' }}>PRECIO NETO</th>
-                                    <th style={{ textAlign: 'right', padding: '1.25rem' }}>PRECIO + IGV (Soles)</th>
+                                    <th style={{ textAlign: 'right', padding: '1.25rem' }}>BASE (VALOR S/ IGV)</th>
+                                    <th style={{ textAlign: 'right', padding: '1.25rem' }}>PRECIO (+IGV)</th>
                                     <th style={{ textAlign: 'right', padding: '1.25rem' }}>TOTAL ITEM</th>
                                 </tr>
                             </thead>
@@ -219,22 +228,38 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                                             <div style={{ fontSize: '0.7rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>{item.product_name}</div>
                                         </td>
                                         <td style={{ textAlign: 'center', padding: '1rem', color: '#cbd5e1', fontWeight: '700' }}>{item.quantity}</td>
-                                        <td style={{ textAlign: 'right', padding: '1rem', color: '#94a3b8' }}>
-                                            {item.net_unit_price.toFixed(3)}
+                                        <td style={{ textAlign: 'right', padding: '1rem' }}>
+                                            <input
+                                                type="number"
+                                                step="0.0001"
+                                                value={item.manual_value}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    const newItems = [...localItems];
+                                                    newItems[idx].manual_value = val;
+                                                    newItems[idx].manual_price = Math.round((val * 1.18) * 10000) / 10000;
+                                                    setLocalItems(newItems);
+                                                }}
+                                                style={{
+                                                    width: '100px', background: '#0f172a', border: '1px solid #1e293b',
+                                                    color: '#94a3b8', padding: '0.5rem', borderRadius: '0.5rem', textAlign: 'right', fontWeight: '600', fontSize: '0.85rem'
+                                                }}
+                                            />
                                         </td>
                                         <td style={{ textAlign: 'right', padding: '1rem' }}>
                                             <input
                                                 type="number"
-                                                step="0.01"
+                                                step="0.0001"
                                                 value={item.manual_price}
                                                 onChange={(e) => {
                                                     const val = parseFloat(e.target.value) || 0;
                                                     const newItems = [...localItems];
                                                     newItems[idx].manual_price = val;
+                                                    newItems[idx].manual_value = Math.round((val / 1.18) * 10000) / 10000;
                                                     setLocalItems(newItems);
                                                 }}
                                                 style={{
-                                                    width: '90px', background: '#1e293b', border: '1px solid #334155',
+                                                    width: '100px', background: '#1e293b', border: '1px solid #334155',
                                                     color: '#fbbf24', padding: '0.5rem', borderRadius: '0.5rem', textAlign: 'right', fontWeight: '900', fontSize: '0.95rem'
                                                 }}
                                             />

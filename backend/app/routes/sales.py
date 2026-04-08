@@ -5,7 +5,7 @@ from beanie import PydanticObjectId
 from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, CustomerBranch
 from app.models.auth import User, UserRole
 from app.services import sales_service
-from app.schemas.sales_schemas import InvoiceCreation, PaymentRegistration, DispatchRequest
+from app.schemas.sales_schemas import InvoiceCreation, PaymentRegistration, DispatchRequest, InvoiceXmlImport
 from app.schemas.common import PaginatedResponse
 from .auth import get_current_user, check_role
 
@@ -176,5 +176,16 @@ async def create_dispatch_guide(
         invoice_number,
         dispatch_data.notes,
         dispatch_data.created_by,
+        user=current_user
+    )
+@router.post("/import-invoice-xml", response_model=SalesInvoice)
+async def import_invoice_xml(
+    request: InvoiceXmlImport,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    return await sales_service.import_invoice_xml(
+        request.xml_data, 
+        request.auto_guide, 
+        request.exchange_rate, 
         user=current_user
     )

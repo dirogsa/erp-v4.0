@@ -53,7 +53,8 @@ async def init_db():
                 "app.models.auth.ActivityLog",
                 "app.models.staff.Staff",
                 "app.models.pricing.PricingRule",
-                "app.models.marketing.LoyaltyConfig"
+                "app.models.marketing.LoyaltyConfig",
+                "app.models.finance.ExchangeRate"
             ],
             allow_index_dropping=True
         )

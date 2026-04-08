@@ -8,7 +8,10 @@ import {
     ShoppingCartIcon,
     InformationCircleIcon,
     TruckIcon,
-    ClipboardDocumentListIcon
+    ClipboardDocumentListIcon,
+    ArrowsRightLeftIcon,
+    AdjustmentsHorizontalIcon,
+    WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
 
 const ProductDetailPage = () => {
@@ -18,6 +21,7 @@ const ProductDetailPage = () => {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
+    const [activeTab, setActiveTab] = useState('specs');
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -75,7 +79,16 @@ const ProductDetailPage = () => {
                         </span>
                     </div>
                     <h1 className="text-2xl font-black text-white leading-tight mb-2 tracking-tighter uppercase">{product.name}</h1>
-                    <p className="text-sm font-mono text-brand-muted font-bold tracking-widest">{product.sku}</p>
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-mono text-brand-muted font-bold tracking-widest">{product.sku}</p>
+                        <div className={`px-2 py-1 rounded-md border text-[9px] font-black tracking-widest uppercase ${
+                            product.stock_current > 0 
+                            ? 'bg-brand-primary/10 border-brand-primary/20 text-brand-primary' 
+                            : 'bg-red-500/10 border-red-500/20 text-red-500'
+                        }`}>
+                            {product.stock_current > 0 ? `${product.stock_current} EN STOCK` : 'SIN STOCK'}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Pricing Block */}
@@ -93,43 +106,153 @@ const ProductDetailPage = () => {
                     </div>
                 </div>
 
-                {/* Specs / Info */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                        <InformationCircleIcon className="h-5 w-5 text-brand-primary" />
-                        Ficha Técnica
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                        <div className="bg-brand-surface p-4 rounded-2xl border border-brand-border shadow-sm">
-                            <span className="text-[10px] uppercase font-black text-brand-muted block mb-1 tracking-widest">Disponibilidad</span>
-                            <span className={`font-black text-sm ${product.stock_current > 0 ? 'text-brand-primary' : 'text-red-400'}`}>
-                                {product.stock_current} unidades
-                            </span>
-                        </div>
-                        {product.weight_g && (
-                            <div className="bg-brand-surface p-4 rounded-2xl border border-brand-border shadow-sm">
-                                <span className="text-[10px] uppercase font-black text-brand-muted block mb-1 tracking-widest">Peso Ref.</span>
-                                <span className="font-black text-white text-sm">{product.weight_g} g</span>
+
+                {/* 
+                  DESIGN RULE: DIROGSA — Tech Industrial Color Coding (V3 - Always Tinted)
+                  - REFERENCIAS: #6EE7B7 (Emerald) -> Always visible (Green tint when inactive)
+                  - APLICACIONES: #38BDF8 (Cyan)   -> Always visible (Blue tint when inactive)
+                  - MEDIDAS:      #FB923C (Orange) -> Always visible (Orange tint when inactive)
+                  Never use generic grey/muted for these technical pillars. Use color alpha (99 for text, 22 for border, 07 for bg) when inactive.
+                */}
+                <div className="space-y-6 pt-4">
+                    <div className="flex items-center gap-1 bg-brand-surface p-1 rounded-2xl border border-brand-border">
+                        {[
+                            { id: 'specs', label: 'Medidas', icon: AdjustmentsHorizontalIcon, color: '#FB923C' },
+                            { id: 'equivalences', label: 'Referencias', icon: ArrowsRightLeftIcon, color: '#6EE7B7' },
+                            { id: 'applications', label: 'Aplicaciones', icon: WrenchScrewdriverIcon, color: '#38BDF8' }
+                        ].map((tab) => {
+                            const isActive = activeTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex-1 flex flex-col items-center justify-center py-3 rounded-xl transition-all duration-300 gap-1.5 border`}
+                                    style={{
+                                        backgroundColor: isActive ? `${tab.color}18` : `${tab.color}07`,
+                                        borderColor: isActive ? `${tab.color}55` : `${tab.color}22`,
+                                        color: isActive ? tab.color : `${tab.color}99`,
+                                        boxShadow: isActive ? `0 0 20px ${tab.color}15` : 'none',
+                                        fontWeight: isActive ? '800' : '600'
+                                    }}
+                                >
+                                    <tab.icon className="h-5 w-5" style={{ color: isActive ? tab.color : `${tab.color}88` }} />
+                                    <span className="text-[9px] uppercase tracking-widest">
+                                        {tab.label}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Tab Content */}
+                    <div className="min-h-[200px] fade-in">
+                        {activeTab === 'specs' && (
+                            <div className="grid grid-cols-3 gap-3">
+                                {product.specs?.length > 0 ? (
+                                    product.specs.map((spec, i) => (
+                                        <div key={i} className="bg-brand-surface/50 border border-brand-border p-3 rounded-xl flex flex-col items-center justify-center text-center" 
+                                             style={{ borderColor: 'rgba(251,146,60,0.15)' }}>
+                                            <span className="text-[10px] font-black mb-1 uppercase tracking-tight" style={{ color: '#FB923C' }}>{spec.label}</span>
+                                            <span className="text-xs font-black text-white">{spec.value}</span>
+                                            <span className="text-[8px] font-bold text-brand-muted uppercase mt-0.5">{spec.measure_type}</span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="col-span-3 py-10 text-center text-brand-muted text-xs italic">
+                                        No hay medidas específicas registradas.
+                                    </div>
+                                )}
+                                {product.weight_g > 0 && (
+                                    <div className="bg-brand-surface/50 border border-brand-border p-3 rounded-xl flex flex-col items-center justify-center text-center"
+                                         style={{ borderColor: 'rgba(251,146,60,0.15)' }}>
+                                        <span className="text-[10px] font-black mb-1 uppercase tracking-tight" style={{ color: '#FB923C' }}>PESO</span>
+                                        <span className="text-xs font-black text-white">{product.weight_g}</span>
+                                        <span className="text-[8px] font-bold text-brand-muted uppercase mt-0.5">GRAMOS</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'equivalences' && (
+                            <div className="space-y-2">
+                                {product.equivalences?.length > 0 ? (
+                                    product.equivalences.map((eq, i) => (
+                                        <div key={i} className="flex items-center justify-between bg-brand-surface/50 border border-brand-border p-3.5 rounded-xl"
+                                             style={{ borderColor: 'rgba(110,231,183,0.15)' }}>
+                                            <div>
+                                                <p className="text-[10px] font-black uppercase tracking-widest leading-none mb-1.5" style={{ color: '#6EE7B7' }}>{eq.brand}</p>
+                                                <p className="text-xs font-mono font-bold text-white">{eq.code}</p>
+                                            </div>
+                                            {eq.is_original && (
+                                                <span className="text-[8px] font-black bg-brand-primary/20 text-brand-primary border border-brand-primary/30 px-2 py-0.5 rounded uppercase">OEM</span>
+                                            )}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="py-10 text-center text-brand-muted text-xs italic">
+                                        No se encontraron referencias disponibles.
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'applications' && (
+                            <div className="space-y-3">
+                                {product.applications?.length > 0 ? (
+                                    product.applications.map((app, i) => (
+                                        <div key={i} className="bg-brand-surface/50 border border-brand-border rounded-xl p-4 relative overflow-hidden group"
+                                             style={{ borderColor: 'rgba(56,189,248,0.15)' }}>
+                                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                                <TruckIcon className="h-10 w-10" style={{ color: '#38BDF8' }} />
+                                            </div>
+                                            <div className="relative z-10">
+                                                <h4 className="text-xs font-black text-white uppercase mb-1 tracking-tight">
+                                                    {app.make} {app.model}
+                                                </h4>
+                                                <div className="flex flex-wrap gap-2 items-center">
+                                                    <span className="text-[10px] font-bold bg-brand-accent-dim px-2 py-0.5 rounded border border-brand-accent-dim" 
+                                                          style={{ color: '#38BDF8', borderColor: 'rgba(56,189,248,0.2)' }}>
+                                                        {app.year}
+                                                    </span>
+                                                    {app.engine && (
+                                                        <span className="text-[10px] font-bold bg-brand-accent-dim px-2 py-0.5 rounded border border-brand-accent-dim"
+                                                              style={{ color: '#38BDF8', borderColor: 'rgba(56,189,248,0.2)' }}>
+                                                            MOT: {app.engine}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {app.notes && (
+                                                    <p className="text-[10px] text-brand-muted mt-2 font-medium italic">
+                                                        Nota: {app.notes}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="py-10 text-center text-brand-muted text-xs italic">
+                                        No hay información de aplicaciones vehiculares.
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Features */}
+                {/* Features (Older section, kept for compatibility) */}
                 {product.features?.length > 0 && (
                     <div className="space-y-4 pb-4">
-                        <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                            <ClipboardDocumentListIcon className="h-5 w-5 text-brand-primary" />
-                            Atributos Clave
+                        <h3 className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-2">
+                            <ClipboardDocumentListIcon className="h-4 w-4" />
+                            Atributos Adicionales
                         </h3>
-                        <ul className="space-y-3 bg-brand-surface p-5 rounded-2xl border border-brand-border">
+                        <div className="flex flex-wrap gap-2">
                             {product.features.map((f, i) => (
-                                <li key={i} className="flex gap-3 text-sm text-brand-text font-medium items-center">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-brand-primary shrink-0 opacity-80"></span> 
+                                <span key={i} className="text-[10px] font-bold bg-brand-surface border border-brand-border text-brand-text px-3 py-1.5 rounded-lg whitespace-nowrap">
                                     {f}
-                                </li>
+                                </span>
                             ))}
-                        </ul>
+                        </div>
                     </div>
                 )}
                 

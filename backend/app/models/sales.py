@@ -87,16 +87,17 @@ class OrderItem(BaseModel):
     product_sku: str
     product_name: Optional[str] = None
     quantity: int
-    unit_price: float
+    unit_value: float = 0.0 # Sin IGV
+    unit_price: float = 0.0 # Con IGV
+    tax_rate: float = 0.18
     invoiced_quantity: int = 0 # Cantidad ya facturada de este item
-    loyalty_points: Optional[int] = None # Snapshot of points per unit. None = Legacy/Calc needed.
+    loyalty_points: Optional[int] = None
 
-
-    @field_validator('unit_price')
+    @field_validator('unit_price', 'unit_value')
     @classmethod
     def round_price(cls, v):
         """Redondear a 3 decimales"""
-        return round(v, 3) if v is not None else v
+        return round(v, 4) if v is not None else v
 
 class Payment(BaseModel):
     """Registro individual de un pago"""
@@ -141,6 +142,7 @@ class SalesOrder(Document):
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
     amount_in_words: Optional[str] = None
+    exchange_rate: Optional[float] = None # Persistence of TC used at issuance
 
     # Origen del pedido
     source: str = "ERP"
@@ -227,6 +229,7 @@ class SalesInvoice(Document):
 
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
+    exchange_rate: Optional[float] = None # Persistence of TC used at issuance
 
     @field_validator('total_amount', 'amount_paid')
     @classmethod
@@ -267,8 +270,9 @@ class DigitalDocument(BaseModel):
 
 class Customer(Document):
     name: str
-    ruc: Indexed(str, unique=True)  # RUC único para búsqueda/autocompletado
-    address: Optional[str] = None  # Dirección principal (retrocompatibilidad)
+    ruc: Indexed(str, unique=True)
+    address: Optional[str] = None
+    ubigeo: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     classification: UserTier = UserTier.STANDARD
