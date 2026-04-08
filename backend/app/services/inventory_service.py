@@ -1,12 +1,12 @@
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from app.models.inventory import Product, StockMovement, MovementType, Warehouse, ProductType
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, InsufficientStockException, DuplicateEntityException
 from app.models.auth import User
 from app.services.audit_service import AuditService
 from app.services.brand_service import ensure_brands_exist
 from app.services.catalog_service import perform_catalog_lookup
 import re
+import asyncio
 
 async def external_lookup(sku: str) -> str:
     """
@@ -16,6 +16,7 @@ async def external_lookup(sku: str) -> str:
 
 async def generate_marketing_sku() -> str:
     now = datetime.now()
+    from app.models.inventory import Product
     prefix = f"PUB-{now.strftime('%y%m')}-"
     
     # Find products that start with this prefix, sorted by SKU descending
@@ -81,47 +82,86 @@ async def get_products(
         size=limit
     )
 
-async def find_product_robustly(sku: str) -> Optional[Product]:
+async def find_product_robustly(sku: str) -> Optional[Any]:
+    from app.models.inventory import Product
     """
-    Busat un producto de forma robusta. 
-    Maneja SKUs "sucios" que vienen de XMLs (ej: "AC31011C AZUMI").
+    Busca un producto de forma ultra-robusta:
+    1. Búsqueda exacta en SKU.
+    2. Búsqueda exacta en Equivalencias.
+    3. Normalización (quitar espacios/símbolos) y reintento.
+    4. Manejo de prefijos ( Caso SUNAT "SKU MARCA" ).
     """
     if not sku:
         return None
 
-    # 1. Búsqueda exacta
-    product = await Product.find_one(Product.sku == sku)
+    sku_upper = sku.strip().upper()
+
+    # 1. Búsqueda exacta en SKU o EAN
+    product = await Product.find_one({"$or": [{"sku": sku_upper}, {"ean": sku_upper}]})
     if product:
         return product
 
-    # 2. Limpiar espacios
-    clean_sku = sku.strip()
-    if clean_sku != sku:
-        product = await Product.find_one(Product.sku == clean_sku)
+    # 2. Búsqueda exacta en EQUIVALENCIAS (Cruces)
+    # Esto resuelve casos como el SKU con error "WA60004" si se registró como alias del "WA6004"
+    product = await Product.find_one({"equivalences.code": sku_upper})
+    if product:
+        return product
+
+    # 3. Normalización Agresiva: Quitar guiones, puntos, barras y espacios
+    # Ej: "28113- C7000" -> "28113C7000"
+    clean_sku = re.sub(r'[-\s/._]', '', sku_upper)
+    if clean_sku != sku_upper:
+        # Reintentar en SKU y Equivalencias con el código limpio
+        product = await Product.find_one({
+            "$or": [
+                {"sku": clean_sku},
+                {"equivalences.code": clean_sku}
+            ]
+        })
         if product:
             return product
 
-    # 3. Si tiene espacios, probar con la primera palabra (Caso común en SUNAT: "CODIGO MARCA")
-    if ' ' in clean_sku:
-        first_word = clean_sku.split()[0]
-        product = await Product.find_one(Product.sku == first_word)
-        if product:
-            return product
+    # 4. Caso SUNAT: Si tiene espacios, probar con la primera palabra (Ej: "WL7509 WIX" -> "WL7509")
+    if ' ' in sku.strip():
+        first_word = sku.strip().split()[0].upper()
+        if len(first_word) > 2: # Solo si no es muy corta
+            product = await Product.find_one({"$or": [{"sku": first_word}, {"equivalences.code": first_word}]})
+            if product:
+                return product
 
-    # 4. Búsqueda por coincidencia parcial si el SKU sucio empieza por un SKU conocido
-    # Evitamos falsos positivos pidiendo mínimo 4 caracteres
-    if len(clean_sku) > 4:
-        # Buscamos productos que empiecen con los primeros 4 caracteres
-        prefix = clean_sku[:4]
-        potentials = await Product.find({"sku": {"$regex": f"^{prefix}"}}).to_list()
+    # 5. Búsqueda por prefijo (Mínimo 5 caracteres para evitar falsos positivos)
+    # Si el SKU del XML es "WA6004-EXTRA", encuentra "WA6004"
+    if len(sku_upper) > 4:
+        # Buscamos productos cuyo SKU sea el inicio del SKU sucio
+        # Ej: sku_sucio="WA6004-X", p.sku="WA6004" -> Encontrado
+        potentials = await Product.find({"sku": {"$regex": f"^{sku_upper[:4]}"}}).to_list()
         for p in potentials:
-            # Si el SKU sucio empieza exactamente por el SKU del inventario
-            # y es seguido por un espacio o es casi igual
-            if clean_sku.startswith(p.sku):
-                # Validar que o termina ahí o le sigue un espacio/separador
-                remainder = clean_sku[len(p.sku):]
-                if not remainder or remainder[0] in [' ', '-', '/', '_']:
+            if sku_upper.startswith(p.sku.upper()):
+                remainder = sku_upper[len(p.sku):]
+                # Validar separador o fin de cadena
+                if not remainder or not remainder[0].isalnum():
                     return p
+
+    # 6. AUTO-CREACIÓN DE GENÉRICOS (Para items que no son filtros en importación XML)
+    generic_skus = ['VARIOS-GENERICO', 'VARIOS-ACEITES', 'VARIOS-BUJIAS', 'VARIOS-BATERIAS', 'VARIOS-REFRIGERANTES', 'GENERICO']
+    if sku_upper in generic_skus:
+        from app.models.inventory import ProductType
+        p_type = ProductType.MISC
+        if 'ACEITE' in sku_upper: p_type = ProductType.LUBRICANT
+        elif 'BUJIA' in sku_upper: p_type = ProductType.SPARK_PLUG
+        elif 'BATERIA' in sku_upper: p_type = ProductType.BATTERY
+        elif 'REFRIGERANTE' in sku_upper: p_type = ProductType.COOLANT
+        
+        generic = Product(
+            sku=sku_upper,
+            name=f"PRODUCTO GENERICO ({sku_upper})",
+            brand="GENERICO",
+            type=p_type,
+            is_active_in_shop=False,
+            category_name="Varios"
+        )
+        await generic.insert()
+        return generic
 
     return None
 
@@ -131,7 +171,8 @@ async def get_product_by_sku(sku: str) -> Product:
         raise NotFoundException("Product", sku)
     return product
 
-async def create_product(product_data: Product, initial_stock: int = 0, user: Optional[User] = None):
+async def create_product(product_data: Any, initial_stock: int = 0, user: Optional[User] = None):
+    from app.models.inventory import Product, MovementType
     # Verificar si el SKU ya existe
     existing = await Product.find_one(Product.sku == product_data.sku)
     if existing:
@@ -292,7 +333,10 @@ async def delete_product(sku: str, user: Optional[User] = None) -> bool:
     await product.delete()
     return True
 
-async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: MovementType = MovementType.ADJUSTMENT) -> Product:
+async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: Any = None) -> Any:
+    from app.models.inventory import Product, MovementType, StockMovement
+    if movement_type is None:
+        movement_type = MovementType.ADJUSTMENT
     product = await get_product_by_sku(sku)
     
     diff = new_quantity - product.stock_current
@@ -321,7 +365,8 @@ async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: M
     
     return product
 
-async def register_loss(sku: str, quantity: int, loss_type: MovementType, notes: str, responsible: str) -> Dict[str, Any]:
+async def register_loss(sku: str, quantity: int, loss_type: Any, notes: str, responsible: str) -> Dict[str, Any]:
+    from app.models.inventory import StockMovement
     product = await get_product_by_sku(sku)
     
     if product.stock_current < quantity:
@@ -351,6 +396,7 @@ async def register_loss(sku: str, quantity: int, loss_type: MovementType, notes:
     }
 
 async def get_losses_report(start_date: str = None, end_date: str = None, loss_type: str = None) -> Dict[str, Any]:
+    from app.models.inventory import StockMovement
     query = {}
     
     if loss_type:
@@ -393,7 +439,8 @@ async def get_losses_report(start_date: str = None, end_date: str = None, loss_t
         "movements": movements
     }
 
-async def create_warehouse(warehouse_data: Warehouse) -> Warehouse:
+async def create_warehouse(warehouse_data: Any) -> Any:
+    from app.models.inventory import Warehouse
     existing = await Warehouse.find_one(Warehouse.code == warehouse_data.code)
     if existing:
         raise DuplicateEntityException("Warehouse", "code", warehouse_data.code)
@@ -401,7 +448,8 @@ async def create_warehouse(warehouse_data: Warehouse) -> Warehouse:
     await warehouse_data.insert()
     return warehouse_data
 
-async def update_warehouse(code: str, update_data: Warehouse) -> Warehouse:
+async def update_warehouse(code: str, update_data: Any) -> Any:
+    from app.models.inventory import Warehouse
     warehouse = await Warehouse.find_one(Warehouse.code == code)
     if not warehouse:
         raise NotFoundException("Warehouse", code)
@@ -431,10 +479,12 @@ async def delete_warehouse(code: str) -> bool:
     await warehouse.delete()
     return True
 
-async def get_warehouses() -> List[Warehouse]:
+async def get_warehouses() -> List[Any]:
+    from app.models.inventory import Warehouse
     return await Warehouse.find(Warehouse.is_active == True).to_list()
 
 async def register_transfer_out(target_warehouse_id: str, items: List[Dict[str, Any]], notes: str = None) -> Dict[str, Any]:
+    from app.models.inventory import Warehouse, Product, MovementType, StockMovement
     target_warehouse = await Warehouse.find_one({"code": target_warehouse_id})
     if not target_warehouse:
         raise NotFoundException("Warehouse", target_warehouse_id)
@@ -487,7 +537,7 @@ async def register_transfer_out(target_warehouse_id: str, items: List[Dict[str, 
         "total_cost": round(total_cost, 3)
     }
 
-async def calculate_weighted_average_cost(product: Product, new_quantity: int, new_unit_cost: float) -> float:
+async def calculate_weighted_average_cost(product: Any, new_quantity: int, new_unit_cost: float) -> float:
     """
     Calcula el nuevo costo promedio ponderado.
     Fórmula: (valor_stock_actual + valor_nuevo_lote) / (cantidad_actual + cantidad_nueva)
@@ -504,10 +554,12 @@ async def calculate_weighted_average_cost(product: Product, new_quantity: int, n
 async def register_movement(
     sku: str, 
     quantity: int, 
-    movement_type: MovementType, 
+    movement_type: Any, 
     reference: str,
-    unit_cost: Optional[float] = None
-) -> StockMovement:
+    unit_cost: Optional[float] = None,
+    date: Optional[datetime] = None
+) -> Any:
+    from app.models.inventory import Product, StockMovement, MovementType
     """
     Registra un movimiento de inventario y actualiza el stock del producto.
     Si es una entrada (IN) con unit_cost, recalcula el costo promedio ponderado.
@@ -526,7 +578,7 @@ async def register_movement(
         movement_type=movement_type,
         unit_cost=unit_cost or product.cost,
         reference_document=reference,
-        date=datetime.now()
+        date=date or datetime.now()
     )
     await movement.insert()
 
@@ -651,6 +703,7 @@ async def check_stock_availability(items: List[Dict[str, Any]]) -> Dict[str, Any
     }
 
 async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[str, Any]:
+    from app.models.inventory import Product, MovementType
     """
     Procesa una lista de ajustes de inventario masivos.
     adjustments: [{"sku": "...", "physical_stock": 10, "reason": "...", "responsible": "...", "notes": "..."}]

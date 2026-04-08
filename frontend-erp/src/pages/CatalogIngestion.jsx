@@ -111,7 +111,7 @@ const CatalogIngestion = () => {
                 const file = fileList[i];
                 try {
                     const text = await file.text();
-                    const data = parseCatalogHtml(text);
+                    const data = parseCatalogHtml(text, file.name);
                     
                     if (data.sku) {
                         newProducts.push({
@@ -272,7 +272,7 @@ const CatalogIngestion = () => {
                         Opción A: Ingesta por Códigos (Auto-Lookup)
                     </h3>
                     <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>
-                        Ingresa uno o más códigos (SKU) separados por salto de línea para buscarlos en el catálogo oficial de WIX/Filtron.
+                        Ingresa uno o más códigos (SKU) separados por salto de línea para buscarlos en el catálogo oficial de WIX/Filtron/Asakashi (OEM).
                     </p>
                     <div style={{ display: 'flex', gap: '1rem' }}>
                         <textarea
@@ -510,6 +510,7 @@ const CatalogIngestion = () => {
                                             >
                                                 <option value="WIX">WIX</option>
                                                 <option value="FILTRON">FILTRON</option>
+                                                <option value="OEM">OEM</option>
                                                 <option value="GENERIC">GENÉRICO</option>
                                             </select>
                                         </div>

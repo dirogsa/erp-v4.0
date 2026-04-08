@@ -7,7 +7,8 @@ const PrintableModal = ({
     visible,
     onClose,
     children,
-    title = "Recibo"
+    title = "Recibo",
+    onFormatChange
 }) => {
     const [printFormat, setPrintFormat] = useState('A5_SINGLE'); // 'A4_DUAL' or 'A5_SINGLE'
     const [isCargo, setIsCargo] = useState(false);
@@ -26,8 +27,8 @@ const PrintableModal = ({
         documentTitle: title,
         pageStyle: `
             @page {
-                size: ${printFormat === 'A4_FULL' ? 'portrait' : 'landscape'} !important;
-                margin: 0 !important;
+                size: ${printFormat === 'A4_FULL' || printFormat === 'SUNAT' ? 'A4 portrait' : 'A4 landscape'} !important;
+                margin: ${printFormat === 'SUNAT' ? '0' : '0'} !important;
             }
             @media print {
                 body {
@@ -36,6 +37,11 @@ const PrintableModal = ({
             }
         `
     });
+
+    const handleFormatChange = (fmt) => {
+        setPrintFormat(fmt);
+        if (onFormatChange) onFormatChange(fmt);
+    };
 
     if (!visible) return null;
 
@@ -91,7 +97,7 @@ const PrintableModal = ({
                             border: '1px solid #334155'
                         }}>
                             <button
-                                onClick={() => setPrintFormat('A5_SINGLE')}
+                                onClick={() => handleFormatChange('A5_SINGLE')}
                                 style={{
                                     padding: '5px 15px',
                                     borderRadius: '17px',
@@ -107,7 +113,7 @@ const PrintableModal = ({
                                 A5 (1 Copia)
                             </button>
                             <button
-                                onClick={() => setPrintFormat('A4_DUAL')}
+                                onClick={() => handleFormatChange('A4_DUAL')}
                                 style={{
                                     padding: '5px 15px',
                                     borderRadius: '17px',
@@ -123,7 +129,7 @@ const PrintableModal = ({
                                 A4 (2 Copias)
                             </button>
                             <button
-                                onClick={() => setPrintFormat('A4_FULL')}
+                                onClick={() => handleFormatChange('A4_FULL')}
                                 style={{
                                     padding: '5px 15px',
                                     borderRadius: '17px',
@@ -137,6 +143,22 @@ const PrintableModal = ({
                                 }}
                             >
                                 A4 (Completo)
+                            </button>
+                            <button
+                                onClick={() => handleFormatChange('SUNAT')}
+                                style={{
+                                    padding: '5px 15px',
+                                    borderRadius: '17px',
+                                    border: 'none',
+                                    fontSize: '0.75rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    backgroundColor: printFormat === 'SUNAT' ? '#10b981' : 'transparent',
+                                    color: printFormat === 'SUNAT' ? 'white' : '#94a3b8'
+                                }}
+                            >
+                                📄 SUNAT
                             </button>
                         </div>
 

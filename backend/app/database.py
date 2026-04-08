@@ -4,14 +4,12 @@ from app.core.config import settings
 
 async def init_db():
     # Retrieve the MongoDB URI from settings
-    print("DB: [DEBUG] Starting init_db...")
     mongo_uri = settings.MONGODB_URI
     
     if not mongo_uri:
         print("DB: [ERROR] MONGODB_URI not set. Database connection will fail.")
         return
 
-    print(f"DB: [DEBUG] Connecting to MongoDB URI: {mongo_uri[:25]}...")
     # Add timeouts to avoid hanging infinitely, but give it enough time for SSL handshake
     client = AsyncIOMotorClient(
         mongo_uri,
@@ -20,10 +18,8 @@ async def init_db():
         socketTimeoutMS=30000
     )
     db_name = settings.MONGO_DB_NAME
-    print(f"DB: [DEBUG] Using database: {db_name}")
     
     try:
-        print("DB: [DEBUG] Initializing Beanie models...")
         # Initialize Beanie with the database and document models
         await init_beanie(
             database=client[db_name], 
@@ -58,7 +54,6 @@ async def init_db():
             ],
             allow_index_dropping=True
         )
-        print("DB: [DEBUG] init_db completed successfully.")
     except Exception as e:
         print(f"DB: [ERROR] init_db failed: {str(e)}")
         print("DB: [HINT] This error often occurs if your IP is not whitelisted in MongoDB Atlas or if firewall is blocking port 27017.")

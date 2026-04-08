@@ -25,25 +25,10 @@ export const AuthProvider = ({ children }) => {
             }
 
             try {
-                // Pre-check: Is the token malformed or expired? (Client side)
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                const isExpired = payload.exp * 1000 < Date.now();
-
-                if (isExpired) {
-                    localStorage.removeItem('erp_token');
-                    setLoading(false);
-                    return;
-                }
-
-                // Check token validity with server
                 const response = await authService.getMe();
                 setUser(response.data);
                 setIsAuthenticated(true);
             } catch (error) {
-                // If the error is 401, it's just a normal expiration
-                if (error.response?.status !== 401) {
-                    console.error("Auth initialization error:", error);
-                }
                 localStorage.removeItem('erp_token');
             } finally {
                 setLoading(false);
@@ -63,7 +48,6 @@ export const AuthProvider = ({ children }) => {
             setIsAuthenticated(true);
             return userRes.data;
         } catch (error) {
-            console.error("AuthProvider: Login error", error);
             throw error;
         }
     };

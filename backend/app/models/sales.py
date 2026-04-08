@@ -137,11 +137,13 @@ class SalesOrder(Document):
     
     # Dirección de entrega
     delivery_branch_name: Optional[str] = None
-    delivery_address: str
+    delivery_address: Optional[str] = "No especificada"
+    buyer_identity: Optional[str] = None
     
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
     amount_in_words: Optional[str] = None
+    buyer_identity: Optional[str] = None
     exchange_rate: Optional[float] = None # Persistence of TC used at issuance
 
     # Origen del pedido
@@ -212,7 +214,8 @@ class SalesInvoice(Document):
     total_amount: float = 0.0
     
     delivery_branch_name: Optional[str] = None
-    delivery_address: str
+    delivery_address: Optional[str] = "No especificada"
+    buyer_identity: Optional[str] = None
     
     payment_status: PaymentStatus = PaymentStatus.PENDING
     amount_paid: float = 0.0

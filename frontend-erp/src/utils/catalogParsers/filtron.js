@@ -1,5 +1,6 @@
 /**
- * Parser específico para catálogos de Filtron
+ * Parser especializado para el nuevo formato Global de FILTRON (filtron.eu)
+ * Basado en la estructura AEM (Adobe Experience Manager) compartida con WIX.
  */
 export const parseFiltron = (doc, domain) => {
     const data = {
@@ -9,187 +10,173 @@ export const parseFiltron = (doc, domain) => {
         ean: '',
         type: 'COMMERCIAL',        // <--- Forzamos el tipo solicitado
         is_active_in_shop: false,  // <--- Forzamos el estado inactivo por defecto
+        status: '',
         category_name: '',
+        description: '',
         image_url: '',
+        image_gallery: [], 
         tech_drawing_url: '',
         manual_pdf_url: '',
         weight_g: 0,
         shape: '',
         specs: [],
         applications: [],
-        equivalences: [],
+        equivalences: [], 
         tech_bulletin: ''
     };
 
-    // SKU, Name & Category
-    // Filtron suele tener el título en H1 o H2 dentro de .product-table-info
-    let skuEl = doc.querySelector('.inside h1') || doc.querySelector('.product-table-info h2');
-    if (skuEl) {
-        let text = skuEl.innerText.trim();
-        // Format: "Filtros de aceite: OP520/1"
-        if (text.includes(':')) {
-            const parts = text.split(':');
-            // Limpiamos plurales (ej: "Filtros de aceite" -> "Filtro de Aceite")
-            let cat = parts[0].trim()
-                .replace(/s$/i, '')
-                .replace(/os /i, 'o ')
-                .replace(/Asentamiento/i, 'Aire'); // Algunas traducciones extrañas
-            
-            data.category_name = cat.charAt(0).toUpperCase() + cat.slice(1);
-            
-            // PRIMERO reemplazamos '/' por '-' para sanitizar el SKU antes de usarlo
-            data.sku = parts[1].replace('...', '').trim().replace(/\//g, '-');
-            data.name = `${data.category_name} ${data.brand} ${data.sku}`;
-        } else {
-            data.sku = text.replace('...', '').trim().replace(/\//g, '-');
-            data.name = `${data.brand} ${data.sku}`; // Fallback simple
+    // 1. Datos Estructurados (JSON-LD)
+    const ldJsonScript = doc.querySelector('script[type="application/ld+json"]');
+    if (ldJsonScript) {
+        try {
+            const ldData = JSON.parse(ldJsonScript.innerText);
+            if (ldData.name) data.name = ldData.name;
+            if (ldData.description) data.description = ldData.description;
+            if (ldData.sku) {
+                // Limpiamos sufijo de marca
+                data.sku = ldData.sku.replace(/_FILTRON$|-FILTRON$| FILTRON$/i, '').trim(); 
+            }
+            if (ldData.image) data.image_url = ldData.image;
+        } catch (e) {
+            console.warn("Error parsing JSON-LD in Filtron", e);
         }
     }
 
-    // EAN Extraction
-    // Intentamos varios selectores ya que Filtron cambia a veces
-    let eanEl = doc.querySelector('.product-table-code span') || doc.querySelector('.product-ean');
+    // 2. Títulos y Identificación (Fallback)
+    const titleName = doc.querySelector('.cmp-product__title-name');
+    if (titleName && !data.sku) {
+        data.sku = titleName.innerText.trim();
+    }
+    
+    // Mapeo de categorías para Filtron (muchas ya vienen en español en el HTML proporcionado)
+    const categoryMap = {
+        'AIR FILTER': 'Filtro de Aire',
+        'OIL FILTER': 'Filtro de Aceite',
+        'FUEL FILTER': 'Filtro de Combustible',
+        'CABIN FILTER': 'Filtro de Cabina',
+        'HYDRAULIC FILTER': 'Filtro Hidráulico'
+    };
 
-    // Si no lo encontramos por clase directa, buscamos por texto
-    if (!eanEl) {
-        const potentialEanDivs = doc.querySelectorAll('.product-table-description > div, .product-table-column > div');
-        for (const div of potentialEanDivs) {
-            if (div.innerText.includes('EAN') || div.innerText.includes('Código EAN') || div.innerText.includes('Kod EAN')) {
-                const code = div.innerText.replace(/.*EAN.*:/i, '').trim();
-                // Validamos que parezca un EAN (solo números)
-                if (/^\d+$/.test(code)) {
-                    data.ean = code;
-                    break;
-                }
-            }
-        }
-    } else {
-        data.ean = eanEl.innerText.trim();
+    const categoryEl = doc.querySelector('.cmp-product__title-family');
+    if (categoryEl) {
+        const rawCat = categoryEl.innerText.trim().toUpperCase();
+        data.category_name = categoryMap[rawCat] || categoryEl.innerText.trim();
+        
+        // Limpiezas específicas de Filtron (de versiones anteriores)
+        data.category_name = data.category_name
+            .replace(/s$/i, '')
+            .replace(/os /i, 'o ')
+            .replace(/Asentamiento/i, 'Aire');
+
+        // Construimos el nombre estándar
+        data.name = `${data.category_name} ${data.brand} ${data.sku}`.trim();
     }
 
-
-    // Imagen y PDF
-    const has3D = doc.getElementById('3dModelContainer') || doc.querySelector('.model-container');
-    const img = doc.querySelector('#productImage-large') ||
-        doc.querySelector('.product-table-image img') ||
-        doc.querySelector('.productImageButton[data-image="large"] img');
-
-    if (img) {
-        let src = img.getAttribute('src');
-        if (src && src.includes('/small/')) src = src.replace('/small/', '/large/');
-        data.image_url = src && src.startsWith('/') ? domain + src : src;
-    } else if (data.sku && has3D) {
-        // Fallback predictivo
-        data.image_url = `${domain}/website/images/filters/large/${data.sku}.jpg`;
+    // 3. EAN / GTIN
+    const skuValueEl = doc.querySelector('.cmp-product__sku-value');
+    if (skuValueEl) {
+        const eanMatch = skuValueEl.innerText.match(/\d{10,13}/);
+        if (eanMatch) data.ean = eanMatch[0];
     }
 
-    const techImg = doc.querySelector('#productImage-largeExtra') ||
-        doc.querySelector('#productImage-largePlain') ||
-        doc.querySelector('.productImageButton[data-image="largeExtra"] img') ||
-        doc.querySelector('.productImageButton[data-image="largePlain"] img');
-    if (techImg) {
-        let src = techImg.getAttribute('src');
-        if (src && src.includes('/small/')) src = src.replace('/small/', '/large/');
-        data.tech_drawing_url = src && src.startsWith('/') ? domain + src : src;
-    } else if (data.sku) {
-        // Fallback predictivo para planos
-        data.tech_drawing_url = `${domain}/website/images/filters/largeExtra/${data.sku}.jpg`;
+    // 4. Estado y Disponibilidad
+    const statusCircle = doc.querySelector('.cmp-product-status');
+    if (statusCircle) {
+        const rawStatus = statusCircle.getAttribute('data-g-binding-cmp-product-status-status');
+        data.status = rawStatus === 'suministrable' || rawStatus === 'A' ? 'AVAILABLE' : 'DISCONTINUED';
     }
 
-    const pdfLink = doc.querySelector('a[href*=".pdf"]');
-    if (pdfLink) {
-        const href = pdfLink.getAttribute('href');
-        data.manual_pdf_url = href && href.startsWith('/') ? domain + href : href;
-    }
-
-    // Boletín Técnico / Notas Importantes (Igual que WIX)
-    const newsItems = doc.querySelectorAll('.news-item-td');
-    if (newsItems.length > 0) {
-        let bulletins = [];
-        newsItems.forEach(item => {
-            const title = item.querySelector('.title-top')?.innerText.trim() || '';
-            const desc = item.querySelector('.news-item-desc')?.innerText.trim() || '';
-            if (title || desc) {
-                bulletins.push(`[${title}] ${desc}`);
-            }
-        });
-        data.tech_bulletin = bulletins.join('\n\n');
-    }
-
-    // Medidas (Filtron usa letras A, B, C, H)
-    doc.querySelectorAll('.product-table-sizes > div').forEach(row => {
-        const divs = row.querySelectorAll('div');
-        if (divs.length >= 2) {
-            const label = divs[0].innerText.trim().replace(':', '');
-            const value = divs[1].innerText.trim();
-            if (label && value && !/APLICACIÓN|ESTADO|PRODUCTO|IMAGEN/i.test(label)) {
-                // Mapeo específico para Peso y Forma en Filtron
-                if (/Masa|Peso|Weight|Mass/i.test(label)) {
-                    const numMatch = value.match(/[\d.]+/);
-                    if (numMatch) {
-                        data.weight_g = parseFloat(numMatch[0]);
+    // 5. Galería de Imágenes (JSON de Adobe)
+    const gallerySection = doc.querySelector('.cmp-product__full-detail-image-carousel');
+    if (gallerySection) {
+        const galleryItems = [];
+        const foundUrls = new Set();
+        const galleryEl = gallerySection.querySelector('[data-g-binding-gallery-items]');
+        
+        if (galleryEl) {
+            try {
+                const galleryData = JSON.parse(galleryEl.getAttribute('data-g-binding-gallery-items') || '[]');
+                galleryData.forEach(item => {
+                    if (item.path && !foundUrls.has(item.path)) {
+                        galleryItems.push({
+                            label: item.label || 'Producto',
+                            url: item.path,
+                            is_dim: item.path.includes('-dim') || /dim|plano/i.test(item.label)
+                        });
+                        foundUrls.add(item.path);
                     }
-                } else if (/Kształt|Forma|Shape/i.test(label)) {
+                });
+            } catch (e) {
+                console.warn("Error parsing Filtron Gallery JSON", e);
+            }
+        }
+
+        if (galleryItems.length > 0) {
+            data.image_gallery = galleryItems;
+            const mainImg = galleryItems.find(i => !i.url.includes('box') && !i.is_dim) || galleryItems[0];
+            if (mainImg) data.image_url = mainImg.url;
+            const dimImg = galleryItems.find(i => i.is_dim);
+            if (dimImg) data.tech_drawing_url = dimImg.url;
+        }
+    }
+
+    // 6. Medidas / Dimensiones
+    const dimensionsPanel = doc.querySelector('#dimensions .cmp-table table');
+    if (dimensionsPanel) {
+        dimensionsPanel.querySelectorAll('tr').forEach(row => {
+            const tds = row.querySelectorAll('td');
+            if (tds.length >= 2) {
+                const label = tds[0].innerText.trim();
+                const value = tds[1].innerText.trim();
+                
+                if (/Weight|Peso|Masa/i.test(label)) {
+                    const numMatch = value.match(/[\d.]+/);
+                    if (numMatch) data.weight_g = parseFloat(numMatch[0]);
+                } else if (/Shape|Forma/i.test(label)) {
                     data.shape = value;
                 }
 
                 data.specs.push({
                     label,
-                    measure_type: /Rosca|Thread|UNF|G\d/i.test(label) ? 'thread' : 'mm',
-                    value
+                    measure_type: value.includes('mm') ? 'mm' : (value.includes('x') ? 'thread' : 'other'),
+                    value: value.replace(' mm', '')
                 });
             }
-        }
-    });
+        });
+    }
 
-    // Aplicaciones (Pestaña 1 - Estructura de Acordeón Anidado como WIX)
-    // Filtron usa una estructura muy similar (a veces idéntica) a WIX
-    let appArea = doc.getElementById('tab1') || doc.getElementById('tab_1') || doc.querySelector('.tab-pane[id*="tab1"]');
-    if (appArea) {
-        // Nivel 1: Marcas
-        const makePanels = appArea.querySelectorAll('.panel, .accordion-group');
-        makePanels.forEach(makePanel => {
-            // Buscar el link que abre este panel
-            const makeLink = makePanel.querySelector('a[data-toggle="collapse"][data-parent="#accordion"], a.accordion-toggle');
+    // 7. Aplicaciones Vehiculares
+    const appAccordion = doc.querySelector('#applications');
+    if (appAccordion) {
+        appAccordion.querySelectorAll('.cmp-accordion__header .cmp-accordion__title').forEach(makeEl => {
+            const make = makeEl.innerText.trim();
+            if (/Dimensiones|Aplicaciones|OE|Descargas/i.test(make)) return;
 
-            // Si el panel no tiene link o no parece un acordeón principal, saltamos
-            if (!makeLink && !makePanel.parentNode.id.includes('accordion')) return;
-            if (!makeLink) return;
+            const makePanel = makeEl.closest('.cmp-accordion__item').querySelector('.cmp-accordion__panel');
+            if (makePanel) {
+                makePanel.querySelectorAll('.cmp-accordion__item').forEach(modelItem => {
+                    const modelTitle = modelItem.querySelector('.cmp-accordion__title');
+                    if (!modelTitle) return;
+                    const modelName = modelTitle.innerText.trim();
 
-            const make = makeLink.innerText.trim();
-
-            // Nivel 2: Modelos (Acordeón anidado o subpaneles)
-            const subAccordion = makePanel.querySelector('.panel-group, .accordion-inner');
-            if (subAccordion) {
-                const modelPanels = subAccordion.querySelectorAll('.panel');
-                modelPanels.forEach(modelPanel => {
-                    const modelLink = modelPanel.querySelector('a[data-toggle="collapse"]');
-                    if (!modelLink) return;
-                    const model = modelLink.innerText.trim();
-
-                    // Nivel 3: Motores (Filas de tabla)
-                    const tableRows = modelPanel.querySelectorAll('table tr');
-                    tableRows.forEach((row, idx) => {
-                        // Ignorar cabecera si es el primer elemento y tiene th
-                        if (idx === 0 && row.querySelector('th')) return;
-
+                    const tableRows = modelItem.querySelectorAll('.cmp-table tbody tr');
+                    tableRows.forEach(row => {
+                        if (row.querySelector('th')) return;
                         const tds = row.querySelectorAll('td');
-
-                        // Filtron suele tener la misma tabla: Detalle, Codigo, CC, KW, HP, Año
-                        if (tds.length >= 4) {
-                            const engineDetail = tds[0].innerText.trim();
-                            const engineCode = tds[1].innerText.trim();
-                            const hp = tds[4]?.innerText.trim() || '';
-                            const year = tds[5]?.innerText.trim() || '';
-
-                            const engine = `${engineDetail} (${engineCode}) ${hp ? hp + 'CV' : ''}`.trim();
+                        if (tds.length >= 6) {
+                            const modelType = tds[0].innerText.trim();
+                            const engineCode = tds[2].innerText.trim();
+                            const ccm = tds[3].innerText.trim();
+                            const kw = tds[4].innerText.trim();
+                            const hp = tds[5].innerText.trim();
+                            const year = tds[6]?.innerText.trim() || '';
 
                             data.applications.push({
-                                make,
-                                model,
-                                engine,
-                                year,
-                                notes: engineCode
+                                make: make,
+                                model: modelName,
+                                engine: `${modelType} (${engineCode}) ${ccm}ccm ${hp}HP`,
+                                year: year,
+                                notes: `KW: ${kw}`
                             });
                         }
                     });
@@ -198,76 +185,51 @@ export const parseFiltron = (doc, domain) => {
         });
     }
 
-    // Equivalencias (Sustitutos / Sustitutos / Cross Reference)
-    let eqArea = doc.getElementById('tab2') || doc.getElementById('tab_2') || doc.querySelector('[id*="tab2"]');
+    // 8. OE-Numbers / Equivalencias
+    const sectionSelectors = ['#oeNumbers', '#crossReferences', '[id*="oeNumbers"]', '[id*="cross-references"]'];
+    const sections = doc.querySelectorAll(sectionSelectors.join(','));
+    const equivalents = [];
 
-    // Fallback: Si no hay ID, buscamos el panel por su contenido textual
-    if (!eqArea) {
-        const allPanes = doc.querySelectorAll('.tab-pane, .panel, .panel-group');
-        eqArea = Array.from(allPanes).find(p =>
-            p.innerText.toUpperCase().includes('SUSTITUTOS') ||
-            p.innerText.toUpperCase().includes('REPLACEMENTS') ||
-            p.innerText.toUpperCase().includes('CROSS REFERENCE')
-        );
-    }
+    const addEquivalence = (brandRaw, codeRaw) => {
+        const brand = (brandRaw || "").trim().toUpperCase();
+        let code = (codeRaw || "").trim().toUpperCase();
+        if (!brand || !code || brand.length < 2 || code.length < 2) return;
+        if (/MARCA|BRAND|PRODUCENT|CODE|NUMER/i.test(brand)) return;
 
-    if (eqArea) {
-        // En Filtron/WIX, los sustitutos pueden estar en dos formatos:
-        // 1. Formato ACORDEÓN (como WIX): Paneles donde cada marca es un encabezado y los códigos están dentro.
-        // 2. Formato TABLA PLANA: Filas con [Marca, Código] o [#, Marca, Código]
-
-        const panels = eqArea.querySelectorAll('.panel-default');
-
-        if (panels.length > 0) {
-            // --- CASO 1: FORMATO ACORDEÓN (Igual a WIX) ---
-            panels.forEach(panel => {
-                let eqBrand = panel.querySelector('a')?.innerText.trim().toUpperCase();
-                if (eqBrand && !/REFERENCIA|CROSS|CRUZADA|APLICACIONES/i.test(eqBrand)) {
-                    const collapseArea = panel.querySelector('.panel-collapse') || panel;
-                    collapseArea.querySelectorAll('tr, .tr, li, .td').forEach(row => {
-                        let eqCode = (row.querySelector('td, .td') ? row.querySelector('td, .td').innerText : row.innerText).trim().toUpperCase();
-                        if (eqCode && eqCode.length >= 2 && !/PRODUCENT|MARCA|BRAND|CODE|NUMER/i.test(eqCode) && eqCode !== eqBrand) {
-                            data.equivalences.push({
-                                brand: eqBrand,
-                                code: eqCode,
-                                is_original: /OE|VAG|VW|VOLKSWAGEN|AUDI|SEAT|SKODA|BMW|MERCEDES|FORD|TOYOTA|HYUNDAI|KIA|PSA|PEUGEOT|CITROEN|RENAULT|NISSAN|HONDA|MAZDA|MITSUBISHI|GM|CHEVROLET|FIAT|CHRYSLER/i.test(eqBrand)
-                            });
-                        }
-                    });
-                }
+        if (!equivalents.some(e => e.brand === brand && e.code === code)) {
+            equivalents.push({
+                brand,
+                code,
+                is_original: /OE|CITROEN|PEUGEOT|FORD|FIAT|VW|BOSCH|MANN/i.test(brand)
             });
         }
+    };
 
-        if (data.equivalences.length === 0) {
-            // --- CASO 2: FORMATO TABLA PLANA ---
-            const rows = eqArea.querySelectorAll('tr, .tr, .filtersTable .tr');
-            rows.forEach(row => {
-                const cells = Array.from(row.querySelectorAll('td, .td')).map(c => c.innerText.trim());
-                if (cells.length < 2) return;
-
-                // Ignorar encabezados
-                if (/MARCA|BRAND|PRODUCENT|MAKER|NUMER|SUSTITUTO/i.test(cells[0]) ||
-                    /MARCA|BRAND|PRODUCENT|MAKER/i.test(cells[1])) return;
-
-                let brandStr = "";
-                let codeStr = "";
-
-                if (cells.length >= 3 && (cells[0].length <= 3 || !isNaN(cells[0]))) {
-                    brandStr = cells[1]; codeStr = cells[2];
-                } else {
-                    brandStr = cells[0]; codeStr = cells[1];
-                }
-
-                if (brandStr && codeStr && brandStr.length >= 2 && codeStr.length >= 2) {
-                    const cleanBrand = brandStr.toUpperCase();
-                    data.equivalences.push({
-                        brand: cleanBrand,
-                        code: codeStr.toUpperCase(),
-                        is_original: /OE|VAG|VW|VOLKSWAGEN|AUDI|SEAT|SKODA|BMW|MERCEDES|FORD|TOYOTA|HYUNDAI|KIA|PSA|PEUGEOT|CITROEN|RENAULT|NISSAN|HONDA|MAZDA|MITSUBISHI|GM|CHEVROLET|FIAT|CHRYSLER/i.test(cleanBrand)
-                    });
-                }
+    sections.forEach(section => {
+        const nestedItems = section.querySelectorAll('.cmp-accordion__item');
+        if (nestedItems.length > 0) {
+            nestedItems.forEach(item => {
+                const brandName = item.querySelector('.cmp-accordion__title')?.textContent?.trim();
+                if (!brandName) return;
+                const codes = item.querySelectorAll('td, li, p, span');
+                codes.forEach(node => {
+                    const text = node.textContent.trim();
+                    if (text && text !== brandName && text.length > 2 && text.length < 50) {
+                        if (node.children.length > 1) return;
+                        addEquivalence(brandName, text);
+                    }
+                });
             });
         }
+    });
+
+    data.equivalences = equivalents;
+
+    // 9. Descargas
+    const downloadsPanel = doc.querySelector('#downloads');
+    if (downloadsPanel) {
+        const pdfLink = downloadsPanel.querySelector('a[href*=".pdf"]');
+        if (pdfLink) data.manual_pdf_url = pdfLink.getAttribute('href');
     }
 
     return data;

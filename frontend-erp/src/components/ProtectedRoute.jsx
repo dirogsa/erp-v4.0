@@ -20,7 +20,6 @@ const ProtectedRoute = ({ children, requireAdmin = true }) => {
         // Si requiere admin y no lo es, redirigir al dashboard o página de error
         return <Navigate to="/" replace />;
     }
-
     return children;
 };
 

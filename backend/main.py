@@ -2,10 +2,6 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
-
-from app.routes import inventory, purchasing, sales, sales_quotes, purchase_quotes, financial, analytics, prices, delivery, companies, categories, io, auth, shop, brands, pricing, marketing, audit, sales_config, staff, finance
-
-
 from app.exceptions.business_exceptions import BusinessException
 from app.exceptions.handlers import business_exception_handler
 from app.core.config import settings
@@ -14,20 +10,6 @@ app = FastAPI(title="ERP System API", version="1.0.0")
 
 app.add_exception_handler(BusinessException, business_exception_handler)
 
-# Configuración de CORS
-origins = [
-    "http://localhost:5173",  # Frontend ERP
-    "http://localhost:5174",  # Frontend Shop
-    "http://localhost:5175",  # Frontend Mobile
-    "http://localhost:3000",
-]
-
-# Agregar URLs de producción desde configuraciones
-if settings.ALLOWED_ORIGINS:
-    env_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
-    origins.extend(env_origins)
-
-# Asegurar que localhost siempre esté permitido en desarrollo
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,35 +18,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(inventory.router)
-app.include_router(categories.router)
-app.include_router(purchase_quotes.router) # Specific routes first
-app.include_router(purchasing.router)
-app.include_router(sales_quotes.router) # Specific routes first
-app.include_router(sales.router)
-app.include_router(financial.router)
-app.include_router(analytics.router)
-app.include_router(prices.router)
-app.include_router(delivery.router)
-app.include_router(companies.router)
-app.include_router(io.router)
-app.include_router(auth.router)
-app.include_router(shop.router)
-app.include_router(brands.router)
-app.include_router(pricing.router)
-app.include_router(marketing.router)
-app.include_router(audit.router)
-app.include_router(sales_config.router)
-app.include_router(staff.router)
-app.include_router(finance.router)
+# --- LAZY ROUTER LOADING ---
+# Importamos y registramos cada módulo solo cuando es necesario. 
+# Esto acelera el arranque y ayuda a evitar importaciones circulares.
+
+def include_routers(app: FastAPI):
+    from app.routes import auth, companies, categories, brands, finance, analytics, inventory, prices, delivery, io, purchasing, purchase_quotes, financial, sales, sales_quotes, sales_config, pricing, marketing, audit, staff, shop
+    
+    routes = [
+        auth, companies, categories, brands, finance, analytics, 
+        inventory, prices, delivery, io, purchasing, purchase_quotes, 
+        financial, sales_quotes, sales, sales_config, pricing, 
+        marketing, audit, staff, shop
+    ]
+    
+    for route in routes:
+        app.include_router(route.router)
+
+include_routers(app)
 
 
 @app.on_event("startup")
 async def start_db():
     print("Backend: Initializing Database...")
     await init_db()
-    
-    # Automatic warehouse creation removed to allow manual management
     pass
 
 @app.get("/")

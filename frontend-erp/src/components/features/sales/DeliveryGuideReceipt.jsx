@@ -1,24 +1,45 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PrintableModal from '../../common/receipt/PrintableModal';
-import { formatDate, formatCurrency } from '../../../utils/formatters';
+import { formatDate } from '../../../utils/formatters';
 import { COMPANY_INFO } from '../../../config/company';
-
 import DualReceiptWrapper from '../../common/receipt/DualReceiptWrapper';
+import SunatGuideTemplate from '../../common/receipt/SunatGuideTemplate';
 
 const DeliveryGuideReceipt = ({
     visible,
     onClose,
     guide
 }) => {
+    const [printFormat, setPrintFormat] = useState('A5_SINGLE');
+
     if (!visible || !guide) return null;
 
-    return (
-        <PrintableModal
-            visible={visible}
-            onClose={onClose}
-            title={`Guía de Remisión ${guide.sunat_number || guide.guide_number}`}
-        >
-            <DualReceiptWrapper>
+    const renderContent = () => {
+        if (printFormat === 'SUNAT') {
+            return (
+                <SunatGuideTemplate
+                    guideNumber={guide.guide_number}
+                    sunatNumber={guide.sunat_number}
+                    issueDate={guide.issue_date}
+                    partyInfo={{
+                        name: guide.customer_name,
+                        ruc: guide.customer_ruc,
+                        address: guide.delivery_address
+                    }}
+                    items={guide.items || []}
+                    companyName={guide.issuer_info?.name || COMPANY_INFO.name}
+                    companyRuc={guide.issuer_info?.ruc || COMPANY_INFO.ruc}
+                    companyAddress={guide.issuer_info?.address || COMPANY_INFO.address}
+                    relatedInvoice={guide.invoice_number}
+                    vehiclePlate={guide.vehicle_plate}
+                    driverName={guide.driver_name}
+                />
+            );
+        }
+
+        // Legacy A5/Dual layout
+        return (
+            <DualReceiptWrapper format={printFormat}>
                 <div className="receipt-content">
                     <div className="receipt-header">
                         <h1>{guide.issuer_info?.name || COMPANY_INFO.name}</h1>
@@ -96,6 +117,17 @@ const DeliveryGuideReceipt = ({
                     </div>
                 </div>
             </DualReceiptWrapper>
+        );
+    };
+
+    return (
+        <PrintableModal
+            visible={visible}
+            onClose={onClose}
+            title={`Guía de Remisión ${guide.sunat_number || guide.guide_number}`}
+            onFormatChange={setPrintFormat}
+        >
+            {renderContent()}
         </PrintableModal>
     );
 };

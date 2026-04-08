@@ -1,0 +1,192 @@
+/* Estilos Estándar A4/A5 SUNAT */
+.sunat-receipt-container {
+    background: white;
+    width: 210mm; /* A4 Width */
+    min-height: 297mm; /* A4 Height */
+    margin: 0 auto;
+    padding: 15mm;
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
+}
+
+.sunat-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5mm;
+}
+
+.sunat-company-info {
+    flex: 1;
+    padding-right: 10mm;
+}
+
+.sunat-company-name {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 2mm;
+    text-transform: uppercase;
+}
+
+.sunat-company-address {
+    font-size: 11px;
+    line-height: 1.4;
+    text-transform: uppercase;
+}
+
+/* RUC Box */
+.sunat-ruc-box {
+    border: 2px solid #000;
+    text-align: center;
+    padding: 5mm 10mm;
+    min-width: 70mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+    text-transform: uppercase;
+}
+
+/* Customer Details */
+.sunat-customer-details {
+    margin-bottom: 5mm;
+    border-top: 1px solid #000;
+    padding-top: 5mm;
+}
+
+.sunat-detail-row {
+    display: flex;
+    font-size: 11px;
+    margin-bottom: 1.5mm;
+    text-transform: uppercase;
+}
+
+.sunat-detail-label {
+    width: 35mm;
+    font-weight: normal;
+}
+
+.sunat-detail-value {
+    flex: 1;
+    font-weight: bold;
+}
+
+.sunat-detail-extra {
+    text-align: right;
+    min-width: 50mm;
+}
+
+/* Items Table */
+.sunat-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-bottom: 5mm;
+    border: 1px solid #000;
+}
+
+.sunat-items-table th {
+    border: 1px solid #000;
+    padding: 2mm;
+    font-weight: normal;
+    text-align: center;
+}
+
+.sunat-items-table td {
+    padding: 2mm;
+    text-align: left;
+    border-left: 1px solid #000;
+    border-right: 1px solid #000;
+}
+
+.sunat-items-table .num-col {
+    text-align: right;
+}
+.sunat-items-table .center-col {
+    text-align: center;
+}
+
+/* Totals Footer */
+.sunat-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-top: 5mm;
+}
+
+.sunat-amount-words {
+    width: 60%;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.sunat-amount-words .free-op {
+    border: 1px solid #000;
+    padding: 2mm;
+    margin-bottom: 5mm;
+    display: inline-block;
+    font-weight: normal;
+}
+
+.sunat-totals-box {
+    width: 35%;
+    border: 1px solid #000;
+    font-size: 11px;
+    padding: 2mm;
+}
+
+.sunat-total-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1mm;
+}
+
+.sunat-total-label {
+    text-align: right;
+    flex: 1;
+    padding-right: 5mm;
+}
+
+.sunat-total-value {
+    width: 25mm;
+    text-align: right;
+    border: 1px solid #000;
+    padding: 0.5mm 1mm;
+}
+
+/* Legal Text */
+.sunat-legal-box {
+    border: 1px solid #000;
+    text-align: center;
+    padding: 2mm;
+    font-size: 11px;
+    font-style: italic;
+    margin-top: 5mm;
+    font-weight: bold;
+}
+
+/* Guide specific */
+.sunat-qr-code {
+    width: 30mm;
+    height: 30mm;
+    background: #ccc;
+    background-image: repeating-linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000), repeating-linear-gradient(45deg, #000 25%, #fff 25%, #fff 75%, #000 75%, #000);
+    background-position: 0 0, 5px 5px;
+    background-size: 10px 10px;    
+}
+
+/* Print Overrides */
+@media print {
+    @page {
+        size: A4 portrait !important;
+        margin: 0 !important;
+    }
+    .sunat-receipt-container {
+        width: 100% !important;
+        height: auto !important;
+        position: static !important;
+        box-shadow: none !important;
+    }
+}

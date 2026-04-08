@@ -1,0 +1,145 @@
+/**
+ * Parser especializado para productos OEM (Original Equipment Manufacturer)
+ * Detecta información técnica de fuentes de terceros (como Asakashi) 
+ * pero fuerza el SKU y la Marca como OEM según el nombre del archivo.
+ */
+export const parseOEM = (doc, filename) => {
+    // Extraer SKU del nombre del archivo (preferente)
+    // Ej: "151000158AA_OEM.html" -> "151000158AA"
+    let skuFromFilename = '';
+    if (filename) {
+        // Eliminar extensión y luego el sufijo _OEM
+        const baseName = filename.replace(/\.(html|htm)$/i, '');
+        skuFromFilename = baseName.replace(/_OEM$/i, '').trim().toUpperCase();
+    }
+
+    const data = {
+        brand: 'OEM',
+        sku: skuFromFilename || '',
+        name: '',
+        ean: '',
+        type: 'COMMERCIAL',
+        is_active_in_shop: false,
+        status: 'AVAILABLE',
+        category_name: 'Filtro (OEM)',
+        description: '',
+        image_url: '',
+        image_gallery: [],
+        tech_drawing_url: '',
+        weight_g: 0,
+        shape: '',
+        specs: [],
+        applications: [],
+        equivalences: [],
+        tech_bulletin: ''
+    };
+
+    // 1. Identificar si es JS ASAKASHI y extraer nombre base del producto
+    const asakashiTitle = doc.querySelector('.search-title')?.innerText.trim();
+    if (asakashiTitle) {
+        // "AIR FILTER » A8016" -> "A8016"
+        const parts = asakashiTitle.split('»');
+        const internalCode = parts[parts.length - 1].trim();
+        // Si el SKU estaba vacío (ej: auto-lookup sin filename), intentar sacarlo de Asakashi
+        if (!data.sku && internalCode) {
+            data.sku = internalCode;
+        }
+
+        data.name = `FILTRO OEM ${data.sku}`.trim();
+        
+        // Agregar el código interno de Asakashi como equivalencia si es diferente del SKU
+        if (internalCode && internalCode !== data.sku) {
+            data.equivalences.push({
+                brand: 'JS ASAKASHI',
+                code: internalCode,
+                is_original: false
+            });
+        }
+
+        // Detectar categoría
+        if (asakashiTitle.toUpperCase().includes('AIR')) data.category_name = 'Filtro de Aire';
+        else if (asakashiTitle.toUpperCase().includes('OIL')) data.category_name = 'Filtro de Aceite';
+        else if (asakashiTitle.toUpperCase().includes('FUEL')) data.category_name = 'Filtro de Combustible';
+        else if (asakashiTitle.toUpperCase().includes('CABIN')) data.category_name = 'Filtro de Cabina';
+    } else {
+        // Si no es Asakashi, el nombre se basa en el SKU del archivo
+        data.name = `FILTRO OEM ${data.sku}`;
+    }
+
+    // 2. Imágenes (Específico JS Asakashi)
+    const galleryLink = doc.querySelector('#achrColorBox');
+    const mainImg = doc.querySelector('.detail__gallery img');
+    
+    if (galleryLink?.href) {
+        data.image_url = galleryLink.href;
+    } else if (mainImg?.src) {
+        data.image_url = mainImg.src;
+    }
+
+    // Fallback: capturar todas las imágenes relevantes
+    const allImages = Array.from(doc.querySelectorAll('img'))
+        .map(img => img.getAttribute('src') || img.getAttribute('data-src'))
+        .filter(src => src && src.includes('/images/') && !src.includes('logo'));
+    
+    data.image_gallery = [...new Set([data.image_url, ...allImages])].filter(Boolean).map(url => ({ label: 'Referencia', url }));
+
+    // 3. Especificaciones (Específico JS Asakashi)
+    const specBlocks = doc.querySelectorAll('.detail__specification .str');
+    specBlocks.forEach(block => {
+        const title = block.querySelector('.param-title')?.innerText.trim();
+        const value = block.querySelector('.param-field')?.innerText.trim();
+        
+        if (title && value) {
+            data.specs.push({
+                label: title,
+                measure_type: title.includes('mm') ? 'mm' : 'other',
+                value: value
+            });
+
+            if (title.toLowerCase().includes('height')) data.height = value;
+            if (title.toLowerCase().includes('width')) data.width = value;
+            if (title.toLowerCase().includes('length')) data.length = value;
+        }
+    });
+
+    // 4. Referencias Cruzadas (Cross References)
+    const crossRefs = doc.querySelectorAll('.detail__plate .str');
+    crossRefs.forEach(ref => {
+        const owner = ref.querySelector('.owner')?.innerText.trim();
+        const code = ref.querySelector('.field')?.innerText.trim();
+        if (owner && code) {
+            data.equivalences.push({
+                brand: owner,
+                code: code,
+                is_original: owner.toUpperCase() === 'CHERY' || owner.toUpperCase() === 'OEM'
+            });
+        }
+    });
+
+    // 5. Aplicaciones de Vehículos
+    const models = doc.querySelectorAll('.model-title h3');
+    models.forEach(modelEl => {
+        const fullModelText = modelEl.innerText.trim(); // Ej: "CHERY » Tiggo 3x"
+        const [make, ...modelRest] = fullModelText.split('»').map(s => s.trim());
+        const modelName = modelRest.join(' ');
+
+        // Buscar la tabla de datos que sigue a este título
+        const table = modelEl.closest('.model-title').nextElementSibling;
+        if (table && table.classList.contains('model-body')) {
+            const rows = table.querySelectorAll('.model-data');
+            rows.forEach(row => {
+                data.applications.push({
+                    make: make,
+                    model: modelName,
+                    engine: row.querySelector('.tdEngineNo')?.innerText.trim() || '',
+                    year: row.querySelector('.tdYear')?.innerText.trim() || '',
+                    engine_vol: row.querySelector('.tdEngineVol')?.innerText.trim() || '',
+                    body: row.querySelector('.tdBody')?.innerText.trim() || '',
+                    notes: `Fuente: Catálogo JS Asakashi - Referencia OEM`
+                });
+            });
+        }
+    });
+
+    return data;
+};

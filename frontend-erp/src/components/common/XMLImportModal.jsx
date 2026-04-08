@@ -147,8 +147,9 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                                                     <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{doc.supplier.name} ({doc.supplier.ruc})</div>
                                                 </td>
                                                 <td style={{ textAlign: 'center', padding: '1rem', color: '#cbd5e1' }}>{doc.date}</td>
-                                                <td style={{ textAlign: 'right', padding: '1rem', fontWeight: '800', color: doc.document_type === 'CREDIT_NOTE' ? '#ef4444' : '#60a5fa' }}>
-                                                    {doc.document_type === 'CREDIT_NOTE' ? '-' : ''}{formatCurrency(doc.total_amount)}
+                                                <td style={{ textAlign: 'right', padding: '1rem', fontWeight: '800', color: doc.document_type === 'CREDIT_NOTE' ? '#ef4444' : (doc.currency === 'USD' || doc.currency === 'DOLARES' ? '#60a5fa' : '#34d399') }}>
+                                                    {doc.document_type === 'CREDIT_NOTE' ? '-' : ''}
+                                                    {formatCurrency(doc.total_amount, (doc.currency === 'USD' || doc.currency === 'DOLARES') ? '$' : 'S/')}
                                                 </td>
                                                 <td style={{ textAlign: 'center', padding: '1rem' }}>
                                                     <button
@@ -167,17 +168,30 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                             <div style={{
                                 marginTop: '1.5rem',
                                 padding: '1.25rem',
-                                background: 'linear-gradient(90deg, #1e293b 0%, #0f172a 100%)',
-                                borderRadius: '0.75rem',
+                                background: '#0f172a',
+                                borderRadius: '1rem',
                                 border: '1px solid #334155',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                gap: '1.5rem'
                             }}>
-                                <div style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Gran Total Acumulado:</div>
-                                <div style={{ color: '#22c55e', fontSize: '1.5rem', fontWeight: '900' }}>
-                                    {formatCurrency(batchData.reduce((sum, d) => sum + d.total_amount, 0))}
-                                </div>
+                                {batchData.some(d => !(d.currency === 'USD' || d.currency === 'DOLARES')) && (
+                                    <div>
+                                        <div style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Total en Soles (PEN)</div>
+                                        <div style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: '900' }}>
+                                            {formatCurrency(batchData.filter(d => !(d.currency === 'USD' || d.currency === 'DOLARES')).reduce((sum, d) => sum + d.total_amount, 0), 'S/')}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {batchData.some(d => (d.currency === 'USD' || d.currency === 'DOLARES')) && (
+                                    <div style={{ borderLeft: '1px solid #1e293b', paddingLeft: '1.5rem' }}>
+                                        <div style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Total en Dólares (USD)</div>
+                                        <div style={{ color: '#3b82f6', fontSize: '1.5rem', fontWeight: '900' }}>
+                                            {formatCurrency(batchData.filter(d => (d.currency === 'USD' || d.currency === 'DOLARES')).reduce((sum, d) => sum + d.total_amount, 0), '$')}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

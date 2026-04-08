@@ -1,8 +1,11 @@
 import axios from 'axios';
 
 // Use environment variable for backend URL, fallback to localhost for development
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: BASE_URL,
+  timeout: 10000, // 10 second timeout — si el backend no responde, falla rapido
   headers: {
     'Content-Type': 'application/json',
   },
@@ -15,6 +18,19 @@ api.interceptors.request.use(config => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  response => response,
+  error => {
+    const status = error.response?.status;
+    if (status === 401) {
+       // Normal token expiration
+    } else {
+       console.error(`[API] ${status || 'NETWORK'} ERROR:`, error.response?.data || error.message);
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const authService = {
   login: (username, password) => api.post('/auth/login', { username, password }),
@@ -277,7 +293,9 @@ export const staffService = {
   updateStaff: (id, data) => api.put(`/staff/${id}`, data),
   deleteStaff: (id) => api.delete(`/staff/${id}`),
 };
+
 export const financeService = {
+  getExchangeRates: () => api.get('/finance/exchange-rates'),
   getExchangeRate: (date) => api.get(`/finance/exchange-rate/${date}`),
   saveExchangeRate: (date, data) => api.post(`/finance/exchange-rate/${date}`, data),
 };

@@ -68,6 +68,11 @@ class BrandOrigin(str, Enum):
 class ProductType(str, Enum):
     COMMERCIAL = "COMMERCIAL" # Productos para venta (ej. Filtros)
     MARKETING = "MARKETING"   # Artículos de publicidad/regalos (ej. Polos, Paneles)
+    LUBRICANT = "LUBRICANT"   # Aceites y lubricantes
+    SPARK_PLUG = "SPARK_PLUG" # Bujías
+    BATTERY = "BATTERY"       # Baterías
+    COOLANT = "COOLANT"       # Refrigerantes
+    MISC = "MISC"             # Otros productos varios
 
 class ProductStatus(str, Enum):
     AVAILABLE = "AVAILABLE"

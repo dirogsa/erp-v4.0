@@ -16,17 +16,13 @@ import { usePurchaseInvoices } from '../hooks/usePurchaseInvoices';
 import { usePurchaseQuotes } from '../hooks/usePurchaseQuotes';
 import PurchaseQuotesTable from '../components/features/purchasing/PurchaseQuotesTable';
 import PurchaseQuoteForm from '../components/forms/PurchaseQuoteForm';
-import PurchaseQuoteDetailModal from '../components/features/purchasing/PurchaseQuoteDetailModal';
-import XMLImportModal from '../components/common/XMLImportModal';
-import XMLReviewModal from '../components/common/XMLReviewModal';
 import { formatCurrency } from '../utils/formatters';
 import RFQToOrderConversionModal from '../components/features/purchasing/RFQToOrderConversionModal';
-import { purchasingService, purchasingQuotesService } from '../services/api';
-import { useNotifications } from '../hooks/useNotifications';
+import { purchasingService, purchaseQuotesService } from '../services/api';
+import { useNotification } from '../hooks/useNotification';
 
 const Purchasing = () => {
-    const [selectedXmlForReview, setSelectedXmlForReview] = useState(null);
-    const { showNotification } = useNotifications();
+    const { showNotification } = useNotification();
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('quotes');
 
@@ -48,10 +44,7 @@ const Purchasing = () => {
     // Quotes State
     const [showCreateQuote, setShowCreateQuote] = useState(false);
     const [selectedQuote, setSelectedQuote] = useState(null);
-    const [showQuoteDetailModal, setShowQuoteDetailModal] = useState(false);
     const [showQuoteReceipt, setShowQuoteReceipt] = useState(false);
-    const [showXMLImportModal, setShowXMLImportModal] = useState(false);
-    const [xmlBatch, setXmlBatch] = useState([]);
     const [showConversionModal, setShowConversionModal] = useState(false);
     const [quoteToConvert, setQuoteToConvert] = useState(null);
 
@@ -144,9 +137,6 @@ const Purchasing = () => {
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                     {(activeTab === 'orders' || activeTab === 'quotes') && (
                         <>
-                            <Button variant="secondary" onClick={() => setShowXMLImportModal(true)}>
-                                📧 Importar XML
-                            </Button>
                             <Button onClick={() => setShowCreateQuote(true)}>
                                 + Nueva Solicitud RFQ
                             </Button>
@@ -296,86 +286,6 @@ const Purchasing = () => {
                 </div>
             )}
 
-            <XMLImportModal
-                visible={showXMLImportModal}
-                onClose={() => setShowXMLImportModal(false)}
-                type="PURCHASE"
-                onConfirm={(batch) => {
-                    setXmlBatch(prev => [...prev, ...batch]);
-                    setShowXMLImportModal(false);
-                }}
-            />
-
-            <XMLReviewModal
-                visible={!!selectedXmlForReview}
-                doc={selectedXmlForReview}
-                onClose={() => setSelectedXmlForReview(null)}
-                loading={loading}
-                onConfirm={async (doc) => {
-                    if (doc.import_mode === 'direct_invoice') {
-                        setLoading(true);
-                        try {
-                            // Check for duplicates
-                            const existingRes = await purchasingQuotesService.getQuotes(1, 1, doc.document_number);
-                            if (existingRes.data.total > 0) {
-                                alert(`⚠️ El documento ${doc.document_number} ya existe en el sistema.`);
-                                setSelectedXmlForReview(null);
-                                return;
-                            }
-
-                            await purchasingService.importInvoiceXml(doc, true, doc.exchange_rate);
-                            
-                            setXmlBatch(prev => prev.filter(x => x.document_number !== doc.document_number));
-                            setSelectedXmlForReview(null);
-                            showNotification(`Factura de compra ${doc.document_number} importada correctamente con recepción automática.`, 'success');
-                            setActiveTab('invoices');
-                        } catch (err) {
-                            console.error("Error en importación directa:", err);
-                        } finally {
-                            setLoading(false);
-                        }
-                        return;
-                    }
-
-                    const mappedQuote = {
-                        date: doc.date,
-                        currency: 'PEN', // Normalized to soles for system
-                        supplier: { ruc: doc.supplier.ruc, name: doc.supplier.name, address: doc.supplier.address },
-                        supplier_name: doc.supplier.name,
-                        items: doc.items.map(item => ({
-                            product_sku: item.product_sku,
-                            product_name: item.product_name,
-                            quantity: item.quantity,
-                            unit_cost: item.unit_price, // already in soles after XMLReviewModal
-                            subtotal: item.subtotal,
-                            is_custom: true
-                        })),
-                        amount_in_words: doc.amount_in_words || '',
-                        internal_notes: `Importado de Factura XML ${doc.document_number}. T.C: ${doc.exchange_rate}`
-                    };
-                    setSelectedQuote(mappedQuote);
-                    setShowCreateQuote(true);
-                    setXmlBatch(prev => prev.filter(x => x.document_number !== doc.document_number));
-                    setSelectedXmlForReview(null);
-                }}
-            />
-
-            {xmlBatch.length > 0 && (
-                <div style={{ backgroundColor: '#1e293b', padding: '1.5rem', borderRadius: '1rem', marginBottom: '2rem', border: '1px solid #3b82f644', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                        <h3 style={{ margin: 0, color: 'white' }}>{xmlBatch.length} Facturas Pendientes de Revisión</h3>
-                        <Button variant="secondary" onClick={() => setXmlBatch([])}>Cancelar Todo</Button>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-                        {xmlBatch.map((doc, idx) => (
-                            <div key={idx} style={{ backgroundColor: '#0f172a', padding: '1.25rem', borderRadius: '0.75rem', border: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div><div style={{ fontWeight: 'bold', color: 'white' }}>{doc.document_number}</div><div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{doc.supplier.name}</div></div>
-                                <Button size="small" onClick={() => setSelectedXmlForReview(doc)}>Revisar</Button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

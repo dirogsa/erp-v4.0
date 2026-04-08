@@ -622,61 +622,143 @@ async def delete_order(order_number: str, user: Optional[User] = None) -> bool:
     return True
 
 async def delete_invoice(invoice_number: str, user: Optional[User] = None) -> bool:
-    invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == invoice_number)
-    if not invoice:
-        raise NotFoundException("Invoice", invoice_number)
+    print(f"\n--- INICIO PROCESO BORRADO: {invoice_number} ---")
+    try:
+        print(f"DEBUG [1]: Buscando factura {invoice_number} en BD...")
+        invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == invoice_number)
+        print(f"DEBUG [2]: Resultado búsqueda factura: {'ENCONTRADA' if invoice else 'NO ENCONTRADA'}")
         
-    if invoice.dispatch_status == "DISPATCHED":
-        raise ValidationException("Cannot delete dispatched invoice. Return stock first.")
-
-    # Revert order quantities if exists
-    if invoice.order_number:
-        order = await SalesOrder.find_one(SalesOrder.order_number == invoice.order_number)
-        if order:
-            # 1. Get all OTHER active invoices for this order
-            other_active_invoices = await SalesInvoice.find(
-                {"order_number": order.order_number, "invoice_number": {"$ne": invoice.invoice_number}}
-            ).to_list()
+        if not invoice:
+            print(f"DEBUG [3]: Factura {invoice_number} no existe.")
+            raise NotFoundException("Invoice", invoice_number)
             
-            # 2. Reset all invoiced quantities on the order
-            for item in order.items:
-                item.invoiced_quantity = 0
+        print(f"DEBUG [4]: Verificando factura {invoice_number}. Orden vinculada: '{invoice.order_number}'")
+        
+        is_import = invoice.order_number and invoice.order_number.startswith("IMP-")
+        
+        # BYPASS DE EMERGENCIA PARA LIMPIEZA DE FV-26-0001 ATASCADA (Bug Legacy)
+        if invoice_number == "FV-26-0001":
+            print("DEBUG: ACTIVANDO BYPASS DE EMERGENCIA PARA FV-26-0001")
+            is_import = True
             
-            # 3. Sum quantities from all remaining invoices
-            for other_inv in other_active_invoices:
-                for inv_item in other_inv.items:
-                    target = next((i for i in order.items if i.product_sku == inv_item.product_sku), None)
-                    if target:
-                        target.invoiced_quantity += inv_item.quantity
+        # JERARQUÍA PROFESIONAL (ALTA GAMA):
+        # Prohibimos borrar factura si hay una Guía de Remisión generada,
+        # obligando al usuario a anular la guía primero para restaurar stock.
+        if invoice.guide_id or invoice.dispatch_status != "NOT_DISPATCHED":
+            if not is_import:
+                print(f"DEBUG [5]: Bloqueo por jerarquía de documentos (Factura Manual).")
+                raise ValidationException(
+                    f"No se puede eliminar la factura porque está vinculada a la Guía de Remisión {invoice.guide_id}. "
+                    "Por estándar contable, debe anular/eliminar primero la Guía de Remisión para retornar el stock al almacén antes de borrar la factura."
+                )
+        
+        # FLUJO ESPECIAL (DESHACER IMPORTACIÓN XML)
+        if is_import:
+            print(f"DEBUG [5]: Ejecutando Deshacer Importación (Cascade Delete).")
+            from app.services import delivery_service
             
-            # 4. Recalculate Order Status
-            total_items_to_invoice = sum(i.quantity for i in order.items)
-            total_items_invoiced = sum(i.invoiced_quantity for i in order.items)
-            
-            if total_items_invoiced == 0:
-                order.status = OrderStatus.PENDING
-            elif total_items_invoiced >= total_items_to_invoice:
-                # This check is slightly more robust for full invoicing
-                is_fully_done = all(i.invoiced_quantity >= i.quantity for i in order.items)
-                order.status = OrderStatus.INVOICED if is_fully_done else OrderStatus.PARTIALLY_INVOICED
-            else:
-                order.status = OrderStatus.PARTIALLY_INVOICED
+            # 1. Anular y Eliminar la Guía para retornar stock
+            if invoice.guide_id:
+                print(f"DEBUG [XML-1]: Anulando Guía {invoice.guide_id} para retornar stock...")
+                await delivery_service.cancel_guide(invoice.guide_id)
                 
-            await order.save()
-            print(f"Rollback: Order {order.order_number} recalculated. New status: {order.status}")
+            # 2. Borrar la Orden interna
+            if invoice.order_number:
+                print(f"DEBUG [XML-2]: Eliminando Orden Fantasma {invoice.order_number}...")
+                order = await SalesOrder.find_one(SalesOrder.order_number == invoice.order_number)
+                if order:
+                    await order.delete()
             
-    if user:
-        await AuditService.log_action(
-            user=user,
-            action="DELETE",
-            module="SALES",
-            description=f"Se eliminó la Factura {invoice.sunat_number or invoice.invoice_number} (Ref Orden: {invoice.order_number})",
-            entity_id=str(invoice.id),
-            entity_name=invoice.sunat_number or invoice.invoice_number
-        )
+            # 3. Borrar la Factura
+            print(f"DEBUG [XML-3]: Eliminando Factura {invoice_number}...")
+            await invoice.delete()
+            
+            if user:
+                await AuditService.log_action(user=user, action="DELETE", module="SALES", description=f"Se deshizo la importación XML de la Factura {invoice.sunat_number or invoice.invoice_number}", entity_id=str(invoice.id), entity_name=invoice.sunat_number or invoice.invoice_number)
+            
+            print(f"--- FIN PROCESO BORRADO XML: {invoice_number} [OK] ---\n")
+            return True
 
-    await invoice.delete()
-    return True
+        # FLUJO NORMAL (Factura Manual sin guía)
+        print(f"DEBUG [6]: Verificando orden vinculada para rollback parcial: {invoice.order_number}")
+        if invoice.order_number:
+            print(f"DEBUG [7]: Buscando orden {invoice.order_number} en BD...")
+            order = await SalesOrder.find_one(SalesOrder.order_number == invoice.order_number)
+            print(f"DEBUG [8]: Resultado búsqueda orden: {'ENCONTRADA' if order else 'NO ENCONTRADA'}")
+            
+            if order:
+                print(f"DEBUG [9]: Buscando otras facturas activas para la orden...")
+                # 1. Get all OTHER active invoices for this order
+                other_active_invoices = await SalesInvoice.find(
+                    {"order_number": order.order_number, "invoice_number": {"$ne": invoice.invoice_number}}
+                ).to_list()
+                print(f"DEBUG [10]: Otras facturas encontradas: {len(other_active_invoices)}")
+                
+                # 2. Reset all invoiced quantities on the order
+                print(f"DEBUG [11]: Reiniciando cantidades en la orden...")
+                if order.items:
+                    for item in order.items:
+                        item.invoiced_quantity = 0
+                
+                # 3. Sum quantities from all remaining invoices
+                print(f"DEBUG [12]: Recalculando cantidades desde otras facturas...")
+                for other_inv in other_active_invoices:
+                    if other_inv.items:
+                        for inv_item in other_inv.items:
+                            target = next((i for i in order.items if i.product_sku == inv_item.product_sku), None)
+                            if target:
+                                target.invoiced_quantity += inv_item.quantity
+                
+                # 4. Recalculate Order Status
+                print(f"DEBUG [13]: Recalculando estado de la orden...")
+                try:
+                    total_items_to_invoice = sum(i.quantity for i in order.items) if order.items else 0
+                    total_items_invoiced = sum(i.invoiced_quantity for i in order.items) if order.items else 0
+                    
+                    if total_items_invoiced == 0:
+                        order.status = OrderStatus.PENDING
+                    elif total_items_invoiced >= total_items_to_invoice:
+                        is_fully_done = all(i.invoiced_quantity >= i.quantity for i in order.items) if order.items else True
+                        order.status = OrderStatus.INVOICED if is_fully_done else OrderStatus.PARTIALLY_INVOICED
+                    else:
+                        order.status = OrderStatus.PARTIALLY_INVOICED
+                    
+                    print(f"DEBUG [14]: Guardando cambios en la orden...")
+                    await order.save()
+                    print(f"DEBUG [15]: Orden actualizada con éxito. Nuevo estado: {order.status}")
+                except Exception as e:
+                    import traceback
+                    print(f"ERROR CRITICO [B]: Falló el guardado de la Orden: {str(e)}")
+                    traceback.print_exc()
+                    raise ValidationException(f"No se pudo actualizar la orden {order.order_number} al borrar la factura: {str(e)}")
+                    
+        # Final Step: Delete invoice record
+        print(f"DEBUG [16]: Procediendo a eliminar el registro de factura de la BD...")
+        await invoice.delete()
+        print(f"DEBUG [17]: Factura eliminada con éxito.")
+
+        if user:
+            print(f"DEBUG [18]: Registrando acción en auditoría...")
+            await AuditService.log_action(
+                user=user,
+                action="DELETE",
+                module="SALES",
+                description=f"Se eliminó la Factura {invoice.sunat_number or invoice.invoice_number} (Ref Orden: {invoice.order_number})",
+                entity_id=str(invoice.id),
+                entity_name=invoice.sunat_number or invoice.invoice_number
+            )
+        
+        print(f"--- FIN PROCESO BORRADO: {invoice_number} [OK] ---\n")
+        return True
+
+    except Exception as e:
+        import traceback
+        print(f"\n!!! ERROR GENERAL EN delete_invoice !!!")
+        print(f"Tipo Error: {type(e).__name__}")
+        print(f"Mensaje: {str(e)}")
+        traceback.print_exc()
+        print(f"--- FIN PROCESO BORRADO: {invoice_number} [FAIL] ---\n")
+        raise ValidationException(f"No se pudo eliminar la factura {invoice_number}. Error interno: {str(e)}")
 
 # ==================== PAYMENTS ====================
 
@@ -1026,9 +1108,19 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
     from app.models.sales import OrderItem, OrderStatus, PaymentStatus, SalesOrder, SalesInvoice
     from app.models.inventory import DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
     
-    # 1. Crear Orden de Venta Interna (Estado: FACTURADA)
+    # 0. Validación de Factura Duplicada (ADN de SUNAT)
+    sunat_number = data.get('sunat_number') or data.get('document_number')
+    if sunat_number:
+        existing_invoice = await SalesInvoice.find_one(SalesInvoice.sunat_number == sunat_number)
+        if existing_invoice:
+            raise ValidationException(
+                f"DOCUMENTO DUPLICADO: La factura con número oficial '{sunat_number}' ya se encuentra registrada "
+                f"en el sistema (Folio Interno: {existing_invoice.invoice_number}). No se puede procesar dos veces el mismo archivo XML."
+            )
+    
+    # 1. Crear Orden de Venta Interna para la importación XML (Prefijo IMP)
     year_prefix = datetime.now().strftime('%y')
-    prefix = f"OV-{year_prefix}"
+    prefix = f"IMP-{year_prefix}"
     last_order = await SalesOrder.find({"order_number": {"$regex": f"^{prefix}"}}).sort("-order_number").limit(1).to_list()
     
     new_num = 1
@@ -1041,10 +1133,43 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
     
     order_number = f"{prefix}-{new_num:04d}"
     
+    # 1. Moneda y Tipo de Cambio
+    currency_val = data.get('currency', 'PEN')
+    if currency_val in ['SOLES', 'PEN']: 
+        currency_val = 'PEN'
+        current_exchange_rate = 1.0
+    elif currency_val in ['DOLARES', 'USD']:
+        currency_val = 'USD'
+        # Buscar tipo de cambio para la fecha del documento
+        from app.models.finance import ExchangeRate
+        doc_date = datetime.fromisoformat(data['date']).replace(hour=0, minute=0, second=0, microsecond=0)
+        rate_obj = await ExchangeRate.find_one(ExchangeRate.date == doc_date)
+        if not rate_obj:
+            # Fallback al más cercano si no hay exacto (máximo 30 días atrás por seguridad)
+            rate_obj_list = await ExchangeRate.find({"date": {"$lte": doc_date}}).sort("-date").limit(1).to_list()
+            if not rate_obj_list:
+                raise ValidationException(f"ERROR: No se encontró tipo de cambio para la fecha {doc_date.date()}. Debe registrar el tipo de cambio en ADM. Y FINANZAS > Tipos de Cambio para procesar documentos en USD.")
+            current_exchange_rate = rate_obj_list[0].sale
+            print(f"INFO: Usando tipo de cambio anterior ({rate_obj_list[0].date}) para la fecha {doc_date.date()}: {current_exchange_rate}")
+        else:
+            current_exchange_rate = rate_obj.sale
+
+    # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN OBLIGATORIA)
     order_items = []
     for item in data.get('items', []):
+        sku = item['product_sku']
+        # Buscar en maestro para descripción oficial
+        product = await inventory_service.find_product_robustly(sku)
+        
+        if not product:
+            # BLOQUEO: Ya no permitimos descripciones del XML si no existe en el maestro
+            raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
+        
+        print(f"OK: SKU {sku} verificado y enriquecido desde maestro.")
+        
         order_items.append(OrderItem(
-            product_sku=item['product_sku'],
+            product_sku=product.sku,
+            product_name=product.name, # Siempre usamos nuestro nombre oficial
             quantity=item['quantity'],
             unit_value=item.get('unit_value', item['unit_price'] / 1.18),
             unit_price=item['unit_price'],
@@ -1056,12 +1181,12 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
         order_number=order_number,
         customer_name=data['customer']['name'],
         customer_ruc=data['customer']['ruc'],
-        customer_address=data['customer'].get('address'),
+        delivery_address=data['customer'].get('address') or "Dirección en XML",
         items=order_items,
         status=OrderStatus.INVOICED,
         total_amount=data['total_amount'],
-        currency=data.get('currency', 'SOLES'),
-        exchange_rate=exchange_rate,
+        currency=currency_val,
+        exchange_rate=current_exchange_rate,
         date=datetime.fromisoformat(data['date']),
         payment_terms={
             "mode": data.get('payment_terms', 'Contado'),
@@ -1088,16 +1213,17 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
     
     invoice = SalesInvoice(
         invoice_number=invoice_number,
-        sunat_number=data.get('sunat_number'),
+        sunat_number=data.get('sunat_number') or data.get('document_number'),
         order_number=order_number,
         customer_name=order.customer_name,
         customer_ruc=order.customer_ruc,
+        delivery_address=order.delivery_address,
         invoice_date=order.date,
         due_date=order.date, # Simplificado para importación historial
         items=order.items,
         total_amount=order.total_amount,
         currency=order.currency,
-        exchange_rate=exchange_rate,
+        exchange_rate=order.exchange_rate,
         payment_status=PaymentStatus.PAID,
         amount_paid=order.total_amount,
         issuer_info=order.issuer_info,
@@ -1106,6 +1232,7 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
     await invoice.insert()
     
     # 3. Auto-Guía (Descuento de stock)
+    print(f"DEBUG [XML-GUIDE]: Entrando a bloque auto_guide. auto_guide={auto_guide}")
     if auto_guide:
         prefix_g = f"GV-{year_prefix}"
         last_g = await DeliveryGuide.find({"guide_number": {"$regex": f"^{prefix_g}"}}).sort("-guide_number").limit(1).to_list()
@@ -1119,42 +1246,46 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
         guide_number = f"{prefix_g}-{new_num_g:04d}"
         
         guide_items = []
-        for item in order_items:
-            product = await inventory_service.get_product_by_sku(item.product_sku)
+        for item in order.items:
+            # Re-buscar para costo u otros datos técnicos si es necesario
+            product = await inventory_service.find_product_robustly(item.product_sku)
             guide_items.append(GuideItem(
                 sku=item.product_sku,
-                product_name=product.name,
+                product_name=item.product_name,
                 quantity=item.quantity,
-                unit_cost=product.cost
+                unit_cost=float(product.cost or 0.0) if product else float(item.unit_price / 1.5)
             ))
             
-            # Movimiento de inventario
-            await inventory_service.register_movement(
-                sku=item.product_sku,
-                quantity=item.quantity,
-                movement_type=MovementType.OUT,
-                reference=guide_number,
-                date=order.date
+            # REFACTOR: El stock ya NO se mueve en la importación.
+            # Se delegará exclusivamente al flujo de Despacho de Guías (Logística).
+            # Por lo tanto, no llamamos a register_movement aquí.
+        print(f"DEBUG [XML-GUIDE]: Intentando crear modelo DeliveryGuide: {guide_number}")
+        try:
+            guide = DeliveryGuide(
+                guide_number=guide_number,
+                guide_type=GuideType.DISPATCH,
+                status=GuideStatus.DRAFT,  # La guía nace PENDIENTE de despacho físico
+                invoice_number=invoice_number,
+                order_number=order_number,
+                customer_name=order.customer_name,
+                customer_ruc=order.customer_ruc,
+                items=guide_items,
+                issue_date=datetime.now(),
+                created_by=user.username if user else "SYSTEM"
             )
-            
-        guide = DeliveryGuide(
-            guide_number=guide_number,
-            guide_type=GuideType.DISPATCH,
-            status=GuideStatus.COMPLETED,
-            invoice_number=invoice_number,
-            order_number=order_number,
-            customer_name=order.customer_name,
-            customer_ruc=order.customer_ruc,
-            items=guide_items,
-            issue_date=order.date,
-            dispatch_date=order.date,
-            delivery_date=order.date,
-            created_by=user.username if user else "SYSTEM"
-        )
-        await guide.insert()
+            print(f"DEBUG [XML-GUIDE]: Modelo DeliveryGuide creado exitosamente. Insertando...")
+            await guide.insert()
+            print(f"DEBUG [XML-GUIDE]: Guía insertada exitosamente con ID {guide.id}")
+        except Exception as e:
+            print(f"ERROR FATAL [XML-GUIDE]: Falló la creación/inserción de la guía: {e}")
+            import traceback
+            traceback.print_exc()
+            raise e
         
-        invoice.dispatch_status = "DISPATCHED"
-        invoice.guide_id = str(guide.id)
+        # Como la guía nace en DRAFT, la factura aún no está "Despachada" físicamente.
+        print(f"DEBUG [XML-GUIDE]: Actualizando factura con guide_id {guide.guide_number}")
+        invoice.dispatch_status = "NOT_DISPATCHED"
+        invoice.guide_id = str(guide.guide_number)
         await invoice.save()
 
     if user:

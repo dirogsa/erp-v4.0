@@ -32,7 +32,9 @@ import Audit from './pages/Audit';
 import SalesPolicies from './pages/SalesPolicies';
 import PriceUpdateMasive from './pages/PriceUpdateMasive';
 import CatalogIngestion from './pages/CatalogIngestion';
+import BulkXMLImport from './pages/BulkXMLImport';
 import StaffManagement from './pages/StaffManagement';
+import ExchangeRates from './pages/ExchangeRates';
 
 
 
@@ -74,7 +76,8 @@ function App() {
                         <Route path="/reports" element={<Reports />} />
                         <Route path="/inventory" element={<Inventory />} />
                         <Route path="/inventory/marketing" element={<MarketingInventory />} />
-                        <Route path="/inventory/bulk-import" element={<CatalogIngestion />} />
+                        <Route path="/catalog-ingestion" element={<CatalogIngestion />} />
+                        <Route path="/bulk/xml" element={<BulkXMLImport />} />
                         <Route path="/categories" element={<Categories />} />
                         <Route path="/suppliers" element={<Suppliers />} />
                         <Route path="/purchasing" element={<Purchasing />} />
@@ -94,6 +97,7 @@ function App() {
                         <Route path="/sales-policies" element={<SalesPolicies />} />
                         <Route path="/price-update" element={<PriceUpdateMasive />} />
                         <Route path="/staff" element={<StaffManagement />} />
+                        <Route path="/exchange-rates" element={<ExchangeRates />} />
                       </Routes>
 
                     </Layout>

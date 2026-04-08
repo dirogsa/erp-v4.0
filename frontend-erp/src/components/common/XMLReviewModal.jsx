@@ -214,6 +214,7 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                             <thead style={{ backgroundColor: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
                                 <tr>
                                     <th style={{ textAlign: 'left', padding: '1.25rem' }}>PRODUCTO / SKU</th>
+                                    <th style={{ textAlign: 'center', padding: '1.25rem' }}>CATEGORÍA</th>
                                     <th style={{ textAlign: 'center', padding: '1.25rem' }}>CANT.</th>
                                     <th style={{ textAlign: 'right', padding: '1.25rem' }}>BASE (VALOR S/ IGV)</th>
                                     <th style={{ textAlign: 'right', padding: '1.25rem' }}>PRECIO (+IGV)</th>
@@ -222,10 +223,79 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                             </thead>
                             <tbody>
                                 {localItems.map((item, idx) => (
-                                    <tr key={idx} style={{ borderBottom: '1px solid #1e293b', transition: 'background-color 0.2s' }}>
+                                    <tr key={idx} style={{ borderBottom: '1px solid #1e293b', transition: 'background-color 0.2s', backgroundColor: item.is_misc ? '#1e293b44' : 'transparent' }}>
                                         <td style={{ padding: '1rem 1.25rem' }}>
-                                            <div style={{ fontWeight: '800', color: 'white', fontSize: '0.9rem' }}>{item.product_sku}</div>
-                                            <div style={{ fontSize: '0.7rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px' }}>{item.product_name}</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <input
+                                                    type="text"
+                                                    value={item.product_sku}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value.toUpperCase();
+                                                        const newItems = [...localItems];
+                                                        newItems[idx].product_sku = val;
+                                                        setLocalItems(newItems);
+                                                    }}
+                                                    title="Haga clic para corregir el SKU si es necesario"
+                                                    style={{
+                                                        background: '#0f172a', border: '1px solid #1e293b',
+                                                        color: item.is_misc ? '#94a3b8' : '#10b981', padding: '0.3rem 0.5rem', borderRadius: '0.4rem',
+                                                        fontWeight: '900', fontSize: '0.85rem', width: '130px',
+                                                        outline: 'none'
+                                                    }}
+                                                />
+                                                {item.is_misc && <span style={{ fontSize: '0.65rem', backgroundColor: '#334155', color: '#94a3b8', padding: '2px 6px', borderRadius: '4px' }}>GENÉRICO</span>}
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', marginTop: '4px' }}>{item.product_name}</div>
+                                        </td>
+                                        <td style={{ textAlign: 'center', padding: '1rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                                                <select
+                                                    value={item.classification || 'FILTER'}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const newItems = [...localItems];
+                                                        newItems[idx].classification = val;
+                                                        // Marcamos que es misceláneo si no es filtro
+                                                        newItems[idx].is_misc = val !== 'FILTER';
+                                                        setLocalItems(newItems);
+                                                    }}
+                                                    style={{
+                                                        background: '#1e293b', border: '1px solid #334155', color: 'white',
+                                                        fontSize: '0.75rem', padding: '0.4rem', borderRadius: '0.5rem', outline: 'none'
+                                                    }}
+                                                >
+                                                    <option value="FILTER">📑 Filtro</option>
+                                                    <option value="LUBRICANT">🛢️ Aceite</option>
+                                                    <option value="SPARK_PLUG">🛠️ Bujía</option>
+                                                    <option value="BATTERY">🔋 Batería</option>
+                                                    <option value="COOLANT">🧊 Refrigerante</option>
+                                                    <option value="MISC">📦 Otros</option>
+                                                </select>
+
+                                                {item.classification && item.classification !== 'FILTER' && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const newItems = [...localItems];
+                                                            const map = {
+                                                                'LUBRICANT': 'VARIOS-ACEITES',
+                                                                'SPARK_PLUG': 'VARIOS-BUJIAS',
+                                                                'BATTERY': 'VARIOS-BATERIAS',
+                                                                'COOLANT': 'VARIOS-REFRIGERANTES',
+                                                                'MISC': 'VARIOS-GENERICO'
+                                                            };
+                                                            newItems[idx].product_sku = map[item.classification] || 'VARIOS-GENERICO';
+                                                            setLocalItems(newItems);
+                                                        }}
+                                                        title="Mapear a SKU Genérico"
+                                                        style={{
+                                                            background: '#334155', border: 'none', color: '#60a5fa', 
+                                                            padding: '4px', borderRadius: '4px', cursor: 'pointer', display: 'flex'
+                                                        }}
+                                                    >
+                                                        <Zap size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                         <td style={{ textAlign: 'center', padding: '1rem', color: '#cbd5e1', fontWeight: '700' }}>{item.quantity}</td>
                                         <td style={{ textAlign: 'right', padding: '1rem' }}>
@@ -241,7 +311,7 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                                                     setLocalItems(newItems);
                                                 }}
                                                 style={{
-                                                    width: '100px', background: '#0f172a', border: '1px solid #1e293b',
+                                                    width: '90px', background: '#0f172a', border: '1px solid #1e293b',
                                                     color: '#94a3b8', padding: '0.5rem', borderRadius: '0.5rem', textAlign: 'right', fontWeight: '600', fontSize: '0.85rem'
                                                 }}
                                             />
@@ -259,7 +329,7 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                                                     setLocalItems(newItems);
                                                 }}
                                                 style={{
-                                                    width: '100px', background: '#1e293b', border: '1px solid #334155',
+                                                    width: '90px', background: '#1e293b', border: '1px solid #334155',
                                                     color: '#fbbf24', padding: '0.5rem', borderRadius: '0.5rem', textAlign: 'right', fontWeight: '900', fontSize: '0.95rem'
                                                 }}
                                             />
@@ -320,32 +390,19 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                     
                     <div style={{ display: 'flex', gap: '1rem' }}>
                         <Button
-                            variant="secondary"
-                            onClick={() => handleConfirm('quote')}
-                            disabled={loading}
-                            style={{ 
-                                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                opacity: isBalanced ? 1 : 0.5
-                            }}
-                        >
-                            <FileText size={18} />
-                            Generar Cotización
-                        </Button>
-
-                        <Button
                             variant="primary"
-                            onClick={() => handleConfirm('direct_invoice')}
+                            onClick={() => handleConfirm()}
                             disabled={!isBalanced || loading}
                             style={{
                                 backgroundColor: isBalanced ? '#10b981' : '#64748b',
                                 boxShadow: isBalanced ? '0 4px 15px rgba(16, 185, 129, 0.4)' : 'none',
                                 display: 'flex', alignItems: 'center', gap: '0.5rem',
                                 fontWeight: '900',
-                                padding: '0.75rem 2rem'
+                                padding: '0.75rem 2.5rem'
                             }}
                         >
                             {loading ? <Loader2 className="animate-spin" /> : <Zap size={18} />}
-                            {loading ? 'Procesando...' : 'IMPORTACIÓN DIRECTA (FACTURA + GUÍA) 🚀'}
+                            {loading ? 'Guardando...' : 'GUARDAR CAMBIOS Y CERRAR'}
                         </Button>
                     </div>
                 </div>

@@ -54,8 +54,20 @@ export const MENU_CONFIG = [
             { id: 'categories', label: 'Categorías de Stock', path: '/categories', icon: '🏷️' },
             { id: 'warehouses', label: 'Sedes y Almacenes', path: '/warehouses', icon: '🏢' },
             { id: 'transfers', label: 'Transferencias Internas', path: '/transfers', icon: '🚚' },
-            { id: 'losses', label: 'Ajustes y Mermas', path: '/losses', icon: '⚠️' },
-            { id: 'bulk-import', label: 'Ingesta de Catálogo', path: '/inventory/bulk-import', icon: '⚡', roles: [ROLES.ADMIN, ROLES.STOCK_MANAGER] }
+            { id: 'losses', label: 'Ajustes y Mermas', path: '/losses', icon: '⚠️' }
+        ]
+    },
+    {
+        id: 'operaciones-masivas',
+        label: 'CARGA MASIVA (HUB)',
+        icon: '⚡',
+        roles: [ROLES.ADMIN, ROLES.STOCK_MANAGER, ROLES.ACCOUNTANT],
+        isGroup: true,
+        children: [
+            { id: 'bulk-xml', label: 'Importador XML SUNAT', path: '/bulk/xml', icon: '📄' },
+            { id: 'bulk-ingestion', label: 'Ingesta de Catálogos', path: '/catalog-ingestion', icon: '🚀' },
+            { id: 'bulk-prices', label: 'Precios Masivos', path: '/price-update', icon: '📈' },
+            { id: 'data-center', label: 'Centro de Datos (CSV)', path: '/import-export', icon: '📤' }
         ]
     },
     {
@@ -78,11 +90,10 @@ export const MENU_CONFIG = [
         children: [
             { id: 'reports', label: 'Análisis y Reportes', path: '/reports', icon: '📊' },
             { id: 'companies', label: 'Gestión de Empresas', path: '/companies', icon: '🏢' },
-            { id: 'price-update', label: 'Actualización de Precios', path: '/price-update', icon: '📈' },
+            { id: 'exchange-rates', label: 'Tipos de Cambio', path: '/exchange-rates', icon: '💱' },
             { id: 'pricing', label: 'Precios Especiales B2B', path: '/pricing', icon: '🏷️' },
             { id: 'b2b', label: 'Socios de Negocio B2B', path: '/b2b', icon: '🤝' },
-            { id: 'policies', label: 'Políticas de Venta', path: '/sales-policies', icon: '⚖️' },
-            { id: 'import-export', label: 'Importar / Exportar Datos', path: '/import-export', icon: '📤' }
+            { id: 'policies', label: 'Políticas de Venta', path: '/sales-policies', icon: '⚖️' }
         ]
     },
     {

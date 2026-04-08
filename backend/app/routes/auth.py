@@ -84,7 +84,6 @@ async def register(user_in: UserCreate):
 
 @router.post("/login", response_model=Token)
 async def login(form_data: UserLogin, request: Request):
-    print(f"[AUTH] Login attempt for: {form_data.username or form_data.email}")
     user = None
     if form_data.username:
         user = await User.find_one(User.username == form_data.username)
@@ -92,15 +91,11 @@ async def login(form_data: UserLogin, request: Request):
         user = await User.find_one(User.email == form_data.email)
     
     if not user:
-        print(f"[AUTH] User not found: {form_data.username or form_data.email}")
         raise HTTPException(status_code=400, detail="Incorrect identifier or password")
         
-    print(f"[AUTH] User found, verifying password for: {user.username}")
     if not AuthService.verify_password(form_data.password, user.password_hash):
-        print(f"[AUTH] Password verification failed for: {user.username}")
         raise HTTPException(status_code=400, detail="Incorrect identifier or password")
     
-    print(f"[AUTH] Password verified, creating token for: {user.username}")
     # Use whichever identifier is available
     identifier = user.username if user.username else user.email
     access_token = AuthService.create_access_token(data={"sub": identifier, "role": user.role})
@@ -118,12 +113,10 @@ async def login(form_data: UserLogin, request: Request):
         ip_address=request.client.host
     )
     
-    print(f"[AUTH] Login successful for: {user.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
-    print(f"[AUTH] Fetching /me for user: {current_user.username}")
     return current_user
 
 @router.post("/apply-b2b")

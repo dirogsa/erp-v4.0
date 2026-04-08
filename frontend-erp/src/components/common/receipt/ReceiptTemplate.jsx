@@ -75,9 +75,9 @@ const ReceiptTemplate = ({
     }
 
     // 5. Recalculate Amount in Words & Currency Label
-    const displayCurrency = isConverting ? 'USD' : (currency === 'SOLES' ? 'PEN' : currency);
-    const displayCurrencyText = isConverting ? 'DÓLARES' : currency;
-    const currencySymbol = isConverting ? '$' : 'S/';
+    const displayCurrency = isConverting ? 'USD' : (currency === 'SOLES' || currency === "PEN" ? 'PEN' : currency);
+    const displayCurrencyText = isConverting ? 'DÓLARES' : (currency === "USD" || currency === "DOLARES" ? "DOLARES" : "SOLES");
+    const currencySymbol = isConverting ? '$' : (currency === 'USD' || currency === 'DOLARES' ? '$' : 'S/');
 
     // Si estamos convirtiendo, regeneramos el texto "SON: ...", sino usamos el que viene
     const displayAmountInWords = isConverting

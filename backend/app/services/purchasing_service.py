@@ -482,6 +482,20 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
     from app.models.purchasing import PurchaseOrder, PurchaseInvoice, OrderStatus, PaymentStatus
     from app.models.inventory import DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
     
+    # 0. Validación de Factura Duplicada (ADN de SUNAT)
+    sunat_number = data.get('sunat_number') or data.get('document_number')
+    supplier_ruc = data.get('supplier', {}).get('ruc')
+    if sunat_number and supplier_ruc:
+        existing = await PurchaseInvoice.find_one({
+            "sunat_number": sunat_number,
+            "supplier_ruc": supplier_ruc
+        })
+        if existing:
+            raise ValidationException(
+                f"DOCUMENTO DUPLICADO: La factura '{sunat_number}' del proveedor {data['supplier']['name']} ya se encuentra registrada "
+                f"en el sistema. No se puede procesar dos veces el mismo archivo XML."
+            )
+
     # 1. Crear Orden de Compra Interna (Estado: RECIBIDA/FACTURADA)
     year_prefix = datetime.now().strftime('%y')
     prefix = f"OC-{year_prefix}"
@@ -497,11 +511,37 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
     
     order_number = f"{prefix}-{new_num:04d}"
     
+    # 1. Moneda y Tipo de Cambio
+    currency_val = data.get('currency', 'PEN')
+    if currency_val in ['SOLES', 'PEN']: 
+        currency_val = 'PEN'
+        current_exchange_rate = 1.0
+    elif currency_val in ['DOLARES', 'USD']:
+        currency_val = 'USD'
+        # Buscar tipo de cambio para la fecha del documento
+        from app.models.finance import ExchangeRate
+        doc_date = datetime.fromisoformat(data['date']).replace(hour=0, minute=0, second=0, microsecond=0)
+        rate_obj = await ExchangeRate.find_one(ExchangeRate.date == doc_date)
+        if not rate_obj:
+            rate_obj = await ExchangeRate.find({"date": {"$lte": doc_date}}).sort("-date").limit(1).to_list()
+            current_exchange_rate = rate_obj[0].sale if rate_obj else (exchange_rate or 3.75)
+        else:
+            current_exchange_rate = rate_obj.sale
+
+    # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN OBLIGATORIA)
     order_items = []
     from app.models.purchasing import OrderItem
     for item in data.get('items', []):
+        sku = item['product_sku']
+        # Complementar con información de mi base de datos de productos
+        product = await inventory_service.find_product_robustly(sku)
+        
+        if not product:
+            raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
+
         order_items.append(OrderItem(
-            product_sku=item['product_sku'],
+            product_sku=product.sku,
+            product_name=product.name, # Nombre oficial
             quantity=item['quantity'],
             unit_value=item.get('unit_value', item['unit_price'] / 1.18),
             unit_price=item['unit_price'],
@@ -518,8 +558,8 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
         items=order_items,
         status=OrderStatus.INVOICED,
         total_amount=data['total_amount'],
-        currency=data.get('currency', 'SOLES'),
-        exchange_rate=exchange_rate,
+        currency=currency_val,
+        exchange_rate=current_exchange_rate,
         date=datetime.fromisoformat(data['date'])
     )
     await order.insert()
@@ -540,14 +580,16 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
     
     invoice = PurchaseInvoice(
         invoice_number=invoice_number,
-        sunat_number=data.get('sunat_number'),
+        sunat_number=data.get('sunat_number') or data.get('document_number'),
         order_number=order_number,
         supplier_name=order.supplier_name,
+        supplier_ruc=order.supplier_ruc,
+        supplier_address=order.supplier_address,
         invoice_date=order.date,
         items=order.items,
         total_amount=order.total_amount,
         currency=order.currency,
-        exchange_rate=exchange_rate,
+        exchange_rate=current_exchange_rate,
         payment_status=PaymentStatus.PAID,
         amount_paid=order.total_amount,
         reception_status="PENDING"

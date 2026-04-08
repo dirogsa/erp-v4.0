@@ -67,9 +67,13 @@ const GuidesTable = ({
             label: 'Cliente',
             key: 'customer_name',
             render: (_, row) => (
-                <div>
-                    <div>{row.customer_name}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{row.customer_ruc}</div>
+                <div style={{ minWidth: '220px', maxWidth: '350px', lineHeight: '1.4' }}>
+                    <div style={{ fontWeight: '500', whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                        {row.customer_name}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                        RUC: {row.customer_ruc}
+                    </div>
                 </div>
             )
         },

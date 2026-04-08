@@ -65,7 +65,7 @@ export const parseUBLXml = (xmlString) => {
     const issueDate = getTagText(xmlDoc, 'cbc:IssueDate');
     const issueTime = getTagText(xmlDoc, 'cbc:IssueTime');
     const currencyRaw = getTagText(xmlDoc, 'cbc:DocumentCurrencyCode');
-    const currency = currencyRaw === 'PEN' ? 'SOLES' : (currencyRaw === 'USD' ? 'DOLARES' : currencyRaw);
+    const currency = currencyRaw === 'PEN' ? 'PEN' : (currencyRaw === 'USD' ? 'USD' : currencyRaw);
     
     const isCreditNote = !!findElement(xmlDoc, 'CreditNote');
     const documentType = isCreditNote ? 'CREDIT_NOTE' : 'INVOICE';
@@ -131,13 +131,15 @@ export const parseUBLXml = (xmlString) => {
         const itemInfo = findElement(line, 'cac:Item');
         const sellersId = findElement(itemInfo, 'cac:SellersItemIdentification');
         const rawSku = sellersId ? getTagText(sellersId, 'cbc:ID') : getTagText(line, 'cbc:ID');
-        const productSku = rawSku.includes(' ') ? rawSku.split(/\s+/)[0] : rawSku;
+        // Sanitizar SKU: Eliminar CUALQUIER carácter que no sea alfanumérico (letras y números)
+        // Esto uniformiza '28113- C7000' -> '28113C7000' de forma ultra-robusta
+        const productSku = rawSku.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 
         const quantity = parseFloat(getTagText(line, 'cbc:InvoicedQuantity') || getTagText(line, 'cbc:CreditedQuantity') || '0');
         const unitCode = findElement(line, 'cbc:InvoicedQuantity')?.getAttribute('unitCode') || 'NIU';
 
         // PRICE LOGIC (Valor vs Precio)
-        const unitValue = parseFloat(getTagText(line, 'cac:Price/cbc:PriceAmount') || '0');
+        let unitValue = parseFloat(getTagText(line, 'cac:Price/cbc:PriceAmount') || '0');
         
         let unitPrice = 0;
         const pricingRefs = line.getElementsByTagName('cac:AlternativeConditionPrice');

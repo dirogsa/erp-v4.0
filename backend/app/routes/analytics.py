@@ -6,10 +6,7 @@ router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 @router.get("/dashboard")
 async def get_dashboard():
-    print("Backend: GET /analytics/dashboard received")
-    result = await analytics_service.get_dashboard_summary()
-    print("Backend: GET /analytics/dashboard completed")
-    return result
+    return await analytics_service.get_dashboard_summary()
 
 @router.get("/reports/debtors")
 async def get_debtors_report(customer_id: Optional[str] = None, status_filter: str = 'pending'):

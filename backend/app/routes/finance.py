@@ -10,6 +10,10 @@ class ExchangeRateRequest(BaseModel):
     purchase: float
     sale: float
 
+@router.get("/exchange-rates", response_model=List[ExchangeRate])
+async def list_exchange_rates():
+    return await ExchangeRate.find().sort("-date").to_list()
+
 @router.get("/exchange-rate/{date_str}", response_model=Optional[ExchangeRate])
 async def get_exchange_rate(date_str: str):
     try:

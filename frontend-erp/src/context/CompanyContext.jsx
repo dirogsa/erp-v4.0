@@ -28,7 +28,7 @@ export const CompanyProvider = ({ children }) => {
             setActiveWebCompany(web || fetchedCompanies[0] || null);
 
         } catch (err) {
-            console.error("CompanyContext: Error loading companies", err);
+            console.error('[COMPANY] Error loading companies:', err);
         } finally {
             setLoading(false);
         }

@@ -36,7 +36,29 @@ const InvoicesTable = ({
             label: 'Total',
             key: 'total_amount',
             align: 'right',
-            render: (val) => formatCurrency(val)
+            render: (val, invoice) => {
+                const isUSD = invoice.currency === 'USD' || invoice.currency === 'DOLARES';
+                const symbol = isUSD ? '$' : 'S/';
+                const exchangeRate = invoice.exchange_rate || 1;
+                
+                return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                        <div style={{ fontWeight: 'bold', color: isUSD ? '#34d399' : 'white', fontSize: '1rem' }}>
+                            {formatCurrency(val, symbol)}
+                        </div>
+                        {isUSD && exchangeRate > 1 && (
+                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '-2px' }}>
+                                Equiv. {formatCurrency(val * exchangeRate, 'S/')}
+                            </div>
+                        )}
+                        {isUSD && (
+                            <div style={{ fontSize: '0.6rem', color: '#64748b', fontStyle: 'italic' }}>
+                                T.C. {exchangeRate.toFixed(3)}
+                            </div>
+                        )}
+                    </div>
+                );
+            }
         },
         {
             label: 'Pago',

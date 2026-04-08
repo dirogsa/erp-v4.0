@@ -31,8 +31,10 @@ async def get_guides(
     if guide_type:
         query["guide_type"] = guide_type
 
+    print(f"DEBUG [GET_GUIDES]: Ejecutando búsqueda con query={query}, skip={skip}, limit={limit}")
     total = await DeliveryGuide.find(query).count()
     items = await DeliveryGuide.find(query).sort("-issue_date").skip(skip).limit(limit).to_list()
+    print(f"DEBUG [GET_GUIDES]: Se encontraron {total} guías. Retornando {len(items)} items en esta página.")
     
     return PaginatedResponse(
         items=items,
