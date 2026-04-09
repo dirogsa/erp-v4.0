@@ -82,58 +82,71 @@ const SearchPage = () => {
 
     return (
         <div className="bg-brand-bg min-h-screen text-brand-text flex flex-col font-sans">
-            {/* Header / Search Input */}
-            <div className="bg-brand-bg/80 backdrop-blur-xl px-4 pt-12 pb-4 sticky top-0 z-50 border-b border-brand-border/50">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="p-2.5 bg-brand-surface rounded-xl border border-brand-border text-brand-text active:scale-95 transition-all"
-                    >
-                        <ChevronLeftIcon className="h-5 w-5" />
-                    </button>
-                    
-                    <div className="flex-1 relative">
-                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-primary" />
-                        <input
-                            ref={searchInput}
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder={getPlaceholder()}
-                            className="w-full pl-12 pr-4 py-3.5 bg-brand-surface border border-brand-border rounded-xl text-sm font-bold focus:ring-1 focus:ring-brand-primary focus:outline-none transition-all placeholder:text-brand-muted/40"
-                        />
-                        {searchTerm && (
-                            <button
-                                onClick={() => setSearchTerm('')}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-muted font-bold"
-                            >
-                                ×
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {stats && (
-                    <div className="flex items-center justify-between mt-4 px-1">
-                        <p className="text-[10px] font-black text-brand-muted uppercase tracking-widest">
-                            {stats.total} resultados encontrados
-                        </p>
-                        <button className="flex items-center gap-1 text-[10px] font-black text-brand-primary uppercase">
-                            <AdjustmentsHorizontalIcon className="h-4 w-4" /> Filtros
-                        </button>
-                    </div>
-                )}
-
-                {/* Standardized Cold start notification */}
+            {/* Fixed Technical Header with Auto-Flow */}
+            <header className="fixed top-0 left-0 right-0 z-[100] bg-brand-bg/95 backdrop-blur-3xl border-b border-brand-primary/20 safe-top">
+                {/* 1. Status Notification (Superior Layer) */}
                 {isWakingUp && (
-                    <StatusIndicator 
-                        type="loading"
-                        label="Despertando Núcleo"
-                        description="Conectando servidor de datos (Tarda ~30s)"
-                        className="mt-4"
-                    />
+                    <div className="px-4 py-2 bg-brand-primary/5 animate-pulse">
+                        <StatusIndicator 
+                            type="loading"
+                            label="WAKING CORE..."
+                            description="Sincronizando servidores maestros"
+                            className="!py-2 !rounded-lg border-none bg-transparent shadow-none"
+                            showScanline={false}
+                        />
+                    </div>
                 )}
-            </div>
+
+                {/* 2. Main Search Bar Area */}
+                <div className="px-4 py-4 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-2.5 bg-brand-surface-2 rounded-xl border border-brand-border-2 text-brand-text active:scale-95 transition-all shadow-lg"
+                        >
+                            <ChevronLeftIcon className="h-5 w-5" />
+                        </button>
+                        
+                        <div className="flex-1 relative group">
+                            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-primary group-focus-within:text-brand-accent transition-colors" />
+                            <input
+                                ref={searchInput}
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder={getPlaceholder()}
+                                className="w-full pl-12 pr-4 py-4 bg-brand-surface border-2 border-brand-border-2 rounded-2xl text-sm font-bold focus:border-brand-primary/50 focus:outline-none transition-all placeholder:text-brand-muted/40 shadow-2xl"
+                            />
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-brand-surface-2 rounded-full text-brand-muted text-lg"
+                                >
+                                    ×
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 3. Stats & Toolbelt (Optional/Dynamic) */}
+                    {stats && (
+                        <div className="flex items-center justify-between pb-1">
+                            <div className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse glow-emerald"></span>
+                                <p className="text-[10px] font-black text-brand-text/50 uppercase tracking-[0.2em]">
+                                    {stats.total} <span className="text-brand-muted">Coincidencias</span>
+                                </p>
+                            </div>
+                            <button className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-surface rounded-full text-[9px] font-black text-brand-primary border border-brand-primary/20 uppercase tracking-widest active:scale-90 transition-transform">
+                                <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" /> Filtros
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </header>
+
+            {/* Spacer to prevent content from hiding behind the FIXED header */}
+            <div className={`${isWakingUp && stats ? 'h-52' : isWakingUp || stats ? 'h-44' : 'h-32'} transition-all duration-300`} />
 
             {/* Content Section */}
             <main className="p-4 flex-1">
