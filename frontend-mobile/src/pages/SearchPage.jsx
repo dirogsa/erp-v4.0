@@ -122,6 +122,22 @@ const SearchPage = () => {
                         </button>
                     </div>
                 )}
+
+                {/* Cold start notification - Sticky under search */}
+                {isWakingUp && (
+                    <div className="mt-4 bg-brand-primary/10 border border-brand-primary/30 rounded-2xl p-3.5 flex items-center gap-4 animate-pulse shadow-[0_0_15px_rgba(110,231,183,0.15)] ring-1 ring-brand-primary/20">
+                        <div className="h-10 w-10 shrink-0 bg-brand-primary/20 rounded-xl flex items-center justify-center border border-brand-primary/40">
+                            <svg className="h-5 w-5 animate-spin text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-widest text-brand-primary drop-shadow-sm">Conexión en Progreso</p>
+                            <p className="text-[10px] uppercase font-bold text-brand-text/50 leading-tight tracking-[0.05em] mt-0.5">El sistema está despertando (tarda ~30s)...</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Content Section */}
@@ -134,20 +150,6 @@ const SearchPage = () => {
 
                 {loading ? (
                     <div className="flex flex-col gap-4">
-                        {isWakingUp && (
-                            <div className="bg-brand-surface/80 border border-brand-primary/50 text-brand-primary p-4 rounded-3xl mb-2 flex items-center gap-4 animate-pulse">
-                                <div className="h-10 w-10 shrink-0 bg-brand-primary/10 rounded-full flex items-center justify-center">
-                                    <svg className="h-5 w-5 animate-spin text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <p className="text-xs font-black uppercase tracking-widest text-[#E1E8DC]">Conectando Sistemas</p>
-                                    <p className="text-[10px] uppercase font-bold text-brand-muted/80 leading-tight tracking-[0.1em] mt-0.5">Despertando servidor de la base de datos (tarda aprox ~40s)...</p>
-                                </div>
-                            </div>
-                        )}
                         <div className="grid grid-cols-2 gap-4">
                             {[1, 2, 3, 4, 5, 6].map(i => (
                                 <div key={i} className="bg-brand-surface h-56 rounded-3xl border border-brand-border animate-pulse shadow-inner"></div>
