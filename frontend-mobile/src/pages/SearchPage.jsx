@@ -81,23 +81,23 @@ const SearchPage = () => {
     // where hiding the keyboard also triggers history.back() because the focus wasn't user-initiated.
 
     return (
-        <div className="bg-brand-bg min-h-screen text-brand-text flex flex-col font-sans">
-            {/* Fixed Technical Header with Auto-Flow */}
-            <header className="fixed top-0 left-0 right-0 z-[100] bg-brand-bg/95 backdrop-blur-3xl border-b border-brand-primary/20 safe-top">
-                {/* 1. Status Notification (Superior Layer) */}
+        <div className="bg-brand-bg h-screen text-brand-text flex flex-col font-sans overflow-hidden">
+            {/* Technical Command Header (No solapa, empuja el contenido) */}
+            <header className="flex-shrink-0 bg-brand-bg border-b border-brand-primary/20 safe-top">
+                {/* 1. System Status Notification */}
                 {isWakingUp && (
-                    <div className="px-4 py-2 bg-brand-primary/5 animate-pulse">
+                    <div className="px-4 py-2 bg-brand-primary/5 border-b border-brand-primary/10">
                         <StatusIndicator 
                             type="loading"
-                            label="WAKING CORE..."
-                            description="Sincronizando servidores maestros"
+                            label="WAKING CORE"
+                            description="Sincronizando servidores externos..."
                             className="!py-2 !rounded-lg border-none bg-transparent shadow-none"
                             showScanline={false}
                         />
                     </div>
                 )}
 
-                {/* 2. Main Search Bar Area */}
+                {/* 2. Primary Search Controls */}
                 <div className="px-4 py-4 space-y-4">
                     <div className="flex items-center gap-3">
                         <button
@@ -107,37 +107,29 @@ const SearchPage = () => {
                             <ChevronLeftIcon className="h-5 w-5" />
                         </button>
                         
-                        <div className="flex-1 relative group">
-                            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-primary group-focus-within:text-brand-accent transition-colors" />
+                        <div className="flex-1 relative">
+                            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-primary" />
                             <input
                                 ref={searchInput}
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder={getPlaceholder()}
-                                className="w-full pl-12 pr-4 py-4 bg-brand-surface border-2 border-brand-border-2 rounded-2xl text-sm font-bold focus:border-brand-primary/50 focus:outline-none transition-all placeholder:text-brand-muted/40 shadow-2xl"
+                                className="w-full pl-11 pr-4 py-4 bg-brand-surface border-2 border-brand-border-2 rounded-2xl text-sm font-bold focus:border-brand-primary focus:outline-none transition-all placeholder:text-brand-muted/40 shadow-xl"
                             />
-                            {searchTerm && (
-                                <button
-                                    onClick={() => setSearchTerm('')}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-brand-surface-2 rounded-full text-brand-muted text-lg"
-                                >
-                                    ×
-                                </button>
-                            )}
                         </div>
                     </div>
 
-                    {/* 3. Stats & Toolbelt (Optional/Dynamic) */}
+                    {/* 3. Search Intelligence Stats */}
                     {stats && (
-                        <div className="flex items-center justify-between pb-1">
+                        <div className="flex items-center justify-between pb-1 animate-in fade-in slide-in-from-left-4">
                             <div className="flex items-center gap-2">
                                 <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse glow-emerald"></span>
                                 <p className="text-[10px] font-black text-brand-text/50 uppercase tracking-[0.2em]">
-                                    {stats.total} <span className="text-brand-muted">Coincidencias</span>
+                                    {stats.total} <span className="text-brand-muted">Ítems encontrados</span>
                                 </p>
                             </div>
-                            <button className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-surface rounded-full text-[9px] font-black text-brand-primary border border-brand-primary/20 uppercase tracking-widest active:scale-90 transition-transform">
+                            <button className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-surface-2 border border-brand-border-2 rounded-full text-[9px] font-black text-brand-primary border-brand-primary/20 uppercase tracking-widest active:scale-90">
                                 <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" /> Filtros
                             </button>
                         </div>
@@ -145,11 +137,8 @@ const SearchPage = () => {
                 </div>
             </header>
 
-            {/* Spacer to prevent content from hiding behind the FIXED header */}
-            <div className={`${isWakingUp && stats ? 'h-52' : isWakingUp || stats ? 'h-44' : 'h-32'} transition-all duration-300`} />
-
-            {/* Content Section */}
-            <main className="p-4 flex-1">
+            {/* Scrollable Content (Safe flow) */}
+            <main className="flex-1 overflow-y-auto p-4 pt-6 no-scrollbar">
                 {searchTerm.length < 3 && searchTerm.length > 0 && (
                     <div className="text-center py-20">
                         <p className="text-brand-muted text-xs font-bold uppercase tracking-widest">Buscando...</p>
