@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, InsufficientStockException, DuplicateEntityException
@@ -7,6 +8,7 @@ from app.services.brand_service import ensure_brands_exist
 from app.services.catalog_service import perform_catalog_lookup
 import re
 import asyncio
+from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus
 
 async def external_lookup(sku: str) -> str:
     """
@@ -16,7 +18,6 @@ async def external_lookup(sku: str) -> str:
 
 async def generate_marketing_sku() -> str:
     now = datetime.now()
-    from app.models.inventory import Product
     prefix = f"PUB-{now.strftime('%y%m')}-"
     
     # Find products that start with this prefix, sorted by SKU descending
@@ -83,7 +84,6 @@ async def get_products(
     )
 
 async def find_product_robustly(sku: str) -> Optional[Any]:
-    from app.models.inventory import Product
     """
     Busca un producto de forma ultra-robusta:
     1. Búsqueda exacta en SKU.
@@ -145,7 +145,6 @@ async def find_product_robustly(sku: str) -> Optional[Any]:
     # 6. AUTO-CREACIÓN DE GENÉRICOS (Para items que no son filtros en importación XML)
     generic_skus = ['VARIOS-GENERICO', 'VARIOS-ACEITES', 'VARIOS-BUJIAS', 'VARIOS-BATERIAS', 'VARIOS-REFRIGERANTES', 'GENERICO']
     if sku_upper in generic_skus:
-        from app.models.inventory import ProductType
         p_type = ProductType.MISC
         if 'ACEITE' in sku_upper: p_type = ProductType.LUBRICANT
         elif 'BUJIA' in sku_upper: p_type = ProductType.SPARK_PLUG
@@ -172,7 +171,6 @@ async def get_product_by_sku(sku: str) -> Product:
     return product
 
 async def create_product(product_data: Any, initial_stock: int = 0, user: Optional[User] = None):
-    from app.models.inventory import Product, MovementType
     # Verificar si el SKU ya existe
     existing = await Product.find_one(Product.sku == product_data.sku)
     if existing:
@@ -334,7 +332,6 @@ async def delete_product(sku: str, user: Optional[User] = None) -> bool:
     return True
 
 async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: Any = None) -> Any:
-    from app.models.inventory import Product, MovementType, StockMovement
     if movement_type is None:
         movement_type = MovementType.ADJUSTMENT
     product = await get_product_by_sku(sku)
@@ -366,7 +363,6 @@ async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: A
     return product
 
 async def register_loss(sku: str, quantity: int, loss_type: Any, notes: str, responsible: str) -> Dict[str, Any]:
-    from app.models.inventory import StockMovement
     product = await get_product_by_sku(sku)
     
     if product.stock_current < quantity:
@@ -396,7 +392,6 @@ async def register_loss(sku: str, quantity: int, loss_type: Any, notes: str, res
     }
 
 async def get_losses_report(start_date: str = None, end_date: str = None, loss_type: str = None) -> Dict[str, Any]:
-    from app.models.inventory import StockMovement
     query = {}
     
     if loss_type:
@@ -440,7 +435,6 @@ async def get_losses_report(start_date: str = None, end_date: str = None, loss_t
     }
 
 async def create_warehouse(warehouse_data: Any) -> Any:
-    from app.models.inventory import Warehouse
     existing = await Warehouse.find_one(Warehouse.code == warehouse_data.code)
     if existing:
         raise DuplicateEntityException("Warehouse", "code", warehouse_data.code)
@@ -449,7 +443,6 @@ async def create_warehouse(warehouse_data: Any) -> Any:
     return warehouse_data
 
 async def update_warehouse(code: str, update_data: Any) -> Any:
-    from app.models.inventory import Warehouse
     warehouse = await Warehouse.find_one(Warehouse.code == code)
     if not warehouse:
         raise NotFoundException("Warehouse", code)
@@ -480,11 +473,9 @@ async def delete_warehouse(code: str) -> bool:
     return True
 
 async def get_warehouses() -> List[Any]:
-    from app.models.inventory import Warehouse
     return await Warehouse.find(Warehouse.is_active == True).to_list()
 
 async def register_transfer_out(target_warehouse_id: str, items: List[Dict[str, Any]], notes: str = None) -> Dict[str, Any]:
-    from app.models.inventory import Warehouse, Product, MovementType, StockMovement
     target_warehouse = await Warehouse.find_one({"code": target_warehouse_id})
     if not target_warehouse:
         raise NotFoundException("Warehouse", target_warehouse_id)
@@ -559,7 +550,6 @@ async def register_movement(
     unit_cost: Optional[float] = None,
     date: Optional[datetime] = None
 ) -> Any:
-    from app.models.inventory import Product, StockMovement, MovementType
     """
     Registra un movimiento de inventario y actualiza el stock del producto.
     Si es una entrada (IN) con unit_cost, recalcula el costo promedio ponderado.
@@ -703,7 +693,6 @@ async def check_stock_availability(items: List[Dict[str, Any]]) -> Dict[str, Any
     }
 
 async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[str, Any]:
-    from app.models.inventory import Product, MovementType
     """
     Procesa una lista de ajustes de inventario masivos.
     adjustments: [{"sku": "...", "physical_stock": 10, "reason": "...", "responsible": "...", "notes": "..."}]
