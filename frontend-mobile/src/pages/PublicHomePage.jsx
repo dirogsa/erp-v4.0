@@ -214,20 +214,6 @@ const PublicHomePage = () => {
                 </div>
             </section>
 
-            {/* ── CTA QUICK ACTIONS ── */}
-            <div className="flex gap-2 px-5 pb-6">
-                <button
-                    onClick={() => navigate('/search')}
-                    className="flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 text-brand-bg bg-brand-primary"
-                >
-                    <MagnifyingGlassIcon className="h-3.5 w-3.5" /> Catálogo
-                </button>
-                <Link to="/cart"
-                    className="flex-1 py-3 rounded-xl font-black text-[9px] uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center border border-brand-primary/20 text-brand-primary bg-brand-primary/5"
-                >
-                    Mi Carrito
-                </Link>
-            </div>
 
             {/* ── SEARCH ENGINE ── */}
             <section className="px-5 pb-6">
@@ -380,25 +366,20 @@ const PublicHomePage = () => {
             </section>
 
 
-            {/* ── BOTTOM CTA ── */}
-            <section className="px-5 pb-2">
-                <div className="relative rounded-3xl p-5 overflow-hidden"
-                    style={{
-                        background: 'linear-gradient(135deg, rgba(110,231,183,0.08), rgba(56,189,248,0.04))',
-                        border: '1px solid rgba(110,231,183,0.15)'
-                    }}>
-                    <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full blur-2xl pointer-events-none"
-                        style={{ background: 'rgba(110,231,183,0.08)' }} />
-                    <p className="text-[9px] font-black uppercase tracking-widest text-brand-primary mb-1">¿Eres cliente DIROGSA?</p>
-                    <h4 className="text-base font-black text-white mb-3">Registrate para cotizaciones oficiales y descuentos comerciales.</h4>
-                    <Link to="/login"
-                        className="inline-flex items-center gap-2 py-3 px-5 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all text-brand-bg"
-                        style={{ background: 'linear-gradient(135deg, #6EE7B7, #38BDF8)' }}
-                    >
-                        <UserIcon className="h-4 w-4" /> Iniciar Sesión
-                    </Link>
-                </div>
-            </section>
+            {/* ── CTA QUICK ACTIONS ── */}
+            <div className="flex gap-2 px-5 pb-8">
+                <button
+                    onClick={() => navigate('/search')}
+                    className="flex-1 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2 text-brand-bg bg-brand-primary"
+                >
+                    <MagnifyingGlassIcon className="h-4 w-4" /> Catálogo
+                </button>
+                <Link to="/cart"
+                    className="flex-1 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center border border-brand-primary/20 text-brand-primary bg-brand-primary/5"
+                >
+                    Mi Carrito
+                </Link>
+            </div>
         </div>
     );
 };
