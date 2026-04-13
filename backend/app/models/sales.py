@@ -86,6 +86,7 @@ class IssuerInfo(BaseModel):
 class OrderItem(BaseModel):
     product_sku: str
     product_name: Optional[str] = None
+    brand: Optional[str] = "OEM"
     quantity: int
     unit_value: float = 0.0 # Sin IGV
     unit_price: float = 0.0 # Con IGV

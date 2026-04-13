@@ -83,68 +83,50 @@ async def get_products(
         size=limit
     )
 
-async def find_product_robustly(sku: str) -> Optional[Any]:
+async def find_product_robustly(sku: str, brand: Optional[str] = None) -> Optional[Product]:
     """
-    Busca un producto de forma ultra-robusta:
-    1. Búsqueda exacta en SKU.
-    2. Búsqueda exacta en Equivalencias.
-    3. Normalización (quitar espacios/símbolos) y reintento.
-    4. Manejo de prefijos ( Caso SUNAT "SKU MARCA" ).
+    Buscador de grado industrial con inteligencia de marca y normalización.
     """
-    if not sku:
-        return None
+    if not sku: return None
+    
+    from app.utils.norm_utils import normalize_sku
+    sku_clean = normalize_sku(sku)
+    brand_upper = brand.upper().strip() if brand else None
 
-    sku_upper = sku.strip().upper()
-
-    # 1. Búsqueda exacta en SKU o EAN
-    product = await Product.find_one({"$or": [{"sku": sku_upper}, {"ean": sku_upper}]})
-    if product:
-        return product
-
-    # 2. Búsqueda exacta en EQUIVALENCIAS (Cruces)
-    # Esto resuelve casos como el SKU con error "WA60004" si se registró como alias del "WA6004"
-    product = await Product.find_one({"equivalences.code": sku_upper})
-    if product:
-        return product
-
-    # 3. Normalización Agresiva: Quitar guiones, puntos, barras y espacios
-    # Ej: "28113- C7000" -> "28113C7000"
-    clean_sku = re.sub(r'[-\s/._]', '', sku_upper)
-    if clean_sku != sku_upper:
-        # Reintentar en SKU y Equivalencias con el código limpio
+    # 1. Búsqueda Directa (SKU + Marca) - MÁXIMA PRIORIDAD
+    if brand_upper:
         product = await Product.find_one({
-            "$or": [
-                {"sku": clean_sku},
-                {"equivalences.code": clean_sku}
-            ]
+            "sku": sku_clean,
+            "brand": brand_upper
         })
-        if product:
-            return product
+        if product: return product
 
-    # 4. Caso SUNAT: Si tiene espacios, probar con la primera palabra (Ej: "WL7509 WIX" -> "WL7509")
+    # 2. Búsqueda por SKU (Cualquier marca) 
+    # En un ERP grande, si no especificas marca, buscamos el "OEM" por defecto o el primero activo.
+    product = await Product.find_one({"sku": sku_clean})
+    if product: return product
+
+    # 3. Búsqueda en Equivalencias / Cruces
+    product = await Product.find_one({"equivalences.code": sku_clean})
+    if product: return product
+
+    # 4. Caso SUNAT: Si tiene espacios o marca pegada
     if ' ' in sku.strip():
-        first_word = sku.strip().split()[0].upper()
-        if len(first_word) > 2: # Solo si no es muy corta
-            product = await Product.find_one({"$or": [{"sku": first_word}, {"equivalences.code": first_word}]})
-            if product:
-                return product
+        parts = sku.strip().split()
+        first_word = normalize_sku(parts[0])
+        if len(first_word) > 2:
+            product = await Product.find_one({
+                "$or": [
+                    {"sku": first_word},
+                    {"equivalences.code": first_word}
+                ]
+            })
+            if product: return product
 
-    # 5. Búsqueda por prefijo (Mínimo 5 caracteres para evitar falsos positivos)
-    # Si el SKU del XML es "WA6004-EXTRA", encuentra "WA6004"
-    if len(sku_upper) > 4:
-        # Buscamos productos cuyo SKU sea el inicio del SKU sucio
-        # Ej: sku_sucio="WA6004-X", p.sku="WA6004" -> Encontrado
-        potentials = await Product.find({"sku": {"$regex": f"^{sku_upper[:4]}"}}).to_list()
-        for p in potentials:
-            if sku_upper.startswith(p.sku.upper()):
-                remainder = sku_upper[len(p.sku):]
-                # Validar separador o fin de cadena
-                if not remainder or not remainder[0].isalnum():
-                    return p
-
-    # 6. AUTO-CREACIÓN DE GENÉRICOS (Para items que no son filtros en importación XML)
+    # 5. AUTO-CREACIÓN DE GENÉRICOS
     generic_skus = ['VARIOS-GENERICO', 'VARIOS-ACEITES', 'VARIOS-BUJIAS', 'VARIOS-BATERIAS', 'VARIOS-REFRIGERANTES', 'GENERICO']
-    if sku_upper in generic_skus:
+    sku_upper = sku.upper()
+    if any(g in sku_upper for g in generic_skus):
         p_type = ProductType.MISC
         if 'ACEITE' in sku_upper: p_type = ProductType.LUBRICANT
         elif 'BUJIA' in sku_upper: p_type = ProductType.SPARK_PLUG
@@ -169,6 +151,52 @@ async def get_product_by_sku(sku: str) -> Product:
     if not product:
         raise NotFoundException("Product", sku)
     return product
+
+async def resolve_category_id(name_alias: str) -> Optional[str]:
+    """
+    Solución Profesional: Mapeador Universal de Categorías.
+    Resuelve aliases de diferentes catálogos a una categoría única del ERP.
+    """
+    if not name_alias: return None
+    
+    alias = name_alias.upper().strip()
+    
+    # Diccionario de Normalización (Aliases -> Categoría Real)
+    mapping = {
+        # Filtros de Aire
+        "AIR": "Filtro de Aire", "AIR FILTER": "Filtro de Aire", "AIRE": "Filtro de Aire", 
+        "FILTRO DE AIRE": "Filtro de Aire", "FILTR POWIETRZA": "Filtro de Aire",
+        
+        # Filtros de Aceite
+        "OIL": "Filtro de Aceite", "OIL FILTER": "Filtro de Aceite", "ACEITE": "Filtro de Aceite",
+        "FILTRO DE ACEITE": "Filtro de Aceite", "FILTR OLEJU": "Filtro de Aceite",
+        
+        # Filtros de Combustible
+        "FUEL": "Filtro de Combustible", "FUEL FILTER": "Filtro de Combustible", "COMBUSTIBLE": "Filtro de Combustible",
+        "FILTRO DE COMBUSTIBLE": "Filtro de Combustible", "FILTR PALIWA": "Filtro de Combustible",
+        
+        # Filtros de Cabina
+        "CABIN": "Filtro de Cabina", "CABIN FILTER": "Filtro de Cabina", "CABINA": "Filtro de Cabina",
+        "FILTRO DE CABINA": "Filtro de Cabina", "FILTR KABINOWY": "Filtro de Cabina", "AC": "Filtro de Cabina",
+        
+        # Transmisión
+        "TRANS": "Filtro de Transmisión", "TRANSMISSION": "Filtro de Transmisión", "TRANSMISION": "Filtro de Transmisión",
+        "JT": "Filtro de Transmisión"
+    }
+
+    # 1. Buscar en el mapeador
+    target_name = mapping.get(alias)
+    
+    # 2. Si no está en el mapa, usar el nombre original para buscar
+    search_name = target_name or name_alias
+    
+    from app.models.inventory import ProductCategory
+    category = await ProductCategory.find_one({"name": {"$regex": f"^{search_name}$", "$options": "i"}})
+    
+    if category:
+        return str(category.id)
+    
+    return None
 
 async def create_product(product_data: Any, initial_stock: int = 0, user: Optional[User] = None):
     # Verificar si el SKU ya existe
@@ -221,6 +249,12 @@ async def bulk_create_products(products: List[Product], user: Optional[User] = N
     # 2. Procesar productos uno por uno (UPSERT)
     results = []
     for p_data in products:
+        # Resolver categoría de forma robusta antes de guardar
+        if p_data.category_name:
+            resolved_id = await resolve_category_id(p_data.category_name)
+            if resolved_id:
+                p_data.category_id = resolved_id
+        
         existing = await Product.find_one(Product.sku == p_data.sku)
         
         if existing:
@@ -232,6 +266,11 @@ async def bulk_create_products(products: List[Product], user: Optional[User] = N
             existing.manual_pdf_url = p_data.manual_pdf_url or existing.manual_pdf_url
             existing.tech_bulletin = p_data.tech_bulletin or existing.tech_bulletin
             existing.category_name = p_data.category_name or existing.category_name
+            
+            # La categoría ya fue resuelta al inicio del loop de p_data
+            if p_data.category_id:
+                existing.category_id = p_data.category_id
+            
             existing.status = p_data.status or existing.status
             if p_data.image_gallery: existing.image_gallery = p_data.image_gallery
             

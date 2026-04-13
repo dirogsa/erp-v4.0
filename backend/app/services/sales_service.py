@@ -1154,22 +1154,36 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
         else:
             current_exchange_rate = rate_obj.sale
 
-    # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN OBLIGATORIA)
+    # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN INDUSTRIAL)
+    from app.utils.norm_utils import smart_parse_item
     order_items = []
+    
     for item in data.get('items', []):
-        sku = item['product_sku']
-        # Buscar en maestro para descripción oficial
-        product = await inventory_service.find_product_robustly(sku)
+        raw_sku = item.get('product_sku') or item.get('code')
+        raw_desc = item.get('product_name') or item.get('description', '')
         
-        if not product:
-            # BLOQUEO: Ya no permitimos descripciones del XML si no existe en el maestro
-            raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
+        # PROCESAMIENTO INTELIGENTE: SKU Normalizado + Marca Detectada Semánticamente
+        clean_sku, detected_brand = smart_parse_item(raw_sku, raw_desc)
         
-        print(f"OK: SKU {sku} verificado y enriquecido desde maestro.")
+        # Clasificaciones ERP
+        classification = item.get('classification') or item.get('product_type') or 'COMMERCIAL'
+        is_misc = item.get('is_misc', False)
+
+        # Buscar en maestro usando la clave compuesta (SKU + Marca)
+        product = await inventory_service.find_product_robustly(clean_sku, brand=detected_brand)
+        
+        # BLOQUEO DE INTEGRIDAD: Solo si es Filtro (Core) y no existe bajo la marca detectada
+        if not product and not is_misc and (classification in ['FILTER', 'COMMERCIAL']):
+            raise ValidationException(
+                f"PRODUCTO NO ENCONTRADO EN MAESTRO: El sistema identificó el código '{clean_sku}' "
+                f"de la marca '{detected_brand}' (detectada por descripción), pero este binomio no existe. "
+                f"Por favor, registre el producto con la marca '{detected_brand}' en Inventario."
+            )
         
         order_items.append(OrderItem(
-            product_sku=product.sku,
-            product_name=product.name, # Siempre usamos nuestro nombre oficial
+            product_sku=product.sku if product else clean_sku,
+            product_name=product.name if product else raw_desc, 
+            brand=product.brand if product else detected_brand,
             quantity=item['quantity'],
             unit_value=item.get('unit_value', item['unit_price'] / 1.18),
             unit_price=item['unit_price'],

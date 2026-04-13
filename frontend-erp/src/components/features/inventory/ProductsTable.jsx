@@ -29,9 +29,10 @@ const ProductsTable = ({
         {
             label: 'Categoría',
             key: 'category_id',
-            render: (val) => {
+            render: (val, row) => {
                 const cat = categories.find(c => c._id === val);
-                return cat ? cat.name : '-';
+                if (cat) return cat.name;
+                return row.category_name || '-';
             }
         },
         {

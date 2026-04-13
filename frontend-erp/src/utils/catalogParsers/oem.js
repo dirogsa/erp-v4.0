@@ -37,9 +37,13 @@ export const parseOEM = (doc, filename) => {
     // 1. Identificar si es JS ASAKASHI y extraer nombre base del producto
     const asakashiTitle = doc.querySelector('.search-title')?.innerText.trim();
     if (asakashiTitle) {
+        // Normalizar texto por si hay saltos de línea o entidades raras
+        const normalizedTitle = asakashiTitle.replace(/\s+/g, ' ');
         // "AIR FILTER » A8016" -> "A8016"
-        const parts = asakashiTitle.split('»');
+        const parts = normalizedTitle.split(/»|&raquo;/);
         const internalCode = parts[parts.length - 1].trim();
+        const categoryPart = parts[0].toUpperCase();
+
         // Si el SKU estaba vacío (ej: auto-lookup sin filename), intentar sacarlo de Asakashi
         if (!data.sku && internalCode) {
             data.sku = internalCode;
@@ -56,11 +60,12 @@ export const parseOEM = (doc, filename) => {
             });
         }
 
-        // Detectar categoría
-        if (asakashiTitle.toUpperCase().includes('AIR')) data.category_name = 'Filtro de Aire';
-        else if (asakashiTitle.toUpperCase().includes('OIL')) data.category_name = 'Filtro de Aceite';
-        else if (asakashiTitle.toUpperCase().includes('FUEL')) data.category_name = 'Filtro de Combustible';
-        else if (asakashiTitle.toUpperCase().includes('CABIN')) data.category_name = 'Filtro de Cabina';
+        // Detectar categoría de forma robusta
+        if (categoryPart.includes('AIR')) data.category_name = 'Filtro de Aire';
+        else if (categoryPart.includes('OIL')) data.category_name = 'Filtro de Aceite';
+        else if (categoryPart.includes('FUEL')) data.category_name = 'Filtro de Combustible';
+        else if (categoryPart.includes('CABIN')) data.category_name = 'Filtro de Cabina';
+        else if (categoryPart.includes('TRANS')) data.category_name = 'Filtro de Transmisión';
     } else {
         // Si no es Asakashi, el nombre se basa en el SKU del archivo
         data.name = `FILTRO OEM ${data.sku}`;

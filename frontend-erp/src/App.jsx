@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NotificationProvider } from './context/NotificationContext';
 import { CompanyProvider } from './context/CompanyContext';
 import { AuthProvider } from './context/AuthContext';
+import { LoadingProvider } from './context/LoadingContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
@@ -61,52 +62,54 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <NotificationProvider>
-          <CompanyProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="*" element={
-                  <ProtectedRoute>
-                    <Layout>
-                      <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/companies" element={<Companies />} />
-                        <Route path="/reports" element={<Reports />} />
-                        <Route path="/inventory" element={<Inventory />} />
-                        <Route path="/inventory/marketing" element={<MarketingInventory />} />
-                        <Route path="/catalog-ingestion" element={<CatalogIngestion />} />
-                        <Route path="/bulk/xml" element={<BulkXMLImport />} />
-                        <Route path="/categories" element={<Categories />} />
-                        <Route path="/suppliers" element={<Suppliers />} />
-                        <Route path="/purchasing" element={<Purchasing />} />
-                        <Route path="/warehouses" element={<Warehouses />} />
-                        <Route path="/sales" element={<Sales />} />
-                        <Route path="/customers" element={<Customers />} />
-                        <Route path="/import-export" element={<ImportExport />} />
-                        <Route path="/losses" element={<Losses />} />
-                        <Route path="/transfers" element={<Transfers />} />
-                        <Route path="/catalog" element={<CatalogConfig />} />
-                        <Route path="/catalog/view" element={<CatalogView />} />
-                        <Route path="/brands" element={<BrandManagement />} />
-                        <Route path="/b2b" element={<B2BManagement />} />
-                        <Route path="/pricing" element={<PricingManagement />} />
-                        <Route path="/marketing" element={<Marketing />} />
-                        <Route path="/audit" element={<Audit />} />
-                        <Route path="/sales-policies" element={<SalesPolicies />} />
-                        <Route path="/price-update" element={<PriceUpdateMasive />} />
-                        <Route path="/staff" element={<StaffManagement />} />
-                        <Route path="/exchange-rates" element={<ExchangeRates />} />
-                      </Routes>
-
-                    </Layout>
-                  </ProtectedRoute>
-                } />
-              </Routes>
-            </BrowserRouter>
-          </CompanyProvider>
-        </NotificationProvider>
+        <LoadingProvider>
+          <NotificationProvider>
+            <CompanyProvider>
+              <BrowserRouter>
+                {/* ... existing routes ... */}
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="*" element={
+                    <ProtectedRoute>
+                      <Layout>
+                        <Routes>
+                          <Route path="/" element={<Dashboard />} />
+                          <Route path="/dashboard" element={<Dashboard />} />
+                          <Route path="/companies" element={<Companies />} />
+                          <Route path="/reports" element={<Reports />} />
+                          <Route path="/inventory" element={<Inventory />} />
+                          <Route path="/inventory/marketing" element={<MarketingInventory />} />
+                          <Route path="/catalog-ingestion" element={<CatalogIngestion />} />
+                          <Route path="/bulk/xml" element={<BulkXMLImport />} />
+                          <Route path="/categories" element={<Categories />} />
+                          <Route path="/suppliers" element={<Suppliers />} />
+                          <Route path="/purchasing" element={<Purchasing />} />
+                          <Route path="/warehouses" element={<Warehouses />} />
+                          <Route path="/sales" element={<Sales />} />
+                          <Route path="/customers" element={<Customers />} />
+                          <Route path="/import-export" element={<ImportExport />} />
+                          <Route path="/losses" element={<Losses />} />
+                          <Route path="/transfers" element={<Transfers />} />
+                          <Route path="/catalog" element={<CatalogConfig />} />
+                          <Route path="/catalog/view" element={<CatalogView />} />
+                          <Route path="/brands" element={<BrandManagement />} />
+                          <Route path="/b2b" element={<B2BManagement />} />
+                          <Route path="/pricing" element={<PricingManagement />} />
+                          <Route path="/marketing" element={<Marketing />} />
+                          <Route path="/audit" element={<Audit />} />
+                          <Route path="/sales-policies" element={<SalesPolicies />} />
+                          <Route path="/price-update" element={<PriceUpdateMasive />} />
+                          <Route path="/staff" element={<StaffManagement />} />
+                          <Route path="/exchange-rates" element={<ExchangeRates />} />
+                        </Routes>
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+                </Routes>
+              </BrowserRouter>
+            </CompanyProvider>
+          </NotificationProvider>
+        </LoadingProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -155,9 +155,9 @@ class ProductCategory(Document):
         name = "product_categories"
 
 class Product(Document):
-    sku: Indexed(str, unique=True)
+    sku: Indexed(str)
     name: str 
-    brand: Optional[str] = None
+    brand: str = "OEM"
     description: Optional[str] = None
     image_url: Optional[str] = None
     weight_g: float = 0.0
@@ -212,6 +212,11 @@ class Product(Document):
     class Settings:
         name = "products"
         indexes = [
+            # Índice Compuesto Único: La clave del éxito para marcas duplicadas
+            {
+                "fields": [("sku", 1), ("brand", 1)],
+                "unique": True
+            },
             # Texto completo para búsqueda potente
             [
                 ("name", "text"),

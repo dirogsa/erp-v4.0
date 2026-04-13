@@ -528,27 +528,32 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
         else:
             current_exchange_rate = rate_obj.sale
 
-    # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN OBLIGATORIA)
-    order_items = []
-    from app.models.purchasing import OrderItem
-    for item in data.get('items', []):
-        sku = item['product_sku']
-        # Complementar con información de mi base de datos de productos
-        product = await inventory_service.find_product_robustly(sku)
-        
-        if not product:
-            raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
+        # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN OBLIGATORIA SOLO PARA FILTROS)
+        order_items = []
+        from app.models.purchasing import OrderItem
+        for item in data.get('items', []):
+            sku = item['product_sku']
+            # Obtener tipo de producto asignado en revisión (Frontend usa 'classification')
+            classification = item.get('classification') or item.get('product_type') or item.get('type') or 'COMMERCIAL'
+            is_misc = item.get('is_misc', False)
+            
+            # Buscar en maestro
+            product = await inventory_service.find_product_robustly(sku)
+            
+            # Bloqueo estricto SOLO para filtros (FILTER/COMMERCIAL)
+            if not product and not is_misc and (classification in ['FILTER', 'COMMERCIAL']):
+                raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
 
-        order_items.append(OrderItem(
-            product_sku=product.sku,
-            product_name=product.name, # Nombre oficial
-            quantity=item['quantity'],
-            unit_value=item.get('unit_value', item['unit_price'] / 1.18),
-            unit_price=item['unit_price'],
-            unit_cost=item['unit_price'], # Legacy compatibility
-            tax_rate=item.get('tax_rate', 0.18),
-            is_custom=True
-        ))
+            order_items.append(OrderItem(
+                product_sku=product.sku if product else sku,
+                product_name=product.name if product else item.get('product_name', 'Producto No Registrado'), 
+                quantity=item['quantity'],
+                unit_value=item.get('unit_value', item['unit_price'] / 1.18),
+                unit_price=item['unit_price'],
+                unit_cost=item['unit_price'], 
+                tax_rate=item.get('tax_rate', 0.18),
+                is_custom=True if not product else False
+            ))
         
     order = PurchaseOrder(
         order_number=order_number,
@@ -611,23 +616,27 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
         
         guide_items = []
         for item in order.items:
-            product = await inventory_service.get_product_by_sku(item.product_sku)
+            product = await inventory_service.find_product_robustly(item.product_sku)
+            
             guide_items.append(GuideItem(
                 sku=item.product_sku,
-                product_name=product.name,
+                product_name=product.name if product else item.product_name,
                 quantity=item.quantity,
                 unit_cost=item.unit_cost
             ))
             
-            # Movimiento de inventario (IN)
-            await inventory_service.register_movement(
-                sku=item.product_sku,
-                quantity=item.quantity,
-                movement_type=MovementType.IN,
-                reference=guide_number,
-                date=order.date,
-                unit_cost=item.unit_cost
-            )
+            # Movimiento de inventario (IN) - SOLO SI EL PRODUCTO EXISTE EN EL MAESTRO
+            if product:
+                await inventory_service.register_movement(
+                    sku=item.product_sku,
+                    quantity=item.quantity,
+                    movement_type=MovementType.IN,
+                    reference=guide_number,
+                    date=order.date,
+                    unit_cost=item.unit_cost
+                )
+            else:
+                print(f"INFO: SKU {item.product_sku} no está en maestro. Saltando registro de stock (Producto Virtual).")
             
         guide = DeliveryGuide(
             guide_number=guide_number,

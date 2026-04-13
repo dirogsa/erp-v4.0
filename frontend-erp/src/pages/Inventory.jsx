@@ -12,6 +12,7 @@ import { useProducts } from '../hooks/useProducts';
 import { categoryService } from '../services/api';
 import ProductDetailsView from '../components/features/inventory/ProductDetailsView';
 import SmartSearch from '../components/features/inventory/SmartSearch';
+import LoadingOverlay from '../components/common/LoadingOverlay';
 
 const Inventory = ({ forcedType = null }) => {
     const defaultTab = forcedType === 'MARKETING' ? 'marketing' : 'products';
@@ -20,6 +21,7 @@ const Inventory = ({ forcedType = null }) => {
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [categories, setCategories] = useState([]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Pagination & Search State
     const [page, setPage] = useState(1);
@@ -56,21 +58,36 @@ const Inventory = ({ forcedType = null }) => {
     if (error) console.error('[Inventory] Error loading products:', error);
 
     const handleCreate = async (data) => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         try {
             await createProduct(data, data.initial_stock);
             setShowProductModal(false);
-        } catch (error) { }
+        } catch (error) { 
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleUpdate = async (data) => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
         try {
             await updateProduct(data.sku, data, data.stock_current);
             setShowProductModal(false);
-        } catch (error) { }
+        } catch (error) { 
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
         <div style={{ padding: '2rem' }}>
+            <LoadingOverlay 
+                visible={isSubmitting} 
+                message="Actualizando Inventario..." 
+                subMessage="Estamos sincronizando los datos y las marcas vehiculares."
+            />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ color: 'white', marginBottom: '0.5rem' }}>
@@ -283,7 +300,7 @@ const Inventory = ({ forcedType = null }) => {
                                         }}
                                         onSubmit={selectedProduct ? handleUpdate : handleCreate}
                                         onCancel={() => setShowProductModal(false)}
-                                        loading={loading}
+                                        loading={loading || isSubmitting}
                                         isViewMode={isViewMode}
                                         fixedType={forcedType || (activeTab === 'products' ? 'COMMERCIAL' : 'MARKETING')}
                                     />

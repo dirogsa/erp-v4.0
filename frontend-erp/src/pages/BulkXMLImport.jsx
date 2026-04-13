@@ -7,6 +7,7 @@ import { useNotification } from '../hooks/useNotification';
 import Button from '../components/common/Button';
 import { FileText, Upload, CheckCircle, AlertCircle, Rocket, Database, ShoppingCart, Tag } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
+import LoadingOverlay from '../components/common/LoadingOverlay';
 
 const BulkXMLImport = () => {
     const { showNotification } = useNotification();
@@ -164,6 +165,11 @@ const BulkXMLImport = () => {
 
     return (
         <Layout>
+            <LoadingOverlay 
+                visible={isBulkProcessing} 
+                message="Importando Comprobantes..."
+                subMessage={`Procesando documento ${currentProcessing} de ${totalToProcess}. Por favor espere.`}
+            />
             <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem' }}>
                 <div style={{ marginBottom: '2rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div>

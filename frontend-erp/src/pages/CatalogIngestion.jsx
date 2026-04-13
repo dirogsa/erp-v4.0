@@ -357,6 +357,7 @@ const CatalogIngestion = () => {
                                 <tr>
                                     <th style={{ padding: '1rem', textAlign: 'left' }}>SKU</th>
                                     <th style={{ padding: '1rem', textAlign: 'left' }}>Nombre</th>
+                                    <th style={{ padding: '1rem', textAlign: 'left' }}>Categoría</th>
                                     <th style={{ padding: '1rem', textAlign: 'left' }}>EAN</th>
                                     <th style={{ padding: '1rem', textAlign: 'center' }}>Medidas</th>
                                     <th style={{ padding: '1rem', textAlign: 'center' }}>Aplicaciones</th>
@@ -369,6 +370,18 @@ const CatalogIngestion = () => {
                                     <tr key={idx} style={{ borderBottom: '1px solid #33415577' }}>
                                         <td style={{ padding: '1rem', fontWeight: 'bold' }}>{p.sku}</td>
                                         <td style={{ padding: '1rem' }}>{p.name}</td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <span style={{ 
+                                                background: '#334155', 
+                                                color: '#eab308',
+                                                padding: '0.2rem 0.5rem', 
+                                                borderRadius: '0.4rem', 
+                                                fontSize: '0.75rem',
+                                                fontWeight: 'bold'
+                                            }}>
+                                                {p.category_name || 'Sin Categoría'}
+                                            </span>
+                                        </td>
                                         <td style={{ padding: '1rem', fontFamily: 'monospace', color: '#94a3b8' }}>{p.ean}</td>
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                                             <span style={{ background: '#334155', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.8rem' }}>
@@ -512,8 +525,25 @@ const CatalogIngestion = () => {
                                                 <option value="FILTRON">FILTRON</option>
                                                 <option value="OEM">OEM</option>
                                                 <option value="GENERIC">GENÉRICO</option>
+                                                <option value="JS ASAKASHI">JS ASAKASHI</option>
                                             </select>
                                         </div>
+                                    </div>
+                                    
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                        <label style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Categoría Detectada</label>
+                                        <select
+                                            style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: '0.5rem', color: 'white', padding: '0.65rem' }}
+                                            value={editingProduct.category_name}
+                                            onChange={(e) => setEditingProduct({ ...editingProduct, category_name: e.target.value })}
+                                        >
+                                            <option value="Filtro de Aire">Filtro de Aire</option>
+                                            <option value="Filtro de Aceite">Filtro de Aceite</option>
+                                            <option value="Filtro de Combustible">Filtro de Combustible</option>
+                                            <option value="Filtro de Cabina">Filtro de Cabina</option>
+                                            <option value="Filtro de Transmisión">Filtro de Transmisión</option>
+                                            <option value="Filtro (OEM)">Filtro (Otro/OEM)</option>
+                                        </select>
                                     </div>
                                     <Input
                                         label="EAN (Código de Barras)"

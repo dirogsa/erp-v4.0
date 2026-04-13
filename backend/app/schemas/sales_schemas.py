@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from typing import List, Optional
-from app.models.sales import PaymentStatus
+from pydantic import BaseModel, field_validator
+from typing import List, Optional, Any, Union
+from app.models.sales import PaymentStatus, SalesInvoice
 
 class InvoicedItem(BaseModel):
     product_sku: str
@@ -16,7 +16,7 @@ class InvoiceCreation(BaseModel):
     payment_date: Optional[str] = None
     amount_in_words: Optional[str] = None  # SON: SETECIENTOS Y 00/100 SOLES
     payment_terms: Optional[dict] = None
-    items: Optional[List[InvoicedItem]] = None # Si es None, factura todo lo pendiente
+    items: Optional[List[InvoicedItem]] = None 
     issuer_info: Optional[dict] = None
 
 class PaymentRegistration(BaseModel):
@@ -34,12 +34,10 @@ class SalesPolicyUpdate(BaseModel):
     credit_60_days: float
     credit_90_days: float
     credit_180_days: float
-    # Relational Engine
     retail_markup_pct: Optional[float] = 20.0
     vol_6_discount_pct: Optional[float] = 3.0
     vol_12_discount_pct: Optional[float] = 7.0
     vol_24_discount_pct: Optional[float] = 12.0
-    # Security Guard
     min_margin_guard_pct: Optional[float] = 12.0
 
 class SalesPolicyResponse(SalesPolicyUpdate):
@@ -49,4 +47,15 @@ class SalesPolicyResponse(SalesPolicyUpdate):
 class InvoiceXmlImport(BaseModel):
     xml_data: dict
     auto_guide: bool = True
-    exchange_rate: Optional[float] = None
+    exchange_rate: Optional[Union[float, str]] = None
+
+    @field_validator('exchange_rate', mode='before')
+    @classmethod
+    def empty_string_to_none(cls, v: Any) -> Optional[float]:
+        """Robust normalization for currency exchange rates"""
+        if v == "" or v is None:
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None

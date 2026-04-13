@@ -3,9 +3,12 @@ import axios from 'axios';
 // Use environment variable for backend URL, fallback to localhost for development
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+console.log('[API] Backend base URL:', BASE_URL);
+console.log('[API] Current environment:', import.meta.env);
+
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000, // 10 second timeout — si el backend no responde, falla rapido
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -16,17 +19,42 @@ api.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log(`[API] Requesting: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.params || '');
   return config;
 });
 
 api.interceptors.response.use(
-  response => response,
+  response => {
+    console.log(`[API] Response from ${response.config.url}:`, response.status);
+    return response;
+  },
   error => {
     const status = error.response?.status;
+    const isTimeout = error.code === 'ECONNABORTED';
+    const isNetworkError = !error.response;
+
+    console.group('[API Error Detail]');
+    console.error('Error Object:', error);
+    console.error('Browser Online:', navigator.onLine);
+
+    if (isTimeout) {
+      console.error(`TIMEOUT: The server at ${error.config?.baseURL} took too long (> ${error.config?.timeout}ms) to respond.`);
+      console.error('Possible cause: Backend is hung, heavy database query, or server load.');
+    } else if (isNetworkError) {
+      console.error(`CONNECTION ERROR: Could not connect to ${error.config?.baseURL}.`);
+      console.error('Possible cause: Backend is NOT running, wrong URL, or CORS issue.');
+    }
+    console.groupEnd();
+
     if (status === 401) {
        // Normal token expiration
     } else {
-       console.error(`[API] ${status || 'NETWORK'} ERROR:`, error.response?.data || error.message);
+       console.error(`[API] ${status || 'DEBUG'} ERROR:`, {
+         message: error.message,
+         code: error.code,
+         config: error.config,
+         data: error.response?.data
+       });
     }
     return Promise.reject(error);
   }

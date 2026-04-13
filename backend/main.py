@@ -5,10 +5,36 @@ from app.database import init_db
 from app.exceptions.business_exceptions import BusinessException
 from app.exceptions.handlers import business_exception_handler
 from app.core.config import settings
+from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+import time
 
 app = FastAPI(title="ERP System API", version="1.0.0")
 
 app.add_exception_handler(BusinessException, business_exception_handler)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    print("\n" + "="*50)
+    print(f"❌ ERROR DE VALIDACIÓN EN: {request.method} {request.url.path}")
+    for error in errors:
+        loc = " -> ".join([str(x) for x in error.get("loc", [])])
+        msg = error.get("msg")
+        tipo = error.get("type")
+        print(f"   - Campo: {loc}")
+        print(f"     Error: {msg}")
+        print(f"     Tipo:  {tipo}")
+    print("="*50 + "\n")
+    
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "detail": errors,
+            "message": "Error de validación en los datos enviados. Revise los campos obligatorios y tipos de datos."
+        },
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,6 +43,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    path = request.url.path
+    method = request.method
+    print(f"DEBUG: Processando request {method} {path}...")
+    try:
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        print(f"DEBUG: Request {method} {path} completada en {process_time:.2f}ms. Status: {response.status_code}")
+        return response
+    except Exception as e:
+        print(f"DEBUG: Error procesando {method} {path}: {str(e)}")
+        raise
 
 # --- LAZY ROUTER LOADING ---
 # Importamos y registramos cada módulo solo cuando es necesario. 
