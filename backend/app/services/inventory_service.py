@@ -386,6 +386,7 @@ async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: A
         actual_type = movement_type
 
     movement = StockMovement(
+        product_id=str(product.id) if product else None,
         product_sku=sku,
         quantity=abs(diff),
         movement_type=actual_type,
@@ -408,6 +409,7 @@ async def register_loss(sku: str, quantity: int, loss_type: Any, notes: str, res
         raise InsufficientStockException(sku, product.stock_current, quantity)
         
     movement = StockMovement(
+        product_id=str(product.id) if product else None,
         product_sku=sku,
         quantity=quantity,
         movement_type=loss_type,
@@ -537,6 +539,7 @@ async def register_transfer_out(target_warehouse_id: str, items: List[Dict[str, 
         source_id = source_warehouse.code if source_warehouse else "UNKNOWN"
 
         movement = StockMovement(
+            product_id=str(product.id) if product else None,
             product_sku=sku,
             quantity=quantity,
             movement_type=MovementType.TRANSFER_OUT,
@@ -553,6 +556,7 @@ async def register_transfer_out(target_warehouse_id: str, items: List[Dict[str, 
         await product.save()
         
         transferred_items.append({
+            "product_id": str(product.id) if product else None,
             "sku": product.sku,
             "name": product.name,
             "quantity": quantity
@@ -587,13 +591,19 @@ async def register_movement(
     movement_type: Any, 
     reference: str,
     unit_cost: Optional[float] = None,
-    date: Optional[datetime] = None
+    date: Optional[datetime] = None,
+    product_id: Optional[str] = None
 ) -> Any:
     """
     Registra un movimiento de inventario y actualiza el stock del producto.
     Si es una entrada (IN) con unit_cost, recalcula el costo promedio ponderado.
     """
-    product = await get_product_by_sku(sku)
+    if product_id:
+        from beanie import PydanticObjectId
+        product = await Product.get(PydanticObjectId(product_id))
+        if not product: raise NotFoundException("Product", product_id)
+    else:
+        product = await get_product_by_sku(sku)
 
     # Si es entrada con costo, calcular nuevo costo promedio
     if movement_type == MovementType.IN and unit_cost is not None:
@@ -602,6 +612,7 @@ async def register_movement(
 
     # Crear registro de movimiento (Kardex)
     movement = StockMovement(
+        product_id=str(product.id) if product else None,
         product_sku=sku,
         quantity=quantity,
         movement_type=movement_type,
@@ -649,9 +660,14 @@ async def check_stock_availability(items: List[Dict[str, Any]]) -> Dict[str, Any
 
     for item in items:
         sku = item.get("product_sku")
+        product_id = item.get("product_id")
         required_qty = float(item.get("quantity", 0))
         
-        product = await find_product_robustly(sku)
+        if product_id:
+            from beanie import PydanticObjectId
+            product = await Product.get(PydanticObjectId(product_id))
+        else:
+            product = await find_product_robustly(sku)
         
         # Use found product's SKU for committed stock if available
         lookup_sku = product.sku if product else sku
@@ -757,6 +773,7 @@ async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[
         # Registrar el movimiento
         # Usamos el costo actual del producto para el impacto financiero
         movement = StockMovement(
+            product_id=str(product.id) if product else None,
             product_sku=sku,
             quantity=abs(diff),
             movement_type=reason,
@@ -767,7 +784,7 @@ async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[
             date=datetime.now()
         )
         await movement.insert()
-
+        
         # Actualizar stock
         product.stock_current = physical_stock
         await product.save()

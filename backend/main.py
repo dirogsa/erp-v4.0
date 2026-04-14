@@ -49,14 +49,18 @@ async def log_requests(request: Request, call_next):
     start_time = time.time()
     path = request.url.path
     method = request.method
-    print(f"DEBUG: Processando request {method} {path}...")
+    print(f"\n[BACKEND-LOG] ➡️ RECIBIENDO: {method} {path}")
+    import sys
+    sys.stdout.flush()
     try:
         response = await call_next(request)
         process_time = (time.time() - start_time) * 1000
-        print(f"DEBUG: Request {method} {path} completada en {process_time:.2f}ms. Status: {response.status_code}")
+        print(f"[BACKEND-LOG] ✅ COMPLETADO: {method} {path} en {process_time:.2f}ms. Status: {response.status_code}")
+        sys.stdout.flush()
         return response
     except Exception as e:
-        print(f"DEBUG: Error procesando {method} {path}: {str(e)}")
+        print(f"[BACKEND-LOG] ❌ ERROR PROCESANDO: {method} {path} -> {str(e)}")
+        sys.stdout.flush()
         raise
 
 # --- LAZY ROUTER LOADING ---

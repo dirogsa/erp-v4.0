@@ -15,6 +15,7 @@ class PaymentStatus(str, Enum):
     PAID = "PAID"
 
 class OrderItem(BaseModel):
+    product_id: Optional[str] = None
     product_sku: str
     product_name: Optional[str] = None
     quantity: int

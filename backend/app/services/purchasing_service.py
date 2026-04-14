@@ -545,6 +545,7 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
                 raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
 
             order_items.append(OrderItem(
+                product_id=str(product.id) if product else None,
                 product_sku=product.sku if product else sku,
                 product_name=product.name if product else item.get('product_name', 'Producto No Registrado'), 
                 quantity=item['quantity'],
@@ -619,6 +620,7 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
             product = await inventory_service.find_product_robustly(item.product_sku)
             
             guide_items.append(GuideItem(
+                product_id=str(product.id) if product else None,
                 sku=item.product_sku,
                 product_name=product.name if product else item.product_name,
                 quantity=item.quantity,
@@ -633,7 +635,8 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
                     movement_type=MovementType.IN,
                     reference=guide_number,
                     date=order.date,
-                    unit_cost=item.unit_cost
+                    unit_cost=item.unit_cost,
+                    product_id=str(product.id)
                 )
             else:
                 print(f"INFO: SKU {item.product_sku} no está en maestro. Saltando registro de stock (Producto Virtual).")

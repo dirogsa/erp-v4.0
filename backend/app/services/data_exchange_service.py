@@ -48,11 +48,16 @@ class DataExchangeService:
         
         for record in records:
             data = record.model_dump()
+            # Forzamos la extracción del ID primario de Mongo a nivel de fila maestra
+            if hasattr(record, "id"):
+                data["id"] = str(record.id)
+                
             items = data.pop(items_field, []) if items_field else [None]
             flattened_parent = cls._flatten_dict(data)
             
             for item in items:
-                row = {"operation": "UPDATE"}
+                # El sistema ahora designa si es nuevo (sin id) o existente (con id)
+                row = {"operation": "UPDATE" if data.get("id") else "INSERT"}
                 row.update(flattened_parent)
                 
                 if item:
@@ -63,18 +68,18 @@ class DataExchangeService:
                 rows.append({k: cls._serialize_val(v) for k, v in row.items()})
 
         output = io.StringIO()
-        # Sort fieldnames: put operation and key first
+        # Sort fieldnames: put operation, id and natural key first
         sorted_fields = sorted(list(all_fieldnames))
         if "operation" in sorted_fields:
             sorted_fields.insert(0, sorted_fields.pop(sorted_fields.index("operation")))
+        if "id" in sorted_fields:
+            sorted_fields.insert(1, sorted_fields.pop(sorted_fields.index("id")))
         if config["key"] in sorted_fields:
-            sorted_fields.insert(1, sorted_fields.pop(sorted_fields.index(config["key"])))
+            sorted_fields.insert(2, sorted_fields.pop(sorted_fields.index(config["key"])))
 
         writer = csv.DictWriter(output, fieldnames=sorted_fields)
         writer.writeheader()
         writer.writerows(rows)
-        
-        return output.getvalue()
         
         return output.getvalue()
 
@@ -93,51 +98,80 @@ class DataExchangeService:
         
         reader = csv.DictReader(io.StringIO(csv_content))
         
-        # Group rows by parent key (complex entities) or process individually
-        grouped_data: Dict[str, List[Dict[str, Any]]] = {}
+        # Group rows by ID (if exists for updates) or by natural_key (for pure inserts of complex objects)
+        grouped_data: Dict[str, Dict[str, Any]] = {}
         processed_count = 0
         errors = []
 
         for row_idx, row in enumerate(reader, start=2):
-            pk = row.get(parent_key)
-            if not pk:
-                errors.append(f"Fila {row_idx}: Falta clave principal '{parent_key}'")
+            doc_id = row.get("id")
+            natural_key_val = row.get(parent_key)
+            
+            # El ID universal manda. Si no hay ID, agrupamos por llave natural temporalmente para crearlo.
+            group_key = doc_id if (doc_id and doc_id.strip()) else natural_key_val
+            
+            if not group_key:
+                errors.append(f"Fila {row_idx}: Falta columna 'id' o '{parent_key}' para agrupar.")
                 continue
             
-            if pk not in grouped_data:
-                grouped_data[pk] = []
-            grouped_data[pk].append(row)
+            if group_key not in grouped_data:
+                grouped_data[group_key] = {"id": doc_id, "natural_key_val": natural_key_val, "rows": []}
+            grouped_data[group_key]["rows"].append(row)
 
         success_count = 0
-        for pk, rows in grouped_data.items():
+        from beanie import PydanticObjectId
+        
+        for group_key, group in grouped_data.items():
+            doc_id = group["id"]
+            natural_key_val = group["natural_key_val"]
+            rows = group["rows"]
+            
             try:
                 first_row = rows[0]
-                operation = first_row.get("operation", "INSERT").upper()
+                operation = first_row.get("operation")
+                if not operation: 
+                    operation = "UPDATE" if doc_id else "INSERT"
+                operation = operation.upper()
                 
                 # Reconstruct document
                 doc_data = cls._reconstruct_parent(first_row, items_field)
                 
                 if items_field:
-                    doc_data[items_field] = [cls._reconstruct_item(r) for r in rows if r.get("item_product_sku") or r.get("item_sku")]
+                    doc_data[items_field] = [cls._reconstruct_item(r) for r in rows if r.get("item_product_sku") or r.get("item_sku") or r.get("item_product_id")]
 
-                if operation == "DELETE":
-                    existing = await model.find_one({parent_key: pk})
-                    if existing:
+                if doc_id:
+                    # === FLUJO UPDATE/DELETE BASADO ABSOLUTAMENTE EN SYSTEM_ID ===
+                    try:
+                        existing = await model.get(PydanticObjectId(doc_id))
+                    except:
+                        existing = None
+
+                    if operation == "DELETE" and existing:
                         await existing.delete()
                         success_count += 1
-                else:
-                    existing = await model.find_one({parent_key: pk})
+                        continue
+
                     if existing:
-                        # Update
                         await existing.update({"$set": doc_data})
+                        success_count += 1
                     else:
-                        # Insert
-                        new_doc = model(**doc_data)
-                        await new_doc.insert()
+                        errors.append(f"Registro con ID {doc_id} no encontrado para {operation}.")
+                else:
+                    # === FLUJO INSERT PURO ===
+                    if operation == "DELETE":
+                        # Legacy fallback
+                        existing = await model.find_one({parent_key: natural_key_val})
+                        if existing: await existing.delete()
+                        success_count += 1
+                        continue
+                        
+                    # Insertar (MongoDB defenderá índices duplicados automáticamente lanzando excepcion)
+                    new_doc = model(**doc_data)
+                    await new_doc.insert()
                     success_count += 1
                     
             except Exception as e:
-                errors.append(f"Error procesando {pk}: {str(e)}")
+                errors.append(f"Error procesando grupo {group_key}: {str(e)}")
 
         return {
             "summary": {

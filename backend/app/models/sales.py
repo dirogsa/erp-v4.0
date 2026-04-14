@@ -84,6 +84,7 @@ class IssuerInfo(BaseModel):
     departments: List[IssuerInfoDepartment] = []
 
 class OrderItem(BaseModel):
+    product_id: Optional[str] = None
     product_sku: str
     product_name: Optional[str] = None
     brand: Optional[str] = "OEM"
@@ -159,6 +160,7 @@ class SalesOrder(Document):
     class Settings:
         name = "sales_orders"
         indexes = [
+            "items.product_id",
             "items.product_sku"
         ]
 
@@ -244,6 +246,7 @@ class SalesInvoice(Document):
     class Settings:
         name = "sales_invoices"
         indexes = [
+            "items.product_id",
             "items.product_sku"
         ]
 

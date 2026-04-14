@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import Enum
 from beanie import Document, Indexed
 from pydantic import BaseModel, field_validator, Field
+import pymongo
 
 class IssuerInfo(BaseModel):
     """Información de la empresa emisora al momento de la creación"""
@@ -213,20 +214,20 @@ class Product(Document):
         name = "products"
         indexes = [
             # Índice Compuesto Único: La clave del éxito para marcas duplicadas
-            {
-                "fields": [("sku", 1), ("brand", 1)],
-                "unique": True
-            },
+            pymongo.IndexModel(
+                [("sku", pymongo.ASCENDING), ("brand", pymongo.ASCENDING)],
+                unique=True
+            ),
             # Texto completo para búsqueda potente
-            [
-                ("name", "text"),
-                ("description", "text"),
-                ("brand", "text"),
-                ("sku", "text"),
-                ("ean", "text"),
-                ("equivalences.code", "text"),
-                ("applications.model", "text")
-            ]
+            pymongo.IndexModel([
+                ("name", pymongo.TEXT),
+                ("description", pymongo.TEXT),
+                ("brand", pymongo.TEXT),
+                ("sku", pymongo.TEXT),
+                ("ean", pymongo.TEXT),
+                ("equivalences.code", pymongo.TEXT),
+                ("applications.model", pymongo.TEXT)
+            ])
         ]
 
 class PriceListType(str, Enum):
@@ -234,6 +235,7 @@ class PriceListType(str, Enum):
     WHOLESALE = "WHOLESALE" # Mayorista
 
 class PriceHistory(Document):
+    product_id: Optional[str] = None
     product_sku: str
     price_type: PriceListType
     old_price: float
@@ -247,6 +249,7 @@ class PriceHistory(Document):
 
 
 class StockMovement(Document):
+    product_id: Optional[str] = None
     product_sku: str
     quantity: int
     movement_type: MovementType
@@ -282,6 +285,7 @@ class GuideStatus(str, Enum):
     CANCELLED = "CANCELLED"         # Anulada
 
 class GuideItem(BaseModel):
+    product_id: Optional[str] = None
     sku: str
     product_name: str
     quantity: int
