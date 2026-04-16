@@ -9,10 +9,11 @@ import PriceManagement from '../components/features/inventory/PriceManagement';
 import LoyaltyManagement from '../components/features/inventory/LoyaltyManagement';
 import Pagination from '../components/common/Table/Pagination';
 import { useProducts } from '../hooks/useProducts';
-import { categoryService } from '../services/api';
+import { categoryService, inventoryService } from '../services/api';
 import ProductDetailsView from '../components/features/inventory/ProductDetailsView';
 import SmartSearch from '../components/features/inventory/SmartSearch';
 import LoadingOverlay from '../components/common/LoadingOverlay';
+import { useNotification } from '../hooks/useNotification';
 
 const Inventory = ({ forcedType = null }) => {
     const defaultTab = forcedType === 'MARKETING' ? 'marketing' : 'products';
@@ -22,11 +23,14 @@ const Inventory = ({ forcedType = null }) => {
     const [isViewMode, setIsViewMode] = useState(false);
     const [categories, setCategories] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isBulkLoading, setIsBulkLoading] = useState(false);
+    const { showNotification } = useNotification();
 
     // Pagination & Search State
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [search, setSearch] = useState('');
+    const [selectedIds, setSelectedIds] = useState([]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -47,7 +51,8 @@ const Inventory = ({ forcedType = null }) => {
         createProduct,
         updateProduct,
         deleteProduct,
-        error
+        error,
+        refetch
     } = useProducts({
         page,
         limit,
@@ -56,6 +61,71 @@ const Inventory = ({ forcedType = null }) => {
     });
 
     if (error) console.error('[Inventory] Error loading products:', error);
+
+    // ── Toggle Individual de Visibilidad ────────────────────────────────────
+    const handleToggleVisibility = async (product, field, newValue) => {
+        const productId = (product.id || product._id)?.toString();
+        if (!productId) {
+            showNotification('Este producto no tiene ID de MongoDB. Guárdalo primero.', 'error');
+            return;
+        }
+        try {
+            await inventoryService.toggleVisibility(productId, { [field]: newValue });
+            refetch && refetch();
+        } catch (err) {
+            const msg = err.response?.data?.detail || 'Error al cambiar visibilidad';
+            showNotification(msg, 'error');
+        }
+    };
+
+    // ── Activación Masiva (Global o por Selección) ──────────────────────────
+    const handleBulkVisibility = async ({ is_active_in_shop, is_new, only_with_price = false, label, ids = null }) => {
+        const isSelection = ids && ids.length > 0;
+        const targetText = isSelection 
+            ? `los ${ids.length} productos seleccionados` 
+            : `TODOS los productos COMMERCIAL no discontinuados${only_with_price ? ' con precio > 0' : ''}`;
+
+        const confirm = window.confirm(
+            `¿Confirmas aplicar esta acción masiva?\n\n"${label}"\n\nAfectará a: ${targetText}.`
+        );
+        if (!confirm) return;
+        
+        setIsBulkLoading(true);
+        try {
+            const payload = { only_with_price };
+            if (is_active_in_shop !== undefined) payload.is_active_in_shop = is_active_in_shop;
+            if (is_new !== undefined) payload.is_new = is_new;
+            if (isSelection) payload.product_ids = ids;
+
+            const res = await inventoryService.bulkSetVisibility(payload);
+            const { modified } = res.data;
+            showNotification(`✅ ${label}: ${modified} productos actualizados`, 'success');
+            
+            if (isSelection) setSelectedIds([]);
+            refetch && refetch();
+        } catch (err) {
+            const msg = err.response?.data?.detail || 'Error en activación masiva';
+            showNotification(msg, 'error');
+        } finally {
+            setIsBulkLoading(false);
+        }
+    };
+
+    // ── Seleccionar TODO el universo filtrado ────────────────────────────────
+    const handleSelectAllFiltered = async () => {
+        setIsBulkLoading(true);
+        try {
+            // Obtenemos todos los IDs que coinciden con la búsqueda actual sin paginación
+            const res = await inventoryService.getProducts(1, 10000, search, '', forcedType || (activeTab === 'products' ? 'COMMERCIAL' : ''));
+            const allIds = res.data.items.map(p => p._id);
+            setSelectedIds(allIds);
+            showNotification(`Seleccionados ${allIds.length} productos (total de la búsqueda)`, 'info');
+        } catch (err) {
+            showNotification('Error al seleccionar todo', 'error');
+        } finally {
+            setIsBulkLoading(false);
+        }
+    };
 
     const handleCreate = async (data) => {
         if (isSubmitting) return;
@@ -153,7 +223,7 @@ const Inventory = ({ forcedType = null }) => {
                         🚚 Transferencias
                     </button>
                     <button
-                        onClick={() => setActiveTab('losses')}
+                        onClick={() => { setActiveTab('losses'); setSelectedIds([]); }}
                         style={{
                             padding: '1rem 2rem',
                             background: 'none',
@@ -167,7 +237,7 @@ const Inventory = ({ forcedType = null }) => {
                         ⚖️ Ajustes
                     </button>
                     <button
-                        onClick={() => setActiveTab('prices')}
+                        onClick={() => { setActiveTab('prices'); setSelectedIds([]); }}
                         style={{
                             padding: '1rem 2rem',
                             background: 'none',
@@ -181,7 +251,7 @@ const Inventory = ({ forcedType = null }) => {
                         💲 Precios
                     </button>
                     <button
-                        onClick={() => setActiveTab('loyalty')}
+                        onClick={() => { setActiveTab('loyalty'); setSelectedIds([]); }}
                         style={{
                             padding: '1rem 2rem',
                             background: 'none',
@@ -199,15 +269,100 @@ const Inventory = ({ forcedType = null }) => {
 
             {(activeTab === 'products' || activeTab === 'marketing') && (
                 <>
-                    <div style={{ maxWidth: '400px', marginBottom: '1rem' }}>
-                        <Input
-                            placeholder={forcedType === 'MARKETING' || activeTab === 'marketing' ? "Buscar premios..." : "Buscar por filtros..."}
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setPage(1); // Reset to first page on search
-                            }}
-                        />
+                    {/* ── Barra de Acciones Masivas para Selección (FLOTANTE) ── */}
+                    {selectedIds.length > 0 && (
+                        <div style={{
+                            position: 'fixed',
+                            bottom: '2rem',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: '#0f172a',
+                            border: '1px solid #3b82f6',
+                            borderRadius: '1rem',
+                            padding: '1rem 1.5rem',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '1.5rem',
+                            zIndex: 100,
+                            animation: 'slideUp 0.3s ease-out'
+                        }}>
+                             <style>{`@keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }`}</style>
+                             <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                 <span style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{selectedIds.length} ítems seleccionados</span>
+                                 <div style={{ display: 'flex', gap: '0.8rem' }}>
+                                     <button 
+                                        onClick={() => setSelectedIds([])}
+                                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.75rem', padding: 0, textAlign: 'left', cursor: 'pointer', textDecoration: 'underline' }}
+                                     >
+                                        Limpiar selección
+                                     </button>
+                                     {selectedIds.length < (pagination.totalItems || 0) && (
+                                         <button 
+                                            onClick={handleSelectAllFiltered}
+                                            style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: '0.75rem', padding: 0, textAlign: 'left', cursor: 'pointer', fontWeight: '700' }}
+                                         >
+                                            Seleccionar los {pagination.totalItems} productos
+                                         </button>
+                                     )}
+                                 </div>
+                             </div>
+                             
+                             <div style={{ width: '1px', height: '30px', background: '#334155' }} />
+
+                             <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <button
+                                    onClick={() => handleBulkVisibility({ is_active_in_shop: true, ids: selectedIds, label: 'Activar en Tienda' })}
+                                    style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: '#10b981', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}
+                                >
+                                    🛒 Activar en Tienda
+                                </button>
+                                <button
+                                    onClick={() => handleBulkVisibility({ is_active_in_shop: false, ids: selectedIds, label: 'Ocultar de Tienda' })}
+                                    style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: '#ef4444', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}
+                                >
+                                    🚫 Ocultar
+                                </button>
+                                <button
+                                    onClick={() => handleBulkVisibility({ is_new: true, ids: selectedIds, label: 'Marcar Novedad' })}
+                                    style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: '#f59e0b', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}
+                                >
+                                    ✨ Novedad
+                                </button>
+                             </div>
+                        </div>
+                    )}
+
+                    {/* ── Opciones de Gestión Global (Ocultables) ── */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
+                        <div style={{ maxWidth: '400px', flex: 1 }}>
+                            <Input
+                                placeholder={forcedType === 'MARKETING' || activeTab === 'marketing' ? "Buscar premios..." : "Buscar por filtros..."}
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    setPage(1);
+                                    setSelectedIds([]);
+                                }}
+                            />
+                        </div>
+
+                        {activeTab === 'products' && (
+                             <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button
+                                    onClick={() => handleBulkVisibility({ is_active_in_shop: true, only_with_price: true, label: 'Activar Catálogo con Precio' })}
+                                    style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                                >
+                                    ⚡ Auto-activar (Con Precio)
+                                </button>
+                                <button
+                                    onClick={() => handleBulkVisibility({ is_active_in_shop: false, label: 'Ocultar TODO el Catálogo' })}
+                                    style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                                >
+                                    🔒 Ocultar Todo
+                                </button>
+                             </div>
+                        )}
                     </div>
 
                     <ProductsTable
@@ -215,6 +370,9 @@ const Inventory = ({ forcedType = null }) => {
                         loading={loading}
                         isMarketing={forcedType === 'MARKETING' || activeTab === 'marketing'}
                         categories={categories}
+                        onToggleVisibility={handleToggleVisibility}
+                        selectedIds={selectedIds}
+                        onSelectionChange={setSelectedIds}
                         onView={(product) => {
                             setSelectedProduct(product);
                             setIsViewMode(true);

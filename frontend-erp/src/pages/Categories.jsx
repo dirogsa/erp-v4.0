@@ -16,6 +16,7 @@ const Categories = () => {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
+        import_aliases: [],
         features_schema: [],
         attributes_schema: [] // New field for dynamic attributes
     });
@@ -41,6 +42,7 @@ const Categories = () => {
         setFormData({
             name: category.name,
             description: category.description || '',
+            import_aliases: category.import_aliases || [],
             features_schema: category.features_schema || [],
             attributes_schema: category.attributes_schema || []
         });
@@ -52,6 +54,7 @@ const Categories = () => {
         setFormData({
             name: '',
             description: '',
+            import_aliases: [],
             features_schema: [],
             attributes_schema: []
         });
@@ -164,6 +167,10 @@ const Categories = () => {
                             {cat.description || 'Sin descripción'}
                         </p>
 
+                        <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '0.5rem' }}>
+                            <strong>Aliases (Inglés):</strong> {cat.import_aliases?.join(', ') || 'Ninguno'}
+                        </div>
+
                         <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
                             <strong>Checks:</strong> {cat.features_schema?.join(', ') || 'Ninguno'}
                         </div>
@@ -192,6 +199,19 @@ const Categories = () => {
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         />
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                        <Input
+                            label="Aliases de Importación (Separados por coma)"
+                            placeholder="Ej: OIL FILTER, HYDRAULIC FILTER"
+                            value={formData.import_aliases.join(', ')}
+                            onChange={(e) => {
+                                const aliases = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                                setFormData({ ...formData, import_aliases: aliases });
+                            }}
+                        />
+                        <small style={{ color: '#94a3b8', marginTop: '-0.5rem' }}>Estos nombres se usarán para detectar la categoría automáticamente al importar XML o HTML.</small>
                     </div>
 
                     {/* SECCIÓN CARACTERÍSTICAS (FLAGS) */}

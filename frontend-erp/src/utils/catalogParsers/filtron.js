@@ -2,7 +2,7 @@
  * Parser especializado para el nuevo formato Global de FILTRON (filtron.eu)
  * Basado en la estructura AEM (Adobe Experience Manager) compartida con WIX.
  */
-export const parseFiltron = (doc, domain) => {
+export const parseFiltron = (doc, domain, dbCategories = []) => {
     const data = {
         brand: 'FILTRON',
         sku: '',
@@ -48,19 +48,29 @@ export const parseFiltron = (doc, domain) => {
         data.sku = titleName.innerText.trim();
     }
     
-    // Mapeo de categorías para Filtron (muchas ya vienen en español en el HTML proporcionado)
-    const categoryMap = {
-        'AIR FILTER': 'Filtro de Aire',
-        'OIL FILTER': 'Filtro de Aceite',
-        'FUEL FILTER': 'Filtro de Combustible',
-        'CABIN FILTER': 'Filtro de Cabina',
-        'HYDRAULIC FILTER': 'Filtro Hidráulico'
-    };
-
     const categoryEl = doc.querySelector('.cmp-product__title-family');
     if (categoryEl) {
         const rawCat = categoryEl.innerText.trim().toUpperCase();
-        data.category_name = categoryMap[rawCat] || categoryEl.innerText.trim();
+        
+        let resolvedName = categoryEl.innerText.trim();
+        
+        if (dbCategories && dbCategories.length > 0) {
+            for (const cat of dbCategories) {
+                if (cat.name.toUpperCase() === rawCat) {
+                    resolvedName = cat.name;
+                    break;
+                }
+                if (cat.import_aliases) {
+                    const aliases = cat.import_aliases.map(a => a.trim().toUpperCase());
+                    if (aliases.includes(rawCat)) {
+                        resolvedName = cat.name;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        data.category_name = resolvedName;
         
         // Limpiezas específicas de Filtron (de versiones anteriores)
         data.category_name = data.category_name

@@ -120,58 +120,106 @@ class DataExchangeService:
 
         success_count = 0
         from beanie import PydanticObjectId
+        from pymongo import UpdateOne, InsertOne, DeleteOne
         
-        for group_key, group in grouped_data.items():
-            doc_id = group["id"]
-            natural_key_val = group["natural_key_val"]
-            rows = group["rows"]
+        operations = []
+        # Para entidades con items (ej: invoices), mantenemos el flujo secuencial por ahora 
+        # para preservar la lógica de reconstrucción compleja. 
+        # Pero para entidades planas (ej: products, customers), usaremos bulk_write.
+        
+        use_bulk = items_field is None
+        
+        if use_bulk:
+            collection = model.get_pymongo_collection()
+            bulk_ops = []
             
-            try:
-                first_row = rows[0]
-                operation = first_row.get("operation")
-                if not operation: 
-                    operation = "UPDATE" if doc_id else "INSERT"
-                operation = operation.upper()
+            for group_key, group in grouped_data.items():
+                doc_id = group["id"]
+                natural_key_val = group["natural_key_val"]
+                first_row = group["rows"][0]
                 
-                # Reconstruct document
-                doc_data = cls._reconstruct_parent(first_row, items_field)
-                
-                if items_field:
-                    doc_data[items_field] = [cls._reconstruct_item(r) for r in rows if r.get("item_product_sku") or r.get("item_sku") or r.get("item_product_id")]
-
-                if doc_id:
-                    # === FLUJO UPDATE/DELETE BASADO ABSOLUTAMENTE EN SYSTEM_ID ===
-                    try:
-                        existing = await model.get(PydanticObjectId(doc_id))
-                    except:
-                        existing = None
-
-                    if operation == "DELETE" and existing:
-                        await existing.delete()
-                        success_count += 1
-                        continue
-
-                    if existing:
-                        await existing.update({"$set": doc_data})
-                        success_count += 1
-                    else:
-                        errors.append(f"Registro con ID {doc_id} no encontrado para {operation}.")
-                else:
-                    # === FLUJO INSERT PURO ===
-                    if operation == "DELETE":
-                        # Legacy fallback
-                        existing = await model.find_one({parent_key: natural_key_val})
-                        if existing: await existing.delete()
-                        success_count += 1
-                        continue
-                        
-                    # Insertar (MongoDB defenderá índices duplicados automáticamente lanzando excepcion)
-                    new_doc = model(**doc_data)
-                    await new_doc.insert()
-                    success_count += 1
+                try:
+                    operation = first_row.get("operation", "UPDATE" if doc_id else "INSERT").upper()
+                    # Reconstruir datos base
+                    doc_data = cls._reconstruct_parent(first_row, items_field)
                     
-            except Exception as e:
-                errors.append(f"Error procesando grupo {group_key}: {str(e)}")
+                    # VALIDACIÓN Y CASTEO: Usamos el modelo para limpiar los datos (ej: castear strings a int/float)
+                    try:
+                        # Creamos una instancia parcial/total para validar tipos (usamos model_validate)
+                        # Nota: Si es UPDATE, puede que falten campos obligatorios, por lo que usamos un truco 
+                        # o simplemente validamos que los campos presentes coincidan en tipo.
+                        # Para este ERP, usaremos model.model_validate con datos parciales o el objeto completo.
+                        validated_doc = model.model_validate(doc_data)
+                        doc_data = validated_doc.model_dump(exclude={"id"}, exclude_none=True)
+                    except Exception as ve:
+                        # Si falla la validación fuerte, intentamos seguir pero avisamos
+                        errors.append(f"Aviso en {group_key}: Validación de tipos falló, se usará data original. Error: {str(ve)}")
+                    
+                    if doc_id:
+                        if operation == "DELETE":
+                            bulk_ops.append(DeleteOne({"_id": PydanticObjectId(doc_id)}))
+                        else:
+                            bulk_ops.append(UpdateOne({"_id": PydanticObjectId(doc_id)}, {"$set": doc_data}))
+                    else:
+                        if operation == "DELETE":
+                            bulk_ops.append(DeleteOne({parent_key: natural_key_val}))
+                        else:
+                            # Para INSERT, necesitamos validar si ya existe por llave natural si no hay ID
+                            # O simplemente intentar insertar y que el índice único falle (pero bulk_write fallaría todo el lote)
+                            # Mejor: Usaremos upsert por natural_key si no hay ID para ser más tolerantes
+                            bulk_ops.append(UpdateOne({parent_key: natural_key_val}, {"$set": doc_data}, upsert=True))
+                except Exception as e:
+                    errors.append(f"Error preparando fila {group_key}: {str(e)}")
+
+            if bulk_ops:
+                try:
+                    # Ejecutar en lotes de 1000 para no saturar memoria
+                    for i in range(0, len(bulk_ops), 1000):
+                        chunk = bulk_ops[i:i + 1000]
+                        res = await collection.bulk_write(chunk, ordered=False)
+                        success_count += (res.modified_count + res.upserted_count + res.deleted_count + res.inserted_count)
+                except Exception as e:
+                    errors.append(f"Error en ejecución masiva: {str(e)}")
+        else:
+            # FLUJO SECUENCIAL (Para entidades complejas con ítems como Facturas/Órdenes)
+            for group_key, group in grouped_data.items():
+                doc_id = group["id"]
+                natural_key_val = group["natural_key_val"]
+                rows = group["rows"]
+                
+                try:
+                    first_row = rows[0]
+                    operation = first_row.get("operation", "UPDATE" if doc_id else "INSERT").upper()
+                    doc_data = cls._reconstruct_parent(first_row, items_field)
+                    
+                    if items_field:
+                        doc_data[items_field] = [cls._reconstruct_item(r) for r in rows if r.get("item_product_sku") or r.get("item_sku") or r.get("item_product_id")]
+
+                    if doc_id:
+                        try:
+                            existing = await model.get(PydanticObjectId(doc_id))
+                        except:
+                            existing = None
+
+                        if operation == "DELETE" and existing:
+                            await existing.delete()
+                            success_count += 1
+                        elif existing:
+                            await existing.update({"$set": doc_data})
+                            success_count += 1
+                        else:
+                            errors.append(f"ID {doc_id} no encontrado.")
+                    else:
+                        if operation == "DELETE":
+                            existing = await model.find_one({parent_key: natural_key_val})
+                            if existing: await existing.delete()
+                            success_count += 1
+                        else:
+                            new_doc = model(**doc_data)
+                            await new_doc.insert()
+                            success_count += 1
+                except Exception as e:
+                    errors.append(f"Error en {group_key}: {str(e)}")
 
         return {
             "summary": {

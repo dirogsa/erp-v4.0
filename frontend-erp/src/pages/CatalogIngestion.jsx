@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import Layout from '../components/Layout';
-import { inventoryService } from '../services/api';
+import { inventoryService, categoryService } from '../services/api';
 import { useNotification } from '../hooks/useNotification';
 import { parseCatalogHtml } from '../utils/catalogParsers';
 import Button from '../components/common/Button';
@@ -10,6 +10,7 @@ import Input from '../components/common/Input';
 const CatalogIngestion = () => {
     const { showNotification } = useNotification();
     const [files, setFiles] = useState([]);
+    const [dbCategories, setDbCategories] = useState([]);
     const [parsedProducts, setParsedProducts] = useState([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
@@ -20,6 +21,21 @@ const CatalogIngestion = () => {
     const [editingIndex, setEditingIndex] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [lastProcessedCount, setLastProcessedCount] = useState(0);
+
+    // Fetch dynamic categories single-source-of-truth from Backend
+    React.useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const res = await categoryService.getCategories();
+                if (res?.data) {
+                    setDbCategories(res.data);
+                }
+            } catch (err) {
+                console.error("No se pudieron cargar las categorías desde la BD:", err);
+            }
+        };
+        fetchCategories();
+    }, []);
 
     const handleFileDrop = (e) => {
         e.preventDefault();
@@ -62,7 +78,7 @@ const CatalogIngestion = () => {
                     const response = await inventoryService.externalLookup(sku);
                     const html = response.data.html;
                     if (html) {
-                        const data = parseCatalogHtml(html);
+                        const data = parseCatalogHtml(html, '', dbCategories);
                         if (data.sku) {
                             return { success: true, data: { ...data, _file: `Auto-Lookup: ${sku}`, _status: 'pending' } };
                         } else {
@@ -111,7 +127,7 @@ const CatalogIngestion = () => {
                 const file = fileList[i];
                 try {
                     const text = await file.text();
-                    const data = parseCatalogHtml(text, file.name);
+                    const data = parseCatalogHtml(text, file.name, dbCategories);
                     
                     if (data.sku) {
                         newProducts.push({
@@ -542,6 +558,12 @@ const CatalogIngestion = () => {
                                             <option value="Filtro de Combustible">Filtro de Combustible</option>
                                             <option value="Filtro de Cabina">Filtro de Cabina</option>
                                             <option value="Filtro de Transmisión">Filtro de Transmisión</option>
+                                            <option value="Filtro Hidráulico">Filtro Hidráulico</option>
+                                            <option value="Filtro de Refrigerante">Filtro de Refrigerante</option>
+                                            <option value="Filtro de Dirección">Filtro de Dirección</option>
+                                            <option value="Filtro Separador">Filtro Separador / Trampa de Agua</option>
+                                            <option value="Filtro AdBlue">Filtro AdBlue / Urea</option>
+                                            <option value="Filtro Secador">Cartucho Secador de Aire</option>
                                             <option value="Filtro (OEM)">Filtro (Otro/OEM)</option>
                                         </select>
                                     </div>

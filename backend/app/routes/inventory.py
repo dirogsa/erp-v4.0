@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-from app.models.inventory import Product, Warehouse, MovementType
+from app.models.inventory import Product, Warehouse, MovementType, ProductType, ProductStatus
 from app.models.auth import User, UserRole
 from app.services import inventory_service
 from app.schemas.inventory_schemas import LossRegistration, TransferRequest
@@ -10,6 +10,18 @@ from app.schemas.common import PaginatedResponse
 from .auth import get_current_user, check_role
 
 router = APIRouter(prefix="/inventory", tags=["Inventory"])
+
+# --- Schemas de Visibilidad ---
+class VisibilityPayload(BaseModel):
+    is_active_in_shop: Optional[bool] = None
+    is_new: Optional[bool] = None
+
+class BulkVisibilityPayload(BaseModel):
+    is_active_in_shop: Optional[bool] = None
+    is_new: Optional[bool] = None
+    # Filtros de aplicación (por defecto: solo COMMERCIAL no DISCONTINUED)
+    only_with_price: bool = True  # Solo productos con precio_retail > 0
+    product_ids: Optional[List[str]] = None # Opcional: Lista de IDs específicos (mongo _id)
 
 @router.get("/products", response_model=PaginatedResponse[Product])
 async def get_products(
@@ -132,3 +144,115 @@ async def bulk_reconcile(
     """
     return await inventory_service.bulk_reconcile(adjustments, user=current_user)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VISIBILIDAD EN TIENDA — Sin CSVs, sin parches, control directo desde el ERP
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.patch("/products/{product_id}/visibility")
+async def toggle_product_visibility(
+    product_id: str,
+    payload: VisibilityPayload,
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Toggle de visibilidad individual por MongoDB ID.
+    Modifica is_active_in_shop y/o is_new de un producto específico.
+    """
+    from beanie import PydanticObjectId
+    from app.services.audit_service import AuditService
+
+    try:
+        product = await Product.get(PydanticObjectId(product_id))
+    except Exception:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    if product is None:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    changes = []
+    if payload.is_active_in_shop is not None:
+        product.is_active_in_shop = bool(payload.is_active_in_shop)
+        changes.append(f"is_active_in_shop={product.is_active_in_shop}")
+
+    if payload.is_new is not None:
+        product.is_new = bool(payload.is_new)
+        changes.append(f"is_new={product.is_new}")
+
+    if not changes:
+        raise HTTPException(status_code=400, detail="No se especificó ningún campo a modificar.")
+
+    await product.save()
+
+    await AuditService.log_action(
+        user=current_user,
+        action="VISIBILITY_TOGGLE",
+        module="INVENTORY",
+        description=f"Visibilidad de [{product.sku} / {product.brand}] → {', '.join(changes)}",
+        entity_id=str(product.id),
+        entity_name=product.sku
+    )
+
+    return {
+        "sku": product.sku,
+        "brand": product.brand,
+        "is_active_in_shop": product.is_active_in_shop,
+        "is_new": product.is_new
+    }
+
+
+@router.post("/products/bulk-visibility")
+async def bulk_set_visibility(
+    payload: BulkVisibilityPayload,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Activación / desactivación masiva de visibilidad en tienda.
+    Por defecto aplica sobre todos los productos COMMERCIAL no DISCONTINUED.
+    Si only_with_price=True, solo aplica a productos con precio_retail > 0.
+    """
+    from app.services.audit_service import AuditService
+
+    if payload.is_active_in_shop is None and payload.is_new is None:
+        raise HTTPException(status_code=400, detail="Debes especificar al menos is_active_in_shop o is_new.")
+
+    from beanie import PydanticObjectId
+    
+    # Construir filtro de MongoDB
+    if payload.product_ids:
+        # Si se pasan IDs específicos, ignoramos los filtros generales de tipo/precio
+        mongo_filter = {"_id": {"$in": [PydanticObjectId(pid) for pid in payload.product_ids]}}
+    else:
+        # Filtro general por criterios
+        mongo_filter: dict = {
+            "type": ProductType.COMMERCIAL.value,
+            "status": {"$ne": ProductStatus.DISCONTINUED.value}
+        }
+        if payload.only_with_price:
+            mongo_filter["price_retail"] = {"$gt": 0}
+
+    # Construir campos a actualizar
+    update_fields: dict = {}
+    if payload.is_active_in_shop is not None:
+        update_fields["is_active_in_shop"] = bool(payload.is_active_in_shop)
+    if payload.is_new is not None:
+        update_fields["is_new"] = bool(payload.is_new)
+
+    collection = Product.get_pymongo_collection()
+    result = await collection.update_many(mongo_filter, {"$set": update_fields})
+
+    summary = ", ".join(f"{k}={v}" for k, v in update_fields.items())
+    await AuditService.log_action(
+        user=current_user,
+        action="BULK_VISIBILITY",
+        module="INVENTORY",
+        description=f"Visibilidad masiva → {summary} | Filtro: {mongo_filter} | Afectados: {result.modified_count}",
+        entity_name=f"{result.modified_count} productos"
+    )
+
+    return {
+        "matched": result.matched_count,
+        "modified": result.modified_count,
+        "fields_set": update_fields,
+        "filter_applied": mongo_filter
+    }

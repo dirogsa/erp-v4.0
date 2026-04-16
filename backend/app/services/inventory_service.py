@@ -155,54 +155,41 @@ async def get_product_by_sku(sku: str) -> Product:
 async def resolve_category_id(name_alias: str) -> Optional[str]:
     """
     Solución Profesional: Mapeador Universal de Categorías.
-    Resuelve aliases de diferentes catálogos a una categoría única del ERP.
+    Resuelve aliases de diferentes catálogos a una categoría única del ERP usando la Base de Datos en Tiempo Real.
     """
     if not name_alias: return None
     
     alias = name_alias.upper().strip()
-    
-    # Diccionario de Normalización (Aliases -> Categoría Real)
-    mapping = {
-        # Filtros de Aire
-        "AIR": "Filtro de Aire", "AIR FILTER": "Filtro de Aire", "AIRE": "Filtro de Aire", 
-        "FILTRO DE AIRE": "Filtro de Aire", "FILTR POWIETRZA": "Filtro de Aire",
-        
-        # Filtros de Aceite
-        "OIL": "Filtro de Aceite", "OIL FILTER": "Filtro de Aceite", "ACEITE": "Filtro de Aceite",
-        "FILTRO DE ACEITE": "Filtro de Aceite", "FILTR OLEJU": "Filtro de Aceite",
-        
-        # Filtros de Combustible
-        "FUEL": "Filtro de Combustible", "FUEL FILTER": "Filtro de Combustible", "COMBUSTIBLE": "Filtro de Combustible",
-        "FILTRO DE COMBUSTIBLE": "Filtro de Combustible", "FILTR PALIWA": "Filtro de Combustible",
-        
-        # Filtros de Cabina
-        "CABIN": "Filtro de Cabina", "CABIN FILTER": "Filtro de Cabina", "CABINA": "Filtro de Cabina",
-        "FILTRO DE CABINA": "Filtro de Cabina", "FILTR KABINOWY": "Filtro de Cabina", "AC": "Filtro de Cabina",
-        
-        # Transmisión
-        "TRANS": "Filtro de Transmisión", "TRANSMISSION": "Filtro de Transmisión", "TRANSMISION": "Filtro de Transmisión",
-        "JT": "Filtro de Transmisión"
-    }
-
-    # 1. Buscar en el mapeador
-    target_name = mapping.get(alias)
-    
-    # 2. Si no está en el mapa, usar el nombre original para buscar
-    search_name = target_name or name_alias
-    
     from app.models.inventory import ProductCategory
-    category = await ProductCategory.find_one({"name": {"$regex": f"^{search_name}$", "$options": "i"}})
     
+    # 1. Búsqueda exacta por Nombre
+    category = await ProductCategory.find_one({"name": {"$regex": f"^{alias}$", "$options": "i"}})
     if category:
         return str(category.id)
-    
+        
+    # 2. Búsqueda dentro del nuevo arreglo de Aliases de Importación
+    # Como los usuarios pueden escribir mayúsculas/minúsculas, usamos una búsqueda regex sobre el array
+    categories = await ProductCategory.find_all().to_list()
+    for cat in categories:
+        if cat.import_aliases:
+            # Normalizamos los aliases de la DB para comparar
+            db_aliases = [a.strip().upper() for a in cat.import_aliases]
+            if alias in db_aliases:
+                return str(cat.id)
+                
     return None
 
 async def create_product(product_data: Any, initial_stock: int = 0, user: Optional[User] = None):
-    # Verificar si el SKU ya existe
-    existing = await Product.find_one(Product.sku == product_data.sku)
+    # Verificar si el SKU y la Marca ya existen
+    if product_data.brand:
+        existing = await Product.find_one(Product.sku == product_data.sku, Product.brand == product_data.brand)
+        error_msg = f"Producto con SKU {product_data.sku} y marca {product_data.brand} ya existe"
+    else:
+        existing = await Product.find_one(Product.sku == product_data.sku)
+        error_msg = f"Producto con SKU {product_data.sku} ya existe"
+
     if existing:
-        raise DuplicateEntityException(f"Producto con SKU {product_data.sku} ya existe")
+        raise DuplicateEntityException(error_msg)
     
     # Asegurar que las marcas vehiculares existan si vienen en aplicaciones
     if product_data.applications:
@@ -255,7 +242,11 @@ async def bulk_create_products(products: List[Product], user: Optional[User] = N
             if resolved_id:
                 p_data.category_id = resolved_id
         
-        existing = await Product.find_one(Product.sku == p_data.sku)
+        # Buscar por SKU y Marca para no sobreescribir productos con el mismo código pero distinta marca
+        if p_data.brand:
+            existing = await Product.find_one(Product.sku == p_data.sku, Product.brand == p_data.brand)
+        else:
+            existing = await Product.find_one(Product.sku == p_data.sku)
         
         if existing:
             # ACTUALIZAR: Fusionar datos técnicos

@@ -8,32 +8,44 @@
 :root {
   -webkit-tap-highlight-color: transparent;
 
-  /* DIROGSA — Tech Industrial 2026 */
-  --brand-bg: #0D0E11;          /* Deep Void */
-  --brand-surface: #13151A;     /* Carbon Panel */
-  --brand-surface-2: #1A1D24;   /* Elevated Surface */
-  --brand-primary: #6EE7B7;     /* Emerald Tech */
-  --brand-primary-dim: rgba(110, 231, 183, 0.12);
-  --brand-accent: #38BDF8;      /* Electric Cyan */
-  --brand-accent-dim: rgba(56, 189, 248, 0.1);
-  --brand-orange: #FB923C;      /* Alert Amber */
-  --brand-text: #F1F5F9;        /* Clean White */
-  --brand-text-2: #94A3B8;      /* Subtext */
-  --brand-muted: #475569;       /* Muted Steel */
-  --brand-border: #1E222B;      /* Dark Seam */
-  --brand-border-2: #252932;    /* Lighter Seam */
+  /* DIROGSA — Design System 2026 (Premium Dark) */
   
-  --brand-danger: #F43F5E;      /* Tech Red */
-  --brand-danger-dim: rgba(244, 63, 94, 0.1);
-  --brand-warning: #F59E0B;     /* Alert Amber */
+  /* Core Backgrounds */
+  --brand-bg: #0A0A0B;          /* Deep Carbon - Base */
+  --brand-surface: #141518;     /* Surface 1 - Main Cards */
+  --brand-surface-2: #1D1F25;   /* Surface 2 - Inputs/Elevated */
+  --brand-surface-3: #262932;   /* Surface 3 - Popups/Hover */
+
+  /* Brand Colors */
+  --brand-primary: #10B981;     /* Success Green (Vibrant but Readable) */
+  --brand-primary-dim: rgba(16, 185, 129, 0.12);
+  --brand-accent: #0EA5E9;      /* Action Blue */
+  --brand-accent-dim: rgba(14, 165, 233, 0.1);
+  --brand-orange: #F59E0B;      /* Warning Gold */
+
+  /* Text Hierarchy (Crucial for UX) */
+  --brand-text: #FFFFFF;        /* Primary Content - High Contrast */
+  --brand-text-2: #E2E8F0;      /* Secondary Content - Very Readable */
+  --brand-text-muted: #94A3B8;  /* Metadata / Labels - Medium Gray */
+  --brand-text-dim: #64748B;    /* Disabled / Subtle Info */
+
+  /* Borders & Dividers */
+  --brand-border: #1F2229;      /* Discrete Divider */
+  --brand-border-2: #2D323E;    /* Interactive Border */
+  
+  /* Status Colors */
+  --brand-danger: #EF4444;
+  --brand-danger-dim: rgba(239, 68, 68, 0.1);
+  --brand-warning: #F59E0B;
   --brand-warning-dim: rgba(245, 158, 11, 0.1);
   
-  --glass-bg: rgba(13, 14, 17, 0.85);
-  --glass-border: rgba(110, 231, 183, 0.08);
+  /* Glass Effects */
+  --glass-bg: rgba(10, 10, 11, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.05);
   
   /* Glow effects */
-  --glow-primary: 0 0 40px rgba(110, 231, 183, 0.15);
-  --glow-accent: 0 0 40px rgba(56, 189, 248, 0.12);
+  --glow-primary: 0 0 30px rgba(16, 185, 129, 0.1);
+  --glow-accent: 0 0 30px rgba(14, 165, 233, 0.1);
 }
 
 * {
@@ -96,6 +108,43 @@ body {
 .fade-in   { animation: fadeIn  0.4s ease-out both; }
 .slide-up  { animation: slideUp 0.5s ease-out both; }
 .float-anim { animation: float 3s ease-in-out infinite; }
+
+/* ─── Standard Design Hierarchy ─── */
+@layer components {
+  /* Text Styles */
+  .text-brand-heading {
+    @apply text-lg font-bold text-brand-text tracking-tight;
+  }
+  
+  .text-brand-title-sm {
+    @apply text-[13px] font-semibold text-brand-text leading-snug tracking-tight;
+  }
+  
+  .text-brand-label {
+    @apply text-[10px] font-bold text-brand-primary uppercase tracking-wider;
+  }
+  
+  .text-brand-metadata {
+    @apply text-[10px] font-medium text-brand-text-muted uppercase tracking-widest;
+  }
+  
+  .text-brand-price {
+    @apply text-[17px] font-bold text-brand-text tracking-tight;
+  }
+
+  /* Components */
+  .card-premium {
+    @apply bg-brand-surface rounded-3xl p-3 border border-brand-border-2 shadow-xl transition-all;
+  }
+  
+  .btn-primary {
+    @apply bg-brand-primary text-black font-bold uppercase py-4 px-6 rounded-2xl active:scale-95 transition-all shadow-lg;
+  }
+  
+  .btn-icon {
+    @apply h-10 w-10 flex items-center justify-center rounded-xl bg-brand-surface-2 text-brand-primary border border-brand-border active:scale-90 transition-all;
+  }
+}
 
 /* ─── Glass card ─── */
 .glass-card {

@@ -7,7 +7,7 @@ import { parseFiltron } from './catalogParsers/filtron';
 import { parseAzumi } from './catalogParsers/azumi';
 import { parseOEM } from './catalogParsers/oem';
 
-export const parseCatalogHtml = (htmlContent, filename = '') => {
+export const parseCatalogHtml = (htmlContent, filename = '', dbCategories = []) => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
 
@@ -42,7 +42,7 @@ export const parseCatalogHtml = (htmlContent, filename = '') => {
     if (isFiltron) {
         return parseFiltron(doc, 'https://filtron.eu');
     } else if (isWix) {
-        return parseWix(doc, 'https://www.wixfilters.com');
+        return parseWix(doc, 'https://www.wixfilters.com', dbCategories);
     } else if (isAzumi) {
         return parseAzumi(doc, 'https://azfilter.jp');
     } else if (isAsakashi) {
@@ -54,7 +54,7 @@ export const parseCatalogHtml = (htmlContent, filename = '') => {
         // En este punto, si no se detectó marca pero tiene estructura AEM, 
         // revisamos si el SKU huele a Filtron (ej: AP 080) o Wix (ej: WL7443)
         // Por ahora, usamos Filtron si tiene filtron en alguna parte del DOM
-        return title.includes('FILTRON') ? parseFiltron(doc, 'https://filtron.eu') : parseWix(doc, 'https://www.wixfilters.com');
+        return title.includes('FILTRON') ? parseFiltron(doc, 'https://filtron.eu') : parseWix(doc, 'https://www.wixfilters.com', dbCategories);
     }
 
     // Por defecto, lo tratamos como OEM si es una fuente desconocida pero el usuario lo subió
@@ -63,5 +63,5 @@ export const parseCatalogHtml = (htmlContent, filename = '') => {
     }
 
     // Por defecto, WIX
-    return parseWix(doc, 'https://www.wixfilters.com');
+    return parseWix(doc, 'https://www.wixfilters.com', dbCategories);
 };

@@ -149,6 +149,7 @@ class AttributeDefinition(BaseModel):
 class ProductCategory(Document):
     name: str
     description: Optional[str] = None
+    import_aliases: List[str] = [] # Nombres en inglés/Cruce (ej: ["OIL FILTER", "LUBE FILTER"])
     features_schema: List[str] = [] # List of labels for checkboxes (e.g. ["Cuerpo Metálico", "Tiene Prefiltro"])
     attributes_schema: List[AttributeDefinition] = [] # Typed KV attributes
     

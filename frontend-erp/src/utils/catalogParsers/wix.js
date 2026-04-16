@@ -2,7 +2,7 @@
  * Parser especializado para el nuevo formato Global de WIX Filters (wixfilters.com)
  * Extrae información detallada: SKU, EAN, Medidas, Aplicaciones completas y OE-Numbers.
  */
-export const parseWix = (doc, domain) => {
+export const parseWix = (doc, domain, dbCategories = []) => {
     const data = {
         brand: 'WIX',
         sku: '',
@@ -48,28 +48,30 @@ export const parseWix = (doc, domain) => {
         data.sku = titleName.innerText.trim();
     }
     
-    const categoryMap = {
-        'OIL FILTER': 'Filtro de Aceite',
-        'AIR FILTER': 'Filtro de Aire',
-        'CABIN FILTER': 'Filtro de Cabina',
-        'CABIN AIR FILTER': 'Filtro de Cabina',
-        'FUEL FILTER': 'Filtro de Combustible',
-        'HYDRAULIC FILTER': 'Filtro Hidráulico',
-        'TRANSMISSION FILTER': 'Filtro de Transmisión',
-        'COOLANT FILTER': 'Filtro de Refrigerante',
-        'ADBLUE FILTER': 'Filtro AdBlue',
-        'UREA FILTER': 'Filtro de Urea',
-        'DRYING AGENT CARTRIDGE': 'Filtro Secador',
-        'SEPARATOR': 'Filtro Separador',
-        'DESSICANT CARTRIDGE': 'Cartucho Secador de Aire',
-        'STEERING FILTER': 'Filtro de Dirección',
-        'WATER SEPARATOR': 'Filtro Trampa de Agua'
-    };
-
     const categoryEl = doc.querySelector('.cmp-product__title-family');
     if (categoryEl) {
         const rawCat = categoryEl.innerText.trim().toUpperCase();
-        data.category_name = categoryMap[rawCat] || categoryEl.innerText.trim();
+        
+        // Búsqueda Dinámica usando la Base de Datos (Single Source of Truth)
+        let resolvedName = categoryEl.innerText.trim(); // Nombre nativo si no hay mapeo en BD
+        
+        if (dbCategories && dbCategories.length > 0) {
+            for (const cat of dbCategories) {
+                if (cat.name.toUpperCase() === rawCat) {
+                    resolvedName = cat.name;
+                    break;
+                }
+                if (cat.import_aliases) {
+                    const aliases = cat.import_aliases.map(a => a.trim().toUpperCase());
+                    if (aliases.includes(rawCat)) {
+                        resolvedName = cat.name;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        data.category_name = resolvedName;
         // Construimos el nombre estándar: [Categoría] WIX [SKU]
         data.name = `${data.category_name} ${data.brand} ${data.sku}`.trim();
     }

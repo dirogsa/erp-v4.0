@@ -26,6 +26,7 @@ async def update_category(id: str, update_data: ProductCategory) -> ProductCateg
             
     category.name = update_data.name
     category.description = update_data.description
+    category.import_aliases = getattr(update_data, 'import_aliases', [])
     category.attributes_schema = update_data.attributes_schema
     
     await category.save()

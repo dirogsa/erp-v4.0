@@ -4,16 +4,72 @@ import Button from '../../common/Button';
 import { formatCurrency } from '../../../utils/formatters';
 import { salesPolicyService } from '../../../services/api';
 
+// ─── Switch Toggle Component ─────────────────────────────────────────────────
+const VisibilitySwitch = ({ value, onChange, loading, color = '#10b981', label, productKey }) => {
+    const on = value === true || value === 'true' || value === '1' || value === 1;
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+            <button
+                id={`vis-switch-${label}-${productKey}`}
+                onClick={onChange}
+                disabled={loading}
+                title={on ? `Ocultar en ${label}` : `Mostrar en ${label}`}
+                style={{
+                    width: '44px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    cursor: loading ? 'wait' : 'pointer',
+                    background: on ? color : '#334155',
+                    position: 'relative',
+                    transition: 'background 0.2s ease',
+                    flexShrink: 0,
+                    opacity: loading ? 0.6 : 1,
+                    boxShadow: on ? `0 0 8px ${color}66` : 'none'
+                }}
+            >
+                <span
+                    style={{
+                        position: 'absolute',
+                        top: '3px',
+                        left: on ? '22px' : '3px',
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: 'white',
+                        transition: 'left 0.2s ease',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                    }}
+                />
+            </button>
+            <span style={{
+                fontSize: '0.6rem',
+                color: on ? color : '#475569',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+            }}>
+                {on ? 'SÍ' : 'NO'}
+            </span>
+        </div>
+    );
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 const ProductsTable = ({
     products = [],
     loading = false,
     onView,
     onEdit,
     onDelete,
+    onToggleVisibility,   // (product, field, newBoolValue) => Promise
     isMarketing = false,
-    categories = []
+    categories = [],
+    selectedIds = [],
+    onSelectionChange
 }) => {
     const [policies, setPolicies] = useState(null);
+    const [togglingId, setTogglingId] = useState(null);
 
     useEffect(() => {
         const loadPolicies = async () => {
@@ -24,6 +80,21 @@ const ProductsTable = ({
         };
         loadPolicies();
     }, []);
+
+    const handleToggle = async (product, field, currentValue) => {
+        if (!onToggleVisibility) return;
+        const productKey = product.id || product._id;
+        const key = `${productKey}-${field}`;
+        if (togglingId === key) return; // prevent double click
+        setTogglingId(key);
+        try {
+            const on = currentValue === true || currentValue === 'true' || currentValue === '1' || currentValue === 1;
+            await onToggleVisibility(product, field, !on);
+        } finally {
+            setTogglingId(null);
+        }
+    };
+
     const columns = [
         { label: 'SKU', key: 'sku' },
         {
@@ -39,39 +110,52 @@ const ProductsTable = ({
             label: 'Forma',
             key: 'custom_attributes',
             render: (val, row) => {
-                // Try to find 'forma' in custom_attributes or in specs
                 const forma = val?.forma || val?.shape;
                 if (forma) return forma;
-
-                // Fallback to specs if not in custom_attributes
                 const formaSpec = row.specs?.find(s => s.label.toUpperCase() === 'FORMA');
                 return formaSpec ? formaSpec.value : '-';
             }
         },
         { label: 'Marca', key: 'brand' },
         {
-            label: 'Tienda',
+            label: '🛒 Tienda',
             key: 'is_active_in_shop',
             align: 'center',
-            render: (val) => val ? (
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    color: '#10b981',
-                    fontSize: '0.75rem',
-                    fontWeight: '600'
-                }}>
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
-                    VISIBLE
-                </div>
-            ) : (
-                <span style={{ color: '#475569', fontSize: '0.75rem' }}>Oculto</span>
-            )
+            render: (val, product) => {
+                const productKey = product.id || product._id;
+                const isLoading = togglingId === `${productKey}-is_active_in_shop`;
+                return (
+                    <VisibilitySwitch
+                        value={val}
+                        loading={isLoading}
+                        color="#10b981"
+                        label="tienda"
+                        productKey={productKey}
+                        onChange={(e) => { e.stopPropagation(); handleToggle(product, 'is_active_in_shop', val); }}
+                    />
+                );
+            }
+        },
+        {
+            label: '✨ Novedad',
+            key: 'is_new',
+            align: 'center',
+            render: (val, product) => {
+                const productKey = product.id || product._id;
+                const isLoading = togglingId === `${productKey}-is_new`;
+                return (
+                    <VisibilitySwitch
+                        value={val}
+                        loading={isLoading}
+                        color="#f59e0b"
+                        label="novedad"
+                        productKey={productKey}
+                        onChange={(e) => { e.stopPropagation(); handleToggle(product, 'is_new', val); }}
+                    />
+                );
+            }
         },
         { label: 'Stock', key: 'stock_current', align: 'center' },
-        // Marketing Columns (replacing prices)
         ...(isMarketing ? [
             {
                 label: 'Costo Puntos',
@@ -92,15 +176,12 @@ const ProductsTable = ({
                 ) : '-'
             }
         ] : [
-            // Commercial Columns
             {
                 label: 'P. Minorista',
                 key: 'price_retail',
                 align: 'right',
                 render: (val, row) => {
                     if (val > 0) return formatCurrency(val);
-
-                    // Relational Calculation if Price is 0
                     if (policies && row.price_wholesale > 0) {
                         const calculated = row.price_wholesale * (1 + (policies.retail_markup_pct || 20) / 100);
                         return (
@@ -132,25 +213,13 @@ const ProductsTable = ({
             align: 'center',
             render: (_, product) => (
                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                    <Button
-                        size="small"
-                        variant="secondary"
-                        onClick={(e) => { e.stopPropagation(); onView(product); }}
-                    >
+                    <Button size="small" variant="secondary" onClick={(e) => { e.stopPropagation(); onView(product); }}>
                         Ver
                     </Button>
-                    <Button
-                        size="small"
-                        variant="warning"
-                        onClick={(e) => { e.stopPropagation(); onEdit(product); }}
-                    >
+                    <Button size="small" variant="warning" onClick={(e) => { e.stopPropagation(); onEdit(product); }}>
                         Editar
                     </Button>
-                    <Button
-                        size="small"
-                        variant="danger"
-                        onClick={(e) => { e.stopPropagation(); onDelete(product); }}
-                    >
+                    <Button size="small" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(product); }}>
                         ✕
                     </Button>
                 </div>
@@ -165,6 +234,10 @@ const ProductsTable = ({
             loading={loading}
             onRowClick={onView}
             emptyMessage="No hay productos registrados"
+            enableSelection={true}
+            selectedKeys={selectedIds}
+            onSelectionChange={onSelectionChange}
+            keyField="_id"
         />
     );
 };

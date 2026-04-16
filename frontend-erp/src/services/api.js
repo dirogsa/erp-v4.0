@@ -85,7 +85,7 @@ export const inventoryService = {
   getProducts: (page = 1, limit = 50, search = '', category = '', product_type = '') =>
     api.get('/inventory/products', { params: { skip: (page - 1) * limit, limit, search, category, product_type } }),
   createProduct: (product, initial_stock = 0) => api.post(`/inventory/products?initial_stock=${initial_stock}`, product),
-  bulkCreateProducts: (products) => api.post('/inventory/products/bulk', products),
+  bulkCreateProducts: (products) => api.post('/inventory/products/bulk', products, { timeout: 120000 }),
   generateMarketingSku: () => api.get('/inventory/generate-marketing-sku'),
   deleteProduct: (sku) => api.delete(`/inventory/products/${sku}`),
   updateProduct: (sku, product, new_stock = null) => {
@@ -96,7 +96,8 @@ export const inventoryService = {
     const formData = new FormData();
     formData.append('file', file);
     return api.post('/inventory/import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000
     });
   },
   exportProducts: (template = 'current') => api.get(`/inventory/export?template=${template}`, { responseType: 'blob' }),
@@ -115,6 +116,12 @@ export const inventoryService = {
   reconcileStock: (adjustments) => api.post('/inventory/reconcile', adjustments),
   externalLookup: (sku) => api.get(`/inventory/external-lookup?sku=${encodeURIComponent(sku)}`),
   smartSearch: (query) => api.get(`/inventory/smart-search?q=${encodeURIComponent(query)}`),
+
+  // Visibilidad en Tienda — Control directo sin CSV
+  toggleVisibility: (productId, payload) =>
+    api.patch(`/inventory/products/${productId}/visibility`, payload),
+  bulkSetVisibility: (payload) =>
+    api.post('/inventory/products/bulk-visibility', payload),
 };
 
 export const priceService = {
@@ -129,7 +136,8 @@ export const priceService = {
     const formData = new FormData();
     formData.append('file', file);
     return api.post(`/inventory/prices/import-csv?reason=${encodeURIComponent(reason)}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000
     });
   }
 };
@@ -157,7 +165,7 @@ export const purchasingService = {
   deleteSupplier: (id) => api.delete(`/purchasing/suppliers/${id}`),
   updateSupplier: (id, supplier) => api.put(`/purchasing/suppliers/${id}`, supplier),
   importInvoiceXml: (xmlData, autoReception = true, exchangeRate = null) => 
-    api.post('/purchasing/import-invoice-xml', { xml_data: xmlData, auto_reception: autoReception, exchange_rate: exchangeRate }),
+    api.post('/purchasing/import-invoice-xml', { xml_data: xmlData, auto_reception: autoReception, exchange_rate: exchangeRate }, { timeout: 120000 }),
 };
 
 export const purchaseQuotesService = {
@@ -231,7 +239,7 @@ export const salesService = {
   updateCustomerBranch: (customerId, branchIndex, branch) => api.put(`/sales/customers/${customerId}/branches/${branchIndex}`, branch),
   deleteCustomerBranch: (customerId, branchIndex) => api.delete(`/sales/customers/${customerId}/branches/${branchIndex}`),
   importInvoiceXml: (xml_data, auto_guide = true, exchange_rate = null) => 
-    api.post('/sales/import-invoice-xml', { xml_data, auto_guide, exchange_rate }),
+    api.post('/sales/import-invoice-xml', { xml_data, auto_guide, exchange_rate }, { timeout: 120000 }),
 };
 
 export const deliveryService = {
@@ -287,7 +295,8 @@ export const dataExchangeService = {
     const formData = new FormData();
     formData.append('file', file);
     return api.post(`/io/import/${entity}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 300000
     });
   }
 };
