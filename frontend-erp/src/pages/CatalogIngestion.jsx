@@ -288,7 +288,7 @@ const CatalogIngestion = () => {
                         Opción A: Ingesta por Códigos (Auto-Lookup)
                     </h3>
                     <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>
-                        Ingresa uno o más códigos (SKU) separados por salto de línea para buscarlos en el catálogo oficial de WIX/Filtron/Asakashi (OEM).
+                        Ingresa uno o más códigos (SKU) separados por salto de línea para buscarlos en el catálogo oficial de WIX/Filtron/Asakashi (OEM)/Azumi.
                     </p>
                     <div style={{ display: 'flex', gap: '1rem' }}>
                         <textarea
@@ -540,6 +540,7 @@ const CatalogIngestion = () => {
                                                 <option value="WIX">WIX</option>
                                                 <option value="FILTRON">FILTRON</option>
                                                 <option value="OEM">OEM</option>
+                                                <option value="AZUMI">AZUMI</option>
                                                 <option value="GENERIC">GENÉRICO</option>
                                                 <option value="JS ASAKASHI">JS ASAKASHI</option>
                                             </select>

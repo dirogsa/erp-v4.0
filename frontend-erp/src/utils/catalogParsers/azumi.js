@@ -1,7 +1,7 @@
 /**
  * Parser específico para catálogos de AZUMI
  */
-export const parseAzumi = (doc, domain = 'https://azfilter.jp') => {
+export const parseAzumi = (doc, domain = 'https://azfilter.jp', dbCategories = []) => {
     const data = {
         brand: 'AZUMI',
         sku: '',
@@ -30,8 +30,9 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp') => {
         // Part 1: "CABIN FILTER" (Category)
         // Part 2: "AZUMI - AC31011C"
         const parts = text.split('|');
+        let rawCategory = '';
         if (parts.length > 0) {
-            data.category_name = parts[0].trim();
+            rawCategory = parts[0].trim();
         }
 
         if (parts.length > 1) {
@@ -43,18 +44,38 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp') => {
             }
         }
 
-        // Name Construction
-        // Spanish map for categories if possible, otherwise use English content
-        let catName = data.category_name;
-        if (catName === 'CABIN FILTER') catName = 'Filtro de Cabina';
-        else if (catName === 'OIL FILTER') catName = 'Filtro de Aceite';
-        else if (catName === 'AIR FILTER') catName = 'Filtro de Aire';
-        else if (catName === 'FUEL FILTER') catName = 'Filtro de Combustible';
-        else if (catName === 'TRANSMISSION FILTER') catName = 'Filtro de Transmisión';
-        else if (catName === 'HYDRAULIC FILTER') catName = 'Filtro Hidráulico';
+        // Category resolution
+        let resolvedName = rawCategory;
+        const rawCatUpper = rawCategory.toUpperCase();
 
-        data.category_name = catName;
-        data.name = `${catName} ${data.brand} ${data.sku}`;
+        if (dbCategories && dbCategories.length > 0) {
+            for (const cat of dbCategories) {
+                if (cat.name.toUpperCase() === rawCatUpper) {
+                    resolvedName = cat.name;
+                    break;
+                }
+                if (cat.import_aliases) {
+                    const aliases = cat.import_aliases.map(a => a.trim().toUpperCase());
+                    if (aliases.includes(rawCatUpper)) {
+                        resolvedName = cat.name;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Fallback translation if not found in DB
+        if (resolvedName === rawCategory) {
+            if (rawCatUpper === 'CABIN FILTER') resolvedName = 'Filtro de Cabina';
+            else if (rawCatUpper === 'OIL FILTER') resolvedName = 'Filtro de Aceite';
+            else if (rawCatUpper === 'AIR FILTER') resolvedName = 'Filtro de Aire';
+            else if (rawCatUpper === 'FUEL FILTER') resolvedName = 'Filtro de Combustible';
+            else if (rawCatUpper === 'TRANSMISSION FILTER') resolvedName = 'Filtro de Transmisión';
+            else if (rawCatUpper === 'HYDRAULIC FILTER') resolvedName = 'Filtro Hidráulico';
+        }
+
+        data.category_name = resolvedName;
+        data.name = `${data.category_name} ${data.brand} ${data.sku}`;
     }
 
     // 2. Image

@@ -38,13 +38,14 @@ export const parseCatalogHtml = (htmlContent, filename = '', dbCategories = []) 
 
     // 3. Detección por Contenido (Fallback para OEM/Asakashi)
     const isAsakashi = text.includes('JSFILTER.JP') || text.includes('JS ASAKASHI') || title.includes('JS ASAKASHI');
+    const isAzumi = text.includes('AZFILTER.JP') || text.includes('AZUMI') || title.includes('AZUMI');
 
     if (isFiltron) {
         return parseFiltron(doc, 'https://filtron.eu');
     } else if (isWix) {
         return parseWix(doc, 'https://www.wixfilters.com', dbCategories);
     } else if (isAzumi) {
-        return parseAzumi(doc, 'https://azfilter.jp');
+        return parseAzumi(doc, 'https://azfilter.jp', dbCategories);
     } else if (isAsakashi) {
         return parseOEM(doc, filename);
     }
