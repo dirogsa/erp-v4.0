@@ -85,7 +85,8 @@ export const inventoryService = {
   getProducts: (page = 1, limit = 50, search = '', category = '', product_type = '') =>
     api.get('/inventory/products', { params: { skip: (page - 1) * limit, limit, search, category, product_type } }),
   createProduct: (product, initial_stock = 0) => api.post(`/inventory/products?initial_stock=${initial_stock}`, product),
-  bulkCreateProducts: (products) => api.post('/inventory/products/bulk', products, { timeout: 120000 }),
+  bulkCreateProducts: (products, updateExisting = true) => 
+    api.post(`/inventory/products/bulk?update_existing=${updateExisting}`, products, { timeout: 120000 }),
   generateMarketingSku: () => api.get('/inventory/generate-marketing-sku'),
   deleteProduct: (sku) => api.delete(`/inventory/products/${sku}`),
   updateProduct: (sku, product, new_stock = null) => {
@@ -278,7 +279,9 @@ export const categoryService = {
 export const brandService = {
   getBrands: (origin = '') => api.get('/brands', { params: { origin: origin || undefined } }),
   syncBrands: () => api.post('/brands/sync'),
+  getSyncStatus: () => api.get('/brands/sync/status'),
   updateBrand: (name, data) => api.put(`/brands/${name}`, data),
+  bulkUpdateBrands: (names, data) => api.patch('/brands/bulk', { brand_names: names, update_data: data }),
   deleteBrand: (name) => api.delete(`/brands/${name}`),
 };
 
@@ -321,6 +324,8 @@ export const auditService = {
     if (module) url += `&module=${module}`;
     return api.delete(url);
   },
+  getFinancialHealth: (start_date, end_date, doc_type = 'SALES') => 
+    api.get('/audit/financial-health', { params: { start_date, end_date, doc_type } }),
 };
 
 export const staffService = {

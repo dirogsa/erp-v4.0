@@ -42,3 +42,19 @@ async def purge_logs(
     if module:
         msg += f" del módulo {module}"
     return {"message": msg}
+
+@router.get("/financial-health")
+async def get_financial_health(
+    start_date: str,
+    end_date: str,
+    doc_type: str = "SALES",
+    current_user: User = Depends(check_role([UserRole.SUPERADMIN]))
+):
+    from ..services.financial_audit_service import FinancialAuditService
+    from datetime import datetime
+    
+    dt_start = datetime.fromisoformat(start_date)
+    dt_end = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
+    
+    report = await FinancialAuditService.run_audit(dt_start, dt_end, doc_type)
+    return report

@@ -8,7 +8,10 @@ def normalize_sku(sku: str) -> str:
     Ej: "97133-F2000" -> "97133F2000"
     """
     if not sku: return ""
-    return re.sub(r'[^a-zA-Z0-9]', '', str(sku)).upper().strip()
+    # Mantenemos letras, números, guiones y barras. Eliminamos espacios y otros símbolos.
+    # Es vital para la identidad de marcas como FILTRON/WIX (Ej: AP129-3).
+    clean_sku = str(sku).replace(' ', '')
+    return re.sub(r'[^a-zA-Z0-9\-\/]', '', clean_sku).upper().strip()
 
 def detect_brand_from_text(description: str, default: str = "OEM") -> str:
     """

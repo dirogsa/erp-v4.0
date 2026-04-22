@@ -92,6 +92,7 @@ export const MENU_CONFIG = [
             { id: 'companies', label: 'Gestión de Empresas', path: '/companies', icon: '🏢' },
             { id: 'exchange-rates', label: 'Tipos de Cambio', path: '/exchange-rates', icon: '💱' },
             { id: 'pricing', label: 'Precios Especiales B2B', path: '/pricing', icon: '🏷️' },
+            { id: 'financial-audit', label: 'Auditoría Financiera', path: '/audit/financial', icon: '🛡️', roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
             { id: 'b2b', label: 'Socios de Negocio B2B', path: '/b2b', icon: '🤝' },
             { id: 'policies', label: 'Políticas de Venta', path: '/sales-policies', icon: '⚖️' }
         ]

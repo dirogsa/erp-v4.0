@@ -1,3 +1,5 @@
+import { resolveCategoryName } from './common';
+
 /**
  * Parser específico para catálogos de AZUMI
  */
@@ -44,37 +46,8 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp', dbCategories = [
             }
         }
 
-        // Category resolution
-        let resolvedName = rawCategory;
-        const rawCatUpper = rawCategory.toUpperCase();
-
-        if (dbCategories && dbCategories.length > 0) {
-            for (const cat of dbCategories) {
-                if (cat.name.toUpperCase() === rawCatUpper) {
-                    resolvedName = cat.name;
-                    break;
-                }
-                if (cat.import_aliases) {
-                    const aliases = cat.import_aliases.map(a => a.trim().toUpperCase());
-                    if (aliases.includes(rawCatUpper)) {
-                        resolvedName = cat.name;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Fallback translation if not found in DB
-        if (resolvedName === rawCategory) {
-            if (rawCatUpper === 'CABIN FILTER') resolvedName = 'Filtro de Cabina';
-            else if (rawCatUpper === 'OIL FILTER') resolvedName = 'Filtro de Aceite';
-            else if (rawCatUpper === 'AIR FILTER') resolvedName = 'Filtro de Aire';
-            else if (rawCatUpper === 'FUEL FILTER') resolvedName = 'Filtro de Combustible';
-            else if (rawCatUpper === 'TRANSMISSION FILTER') resolvedName = 'Filtro de Transmisión';
-            else if (rawCatUpper === 'HYDRAULIC FILTER') resolvedName = 'Filtro Hidráulico';
-        }
-
-        data.category_name = resolvedName;
+        // Sincronizar con categorías de la BD usando utilidad común
+        data.category_name = resolveCategoryName(rawCategory, dbCategories);
         data.name = `${data.category_name} ${data.brand} ${data.sku}`;
     }
 

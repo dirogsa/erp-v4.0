@@ -1,16 +1,19 @@
+import { resolveCategoryName, normalizeSku } from './common';
+
 /**
  * Parser especializado para productos OEM (Original Equipment Manufacturer)
  * Detecta información técnica de fuentes de terceros (como Asakashi) 
  * pero fuerza el SKU y la Marca como OEM según el nombre del archivo.
  */
-export const parseOEM = (doc, filename) => {
+export const parseOEM = (doc, filename, dbCategories = []) => {
     // Extraer SKU del nombre del archivo (preferente)
     // Ej: "151000158AA_OEM.html" -> "151000158AA"
     let skuFromFilename = '';
     if (filename) {
         // Eliminar extensión y luego el sufijo _OEM
         const baseName = filename.replace(/\.(html|htm)$/i, '');
-        skuFromFilename = baseName.replace(/_OEM$/i, '').trim().toUpperCase();
+        const rawSku = baseName.replace(/_OEM$/i, '').trim();
+        skuFromFilename = normalizeSku(rawSku);
     }
 
     const data = {
@@ -41,7 +44,7 @@ export const parseOEM = (doc, filename) => {
         const normalizedTitle = asakashiTitle.replace(/\s+/g, ' ');
         // "AIR FILTER » A8016" -> "A8016"
         const parts = normalizedTitle.split(/»|&raquo;/);
-        const internalCode = parts[parts.length - 1].trim();
+        const internalCode = normalizeSku(parts[parts.length - 1]);
         const categoryPart = parts[0].toUpperCase();
 
         // Si el SKU estaba vacío (ej: auto-lookup sin filename), intentar sacarlo de Asakashi
@@ -60,12 +63,8 @@ export const parseOEM = (doc, filename) => {
             });
         }
 
-        // Detectar categoría de forma robusta
-        if (categoryPart.includes('AIR')) data.category_name = 'Filtro de Aire';
-        else if (categoryPart.includes('OIL')) data.category_name = 'Filtro de Aceite';
-        else if (categoryPart.includes('FUEL')) data.category_name = 'Filtro de Combustible';
-        else if (categoryPart.includes('CABIN')) data.category_name = 'Filtro de Cabina';
-        else if (categoryPart.includes('TRANS')) data.category_name = 'Filtro de Transmisión';
+        // Sincronizar con categorías de la BD
+        data.category_name = resolveCategoryName(categoryPart, dbCategories);
     } else {
         // Si no es Asakashi, el nombre se basa en el SKU del archivo
         data.name = `FILTRO OEM ${data.sku}`;

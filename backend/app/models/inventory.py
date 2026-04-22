@@ -83,9 +83,11 @@ class ProductStatus(str, Enum):
 
 class VehicleBrand(Document):
     name: Indexed(str, unique=True)
+    parent_name: Optional[str] = None # For grouping (e.g., 'TOYOTA INDUSTRIAL' -> 'TOYOTA')
     origin: BrandOrigin = BrandOrigin.OTHER
     logo_url: Optional[str] = None
     is_popular: bool = False
+    is_active: bool = True # Control visibility in shop dropdowns
     models: List[str] = [] # Cache of associated models for performance
     
     class Settings:
@@ -174,10 +176,14 @@ class Product(Document):
     price_retail: float = 0.0
     price_wholesale: float = 0.0
     
-    # Descuentos por volumen (Porcentaje)
+    # Descuentos por volumen (Porcentaje) - Sincronizados con Mobile 3/6/12/50
+    discount_3_pct: float = 0.0
     discount_6_pct: float = 0.0
     discount_12_pct: float = 0.0
-    discount_24_pct: float = 0.0
+    discount_50_plus_pct: float = 0.0
+    
+    # Oferta Especial (Porcentaje adicional por SKU específico)
+    promo_discount_pct: float = 0.0
 
     cost: float = 0.0
     stock_current: int = 0
@@ -205,7 +211,7 @@ class Product(Document):
     
     created_at: datetime = datetime.now()
 
-    @field_validator('price_retail', 'cost', 'price_wholesale', 'discount_6_pct', 'discount_12_pct', 'discount_24_pct')
+    @field_validator('price_retail', 'cost', 'price_wholesale', 'discount_3_pct', 'discount_6_pct', 'discount_12_pct', 'discount_50_plus_pct', 'promo_discount_pct')
     @classmethod
     def round_amounts(cls, v):
         """Redondear a 3 decimales"""

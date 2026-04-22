@@ -131,9 +131,10 @@ export const parseUBLXml = (xmlString) => {
         const itemInfo = findElement(line, 'cac:Item');
         const sellersId = findElement(itemInfo, 'cac:SellersItemIdentification');
         const rawSku = sellersId ? getTagText(sellersId, 'cbc:ID') : getTagText(line, 'cbc:ID');
-        // Sanitizar SKU: Eliminar CUALQUIER carácter que no sea alfanumérico (letras y números)
-        // Esto uniformiza '28113- C7000' -> '28113C7000' de forma ultra-robusta
-        const productSku = rawSku.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        // Sanitizar SKU: Eliminar espacios y caracteres NO alfanuméricos EXCEPTO '-' y '/'
+        // Esto permite que 'AP 129/3' sea 'AP129/3' y 'AP 129-3' sea 'AP129-3'
+        // Es vital mantener '-' y '/' porque son parte de la identidad en marcas como Filtron/Wix.
+        const productSku = rawSku.replace(/\s+/g, '').replace(/[^a-zA-Z0-9\-\/]/g, '').toUpperCase();
 
         const quantity = parseFloat(getTagText(line, 'cbc:InvoicedQuantity') || getTagText(line, 'cbc:CreditedQuantity') || '0');
         const unitCode = findElement(line, 'cbc:InvoicedQuantity')?.getAttribute('unitCode') || 'NIU';

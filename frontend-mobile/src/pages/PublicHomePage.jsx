@@ -103,7 +103,29 @@ const PublicHomePage = () => {
         load();
     }, []);
 
-    const availableModels = brands.find(b => b.name === selectedMake)?.models || [];
+    // World-Class Logic: Consolidate Brands for UI
+    const consolidatedBrands = React.useMemo(() => {
+        const groups = {};
+        brands.forEach(b => {
+            const name = b.name.toUpperCase().trim();
+            const parent = b.parent_name ? b.parent_name.toUpperCase().trim() : null;
+            const displayName = parent || name;
+            
+            if (!groups[displayName]) {
+                groups[displayName] = { name: displayName, is_popular: false, models: new Set() };
+            }
+            if (b.is_popular) groups[displayName].is_popular = true;
+            if (b.models) b.models.forEach(m => groups[displayName].models.add(m));
+        });
+        
+        return Object.values(groups).map(g => ({ ...g, models: Array.from(g.models).sort() })).sort((a, b) => {
+            if (a.is_popular && !b.is_popular) return -1;
+            if (!a.is_popular && b.is_popular) return 1;
+            return a.name.localeCompare(b.name);
+        });
+    }, [brands]);
+
+    const availableModels = consolidatedBrands.find(b => b.name === selectedMake)?.models || [];
 
     const handleVehicleSearch = () => {
         if (!selectedMake) return;
@@ -301,7 +323,7 @@ const PublicHomePage = () => {
                                     style={{ borderColor: 'rgba(56,189,248,0.25)' }}
                                 >
                                     <option value="">— MARCA DEL VEHÍCULO —</option>
-                                    {brands.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+                                    {consolidatedBrands.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
                                 </select>
                             </div>
 
@@ -343,27 +365,7 @@ const PublicHomePage = () => {
                 </div>
             </section>
 
-            {/* ── TRUST BADGES ── */}
-            <section className="px-5 pb-6">
-                <div className="grid grid-cols-3 gap-2">
-                    {[
-                        { icon: <ShieldCheckIcon className="h-5 w-5" />, label: 'Calidad Garantizada', color: '#6EE7B7' },
-                        { icon: <BoltIcon className="h-5 w-5" />, label: 'Entrega Rápida', color: '#38BDF8' },
-                        { icon: <ChartBarIcon className="h-5 w-5" />, label: 'Stock en Tiempo Real', color: '#FB923C' },
-                    ].map((item, i) => (
-                        <div key={i} className="flex flex-col items-center gap-2 py-4 rounded-2xl text-center"
-                            style={{
-                                background: `${item.color}08`,
-                                border: `1px solid ${item.color}18`
-                            }}>
-                            <span style={{ color: item.color }}>{item.icon}</span>
-                            <span className="text-[8px] font-black uppercase tracking-wide leading-tight" style={{ color: item.color }}>
-                                {item.label}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            </section>
+
 
 
             {/* ── CTA QUICK ACTIONS ── */}

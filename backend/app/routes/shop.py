@@ -18,7 +18,7 @@ router = APIRouter(prefix="/shop", tags=["Shop"])
 @router.get("/brands", response_model=List[VehicleBrand])
 async def get_shop_brands():
     """Returns static vehicle brands from the specialized collection (highly optimized)"""
-    return await VehicleBrand.find_all().to_list()
+    return await VehicleBrand.find({"is_active": True}).sort([("name", 1)]).to_list()
 
 @router.get("/vehicles")
 async def get_synchronized_vehicles():
@@ -187,9 +187,11 @@ class ShopProductResponse(BaseModel):
 
     category_id: Optional[str] = None
     is_new: bool = False
+    discount_3_pct: float = 0.0
     discount_6_pct: float = 0.0
     discount_12_pct: float = 0.0
-    discount_24_pct: float = 0.0
+    discount_50_plus_pct: float = 0.0
+    promo_discount_pct: float = 0.0
     type: Optional[str] = "COMMERCIAL"
 
 class ShopProductDetailResponse(ShopProductResponse):
@@ -429,9 +431,11 @@ async def get_shop_products(
 
             category_id=p.category_id,
             is_new=p.is_new,
+            discount_3_pct=p.discount_3_pct,
             discount_6_pct=p.discount_6_pct,
             discount_12_pct=p.discount_12_pct,
-            discount_24_pct=p.discount_24_pct
+            discount_50_plus_pct=p.discount_50_plus_pct,
+            promo_discount_pct=p.promo_discount_pct
         ))
 
     print(f"[SHOP] Returning {len(response_items)} items to frontend")
@@ -489,9 +493,11 @@ async def get_shop_product_detail(
         applications=p.applications,
         weight_g=p.weight_g,
         features=p.features,
+        discount_3_pct=p.discount_3_pct,
         discount_6_pct=p.discount_6_pct,
         discount_12_pct=p.discount_12_pct,
-        discount_24_pct=p.discount_24_pct
+        discount_50_plus_pct=p.discount_50_plus_pct,
+        promo_discount_pct=p.promo_discount_pct
     )
 
 @router.post("/checkout")

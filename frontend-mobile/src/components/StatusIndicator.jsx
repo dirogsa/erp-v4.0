@@ -98,16 +98,16 @@ const StatusIndicator = ({
             </div>
             
             <div className="flex-1">
-                <div className="flex items-center gap-2">
-                    <p className={`text-xs font-black uppercase tracking-[0.1em] ${current.text} drop-shadow-md`}>
+                <div className="flex items-center gap-3">
+                    <p className={`text-brand-sm font-black uppercase tracking-wider ${current.text} drop-shadow-md`}>
                         {label}
                     </p>
-                    <span className={`px-1.5 py-0.5 ${current.badge} text-brand-bg text-[8px] font-black rounded-sm animate-pulse uppercase`}>
+                    <span className={`px-2 py-0.5 ${current.badge} text-brand-bg text-brand-xs font-black rounded-md animate-pulse uppercase tracking-tighter`}>
                         {current.badgeText}
                     </span>
                 </div>
                 {description && (
-                    <p className="text-[9px] uppercase font-bold text-brand-text/60 leading-tight tracking-widest mt-1">
+                    <p className="text-brand-xs uppercase font-bold text-brand-text-muted leading-tight tracking-widest mt-1.5">
                         {description}
                     </p>
                 )}

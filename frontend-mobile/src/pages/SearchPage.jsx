@@ -5,53 +5,85 @@ import {
     MagnifyingGlassIcon,
     ChevronLeftIcon,
     AdjustmentsHorizontalIcon,
-    QrCodeIcon,
-    ArrowsPointingInIcon,
-    TagIcon
+    TruckIcon,
+    TagIcon,
+    XMarkIcon
 } from '@heroicons/react/24/outline';
-import StatusIndicator from '../components/StatusIndicator';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const SearchPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
-    const searchType = queryParams.get('type');
-    const initialQuery = queryParams.get('q') || ''; 
-    const initialMake = queryParams.get('make') || '';
-    const initialModel = queryParams.get('model') || '';
-
-    const [searchTerm, setSearchTerm] = useState(initialQuery);
+    
+    const [searchTerm, setSearchTerm] = useState(queryParams.get('q') || '');
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [isWakingUp, setIsWakingUp] = useState(false);
     const [stats, setStats] = useState(null);
-    const [activeFilters, setActiveFilters] = useState({ make: initialMake, model: initialModel });
+    
+    // Advanced Filters
+    const [categories, setCategories] = useState([]);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [rawBrands, setRawBrands] = useState([]); // Original list from API
+    const [activeFilters, setActiveFilters] = useState({ 
+        make: queryParams.get('make') || '', 
+        model: queryParams.get('model') || '' 
+    });
+
     const searchInput = useRef(null);
 
-    // Initial placeholder based on type
-    const getPlaceholder = () => {
-        if (searchType === 'dimensions') return "Ej: 100x150x25 o Redondo...";
-        return "Ingrese Código o Equivalencia...";
-    };
-
-    // Smart loader for Render Free Tier (Cold start detector)
+    // Initial Load: Categories and Brands
     useEffect(() => {
-        let wakeTimer;
-        if (loading) {
-            // If request takes more than 3 seconds, assume Render backend is waking up from sleep
-            wakeTimer = setTimeout(() => setIsWakingUp(true), 3000);
-        } else {
-            setIsWakingUp(false);
-        }
-        return () => clearTimeout(wakeTimer);
-    }, [loading]);
+        const loadMetadata = async () => {
+            try {
+                const [catRes, brandRes] = await Promise.all([
+                    shopService.getCategories(),
+                    shopService.getVehicleBrands()
+                ]);
+                setCategories(catRes.data || []);
+                setRawBrands(brandRes.data || []);
+            } catch (err) {
+                console.error("Failed to load search metadata", err);
+            }
+        };
+        loadMetadata();
+    }, []);
 
-    // Initial search or filter update
+    // World-Class Logic: Consolidate Brands for UI
+    // Group "TOYOTA INDUSTRIAL" into "TOYOTA" and prioritize popular brands
+    const consolidatedBrands = React.useMemo(() => {
+        const groups = {};
+        rawBrands
+            .filter(b => b.is_active !== false) // Solo marcas activas
+            .forEach(b => {
+                const name = b.name.toUpperCase().trim();
+                const parent = b.parent_name ? b.parent_name.toUpperCase().trim() : null;
+                const displayName = parent || name;
+                
+                if (!groups[displayName]) {
+                    groups[displayName] = { name: displayName, models: new Set(), is_popular: false };
+                }
+                // If any variant is popular, the group becomes popular
+                if (b.is_popular) groups[displayName].is_popular = true;
+                b.models.forEach(m => groups[displayName].models.add(m));
+            });
+        
+        return Object.values(groups).sort((a, b) => {
+            if (a.is_popular && !b.is_popular) return -1;
+            if (!a.is_popular && b.is_popular) return 1;
+            return a.name.localeCompare(b.name);
+        });
+    }, [rawBrands]);
+
+    const availableModels = React.useMemo(() => {
+        const brand = consolidatedBrands.find(b => b.name === activeFilters.make);
+        return brand ? Array.from(brand.models).sort() : [];
+    }, [activeFilters.make, consolidatedBrands]);
+
+    // Search Execution (Reactive)
     useEffect(() => {
         const fetchResults = async () => {
-            // Only search if we have 3 chars OR if we have a vehicle filter
-            if (searchTerm.trim().length < 3 && !activeFilters.make && !activeFilters.model) {
+            if (!searchTerm && !selectedCategory && !activeFilters.make) {
                 setResults([]);
                 setStats(null);
                 return;
@@ -61,6 +93,7 @@ const SearchPage = () => {
             try {
                 const res = await shopService.getProducts({ 
                     search: searchTerm,
+                    category: selectedCategory,
                     vehicle_brand: activeFilters.make,
                     vehicle_model: activeFilters.model
                 });
@@ -75,134 +108,162 @@ const SearchPage = () => {
 
         const timer = setTimeout(fetchResults, 400);
         return () => clearTimeout(timer);
-    }, [searchTerm, activeFilters]);
-
-    // Removed programmatic focus on mount to prevent the Android Back button bug 
-    // where hiding the keyboard also triggers history.back() because the focus wasn't user-initiated.
+    }, [searchTerm, selectedCategory, activeFilters]);
 
     return (
         <div className="bg-brand-bg h-screen text-brand-text flex flex-col font-sans overflow-hidden">
-            {/* Technical Command Header (No solapa, empuja el contenido) */}
-            <header className="flex-shrink-0 bg-brand-bg border-b border-brand-primary/20 safe-top">
-                {/* 1. System Status Notification */}
-                {isWakingUp && (
-                    <div className="px-4 py-2 bg-brand-primary/5 border-b border-brand-primary/10">
-                        <StatusIndicator 
-                            type="loading"
-                            label="WAKING CORE"
-                            description="Sincronizando servidores externos..."
-                            className="!py-2 !rounded-lg border-none bg-transparent shadow-none"
-                            showScanline={false}
+            {/* Header: Master Search */}
+            <header className="flex-shrink-0 glass-card border-b border-white/5 safe-top sticky top-0 z-50">
+                <div className="px-4 py-4 flex items-center gap-3">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="h-12 w-12 flex-shrink-0 bg-brand-surface rounded-xl border border-brand-border text-brand-text active:scale-95 transition-all flex items-center justify-center"
+                    >
+                        <ChevronLeftIcon className="h-6 w-6" />
+                    </button>
+                    
+                    <div className="flex-1 relative group">
+                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-primary" />
+                        <input
+                            ref={searchInput}
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Buscar por código o descripción..."
+                            className="w-full pl-11 pr-4 py-3.5 bg-brand-surface border border-brand-border rounded-xl text-brand-sm font-bold focus:border-brand-primary focus:outline-none transition-all placeholder:text-brand-muted/40 shadow-xl"
                         />
-                    </div>
-                )}
-
-                {/* 2. Primary Search Controls */}
-                <div className="px-4 py-4 space-y-4">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-2.5 bg-brand-surface-2 rounded-xl border border-brand-border-2 text-brand-text active:scale-95 transition-all shadow-lg"
-                        >
-                            <ChevronLeftIcon className="h-5 w-5" />
-                        </button>
-                        
-                        <div className="flex-1 relative">
-                            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-primary" />
-                            <input
-                                ref={searchInput}
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder={getPlaceholder()}
-                                className="w-full pl-11 pr-4 py-4 bg-brand-surface border-2 border-brand-border-2 rounded-2xl text-sm font-bold focus:border-brand-primary focus:outline-none transition-all placeholder:text-brand-muted/40 shadow-xl"
-                            />
-                        </div>
-                    </div>
-
-                    {/* 3. Search Intelligence Stats */}
-                    {stats && (
-                        <div className="flex items-center justify-between pb-1 animate-in fade-in slide-in-from-left-4">
-                            <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-pulse glow-emerald"></span>
-                                <p className="text-[10px] font-black text-brand-text/50 uppercase tracking-[0.2em]">
-                                    {stats.total} <span className="text-brand-muted">Ítems encontrados</span>
-                                </p>
-                            </div>
-                            <button className="flex items-center gap-1.5 px-4 py-1.5 bg-brand-surface-2 border border-brand-border-2 rounded-full text-[9px] font-black text-brand-primary border-brand-primary/20 uppercase tracking-widest active:scale-90">
-                                <AdjustmentsHorizontalIcon className="h-3.5 w-3.5" /> Filtros
+                        {searchTerm && (
+                            <button 
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-text-dim hover:text-white"
+                            >
+                                <XMarkIcon className="h-5 w-5" />
                             </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
+                </div>
+
+                {/* Category Quick-Select (Pillar A) */}
+                <div className="flex overflow-x-auto gap-2 px-4 pb-4 no-scrollbar">
+                    <button
+                        onClick={() => setSelectedCategory(null)}
+                        className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
+                            !selectedCategory 
+                            ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-lg shadow-brand-primary/20' 
+                            : 'bg-brand-surface border-brand-border text-brand-text-dim'
+                        }`}
+                    >
+                        Todos
+                    </button>
+                    {categories.map(cat => (
+                        <button
+                            key={cat._id || cat.name}
+                            onClick={() => setSelectedCategory(cat.name)}
+                            className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
+                                selectedCategory === cat.name 
+                                ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-lg shadow-brand-primary/20' 
+                                : 'bg-brand-surface border-brand-border text-brand-text-dim'
+                            }`}
+                        >
+                            {cat.name}
+                        </button>
+                    ))}
                 </div>
             </header>
 
-            {/* Scrollable Content (Safe flow) */}
-            <main className="flex-1 overflow-y-auto p-4 pt-6 no-scrollbar">
-                {searchTerm.length < 3 && searchTerm.length > 0 && (
-                    <div className="text-center py-20">
-                        <p className="text-brand-muted text-xs font-bold uppercase tracking-widest">Buscando...</p>
-                    </div>
-                )}
+            <main className="flex-1 overflow-y-auto no-scrollbar pb-20">
+                {/* Vehicle Selection Wizard (Pillar B) */}
+                <section className="p-4 space-y-4">
+                    <div className="bg-brand-surface/30 border border-white/5 rounded-[2rem] p-6 space-y-4 shadow-2xl">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="h-8 w-8 bg-brand-primary/10 rounded-lg flex items-center justify-center border border-brand-primary/20">
+                                <TruckIcon className="h-5 w-5 text-brand-primary" />
+                            </div>
+                            <h3 className="text-brand-xs font-black text-white uppercase tracking-widest">Filtros por Aplicación Vehicular</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="text-[9px] font-black text-brand-text-dim uppercase px-2">Marca</label>
+                                <select
+                                    value={activeFilters.make}
+                                    onChange={(e) => setActiveFilters({ ...activeFilters, make: e.target.value, model: '' })}
+                                    className="w-full bg-brand-bg border border-brand-border rounded-xl p-3.5 text-xs font-bold text-white focus:border-brand-primary outline-none appearance-none uppercase"
+                                >
+                                    <option value="">CUALQUIER MARCA</option>
+                                    {consolidatedBrands.map(b => (
+                                         <option key={b.name} value={b.name}>
+                                             {b.is_popular ? `⭐ ${b.name}` : b.name}
+                                         </option>
+                                     ))}
+                                </select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[9px] font-black text-brand-text-dim uppercase px-2">Modelo</label>
+                                <select
+                                    value={activeFilters.model}
+                                    onChange={(e) => setActiveFilters({ ...activeFilters, model: e.target.value })}
+                                    disabled={!activeFilters.make}
+                                    className="w-full bg-brand-bg border border-brand-border rounded-xl p-3.5 text-xs font-bold text-white focus:border-brand-primary outline-none appearance-none uppercase disabled:opacity-20"
+                                >
+                                    <option value="">CUALQUIER MODELO</option>
+                                    {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                            </div>
+                        </div>
 
-                {loading ? (
-                    <div className="flex flex-col gap-4">
+                        {activeFilters.make && (
+                            <button 
+                                onClick={() => setActiveFilters({ make: '', model: '' })}
+                                className="w-full py-2 text-[9px] font-black text-brand-danger uppercase tracking-tighter hover:opacity-70"
+                            >
+                                Limpiar Filtros de Vehículo
+                            </button>
+                        )}
+                    </div>
+                </section>
+
+                {/* Results Area */}
+                <div className="px-4 pb-10">
+                    <div className="flex justify-between items-center mb-6 px-1">
+                        <h2 className="text-brand-heading !text-sm">Resultados</h2>
+                        {stats && (
+                            <span className="text-[10px] font-black text-brand-primary bg-brand-primary/10 px-3 py-1 rounded-lg border border-brand-primary/20">
+                                {stats.total} PRODUCTOS ENCONTRADOS
+                            </span>
+                        )}
+                    </div>
+
+                    {loading ? (
                         <div className="grid grid-cols-2 gap-4">
-                            {[1, 2, 3, 4, 5, 6].map(i => (
-                                <div key={i} className="bg-brand-surface h-56 rounded-3xl border border-brand-border animate-pulse shadow-inner"></div>
+                            {[1, 2, 3, 4].map(i => (
+                                <div key={i} className="bg-brand-surface h-64 rounded-3xl border border-brand-border animate-pulse shadow-inner"></div>
                             ))}
                         </div>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                        {results.map(prod => (
-                            <MobileProductCard
-                                key={prod.sku}
-                                product={prod}
-                                onAddToCart={(p) => console.log("Added:", p.sku)}
-                            />
-                        ))}
-                    </div>
-                )}
-
-                {results.length === 0 && searchTerm.length >= 3 && !loading && (
-                    <div className="text-center py-20 px-10">
-                        <div className="h-16 w-16 bg-brand-surface border border-brand-border text-brand-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                            <MagnifyingGlassIcon className="h-8 w-8" />
+                    ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                            {results.map(prod => (
+                                <MobileProductCard
+                                    key={prod.sku}
+                                    product={prod}
+                                    onAddToCart={(p) => console.log("Added:", p.sku)}
+                                />
+                            ))}
                         </div>
-                        <h3 className="text-sm font-black text-white mb-1 uppercase tracking-tighter">Sin coincidencias</h3>
-                        <p className="text-[10px] text-brand-muted font-bold uppercase tracking-widest leading-relaxed">No encontramos resultados para "{searchTerm}". Revisa el código e intenta nuevamente.</p>
-                    </div>
-                )}
+                    )}
 
-                {results.length === 0 && searchTerm === '' && (
-                    <div className="space-y-8 mt-10">
-                        <section className="text-center px-6">
-                            <div className="inline-flex p-3 bg-brand-surface border border-brand-border rounded-2xl mb-4">
-                                {searchType === 'dimensions' ? <ArrowsPointingInIcon className="h-6 w-6 text-brand-primary" /> : <TagIcon className="h-6 w-6 text-brand-primary" />}
+                    {!loading && results.length === 0 && (
+                        <div className="py-20 text-center space-y-6">
+                            <div className="h-20 w-20 bg-brand-surface border border-white/5 rounded-full flex items-center justify-center mx-auto shadow-2xl opacity-50">
+                                <MagnifyingGlassIcon className="h-10 w-10 text-brand-text-dim" />
                             </div>
-                            <h4 className="text-sm font-black text-white uppercase tracking-tighter mb-2">
-                                {searchType === 'dimensions' ? "Búsqueda por Dimensiones" : "Búsqueda por Código Técnico"}
-                            </h4>
-                            <p className="text-[10px] text-brand-muted font-bold uppercase tracking-[0.1em] leading-relaxed">
-                                {searchType === 'dimensions' 
-                                    ? "Utiliza milímetros o pulgadas para identificar el filtro físicamente." 
-                                    : "Ingresa el código original del fabricante o cualquier equivalencia de mercado."}
-                            </p>
-                        </section>
-
-                        <section className="p-8 bg-brand-surface border border-brand-border rounded-[2.5rem] relative overflow-hidden">
-                            <div className="relative z-10">
-                                <h4 className="text-lg font-black mb-1 text-white underline decoration-brand-primary decoration-4 underline-offset-4">ESCÁNER QR</h4>
-                                <p className="text-[10px] text-brand-muted font-bold uppercase tracking-widest mb-6">Identificación instantánea</p>
-                                <button className="w-full bg-brand-primary text-brand-bg px-6 py-4 rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95 transition-all">
-                                    Activar Cámara
-                                </button>
+                            <div className="space-y-2">
+                                <h3 className="text-brand-title uppercase tracking-tighter">Sin coincidencias</h3>
+                                <p className="text-brand-metadata px-10">Ajusta los filtros o intenta con un código diferente.</p>
                             </div>
-                            <QrCodeIcon className="absolute -bottom-6 -right-6 h-32 w-32 text-white/5" />
-                        </section>
-                    </div>
-                )}
+                        </div>
+                    )}
+                </div>
             </main>
         </div>
     );

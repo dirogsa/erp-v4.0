@@ -18,7 +18,24 @@ const CatalogPage = () => {
                     shopService.getVehicleBrands()
                 ]);
                 setProducts(prodRes.data.items || []);
-                setBrands(brandRes.data.filter(b => b.is_popular));
+                const rawBrands = brandRes.data;
+                const groups = {};
+                rawBrands.forEach(b => {
+                    const name = b.name.toUpperCase().trim();
+                    const parent = b.parent_name ? b.parent_name.toUpperCase().trim() : null;
+                    const displayName = parent || name;
+                    
+                    if (!groups[displayName]) {
+                        groups[displayName] = { name: displayName, is_popular: false };
+                    }
+                    if (b.is_popular) groups[displayName].is_popular = true;
+                });
+                
+                const topBrands = Object.values(groups)
+                    .filter(b => b.is_popular)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                    
+                setBrands(topBrands);
             } catch (error) {
                 console.error("Error loading catalog", error);
             } finally {
@@ -33,14 +50,14 @@ const CatalogPage = () => {
         : products;
 
     return (
-        <div className="bg-slate-50 min-h-screen pb-20">
+        <div className="bg-brand-bg min-h-screen pb-20">
             <Header onSearch={(query) => console.log("Searching:", query)} />
 
             {/* Quick Filter Bar */}
-            <div className="flex gap-3 overflow-x-auto px-4 py-4 no-scrollbar">
+            <div className="flex gap-4 overflow-x-auto px-6 py-6 no-scrollbar">
                 <button
                     onClick={() => setSelectedBrand(null)}
-                    className={`px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest whitespace-nowrap border-2 transition-all ${!selectedBrand ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border-slate-100 text-slate-400'}`}
+                    className={`px-8 py-3 rounded-2xl text-brand-xs font-black uppercase tracking-widest whitespace-nowrap border-2 transition-all shadow-xl ${!selectedBrand ? 'bg-brand-primary border-brand-primary text-brand-bg' : 'bg-brand-surface border-brand-border text-brand-text-muted'}`}
                 >
                     Todos
                 </button>
@@ -48,7 +65,7 @@ const CatalogPage = () => {
                     <button
                         key={brand.name}
                         onClick={() => setSelectedBrand(brand.name)}
-                        className={`px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest whitespace-nowrap border-2 transition-all ${selectedBrand === brand.name ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border-slate-100 text-slate-400'}`}
+                        className={`px-8 py-3 rounded-2xl text-brand-xs font-black uppercase tracking-widest whitespace-nowrap border-2 transition-all shadow-xl ${selectedBrand === brand.name ? 'bg-brand-primary border-brand-primary text-brand-bg' : 'bg-brand-surface border-brand-border text-brand-text-muted'}`}
                     >
                         {brand.name}
                     </button>
@@ -57,12 +74,12 @@ const CatalogPage = () => {
 
             {/* Product Grid */}
             <div className="px-4 pb-10">
-                <div className="flex justify-between items-end mb-4 px-1">
+                <div className="flex justify-between items-end mb-8 px-2">
                     <div>
-                        <h2 className="text-xl font-black text-slate-900">Catálogo</h2>
-                        <p className="text-xs text-slate-400 font-bold">{filteredProducts.length} productos encontrados</p>
+                        <h2 className="text-brand-heading">Catálogo</h2>
+                        <p className="text-brand-metadata mt-1">{filteredProducts.length} productos encontrados</p>
                     </div>
-                    <button className="text-primary-600 text-xs font-black border-b-2 border-primary-100">Filtrar</button>
+                    <button className="text-brand-primary text-brand-xs font-black border-b-2 border-brand-primary/20 pb-1">Filtrar</button>
                 </div>
 
                 {loading ? (

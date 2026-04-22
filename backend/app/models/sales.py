@@ -45,11 +45,12 @@ class SalesPolicy(Document):
     credit_60_days: float = 5.0        # Recargo % para 60 días
     credit_90_days: float = 8.0        # Recargo % para 90 días
     credit_180_days: float = 15.0      # Recargo % para 180 días
-    # Relational Engine (Precios Automáticos)
+    # Relational Engine (Precios Automáticos - Sincronizados 3/6/12/50)
     retail_markup_pct: float = 20.0    # Margen sugerido sobre mayorista
+    vol_3_discount_pct: float = 3.0    # Descuento para 3u
     vol_6_discount_pct: float = 5.0    # Descuento para 6u
-    vol_12_discount_pct: float = 8.0   # Descuento para 12u
-    vol_24_discount_pct: float = 12.0  # Descuento para 24u
+    vol_12_discount_pct: float = 10.0  # Descuento para 12u
+    vol_50_plus_discount_pct: float = 20.0 # Descuento para 50u o más
     # Security Guard (Stop Loss)
     min_margin_guard_pct: float = 12.0 # Margen mínimo permitido
     last_updated: datetime = datetime.utcnow()

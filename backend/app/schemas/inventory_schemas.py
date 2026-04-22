@@ -17,3 +17,10 @@ class TransferRequest(BaseModel):
     target_warehouse_id: str
     items: List[TransferItem]
     notes: Optional[str] = None
+
+class BulkImportResponse(BaseModel):
+    created: int
+    updated: int
+    skipped: int = 0
+    total: int
+    errors: List[str] = []

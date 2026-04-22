@@ -8,7 +8,7 @@
 :root {
   -webkit-tap-highlight-color: transparent;
 
-  /* DIROGSA — Design System 2026 (Premium Dark) */
+  /* DIROGSA — Design System 2026 (Premium Dark & Accessible) */
   
   /* Core Backgrounds */
   --brand-bg: #0A0A0B;          /* Deep Carbon - Base */
@@ -23,11 +23,19 @@
   --brand-accent-dim: rgba(14, 165, 233, 0.1);
   --brand-orange: #F59E0B;      /* Warning Gold */
 
-  /* Text Hierarchy (Crucial for UX) */
+  /* Text Hierarchy (Senior Accessibility Focused) */
   --brand-text: #FFFFFF;        /* Primary Content - High Contrast */
   --brand-text-2: #E2E8F0;      /* Secondary Content - Very Readable */
   --brand-text-muted: #94A3B8;  /* Metadata / Labels - Medium Gray */
   --brand-text-dim: #64748B;    /* Disabled / Subtle Info */
+
+  /* Typography Tokens (Scalable) */
+  --font-size-xs: 0.875rem;     /* 14px - Minimum for metadata */
+  --font-size-sm: 1rem;         /* 16px - Base Body */
+  --font-size-md: 1.125rem;     /* 18px - Prominent text */
+  --font-size-lg: 1.375rem;     /* 22px - Subheadings */
+  --font-size-xl: 1.75rem;      /* 28px - Main headings */
+  --font-size-2xl: 2.25rem;     /* 36px - Hero headings */
 
   /* Borders & Dividers */
   --brand-border: #1F2229;      /* Discrete Divider */
@@ -40,8 +48,8 @@
   --brand-warning-dim: rgba(245, 158, 11, 0.1);
   
   /* Glass Effects */
-  --glass-bg: rgba(10, 10, 11, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-bg: rgba(14, 14, 16, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.08);
   
   /* Glow effects */
   --glow-primary: 0 0 30px rgba(16, 185, 129, 0.1);
@@ -111,38 +119,46 @@ body {
 
 /* ─── Standard Design Hierarchy ─── */
 @layer components {
-  /* Text Styles */
+  /* Text Styles - Accessible Scale */
   .text-brand-heading {
-    @apply text-lg font-bold text-brand-text tracking-tight;
+    @apply text-brand-xl font-black text-brand-text tracking-tight;
   }
   
+  .text-brand-title {
+    @apply text-brand-md font-bold text-brand-text leading-snug tracking-tight;
+  }
+
   .text-brand-title-sm {
-    @apply text-[13px] font-semibold text-brand-text leading-snug tracking-tight;
+    @apply text-brand-sm font-semibold text-brand-text leading-snug tracking-tight;
   }
   
+  .text-brand-body {
+    @apply text-brand-sm font-medium text-brand-text-2 leading-relaxed;
+  }
+
   .text-brand-label {
-    @apply text-[10px] font-bold text-brand-primary uppercase tracking-wider;
+    @apply text-brand-xs font-black text-brand-primary uppercase tracking-wider;
   }
   
   .text-brand-metadata {
-    @apply text-[10px] font-medium text-brand-text-muted uppercase tracking-widest;
+    @apply text-brand-xs font-bold text-brand-text-muted uppercase tracking-widest;
   }
   
   .text-brand-price {
-    @apply text-[17px] font-bold text-brand-text tracking-tight;
+    @apply text-brand-lg font-black text-brand-text tracking-tighter;
   }
 
   /* Components */
   .card-premium {
-    @apply bg-brand-surface rounded-3xl p-3 border border-brand-border-2 shadow-xl transition-all;
+    @apply bg-brand-surface rounded-[2.5rem] p-4 border border-brand-border-2 shadow-2xl transition-all;
   }
   
   .btn-primary {
-    @apply bg-brand-primary text-black font-bold uppercase py-4 px-6 rounded-2xl active:scale-95 transition-all shadow-lg;
+    @apply bg-brand-primary text-black font-black uppercase py-5 px-8 rounded-2xl active:scale-95 transition-all shadow-lg text-brand-sm tracking-widest;
   }
   
   .btn-icon {
-    @apply h-10 w-10 flex items-center justify-center rounded-xl bg-brand-surface-2 text-brand-primary border border-brand-border active:scale-90 transition-all;
+    @apply h-12 w-12 flex items-center justify-center rounded-2xl bg-brand-surface-2 text-brand-primary border border-brand-border active:scale-90 transition-all;
   }
 }
 

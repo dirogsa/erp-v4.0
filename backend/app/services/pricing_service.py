@@ -35,19 +35,25 @@ async def get_product_price_for_user(product: Product, quantity: int, user: Opti
             # Usually highest discount per tier is safer for the admin.
             best_rule_discount = max(best_rule_discount, rule.discount_percentage)
 
-    # 3. Volume Discount (from product)
+    # 3. Volume Discount (from product) - Synchronized tiers 3/6/12/50
     vol_discount_pct = 0.0
-    if quantity >= 24:
-        vol_discount_pct = product.discount_24_pct
+    if quantity >= 50:
+        vol_discount_pct = product.discount_50_plus_pct
     elif quantity >= 12:
         vol_discount_pct = product.discount_12_pct
     elif quantity >= 6:
         vol_discount_pct = product.discount_6_pct
+    elif quantity >= 3:
+        vol_discount_pct = product.discount_3_pct
 
-    # 4. Final Calculation
-    # Strategy: BasePrice * (1 - RuleDisc) * (1 - VolDisc) * (1 - UserDisc)
+    # 4. SKU-Specific Promotional Discount (Offer)
+    promo_discount = product.promo_discount_pct or 0.0
+
+    # 5. Final Calculation
+    # Strategy: BasePrice * (1 - RuleDisc) * (1 - VolDisc) * (1 - UserDisc) * (1 - PromoDisc)
     price_after_rules = base_price * (1 - (best_rule_discount / 100))
     price_after_vol = price_after_rules * (1 - (vol_discount_pct / 100))
-    final_price = price_after_vol * (1 - (user_discount / 100))
+    price_after_user = price_after_vol * (1 - (user_discount / 100))
+    final_price = price_after_user * (1 - (promo_discount / 100))
 
     return round(final_price, 3)

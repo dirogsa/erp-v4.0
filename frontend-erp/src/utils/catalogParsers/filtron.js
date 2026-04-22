@@ -1,3 +1,5 @@
+import { resolveCategoryName, normalizeSku } from './common';
+
 /**
  * Parser especializado para el nuevo formato Global de FILTRON (filtron.eu)
  * Basado en la estructura AEM (Adobe Experience Manager) compartida con WIX.
@@ -33,8 +35,9 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
             if (ldData.name) data.name = ldData.name;
             if (ldData.description) data.description = ldData.description;
             if (ldData.sku) {
-                // Limpiamos sufijo de marca
-                data.sku = ldData.sku.replace(/_FILTRON$|-FILTRON$| FILTRON$/i, '').trim(); 
+                // Limpiamos sufijo de marca y normalizamos
+                const rawSku = ldData.sku.replace(/_FILTRON$|-FILTRON$| FILTRON$/i, '').trim(); 
+                data.sku = normalizeSku(rawSku);
             }
             if (ldData.image) data.image_url = ldData.image;
         } catch (e) {
@@ -45,38 +48,15 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
     // 2. Títulos y Identificación (Fallback)
     const titleName = doc.querySelector('.cmp-product__title-name');
     if (titleName && !data.sku) {
-        data.sku = titleName.innerText.trim();
+        data.sku = normalizeSku(titleName.innerText);
     }
     
     const categoryEl = doc.querySelector('.cmp-product__title-family');
     if (categoryEl) {
         const rawCat = categoryEl.innerText.trim().toUpperCase();
         
-        let resolvedName = categoryEl.innerText.trim();
-        
-        if (dbCategories && dbCategories.length > 0) {
-            for (const cat of dbCategories) {
-                if (cat.name.toUpperCase() === rawCat) {
-                    resolvedName = cat.name;
-                    break;
-                }
-                if (cat.import_aliases) {
-                    const aliases = cat.import_aliases.map(a => a.trim().toUpperCase());
-                    if (aliases.includes(rawCat)) {
-                        resolvedName = cat.name;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        data.category_name = resolvedName;
-        
-        // Limpiezas específicas de Filtron (de versiones anteriores)
-        data.category_name = data.category_name
-            .replace(/s$/i, '')
-            .replace(/os /i, 'o ')
-            .replace(/Asentamiento/i, 'Aire');
+        // Sincronizar con categorías de la BD usando utilidad común
+        data.category_name = resolveCategoryName(rawCat, dbCategories);
 
         // Construimos el nombre estándar
         data.name = `${data.category_name} ${data.brand} ${data.sku}`.trim();

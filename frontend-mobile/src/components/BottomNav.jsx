@@ -22,25 +22,27 @@ const BottomNav = () => {
     ];
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-brand-surface border-t border-brand-border/30 safe-bottom z-[60] backdrop-blur-xl shadow-2xl">
-            <div className="flex justify-around items-center h-16">
+        <nav className="fixed bottom-0 left-0 right-0 glass-card border-t border-white/5 safe-bottom z-[60] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+            <div className="flex justify-around items-center h-20">
                 {navItems.map((item) => (
                     <NavLink
                         key={item.name}
                         to={item.path}
                         className={({ isActive }) => `
-                            flex flex-col items-center justify-center w-full h-full space-y-1
-                            transition-all duration-300 active:scale-90
-                            ${isActive ? 'text-brand-primary' : 'text-brand-muted'}
+                            flex flex-col items-center justify-center w-full h-full space-y-1.5
+                            transition-all duration-300 active:scale-90 relative
+                            ${isActive ? 'text-brand-primary' : 'text-brand-text-muted'}
                         `}
                     >
-                        <item.icon className={`h-5 w-5 transition-transform ${item.name === 'Carrito' ? 'scale-110' : ''}`} />
-                        <span className="text-[8px] font-black uppercase tracking-widest">{item.name}</span>
+                        <item.icon className={`h-6 w-6 transition-all duration-500 ${location.pathname === item.path ? 'scale-110 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'opacity-70'}`} />
+                        <span className={`text-brand-xs font-black uppercase tracking-widest transition-all duration-300 ${location.pathname === item.path ? 'opacity-100' : 'opacity-50'}`}>
+                            {item.name}
+                        </span>
                         
                         {/* Indicador de pestaña activa minimalista */}
                         <div className={`
-                            absolute bottom-1 h-1 w-1 rounded-full bg-brand-primary transition-all duration-300
-                            ${(location.pathname === item.path) ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}
+                            absolute bottom-2 h-1.5 w-1.5 rounded-full bg-brand-primary transition-all duration-500
+                            ${(location.pathname === item.path) ? 'opacity-100 scale-100 shadow-[0_0_10px_#10B981]' : 'opacity-0 scale-0'}
                         `}></div>
                     </NavLink>
                 ))}

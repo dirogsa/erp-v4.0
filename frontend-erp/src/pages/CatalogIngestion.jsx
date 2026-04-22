@@ -20,7 +20,8 @@ const CatalogIngestion = () => {
     const [editingProduct, setEditingProduct] = useState(null);
     const [editingIndex, setEditingIndex] = useState(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [lastProcessedCount, setLastProcessedCount] = useState(0);
+    const [processSummary, setProcessSummary] = useState({ created: 0, updated: 0, skipped: 0, total: 0 });
+    const [updateExisting, setUpdateExisting] = useState(true);
 
     // Fetch dynamic categories single-source-of-truth from Backend
     React.useEffect(() => {
@@ -97,7 +98,17 @@ const CatalogIngestion = () => {
             const errorsInBatch = results.filter(r => !r.success).map(r => r.error);
 
             if (foundInBatch.length > 0) {
-                setParsedProducts(prev => [...prev, ...foundInBatch]);
+                setParsedProducts(prev => {
+                    const filtered = foundInBatch.filter(newItem => 
+                        !prev.some(existing => existing.sku === newItem.sku && existing.brand === newItem.brand)
+                    );
+                    
+                    if (filtered.length < foundInBatch.length) {
+                        showNotification(`${foundInBatch.length - filtered.length} productos omitidos por estar duplicados en la lista`, 'warning');
+                    }
+                    
+                    return [...prev, ...filtered];
+                });
             }
 
             processedCount += batch.length;
@@ -149,8 +160,22 @@ const CatalogIngestion = () => {
             }
 
             if (newProducts.length > 0) {
-                setParsedProducts(prev => [...prev, ...newProducts]);
-                showNotification(`${newProducts.length} archivos procesados correctamente`, 'success');
+                setParsedProducts(prev => {
+                    const filtered = newProducts.filter(newItem => 
+                        !prev.some(existing => existing.sku === newItem.sku && existing.brand === newItem.brand)
+                    );
+                    
+                    const addedCount = filtered.length;
+                    const skippedCount = newProducts.length - filtered.length;
+                    
+                    if (skippedCount > 0) {
+                        showNotification(`${addedCount} agregados, ${skippedCount} omitidos (duplicados en lista)`, 'warning');
+                    } else {
+                        showNotification(`${addedCount} archivos procesados correctamente`, 'success');
+                    }
+                    
+                    return [...prev, ...filtered];
+                });
             } else {
                 showNotification('No se pudieron extraer productos de los archivos seleccionados', 'warning');
             }
@@ -190,9 +215,9 @@ const CatalogIngestion = () => {
             // Clean internal properties before sending to server
             const productsToUpload = parsedProducts.map(({ _file, _status, ...rest }) => rest);
 
-            await inventoryService.bulkCreateProducts(productsToUpload);
-
-            setLastProcessedCount(productsToUpload.length);
+            const response = await inventoryService.bulkCreateProducts(productsToUpload, updateExisting);
+            
+            setProcessSummary(response.data);
             setShowSuccessModal(true);
             showNotification('¡Ingesta masiva completada con éxito!', 'success');
             setParsedProducts([]); // Clear table on success
@@ -259,6 +284,18 @@ const CatalogIngestion = () => {
                             >
                                 Limpiar Todo
                             </Button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#0f172a', padding: '0.5rem 1rem', borderRadius: '0.75rem', border: '1px solid #334155' }}>
+                                <input 
+                                    type="checkbox" 
+                                    id="update-existing-check"
+                                    checked={updateExisting}
+                                    onChange={(e) => setUpdateExisting(e.target.checked)}
+                                    style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                                />
+                                <label htmlFor="update-existing-check" style={{ color: '#94a3b8', fontSize: '0.9rem', cursor: 'pointer', userSelect: 'none' }}>
+                                    Actualizar productos existentes
+                                </label>
+                            </div>
                             <Button
                                 variant="primary"
                                 onClick={handleBulkUpload}
@@ -374,7 +411,7 @@ const CatalogIngestion = () => {
                                     <th style={{ padding: '1rem', textAlign: 'left' }}>SKU</th>
                                     <th style={{ padding: '1rem', textAlign: 'left' }}>Nombre</th>
                                     <th style={{ padding: '1rem', textAlign: 'left' }}>Categoría</th>
-                                    <th style={{ padding: '1rem', textAlign: 'left' }}>EAN</th>
+                                    <th style={{ padding: '1rem', textAlign: 'left' }}>Marca</th>
                                     <th style={{ padding: '1rem', textAlign: 'center' }}>Medidas</th>
                                     <th style={{ padding: '1rem', textAlign: 'center' }}>Aplicaciones</th>
                                     <th style={{ padding: '1rem', textAlign: 'center' }}>Equivalencias</th>
@@ -398,7 +435,19 @@ const CatalogIngestion = () => {
                                                 {p.category_name || 'Sin Categoría'}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '1rem', fontFamily: 'monospace', color: '#94a3b8' }}>{p.ean}</td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <span style={{ 
+                                                background: '#0f172a', 
+                                                color: '#3b82f6',
+                                                padding: '0.2rem 0.5rem', 
+                                                borderRadius: '0.4rem', 
+                                                fontSize: '0.75rem',
+                                                fontWeight: 'bold',
+                                                border: '1px solid #334155'
+                                            }}>
+                                                {p.brand}
+                                            </span>
+                                        </td>
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                                             <span style={{ background: '#334155', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.8rem' }}>
                                                 {p.specs.length}
@@ -806,38 +855,84 @@ const CatalogIngestion = () => {
                 </div>
             )}
 
-            {/* Modal de Éxito */}
+            {/* Modal de Éxito Profesional */}
             {showSuccessModal && (
                 <div style={{
-                    position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '1rem'
+                    position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '1rem', backdropFilter: 'blur(4px)'
                 }}>
                     <div style={{
-                        background: '#1e293b', width: '100%', maxWidth: '450px', borderRadius: '1.5rem', border: '1px solid #334155', padding: '2rem', textAlign: 'center',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                        background: '#1e293b', width: '100%', maxWidth: '500px', borderRadius: '2rem', border: '1px solid #334155', padding: '3rem', textAlign: 'center',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)', animation: 'slideUp 0.4s ease-out'
                     }}>
                         <div style={{
-                            width: '80px', height: '80px', background: '#065f46', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem'
+                            width: '100px', height: '100px', background: 'rgba(52, 211, 153, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem',
+                            border: '2px solid #34d399'
                         }}>
-                            <CheckCircle size={48} color="#34d399" />
+                            <CheckCircle size={56} color="#34d399" />
                         </div>
                         
-                        <h2 style={{ color: 'white', fontSize: '1.75rem', marginBottom: '1rem' }}>
-                            ¡Carga Exitosa!
+                        <h2 style={{ color: 'white', fontSize: '2.25rem', marginBottom: '0.5rem', fontWeight: '800' }}>
+                            ¡Ingesta Completada!
                         </h2>
-                        
-                        <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '2rem' }}>
-                            Se han procesado correctamente <strong>{lastProcessedCount} productos</strong> en tu inventario.
+                        <p style={{ color: '#94a3b8', fontSize: '1.1rem', marginBottom: '2.5rem' }}>
+                            El procesamiento de catálogo ha finalizado exitosamente.
                         </p>
                         
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                            <Button 
-                                variant="primary" 
-                                onClick={() => setShowSuccessModal(false)}
-                                style={{ background: '#34d399', color: '#064e3b', fontWeight: 'bold', padding: '0.75rem 2rem' }}
-                            >
-                                Aceptar
-                            </Button>
+                        <div style={{ 
+                            background: '#0f172a', 
+                            padding: '1.5rem', 
+                            borderRadius: '1.25rem', 
+                            color: '#94a3b8', 
+                            textAlign: 'left', 
+                            marginBottom: '2.5rem',
+                            border: '1px solid #1e293b'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#34d399' }} />
+                                    Productos Nuevos:
+                                </span>
+                                <span style={{ color: '#34d399', fontWeight: '800', fontSize: '1.25rem' }}>{processSummary.created}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#3b82f6' }} />
+                                    Actualizados:
+                                </span>
+                                <span style={{ color: '#3b82f6', fontWeight: '800', fontSize: '1.25rem' }}>{processSummary.updated}</span>
+                            </div>
+                            {processSummary.skipped > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                        <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#64748b' }} />
+                                        Omitidos (Ya existen):
+                                    </span>
+                                    <span style={{ color: '#64748b', fontWeight: '800', fontSize: '1.25rem' }}>{processSummary.skipped}</span>
+                                </div>
+                            )}
+                            <div style={{ height: '1px', background: '#334155', margin: '0.75rem 0' }} />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.75rem', alignItems: 'center' }}>
+                                <span style={{ color: 'white', fontWeight: 'bold' }}>Total Procesados:</span>
+                                <span style={{ color: 'white', fontWeight: '800', fontSize: '1.5rem' }}>{processSummary.total}</span>
+                            </div>
                         </div>
+                        
+                        <Button 
+                            variant="primary" 
+                            onClick={() => setShowSuccessModal(false)}
+                            style={{ 
+                                background: 'linear-gradient(135deg, #34d399, #10b981)', 
+                                color: '#064e3b', 
+                                fontWeight: '900', 
+                                padding: '1rem 3rem', 
+                                width: '100%',
+                                fontSize: '1.1rem',
+                                borderRadius: '1rem',
+                                boxShadow: '0 10px 15px -3px rgba(16, 185, 129, 0.3)'
+                            }}
+                        >
+                            Finalizar y Cerrar
+                        </Button>
                     </div>
                 </div>
             )}

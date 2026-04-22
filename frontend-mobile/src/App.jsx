@@ -13,6 +13,7 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import SearchPage from './pages/SearchPage';
 import NotificationsPage from './pages/NotificationsPage';
 import OrdersPage from './pages/OrdersPage';
+import { NotificationProvider } from './context/NotificationContext';
 
 function App() {
     const { isAuthenticated, loading } = useAuth();
@@ -30,25 +31,27 @@ function App() {
     const shouldHideNav = hideNavOn.some(path => location.pathname.startsWith(path));
 
     return (
-        <CartProvider>
-            <div className="min-h-screen bg-brand-bg pb-20">
-                <Routes>
-                    <Route path="/" element={<PublicHomePage />} />
-                    <Route path="/dashboard" element={isAuthenticated ? <HomePage /> : <Navigate to="/login" />} />
-                    <Route path="/catalog" element={<CatalogPage />} />
-                    <Route path="/search" element={<SearchPage />} />
-                    <Route path="/notifications" element={<NotificationsPage />} />
-                    <Route path="/prizes" element={<PrizesPage />} />
-                    <Route path="/cart" element={<CartPage />} />
-                    <Route path="/orders" element={isAuthenticated ? <OrdersPage /> : <Navigate to="/login" />} />
-                    <Route path="/product/:sku" element={<ProductDetailPage />} />
-                    <Route path="/profile" element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} />
-                    <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} />
-                </Routes>
+        <NotificationProvider>
+            <CartProvider>
+                <div className="min-h-screen bg-brand-bg pb-24">
+                    <Routes>
+                        <Route path="/" element={<PublicHomePage />} />
+                        <Route path="/dashboard" element={isAuthenticated ? <HomePage /> : <Navigate to="/login" />} />
+                        <Route path="/catalog" element={<CatalogPage />} />
+                        <Route path="/search" element={<SearchPage />} />
+                        <Route path="/notifications" element={<NotificationsPage />} />
+                        <Route path="/prizes" element={<PrizesPage />} />
+                        <Route path="/cart" element={<CartPage />} />
+                        <Route path="/orders" element={isAuthenticated ? <OrdersPage /> : <Navigate to="/login" />} />
+                        <Route path="/product/:sku" element={<ProductDetailPage />} />
+                        <Route path="/profile" element={isAuthenticated ? <ProfilePage /> : <Navigate to="/login" />} />
+                        <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />} />
+                    </Routes>
 
-                {!shouldHideNav && <BottomNav />}
-            </div>
-        </CartProvider>
+                    {!shouldHideNav && <BottomNav />}
+                </div>
+            </CartProvider>
+        </NotificationProvider>
     );
 }
 

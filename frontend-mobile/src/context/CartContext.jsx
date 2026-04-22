@@ -46,10 +46,26 @@ export const CartProvider = ({ children }) => {
     // Loyalty points logic
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-    // Total calculation for COMMERCIAL products
+    // Total calculation for COMMERCIAL products with AUTOMATED VOLUME DISCOUNTS
     const cartTotal = cart.reduce((sum, item) => {
         if (item.type === 'MARKETING') return sum;
-        return sum + (item.price * item.quantity);
+        
+        // 1. Dynamic Volume Discount (Synchronized with Backend Tiers)
+        let volMultiplier = 1;
+        if (item.quantity >= 50) {
+            volMultiplier = 1 - ((item.discount_50_plus_pct || 0) / 100);
+        } else if (item.quantity >= 12) {
+            volMultiplier = 1 - ((item.discount_12_pct || 0) / 100);
+        } else if (item.quantity >= 6) {
+            volMultiplier = 1 - ((item.discount_6_pct || 0) / 100);
+        } else if (item.quantity >= 3) {
+            volMultiplier = 1 - ((item.discount_3_pct || 0) / 100);
+        }
+        
+        // 2. SKU-Specific Promotional Offer
+        const promoMultiplier = 1 - ((item.promo_discount_pct || 0) / 100);
+        
+        return sum + (item.price * volMultiplier * promoMultiplier * item.quantity);
     }, 0);
 
     // Total points cost for MARKETING products (prizes)

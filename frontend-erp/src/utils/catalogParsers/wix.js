@@ -1,3 +1,5 @@
+import { resolveCategoryName, normalizeSku } from './common';
+
 /**
  * Parser especializado para el nuevo formato Global de WIX Filters (wixfilters.com)
  * Extrae información detallada: SKU, EAN, Medidas, Aplicaciones completas y OE-Numbers.
@@ -33,8 +35,9 @@ export const parseWix = (doc, domain, dbCategories = []) => {
             if (ldData.name) data.name = ldData.name;
             if (ldData.description) data.description = ldData.description;
             if (ldData.sku) {
-                // Eliminamos cualquier variante de Wix para estandarizar el SKU interno
-                data.sku = ldData.sku.replace(/_WIX$|-WIX$| WIX$/i, '').trim(); 
+                // Eliminamos cualquier variante de Wix y normalizamos
+                const rawSku = ldData.sku.replace(/_WIX$|-WIX$| WIX$/i, '').trim(); 
+                data.sku = normalizeSku(rawSku);
             }
             if (ldData.image) data.image_url = ldData.image;
         } catch (e) {
@@ -45,33 +48,15 @@ export const parseWix = (doc, domain, dbCategories = []) => {
     // 2. Títulos y Identificación (Fallback)
     const titleName = doc.querySelector('.cmp-product__title-name');
     if (titleName && !data.sku) {
-        data.sku = titleName.innerText.trim();
+        data.sku = normalizeSku(titleName.innerText);
     }
     
     const categoryEl = doc.querySelector('.cmp-product__title-family');
     if (categoryEl) {
         const rawCat = categoryEl.innerText.trim().toUpperCase();
         
-        // Búsqueda Dinámica usando la Base de Datos (Single Source of Truth)
-        let resolvedName = categoryEl.innerText.trim(); // Nombre nativo si no hay mapeo en BD
-        
-        if (dbCategories && dbCategories.length > 0) {
-            for (const cat of dbCategories) {
-                if (cat.name.toUpperCase() === rawCat) {
-                    resolvedName = cat.name;
-                    break;
-                }
-                if (cat.import_aliases) {
-                    const aliases = cat.import_aliases.map(a => a.trim().toUpperCase());
-                    if (aliases.includes(rawCat)) {
-                        resolvedName = cat.name;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        data.category_name = resolvedName;
+        // Sincronizar con categorías de la BD usando utilidad común
+        data.category_name = resolveCategoryName(rawCat, dbCategories);
         // Construimos el nombre estándar: [Categoría] WIX [SKU]
         data.name = `${data.category_name} ${data.brand} ${data.sku}`.trim();
     }

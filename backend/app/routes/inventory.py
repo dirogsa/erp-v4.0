@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from app.models.inventory import Product, Warehouse, MovementType, ProductType, ProductStatus
 from app.models.auth import User, UserRole
 from app.services import inventory_service
-from app.schemas.inventory_schemas import LossRegistration, TransferRequest
+from app.schemas.inventory_schemas import LossRegistration, TransferRequest, BulkImportResponse
 from app.schemas.common import PaginatedResponse
 from .auth import get_current_user, check_role
 
@@ -62,12 +62,13 @@ async def create_product(
 ):
     return await inventory_service.create_product(product, initial_stock, user=current_user)
 
-@router.post("/products/bulk", response_model=List[Product])
+@router.post("/products/bulk", response_model=BulkImportResponse)
 async def bulk_create_products(
     products: List[Product],
+    update_existing: bool = True,
     current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
 ):
-    return await inventory_service.bulk_create_products(products, user=current_user)
+    return await inventory_service.bulk_create_products(products, update_existing=update_existing, user=current_user)
 
 @router.put("/products/{sku}", response_model=Product)
 async def update_product(

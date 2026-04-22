@@ -23,6 +23,14 @@ export default {
                     'border-2':'var(--brand-border-2)',
                 },
             },
+            fontSize: {
+                'brand-xs': 'var(--font-size-xs)',
+                'brand-sm': 'var(--font-size-sm)',
+                'brand-md': 'var(--font-size-md)',
+                'brand-lg': 'var(--font-size-lg)',
+                'brand-xl': 'var(--font-size-xl)',
+                'brand-2xl': 'var(--font-size-2xl)',
+            },
             boxShadow: {
                 'glow-primary': 'var(--glow-primary)',
                 'glow-accent':  'var(--glow-accent)',
@@ -37,6 +45,7 @@ export default {
                 'breathe':    'breathe 3s ease-in-out infinite',
                 'float':      'float 3s ease-in-out infinite',
                 'shimmer':    'shimmer 1.5s infinite',
+                'spin-slow':  'spin 3s linear infinite',
             },
         },
     },

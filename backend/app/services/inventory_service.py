@@ -221,7 +221,7 @@ async def create_product(product_data: Any, initial_stock: int = 0, user: Option
 
     return product_data
 
-async def bulk_create_products(products: List[Product], user: Optional[User] = None):
+async def bulk_create_products(products: List[Product], update_existing: bool = True, user: Optional[User] = None):
     # 1. Asegurar que las marcas vehiculares existan
     all_brands = set()
     for p in products:
@@ -233,60 +233,78 @@ async def bulk_create_products(products: List[Product], user: Optional[User] = N
     if all_brands:
         await ensure_brands_exist(list(all_brands))
 
-    # 2. Procesar productos uno por uno (UPSERT)
+    # 2. Procesar productos uno por uno (UPSERT / INSERT)
+    created_count = 0
+    updated_count = 0
+    skipped_count = 0
     results = []
+
     for p_data in products:
-        # Resolver categoría de forma robusta antes de guardar
-        if p_data.category_name:
-            resolved_id = await resolve_category_id(p_data.category_name)
-            if resolved_id:
-                p_data.category_id = resolved_id
-        
-        # Buscar por SKU y Marca para no sobreescribir productos con el mismo código pero distinta marca
-        if p_data.brand:
-            existing = await Product.find_one(Product.sku == p_data.sku, Product.brand == p_data.brand)
-        else:
-            existing = await Product.find_one(Product.sku == p_data.sku)
-        
-        if existing:
-            # ACTUALIZAR: Fusionar datos técnicos
-            existing.ean = p_data.ean or existing.ean
-            existing.name = p_data.name or existing.name
-            existing.brand = p_data.brand or existing.brand
-            existing.image_url = p_data.image_url or existing.image_url
-            existing.manual_pdf_url = p_data.manual_pdf_url or existing.manual_pdf_url
-            existing.tech_bulletin = p_data.tech_bulletin or existing.tech_bulletin
-            existing.category_name = p_data.category_name or existing.category_name
+        try:
+            # Resolver categoría de forma robusta antes de guardar
+            if p_data.category_name:
+                resolved_id = await resolve_category_id(p_data.category_name)
+                if resolved_id:
+                    p_data.category_id = resolved_id
             
-            # La categoría ya fue resuelta al inicio del loop de p_data
-            if p_data.category_id:
-                existing.category_id = p_data.category_id
+            # Buscar por SKU y Marca
+            if p_data.brand:
+                existing = await Product.find_one(Product.sku == p_data.sku, Product.brand == p_data.brand)
+            else:
+                existing = await Product.find_one(Product.sku == p_data.sku)
             
-            existing.status = p_data.status or existing.status
-            if p_data.image_gallery: existing.image_gallery = p_data.image_gallery
-            
-            # Reemplazar listas técnicas con la versión oficial del catálogo
-            if p_data.specs: existing.specs = p_data.specs
-            if p_data.equivalences: existing.equivalences = p_data.equivalences
-            if p_data.applications: existing.applications = p_data.applications
-            
-            await existing.save()
-            results.append(existing)
-        else:
-            # INSERTAR: Crear nuevo
-            await p_data.insert()
-            results.append(p_data)
+            if existing:
+                if not update_existing:
+                    skipped_count += 1
+                    continue
+
+                # ACTUALIZAR: Fusionar datos técnicos
+                existing.ean = p_data.ean or existing.ean
+                existing.name = p_data.name or existing.name
+                existing.brand = p_data.brand or existing.brand
+                existing.image_url = p_data.image_url or existing.image_url
+                existing.manual_pdf_url = p_data.manual_pdf_url or existing.manual_pdf_url
+                existing.tech_bulletin = p_data.tech_bulletin or existing.tech_bulletin
+                existing.category_name = p_data.category_name or existing.category_name
+                
+                if p_data.category_id:
+                    existing.category_id = p_data.category_id
+                
+                existing.status = p_data.status or existing.status
+                if p_data.image_gallery: existing.image_gallery = p_data.image_gallery
+                
+                # Reemplazar listas técnicas
+                if p_data.specs: existing.specs = p_data.specs
+                if p_data.equivalences: existing.equivalences = p_data.equivalences
+                if p_data.applications: existing.applications = p_data.applications
+                
+                await existing.save()
+                updated_count += 1
+                results.append(existing)
+            else:
+                # INSERTAR: Crear nuevo
+                await p_data.insert()
+                created_count += 1
+                results.append(p_data)
+        except Exception as e:
+            print(f"Error procesando producto {p_data.sku}: {str(e)}")
 
     if user:
+        action_desc = f"Se procesaron {len(products)} productos (Creados: {created_count}, Actualizados: {updated_count}, Omitidos: {skipped_count})"
         await AuditService.log_action(
             user=user,
             action="BULK_UPSERT",
             module="INVENTORY",
-            description=f"Se procesaron {len(products)} productos (Ingesta/Actualización masiva)",
-            entity_name=f"{len(products)} productos procesados"
+            description=action_desc,
+            entity_name=f"{len(products)} productos"
         )
 
-    return results
+    return {
+        "created": created_count,
+        "updated": updated_count,
+        "skipped": skipped_count,
+        "total": len(products)
+    }
 
 async def update_product(sku: str, update_data: Product, new_stock: int = None, user: Optional[User] = None) -> Product:
     product = await get_product_by_sku(sku)

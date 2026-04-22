@@ -36,9 +36,11 @@ async def update_product_price(
     new_price: float,
     reason: Optional[str] = None,
     changed_by: Optional[str] = None,
+    discount_3_pct: Optional[float] = None,
     discount_6_pct: Optional[float] = None,
     discount_12_pct: Optional[float] = None,
-    discount_24_pct: Optional[float] = None
+    discount_50_plus_pct: Optional[float] = None,
+    promo_discount_pct: Optional[float] = None
 ) -> Product:
     product = await Product.find_one(Product.sku == sku)
     if not product:
@@ -74,12 +76,16 @@ async def update_product_price(
     else:
         product.price_wholesale = round(new_price, 3)
     
+    if discount_3_pct is not None:
+        product.discount_3_pct = round(discount_3_pct, 3)
     if discount_6_pct is not None:
         product.discount_6_pct = round(discount_6_pct, 3)
     if discount_12_pct is not None:
         product.discount_12_pct = round(discount_12_pct, 3)
-    if discount_24_pct is not None:
-        product.discount_24_pct = round(discount_24_pct, 3)
+    if discount_50_plus_pct is not None:
+        product.discount_50_plus_pct = round(discount_50_plus_pct, 3)
+    if promo_discount_pct is not None:
+        product.promo_discount_pct = round(promo_discount_pct, 3)
     
     await product.save()
     return product

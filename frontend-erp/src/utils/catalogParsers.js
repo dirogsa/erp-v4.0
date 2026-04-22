@@ -5,64 +5,58 @@
 import { parseWix } from './catalogParsers/wix';
 import { parseFiltron } from './catalogParsers/filtron';
 import { parseAzumi } from './catalogParsers/azumi';
+import { parseAsakashi } from './catalogParsers/asakashi';
 import { parseOEM } from './catalogParsers/oem';
 
+/**
+ * Orquestador de Parsers para Catálogos de Filtros
+ */
 export const parseCatalogHtml = (htmlContent, filename = '', dbCategories = []) => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
 
-    // 1. Detección Prioritaria por Nombre de Archivo (OEM)
-    // Si el archivo termina en _OEM.html, forzamos el parser OEM
-    if (filename && filename.toLowerCase().includes('_oem.html')) {
-        return parseOEM(doc, filename);
+    // 1. Detección de Metadatos en Nombre de Archivo (Estrategia de Arquitectura Escalable)
+    // Patrón: SKU_MARCA.html (ej: LF916_LYS.html)
+    let overrideSku = null;
+    let overrideBrand = null;
+    
+    if (filename && filename.includes('_')) {
+        const nameWithoutExt = filename.split('.').slice(0, -1).join('.'); // Quitar .html
+        const parts = nameWithoutExt.split('_');
+        if (parts.length >= 2) {
+            // El último fragmento es la marca, el resto es el SKU (soporta SKUs con guiones bajos si hay varios)
+            overrideBrand = parts.pop().toUpperCase();
+            overrideSku = parts.join('_').toUpperCase();
+            console.log(`[Parser] Detectados metadatos en nombre: SKU=${overrideSku}, MARCA=${overrideBrand}`);
+        }
     }
 
-    // 2. Detección automática de Marca/Plataforma
+    // 2. Selección de Parser por Contenido
     const text = htmlContent.toUpperCase();
     const title = doc.querySelector('title')?.innerText.toUpperCase() || '';
-    const metaApp = doc.querySelector('meta[name="application-name"]')?.getAttribute('content')?.toUpperCase() || '';
-    const metaOgSite = doc.querySelector('meta[property="og:site_name"]')?.getAttribute('content')?.toUpperCase() || '';
+    
+    let result = null;
 
-    const isWix = text.includes('WIXFILTERS.COM') || 
-                  text.includes('WIX FILTERS') || 
-                  title.includes('WIX') ||
-                  metaApp.includes('WIX') ||
-                  metaOgSite.includes('WIX');
-
-    const isFiltron = text.includes('FILTRON.EU') || 
-                      text.includes('FILTRON.COM') || 
-                      text.includes('FILTRON FILTERS') ||
-                      title.includes('FILTRON') ||
-                      metaApp.includes('FILTRON') ||
-                      metaOgSite.includes('FILTRON');
-
-    // 3. Detección por Contenido (Fallback para OEM/Asakashi)
-    const isAsakashi = text.includes('JSFILTER.JP') || text.includes('JS ASAKASHI') || title.includes('JS ASAKASHI');
-    const isAzumi = text.includes('AZFILTER.JP') || text.includes('AZUMI') || title.includes('AZUMI');
-
-    if (isFiltron) {
-        return parseFiltron(doc, 'https://filtron.eu');
-    } else if (isWix) {
-        return parseWix(doc, 'https://www.wixfilters.com', dbCategories);
-    } else if (isAzumi) {
-        return parseAzumi(doc, 'https://azfilter.jp', dbCategories);
-    } else if (isAsakashi) {
-        return parseOEM(doc, filename);
+    if (text.includes('FILTRON.EU') || text.includes('FILTRON FILTERS')) {
+        result = parseFiltron(doc, 'https://filtron.eu');
+    } else if (text.includes('WIXFILTERS.COM') || text.includes('WIX FILTERS')) {
+        result = parseWix(doc, 'https://www.wixfilters.com', dbCategories);
+    } else if (text.includes('AZFILTER.JP') || text.includes('AZUMI')) {
+        result = parseAzumi(doc, 'https://azfilter.jp', dbCategories);
+    } else if (text.includes('JSFILTER.JP') || text.includes('JS ASAKASHI') || title.includes('JS ASAKASHI')) {
+        result = parseAsakashi(doc, 'https://www.jsfilter.jp', dbCategories);
+    } else {
+        // Fallback genérico OEM
+        result = parseOEM(doc, filename, dbCategories);
     }
 
-    // Fallback por estructura AEM (usado por ambos)
-    if (doc.querySelector('.cmp-product__title')) {
-        // En este punto, si no se detectó marca pero tiene estructura AEM, 
-        // revisamos si el SKU huele a Filtron (ej: AP 080) o Wix (ej: WL7443)
-        // Por ahora, usamos Filtron si tiene filtron en alguna parte del DOM
-        return title.includes('FILTRON') ? parseFiltron(doc, 'https://filtron.eu') : parseWix(doc, 'https://www.wixfilters.com', dbCategories);
+    // 3. Aplicar Overrides de Metadatos si existen
+    if (result && overrideSku && overrideBrand) {
+        result.sku = overrideSku;
+        result.brand = overrideBrand;
+        result.name = `${overrideBrand} ${result.category_name || 'FILTRO'} ${overrideSku}`;
+        console.log(`[Parser] Overwriting data with filename metadata: ${overrideSku} (${overrideBrand})`);
     }
 
-    // Por defecto, lo tratamos como OEM si es una fuente desconocida pero el usuario lo subió
-    if (filename && (filename.toLowerCase().includes('_oem') || filename.toLowerCase().includes('oem'))) {
-        return parseOEM(doc, filename);
-    }
-
-    // Por defecto, WIX
-    return parseWix(doc, 'https://www.wixfilters.com', dbCategories);
+    return result;
 };
