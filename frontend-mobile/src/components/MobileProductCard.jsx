@@ -35,7 +35,7 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
             {/* Image Zone - ZOOM TRIGGER */}
             <div 
                 onClick={() => setIsZoomed(true)}
-                className="aspect-square w-full bg-brand-surface-2 rounded-[2rem] mb-4 overflow-hidden flex items-center justify-center relative p-6 group-hover:bg-brand-surface-3 transition-colors shadow-inner active:scale-95 transition-transform"
+                className="aspect-square w-full bg-brand-surface-2 rounded-3xl mb-3 overflow-hidden flex items-center justify-center relative p-4 group-hover:bg-brand-surface-3 transition-colors shadow-inner active:scale-95 transition-transform"
             >
                 <img
                     src={product.image_url || 'https://via.placeholder.com/200x200?text=No+Image'}
@@ -58,28 +58,22 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
             {/* Info Zone - DETAIL NAVIGATION */}
             <div 
                 onClick={() => navigate(`/product/${product.sku}`)}
-                className="px-2 space-y-3 text-left flex-1 cursor-pointer active:opacity-60 transition-opacity"
+                className="px-2 space-y-1.5 text-left flex-1 cursor-pointer active:opacity-60 transition-opacity flex flex-col"
             >
-                <div className="flex justify-between items-start">
-                    <span className="text-brand-label">
+                <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-brand-text-dim uppercase tracking-widest">
                         {product.brand || 'DIROGSA'}
                     </span>
-                    <ChevronRightIcon className="h-4 w-4 text-brand-text-dim mt-1" />
+                    <span className="text-[9px] font-black text-brand-primary uppercase tracking-widest flex items-center gap-0.5">
+                        FICHA <ChevronRightIcon className="h-3 w-3" />
+                    </span>
                 </div>
                 
-                <h3 className="text-brand-title line-clamp-2 min-h-[3rem] uppercase tracking-tighter">
+                <h3 className="text-brand-title line-clamp-2 uppercase tracking-tighter text-sm leading-tight">
                     {product.name}
                 </h3>
 
-                <div className="flex flex-col gap-3">
-                    <span className="text-brand-metadata font-black tracking-widest">{product.sku}</span>
-                    
-                    {/* NEW: PROFESSIONAL TECHNICAL CTA */}
-                    <button className="w-full py-2.5 bg-brand-orange/5 border border-brand-orange/30 rounded-xl flex items-center justify-center gap-2 group/btn hover:bg-brand-orange/10 transition-all">
-                        <span className="text-[10px] font-black text-brand-orange uppercase tracking-[0.1em]">Ver Ficha Técnica</span>
-                        <ChevronRightIcon className="h-3 w-3 text-brand-orange group-hover/btn:translate-x-1 transition-transform" />
-                    </button>
-                </div>
+                <span className="text-[11px] text-brand-orange font-black tracking-widest">{product.sku}</span>
             </div>
 
             {/* FULL SCREEN IMAGE OVERLAY - ADAPTIVE VISUALS V3 (With Smart Hydration) */}
@@ -138,22 +132,24 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
             )}
 
             {/* Price & Action */}
-            <div className="mt-6 pt-5 border-t border-brand-border flex items-center justify-between">
+            <div className="mt-auto pt-4 flex items-center justify-between px-1">
                 <div className="flex flex-col">
                     {isPrize ? (
                         <div className="flex items-baseline gap-1">
-                            <span className="text-brand-lg font-black text-brand-primary">{product.points_cost}</span>
-                            <span className="text-brand-xs font-black text-brand-text-muted">PTS</span>
+                            <span className="text-brand-lg font-black text-brand-primary leading-none">{product.points_cost}</span>
+                            <span className="text-[10px] font-black text-brand-text-muted">PTS</span>
                         </div>
                     ) : (
-                        <>
-                            <span className="text-brand-price">
+                        <div className="flex flex-col items-start gap-1">
+                            <span className="text-brand-price leading-none text-xl">
                                 S/ {product.price_retail ? product.price_retail.toFixed(2) : '0.00'}
                             </span>
-                            <div className="flex items-center gap-1 mt-2 px-2 py-0.5 bg-brand-primary/10 rounded-lg w-fit">
-                                <span className="text-brand-label !text-[11px]">+{product.loyalty_points || 0} PTS</span>
-                            </div>
-                        </>
+                            {(product.loyalty_points > 0 || true) && (
+                                <div className="flex items-center px-1.5 py-0.5 bg-brand-primary/10 rounded-md">
+                                    <span className="text-[9px] font-black text-brand-primary uppercase tracking-widest">+{product.loyalty_points || 0} PTS</span>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
 
@@ -162,7 +158,7 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
                         e.preventDefault();
                         onAddToCart?.(product);
                     }}
-                    className={isPrize ? 'btn-icon' : 'h-14 w-14 flex items-center justify-center rounded-2xl bg-brand-primary text-black transition-all active:scale-90 shadow-lg'}
+                    className={isPrize ? 'btn-icon' : 'h-11 w-11 flex items-center justify-center rounded-xl bg-brand-primary text-black transition-all active:scale-90 shadow-[0_0_15px_rgba(16,185,129,0.3)] shrink-0'}
                 >
                     {isPrize ? <GiftIcon className="h-6 w-6" /> : <ShoppingCartIcon className="h-6 w-6" />}
                 </button>

@@ -408,14 +408,14 @@ const ProductDetailPage = () => {
 
                 <div className="flex items-center gap-4">
                     {/* Quantity Controls */}
-                    <div className="flex items-center gap-6 bg-brand-bg border-2 border-brand-border text-white px-6 py-4 rounded-[1.5rem] shadow-inner">
+                    <div className="flex-1 flex items-center justify-between bg-brand-bg border-2 border-brand-border text-white px-6 py-4 rounded-[1.5rem] shadow-inner">
                         <button
                             onClick={() => setQuantity(Math.max(1, quantity - 1))}
                             className="p-1 hover:text-brand-primary active:scale-75 transition-all text-brand-text-muted"
                         >
                             <ChevronLeftIcon className="h-7 w-7" />
                         </button>
-                        <span className="w-10 text-center font-black text-brand-lg">{quantity}</span>
+                        <span className="font-black text-brand-lg">{quantity}</span>
                         <button
                             onClick={() => setQuantity(quantity + 1)}
                             className="p-1 hover:text-brand-primary active:scale-75 transition-all text-brand-text-muted rotate-180"
@@ -430,10 +430,9 @@ const ProductDetailPage = () => {
                             addToCart(product, quantity);
                             navigate('/cart');
                         }}
-                        className="flex-1 bg-brand-primary text-brand-bg h-full min-h-[64px] rounded-[1.5rem] font-black text-brand-sm uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-3 shadow-2xl shadow-brand-primary/20 hover:brightness-110"
+                        className="h-[64px] w-[64px] shrink-0 bg-brand-primary text-brand-bg rounded-[1.5rem] active:scale-[0.90] transition-all flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:brightness-110"
                     >
-                        <ShoppingCartIcon className="h-6 w-6" />
-                        AÑADIR A PEDIDO
+                        <ShoppingCartIcon className="h-8 w-8" />
                     </button>
                 </div>
             </div>

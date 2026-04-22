@@ -35,9 +35,6 @@ const BottomNav = () => {
                         `}
                     >
                         <item.icon className={`h-6 w-6 transition-all duration-500 ${location.pathname === item.path ? 'scale-110 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'opacity-70'}`} />
-                        <span className={`text-brand-xs font-black uppercase tracking-widest transition-all duration-300 ${location.pathname === item.path ? 'opacity-100' : 'opacity-50'}`}>
-                            {item.name}
-                        </span>
                         
                         {/* Indicador de pestaña activa minimalista */}
                         <div className={`
