@@ -12,8 +12,8 @@ async def get_product_price_for_user(product: Product, quantity: int, user: Opti
     tier = user.classification if user else UserTier.STANDARD
     user_discount = user.custom_discount_percent if user else 0.0
 
-    # 1. Base Price by Role
-    base_price = product.price_wholesale if role == UserRole.CUSTOMER_B2B else product.price_retail
+    # 1. Base Price (List Price)
+    base_price = product.price_list
 
     # 2. Get applicable Pricing Rules (Tier-based)
     # Rules can be Category + Brand, just Category, or just Brand.
@@ -35,10 +35,11 @@ async def get_product_price_for_user(product: Product, quantity: int, user: Opti
             # Usually highest discount per tier is safer for the admin.
             best_rule_discount = max(best_rule_discount, rule.discount_percentage)
 
-    # 3. Volume Discount (from product) - Synchronized tiers 3/6/12/50
+    # 3. Volume Discount (from product) - Synchronized tiers 3/6/12
     vol_discount_pct = 0.0
     if quantity >= 50:
-        vol_discount_pct = product.discount_50_plus_pct
+        # 50+ units is Manual Quotation. System returns 0 automatic discount.
+        vol_discount_pct = 0.0
     elif quantity >= 12:
         vol_discount_pct = product.discount_12_pct
     elif quantity >= 6:

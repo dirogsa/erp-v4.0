@@ -78,9 +78,9 @@ const InventoryReport = ({ visible, onClose }) => {
                             </div>
                         </div>
                         <div style={{ padding: '1rem', backgroundColor: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#15803d', textTransform: 'uppercase', fontWeight: 'bold' }}>Valor a Venta Retail</div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#14532d' }}>
-                                {formatCurrency(reportData.total_retail_value)}
+                            <div style={{ fontSize: '0.75rem', color: '#15803d', textTransform: 'uppercase', fontWeight: 'bold' }}>Valor a Precio de Lista</div>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#166534' }}>
+                                {formatCurrency(reportData.total_list_value)}
                             </div>
                         </div>
                     </div>
@@ -117,7 +117,7 @@ const InventoryReport = ({ visible, onClose }) => {
                                         {formatCurrency(item.unit_price)}
                                     </td>
                                     <td style={{ padding: '0.5rem', borderBottom: '1px solid #e2e8f0', textAlign: 'right', color: '#64748b' }}>
-                                        {formatCurrency(item.total_retail)}
+                                        {formatCurrency(item.total_list)}
                                     </td>
                                 </tr>
                             ))}
@@ -127,7 +127,7 @@ const InventoryReport = ({ visible, onClose }) => {
                                 <td colSpan={4} style={{ padding: '1rem', textAlign: 'right' }}>TOTAL VALORIZACIÓN:</td>
                                 <td style={{ padding: '1rem', textAlign: 'right', color: '#0c4a6e' }}>{formatCurrency(reportData.total_cost_value)}</td>
                                 <td></td>
-                                <td style={{ padding: '1rem', textAlign: 'right', color: '#14532d' }}>{formatCurrency(reportData.total_retail_value)}</td>
+                                <td style={{ padding: '1rem', textAlign: 'right', color: '#14532d' }}>{formatCurrency(reportData.total_list_value)}</td>
                             </tr>
                         </tfoot>
                     </table>

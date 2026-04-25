@@ -59,7 +59,7 @@ const SmartSearch = () => {
                                         {prod.stock_current > 0 ? `Disponible (${prod.stock_current})` : 'Agotado'}
                                     </span>
                                 </td>
-                                <td className="price-cell">S/ {prod.price_retail?.toFixed(2)}</td>
+                                <td className="price-cell">S/ {prod.price_list?.toFixed(2)}</td>
                                 <td>
                                     <Button size="sm" onClick={() => setSelectedProduct(prod)}>Ver Detalles</Button>
                                 </td>

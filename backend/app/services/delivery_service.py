@@ -136,9 +136,10 @@ async def create_guide_from_invoice(
     return guide
 
 
-async def dispatch_guide(guide_number: str) -> DeliveryGuide:
+async def dispatch_guide(guide_number: str, company_id: Optional[str] = None) -> DeliveryGuide:
     """Marcar guía como despachada y descontar stock"""
     guide = await get_guide(guide_number)
+    from app.services import inventory_service
     
     if guide.status != GuideStatus.DRAFT:
         raise ValidationException(f"Guide must be in DRAFT status to dispatch (current: {guide.status})")
@@ -149,24 +150,22 @@ async def dispatch_guide(guide_number: str) -> DeliveryGuide:
         if not product:
             raise NotFoundException("Product", item.sku)
         
-        if product.stock_current < item.quantity:
-            raise ValidationException(f"Insufficient stock for {item.sku}: available {product.stock_current}, required {item.quantity}")
+        # Determinar dirección del movimiento
+        m_type = MovementType.OUT if guide.guide_type == GuideType.DISPATCH else MovementType.IN
         
-        # Registrar movimiento de salida
-        movement = StockMovement(
-            product_sku=item.sku,
+        if m_type == MovementType.OUT and product.stock_current < item.quantity:
+            raise ValidationException(f"Stock insuficiente para {item.sku}: disponible {product.stock_current}, requerido {item.quantity}")
+        
+        # Registrar movimiento usando el servicio centralizado
+        await inventory_service.register_movement(
+            sku=item.sku,
             quantity=item.quantity,
-            movement_type=MovementType.OUT,
-            reference_document=guide.guide_number,
+            movement_type=m_type,
+            reference=guide.guide_number,
             unit_cost=item.unit_cost,
-            notes=f"Despacho guía {guide.guide_number}",
-            date=datetime.now()
+            company_id=company_id or getattr(guide, 'company_id', None),
+            product_id=product.id
         )
-        await movement.insert()
-        
-        # Actualizar stock
-        product.stock_current -= item.quantity
-        await product.save()
     
     # Actualizar estado de la guía
     guide.status = GuideStatus.DISPATCHED
@@ -175,12 +174,20 @@ async def dispatch_guide(guide_number: str) -> DeliveryGuide:
 
     # Actualizar factura asociada
     if guide.invoice_number:
-        from app.models.sales import SalesInvoice
-        invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == guide.invoice_number)
-        if invoice:
-            invoice.dispatch_status = "DISPATCHED"
-            invoice.guide_id = guide.guide_number
-            await invoice.save()
+        if guide.guide_type == GuideType.DISPATCH:
+            from app.models.sales import SalesInvoice
+            invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == guide.invoice_number)
+            if invoice:
+                invoice.dispatch_status = "DISPATCHED"
+                invoice.guide_id = guide.guide_number
+                await invoice.save()
+        elif guide.guide_type == GuideType.RECEPTION:
+            from app.models.purchasing import PurchaseInvoice
+            p_invoice = await PurchaseInvoice.find_one(PurchaseInvoice.invoice_number == guide.invoice_number)
+            if p_invoice:
+                p_invoice.reception_status = "IN_TRANSIT"
+                p_invoice.guide_id = guide.guide_number
+                await p_invoice.save()
     
     return guide
 
@@ -189,8 +196,10 @@ async def deliver_guide(guide_number: str, received_by: Optional[str] = None) ->
     """Confirmar entrega de la guía"""
     guide = await get_guide(guide_number)
     
-    if guide.status != GuideStatus.DISPATCHED:
-        raise ValidationException(f"Guide must be DISPATCHED to mark as delivered (current: {guide.status})")
+    # REQUISITO PREMIUM: Si es RECEPTION y se marca como DELIVERED, 
+    # y NO se había despachado antes (stock no movido), lo movemos ahora.
+    # (Caso donde el usuario salta 'dispatch' y va directo a 'deliver')
+    old_status = guide.status
     
     guide.status = GuideStatus.DELIVERED
     guide.delivery_date = datetime.now()
@@ -199,11 +208,32 @@ async def deliver_guide(guide_number: str, received_by: Optional[str] = None) ->
 
     # Actualizar factura asociada
     if guide.invoice_number:
-        from app.models.sales import SalesInvoice
-        invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == guide.invoice_number)
-        if invoice:
-            invoice.dispatch_status = "DELIVERED"
-            await invoice.save()
+        if guide.guide_type == GuideType.DISPATCH:
+            from app.models.sales import SalesInvoice
+            invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == guide.invoice_number)
+            if invoice:
+                invoice.dispatch_status = "DELIVERED"
+                await invoice.save()
+        elif guide.guide_type == GuideType.RECEPTION:
+            from app.models.purchasing import PurchaseInvoice
+            p_invoice = await PurchaseInvoice.find_one(PurchaseInvoice.invoice_number == guide.invoice_number)
+            if p_invoice:
+                p_invoice.reception_status = "RECEIVED"
+                await p_invoice.save()
+                
+                if old_status != GuideStatus.DISPATCHED:
+                    from app.services import inventory_service
+                    for item in guide.items:
+                        product = await Product.find_one(Product.sku == item.sku)
+                        if product:
+                            await inventory_service.register_movement(
+                                sku=item.sku,
+                                quantity=item.quantity,
+                                movement_type=MovementType.IN,
+                                reference=guide.guide_number,
+                                unit_cost=item.unit_cost,
+                                product_id=product.id
+                            )
     
     return guide
 
@@ -222,20 +252,16 @@ async def cancel_guide(guide_number: str) -> DeliveryGuide:
             product = await Product.find_one(Product.sku == item.sku)
             if product:
                 # Registrar movimiento de entrada (devolución)
-                movement = StockMovement(
-                    product_sku=item.sku,
+                from app.services import inventory_service
+                await inventory_service.register_movement(
+                    sku=item.sku,
                     quantity=item.quantity,
                     movement_type=MovementType.IN,
-                    reference_document=f"CANCEL-{guide.guide_number}",
+                    reference=f"CANCEL-{guide.guide_number}",
                     unit_cost=item.unit_cost,
-                    notes=f"Anulación guía {guide.guide_number}",
-                    date=datetime.now()
+                    company_id=getattr(guide, 'company_id', None),
+                    product_id=product.id
                 )
-                await movement.insert()
-                
-                # Devolver stock
-                product.stock_current += item.quantity
-                await product.save()
     
     # Actualizar factura asociada (Restauración Robusta)
     # 1. Intentar por el número de factura guardado en la guía

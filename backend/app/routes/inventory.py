@@ -2,12 +2,13 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-from app.models.inventory import Product, Warehouse, MovementType, ProductType, ProductStatus
+from app.models.inventory import Product, Warehouse, MovementType, ProductType, ProductStatus, ProductBrand
 from app.models.auth import User, UserRole
 from app.services import inventory_service
 from app.schemas.inventory_schemas import LossRegistration, TransferRequest, BulkImportResponse
 from app.schemas.common import PaginatedResponse
 from .auth import get_current_user, check_role
+from app.dependencies.company import get_current_company_id
 
 router = APIRouter(prefix="/inventory", tags=["Inventory"])
 
@@ -30,13 +31,14 @@ async def get_products(
     search: Optional[str] = None, 
     category: Optional[str] = None,
     redeemable_only: Optional[bool] = None,
-    product_type: Optional[str] = None
+    product_type: Optional[str] = None,
+    company_id: str = Depends(get_current_company_id)
 ):
-    return await inventory_service.get_products(skip, limit, search, category, redeemable_only, product_type)
+    return await inventory_service.get_products(skip, limit, search, category, redeemable_only, product_type, company_id=company_id)
 
 @router.get("/generate-marketing-sku")
-async def generate_marketing_sku():
-    sku = await inventory_service.generate_marketing_sku()
+async def generate_marketing_sku(company_id: str = Depends(get_current_company_id)):
+    sku = await inventory_service.generate_marketing_sku(company_id=company_id)
     return {"sku": sku}
 
 @router.get("/external-lookup")
@@ -58,16 +60,20 @@ async def smart_search(q: str):
 async def create_product(
     product: Product, 
     initial_stock: int = 0,
-    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN])),
+    company_id: str = Depends(get_current_company_id)
 ):
-    return await inventory_service.create_product(product, initial_stock, user=current_user)
+    # En la arquitectura de Catálogo Maestro, la propiedad se maneja en buckets internos
+    return await inventory_service.create_product(product, initial_stock, user=current_user, company_id=company_id)
 
 @router.post("/products/bulk", response_model=BulkImportResponse)
 async def bulk_create_products(
     products: List[Product],
     update_existing: bool = True,
-    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN])),
+    company_id: str = Depends(get_current_company_id)
 ):
+    # El servicio usará el company_id del current_user inyectado para los buckets
     return await inventory_service.bulk_create_products(products, update_existing=update_existing, user=current_user)
 
 @router.put("/products/{sku}", response_model=Product)
@@ -75,8 +81,10 @@ async def update_product(
     sku: str, 
     product_data: Product, 
     new_stock: int = None,
-    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN])),
+    company_id: str = Depends(get_current_company_id)
 ):
+    product_data.company_id = company_id
     return await inventory_service.update_product(sku, product_data, new_stock, user=current_user)
 
 @router.delete("/products/{sku}")
@@ -88,8 +96,8 @@ async def delete_product(
     return {"message": "Product deleted successfully"}
 
 @router.get("/warehouses", response_model=List[Warehouse])
-async def get_warehouses():
-    return await inventory_service.get_warehouses()
+async def get_warehouses(company_id: str = Depends(get_current_company_id)):
+    return await inventory_service.get_warehouses(company_id=company_id)
 
 @router.post("/warehouses", response_model=Warehouse)
 async def create_warehouse(warehouse: Warehouse):
@@ -103,6 +111,24 @@ async def update_warehouse(code: str, warehouse: Warehouse):
 async def delete_warehouse(code: str):
     await inventory_service.delete_warehouse(code)
     return {"message": "Warehouse deleted successfully"}
+
+# --- Brand Endpoints ---
+@router.get("/brands", response_model=List[ProductBrand])
+async def get_brands():
+    return await inventory_service.get_brands()
+
+@router.post("/brands", response_model=ProductBrand)
+async def create_brand(brand: ProductBrand):
+    return await inventory_service.create_brand(brand)
+
+@router.put("/brands/{brand_id}", response_model=ProductBrand)
+async def update_brand(brand_id: str, brand: ProductBrand):
+    return await inventory_service.update_brand(brand_id, brand)
+
+@router.delete("/brands/{brand_id}")
+async def delete_brand(brand_id: str):
+    await inventory_service.delete_brand(brand_id)
+    return {"message": "Brand deleted successfully"}
 
 # --- Feature Endpoints ---
 
@@ -137,13 +163,15 @@ async def register_transfer_out(transfer: TransferRequest):
 @router.post("/reconcile")
 async def bulk_reconcile(
     adjustments: list[dict],
-    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN]))
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN])),
+    company_id: str = Depends(get_current_company_id)
 ):
     """
     Endpoint robusto para reconciliación masiva de stock.
     Soporta tipado nativo para compatibilidad con Python 3.14+.
     """
-    return await inventory_service.bulk_reconcile(adjustments, user=current_user)
+    # Force company_id context for all adjustments if needed
+    return await inventory_service.bulk_reconcile(adjustments, user=current_user, company_id=company_id)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -230,7 +258,7 @@ async def bulk_set_visibility(
             "status": {"$ne": ProductStatus.DISCONTINUED.value}
         }
         if payload.only_with_price:
-            mongo_filter["price_retail"] = {"$gt": 0}
+            mongo_filter["price_list"] = {"$gt": 0}
 
     # Construir campos a actualizar
     update_fields: dict = {}

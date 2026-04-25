@@ -8,7 +8,31 @@ from app.services.brand_service import ensure_brands_exist
 from app.services.catalog_service import perform_catalog_lookup
 import re
 import asyncio
-from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus
+from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus, CompanyProductData
+
+def populate_company_data(product: Product, company_id: Optional[str]):
+    if not company_id:
+        return product
+    
+    data = product.company_data.get(company_id)
+    if data:
+        product.stock_current = data.stock_current
+        product.cost = data.cost
+        product.price_list = data.price_list
+        product.discount_3_pct = data.discount_3_pct
+        product.discount_6_pct = data.discount_6_pct
+        product.discount_12_pct = data.discount_12_pct
+        product.promo_discount_pct = data.promo_discount_pct
+    else:
+        # Valores por defecto para empresa sin datos aún
+        product.stock_current = 0
+        product.cost = 0.0
+        product.price_list = 0.0
+        product.discount_3_pct = 0.0
+        product.discount_6_pct = 0.0
+        product.discount_12_pct = 0.0
+        product.promo_discount_pct = 0.0
+    return product
 
 async def external_lookup(sku: str) -> str:
     """
@@ -23,7 +47,7 @@ async def generate_marketing_sku() -> str:
     # Find products that start with this prefix, sorted by SKU descending
     # We use regex to find matching SKUs
     pattern = re.compile(f"^{prefix}\\d{{4}}$")
-    products = await Product.find({"sku": {"$regex": f"^{prefix}"}}).to_list()
+    products = await Product.find({"sku": {"$regex": f"^{prefix}"}, "company_id": company_id}).to_list()
     
     max_num = 0
     for p in products:
@@ -47,7 +71,8 @@ async def get_products(
     search: Optional[str] = None, 
     category: Optional[str] = None,
     redeemable_only: Optional[bool] = None,
-    product_type: Optional[str] = None
+    product_type: Optional[str] = None,
+    company_id: Optional[str] = None
 ) -> PaginatedResponse[Product]:
     query = {}
     
@@ -66,14 +91,18 @@ async def get_products(
     if category:
         query["category_id"] = category
 
-    if redeemable_only:
-        query["points_cost"] = {"$gt": 0}
+        if payload.only_with_price:
+            mongo_filter["price_list"] = {"$gt": 0}
 
     if product_type:
         query["type"] = product_type
         
     total = await Product.find(query).count()
     items = await Product.find(query).sort('sku').skip(skip).limit(limit).to_list()
+    
+    # Inyectar datos específicos de la empresa
+    for item in items:
+        populate_company_data(item, company_id)
     
     return PaginatedResponse(
         items=items,
@@ -83,9 +112,10 @@ async def get_products(
         size=limit
     )
 
-async def find_product_robustly(sku: str, brand: Optional[str] = None) -> Optional[Product]:
+async def find_product_robustly(sku: str, brand: Optional[str] = None, company_id: Optional[str] = None) -> Optional[Product]:
     """
     Buscador de grado industrial con inteligencia de marca y normalización.
+    Ahora opera sobre el catálogo global e inyecta datos de la empresa solicitante.
     """
     if not sku: return None
     
@@ -95,20 +125,17 @@ async def find_product_robustly(sku: str, brand: Optional[str] = None) -> Option
 
     # 1. Búsqueda Directa (SKU + Marca) - MÁXIMA PRIORIDAD
     if brand_upper:
-        product = await Product.find_one({
-            "sku": sku_clean,
-            "brand": brand_upper
-        })
-        if product: return product
+        query = {"sku": sku_clean, "brand": brand_upper}
+        product = await Product.find_one(query)
+        if product: return populate_company_data(product, company_id)
 
-    # 2. Búsqueda por SKU (Cualquier marca) 
-    # En un ERP grande, si no especificas marca, buscamos el "OEM" por defecto o el primero activo.
+    # 2. Búsqueda por SKU (Cualquier Marca)
     product = await Product.find_one({"sku": sku_clean})
-    if product: return product
+    if product: return populate_company_data(product, company_id)
 
     # 3. Búsqueda en Equivalencias / Cruces
     product = await Product.find_one({"equivalences.code": sku_clean})
-    if product: return product
+    if product: return populate_company_data(product, company_id)
 
     # 4. Caso SUNAT: Si tiene espacios o marca pegada
     if ' ' in sku.strip():
@@ -121,9 +148,9 @@ async def find_product_robustly(sku: str, brand: Optional[str] = None) -> Option
                     {"equivalences.code": first_word}
                 ]
             })
-            if product: return product
+            if product: return populate_company_data(product, company_id)
 
-    # 5. AUTO-CREACIÓN DE GENÉRICOS
+    # 5. AUTO-CREACIÓN DE GENÉRICOS (Ahora Globales)
     generic_skus = ['VARIOS-GENERICO', 'VARIOS-ACEITES', 'VARIOS-BUJIAS', 'VARIOS-BATERIAS', 'VARIOS-REFRIGERANTES', 'GENERICO']
     sku_upper = sku.upper()
     if any(g in sku_upper for g in generic_skus):
@@ -142,7 +169,7 @@ async def find_product_robustly(sku: str, brand: Optional[str] = None) -> Option
             category_name="Varios"
         )
         await generic.insert()
-        return generic
+        return populate_company_data(generic, company_id)
 
     return None
 
@@ -179,17 +206,12 @@ async def resolve_category_id(name_alias: str) -> Optional[str]:
                 
     return None
 
-async def create_product(product_data: Any, initial_stock: int = 0, user: Optional[User] = None):
-    # Verificar si el SKU y la Marca ya existen
-    if product_data.brand:
-        existing = await Product.find_one(Product.sku == product_data.sku, Product.brand == product_data.brand)
-        error_msg = f"Producto con SKU {product_data.sku} y marca {product_data.brand} ya existe"
-    else:
-        existing = await Product.find_one(Product.sku == product_data.sku)
-        error_msg = f"Producto con SKU {product_data.sku} ya existe"
-
+async def create_product(product_data: Product, initial_stock: int = 0, user: Optional[User] = None, company_id: Optional[str] = None):
+    # Verificar si el SKU y la Marca ya existen globalmente
+    existing = await Product.find_one(Product.sku == product_data.sku, Product.brand == product_data.brand)
+    
     if existing:
-        raise DuplicateEntityException(error_msg)
+        raise DuplicateEntityException(f"Producto con SKU {product_data.sku} y marca {product_data.brand} ya existe en el catálogo maestro.")
     
     # Asegurar que las marcas vehiculares existan si vienen en aplicaciones
     if product_data.applications:
@@ -197,16 +219,17 @@ async def create_product(product_data: Any, initial_stock: int = 0, user: Option
         if brands:
             await ensure_brands_exist(list(brands))
 
-    # Guardar producto
+    # Guardar producto global
     await product_data.insert()
 
-    # Si hay stock inicial, registrar movimiento
-    if initial_stock > 0:
+    # Si hay stock inicial, registrar movimiento en la bolsa de la empresa
+    if initial_stock > 0 and company_id:
         await register_movement(
             sku=product_data.sku,
             quantity=initial_stock,
             movement_type=MovementType.IN,
-            reference=f"INITIAL-{product_data.sku}"
+            reference=f"INITIAL-{product_data.sku}",
+            company_id=company_id
         )
 
     if user:
@@ -214,12 +237,12 @@ async def create_product(product_data: Any, initial_stock: int = 0, user: Option
             user=user,
             action="CREATE",
             module="INVENTORY",
-            description=f"Se creó el producto {product_data.sku} - {product_data.name} con stock inicial {initial_stock}",
+            description=f"Se creó el producto global {product_data.sku} - {product_data.name} con stock inicial {initial_stock} para {company_id}",
             entity_id=str(product_data.id),
             entity_name=product_data.sku
         )
 
-    return product_data
+    return populate_company_data(product_data, company_id)
 
 async def bulk_create_products(products: List[Product], update_existing: bool = True, user: Optional[User] = None):
     # 1. Asegurar que las marcas vehiculares existan
@@ -241,24 +264,21 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
 
     for p_data in products:
         try:
-            # Resolver categoría de forma robusta antes de guardar
+            # Resolver categoría
             if p_data.category_name:
                 resolved_id = await resolve_category_id(p_data.category_name)
                 if resolved_id:
                     p_data.category_id = resolved_id
             
-            # Buscar por SKU y Marca
-            if p_data.brand:
-                existing = await Product.find_one(Product.sku == p_data.sku, Product.brand == p_data.brand)
-            else:
-                existing = await Product.find_one(Product.sku == p_data.sku)
+            # Buscar por SKU y Marca (Global)
+            existing = await Product.find_one(Product.sku == p_data.sku, Product.brand == p_data.brand)
             
             if existing:
                 if not update_existing:
                     skipped_count += 1
                     continue
 
-                # ACTUALIZAR: Fusionar datos técnicos
+                # ACTUALIZAR FICHA MAESTRA
                 existing.ean = p_data.ean or existing.ean
                 existing.name = p_data.name or existing.name
                 existing.brand = p_data.brand or existing.brand
@@ -273,19 +293,18 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
                 existing.status = p_data.status or existing.status
                 if p_data.image_gallery: existing.image_gallery = p_data.image_gallery
                 
-                # Reemplazar listas técnicas
                 if p_data.specs: existing.specs = p_data.specs
                 if p_data.equivalences: existing.equivalences = p_data.equivalences
                 if p_data.applications: existing.applications = p_data.applications
                 
                 await existing.save()
                 updated_count += 1
-                results.append(existing)
+                results.append(populate_company_data(existing, user.company_id if user else None))
             else:
-                # INSERTAR: Crear nuevo
+                # INSERTAR: Crear nuevo global
                 await p_data.insert()
                 created_count += 1
-                results.append(p_data)
+                results.append(populate_company_data(p_data, user.company_id if user else None))
         except Exception as e:
             print(f"Error procesando producto {p_data.sku}: {str(e)}")
 
@@ -323,11 +342,10 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None, 
     product.features = update_data.features
     
     # Pricing
-    product.price_retail = update_data.price_retail
-    product.price_wholesale = update_data.price_wholesale
+    product.price_list = update_data.price_list
+    product.discount_3_pct = update_data.discount_3_pct
     product.discount_6_pct = update_data.discount_6_pct
     product.discount_12_pct = update_data.discount_12_pct
-    product.discount_24_pct = update_data.discount_24_pct
     product.cost = update_data.cost
     product.loyalty_points = update_data.loyalty_points
     product.points_cost = update_data.points_cost
@@ -358,7 +376,7 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None, 
         await ensure_brands_exist([app.make for app in product.applications])
     
     if new_stock is not None and new_stock != product.stock_current:
-        product = await adjust_stock(sku, new_stock, "Ajuste desde edición de producto")
+        product = await adjust_stock(sku, new_stock, "Ajuste desde edición de producto", company_id=update_data.company_id)
         
     return product
 
@@ -379,7 +397,7 @@ async def delete_product(sku: str, user: Optional[User] = None) -> bool:
     await product.delete()
     return True
 
-async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: Any = None) -> Any:
+async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: Any = None, company_id: Optional[str] = None) -> Any:
     if movement_type is None:
         movement_type = MovementType.ADJUSTMENT
     product = await get_product_by_sku(sku)
@@ -388,50 +406,37 @@ async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: A
     if diff == 0:
         return product
         
-    # Determine if it's IN or OUT based on difference if generic ADJUSTMENT is used
-    if movement_type == MovementType.ADJUSTMENT:
-        actual_type = MovementType.IN if diff > 0 else MovementType.OUT
-    else:
-        actual_type = movement_type
-
-    movement = StockMovement(
-        product_id=str(product.id) if product else None,
-        product_sku=sku,
+    actual_type = MovementType.IN if diff > 0 else MovementType.OUT
+    
+    await register_movement(
+        sku=sku,
         quantity=abs(diff),
         movement_type=actual_type,
+        reference=f"ADJUST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
         notes=notes,
-        date=datetime.now(),
-        unit_cost=product.cost,
-        reference_document=f"ADJUST-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        company_id=company_id or product.company_id,
+        legal_owner_id=product.company_id,
+        product_id=product.id
     )
-    await movement.insert()
     
     product.stock_current = new_quantity
     await product.save()
     
     return product
 
-async def register_loss(sku: str, quantity: int, loss_type: Any, notes: str, responsible: str) -> Dict[str, Any]:
+async def register_loss(sku: str, quantity: int, loss_type: Any, notes: str, responsible: str, company_id: Optional[str] = None) -> Dict[str, Any]:
     product = await get_product_by_sku(sku)
     
-    if product.stock_current < quantity:
-        raise InsufficientStockException(sku, product.stock_current, quantity)
-        
-    movement = StockMovement(
-        product_id=str(product.id) if product else None,
-        product_sku=sku,
+    await register_movement(
+        sku=sku,
         quantity=quantity,
-        movement_type=loss_type,
-        reference_document=f"LOSS-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-        notes=notes,
-        responsible=responsible,
-        unit_cost=product.cost,
-        date=datetime.now()
+        movement_type=MovementType.OUT, # Las mermas son salidas
+        reference=f"LOSS-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+        notes=f"{loss_type}: {notes} (Resp: {responsible})",
+        company_id=company_id or product.company_id,
+        legal_owner_id=product.company_id,
+        product_id=product.id
     )
-    await movement.insert()
-    
-    product.stock_current -= quantity
-    await product.save()
     
     return {
         "message": "Loss registered successfully",
@@ -522,7 +527,14 @@ async def delete_warehouse(code: str) -> bool:
     await warehouse.delete()
     return True
 
-async def get_warehouses() -> List[Any]:
+async def get_warehouses(company_id: Optional[str] = None) -> List[Any]:
+    if company_id:
+        return await Warehouse.find(
+            {"$or": [
+                {"company_id": company_id},
+                {"allowed_companies": company_id}
+            ], "is_active": True}
+        ).to_list()
     return await Warehouse.find(Warehouse.is_active == True).to_list()
 
 async def register_transfer_out(target_warehouse_id: str, items: List[Dict[str, Any]], notes: str = None) -> Dict[str, Any]:
@@ -580,19 +592,18 @@ async def register_transfer_out(target_warehouse_id: str, items: List[Dict[str, 
         "total_cost": round(total_cost, 3)
     }
 
-async def calculate_weighted_average_cost(product: Any, new_quantity: int, new_unit_cost: float) -> float:
+async def calculate_weighted_average_cost(comp_data: CompanyProductData, new_quantity: int, new_unit_cost: float) -> float:
     """
-    Calcula el nuevo costo promedio ponderado.
-    Fórmula: (valor_stock_actual + valor_nuevo_lote) / (cantidad_actual + cantidad_nueva)
+    Calcula el nuevo costo promedio ponderado para una empresa específica.
     """
-    current_value = product.stock_current * product.cost
+    current_value = comp_data.stock_current * comp_data.cost
     new_value = new_quantity * new_unit_cost
     total_value = current_value + new_value
-    total_quantity = product.stock_current + new_quantity
+    total_quantity = comp_data.stock_current + new_quantity
     
     if total_quantity > 0:
         return round(total_value / total_quantity, 3)
-    return product.cost
+    return comp_data.cost
 
 async def register_movement(
     sku: str, 
@@ -601,7 +612,9 @@ async def register_movement(
     reference: str,
     unit_cost: Optional[float] = None,
     date: Optional[datetime] = None,
-    product_id: Optional[str] = None
+    product_id: Optional[str] = None,
+    company_id: Optional[str] = None,
+    legal_owner_id: Optional[str] = None
 ) -> Any:
     """
     Registra un movimiento de inventario y actualiza el stock del producto.
@@ -612,32 +625,65 @@ async def register_movement(
         product = await Product.get(PydanticObjectId(product_id))
         if not product: raise NotFoundException("Product", product_id)
     else:
-        product = await get_product_by_sku(sku)
+        # Importante: buscar sin company_id para obtener el catálogo global
+        product = await find_product_robustly(sku)
+        if not product: raise NotFoundException("Product", sku)
 
-    # Si es entrada con costo, calcular nuevo costo promedio
+    # El dueño legal por defecto es quien realiza el movimiento, 
+    # a menos que sea una venta cruzada (Inter-company)
+    actual_owner_id = legal_owner_id or company_id
+
+    # Asegurar que existan los buckets de stock
+    if company_id not in product.company_data:
+        product.company_data[company_id] = CompanyProductData()
+    if actual_owner_id not in product.company_data:
+        product.company_data[actual_owner_id] = CompanyProductData()
+
+    comp_data = product.company_data[company_id]
+    owner_data = product.company_data[actual_owner_id]
+
+    # 1. Si es entrada con costo, recalcular costo promedio para la empresa operadora
     if movement_type == MovementType.IN and unit_cost is not None:
-        new_average_cost = await calculate_weighted_average_cost(product, quantity, unit_cost)
-        product.cost = new_average_cost
+        new_cost = await calculate_weighted_average_cost(comp_data, quantity, unit_cost)
+        comp_data.cost = new_cost
 
-    # Crear registro de movimiento (Kardex)
+    # 2. Registrar el movimiento en el Kardex
     movement = StockMovement(
-        product_id=str(product.id) if product else None,
-        product_sku=sku,
+        product_id=product.id,
+        sku=sku,
         quantity=quantity,
         movement_type=movement_type,
-        unit_cost=unit_cost or product.cost,
-        reference_document=reference,
-        date=date or datetime.now()
+        unit_cost=unit_cost or comp_data.cost,
+        reference_id=reference,
+        reference_type="DIRECT" if "ADJUST" in reference else "SALES_INVOICE",
+        company_id=company_id,
+        legal_owner_id=actual_owner_id,
+        date=date or datetime.utcnow(),
+        warehouse_id="MAIN"
     )
     await movement.insert()
 
-    # Actualizar stock actual
+    # 3. --- LÓGICA INTER-COMPANY ---
+    if company_id != actual_owner_id and movement_type == MovementType.OUT:
+        from app.models.inventory import IntercompanyTransaction, IntercompanyStatus
+        inter_tx = IntercompanyTransaction(
+            from_company_id=actual_owner_id,
+            to_company_id=company_id,
+            sku=sku,
+            quantity=quantity,
+            unit_cost=owner_data.cost,
+            sale_reference=reference,
+            status=IntercompanyStatus.PENDING
+        )
+        await inter_tx.insert()
+
+    # 4. Actualizar stock en el bucket del dueño legal
     if movement_type == MovementType.IN:
-        product.stock_current += quantity
+        owner_data.stock_current += quantity
     elif movement_type == MovementType.OUT:
-        if product.stock_current < quantity:
-            raise InsufficientStockException(sku, product.stock_current, quantity)
-        product.stock_current -= quantity
+        if owner_data.stock_current < quantity:
+            raise InsufficientStockException(sku, owner_data.stock_current, quantity)
+        owner_data.stock_current -= quantity
     
     await product.save()
     return movement
@@ -869,3 +915,59 @@ async def smart_search(query: str) -> Dict[str, Any]:
         "external_results": external_data, # Lista de [{brand, code, internal_equivalent_sku}]
         "timestamp": datetime.now()
     }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MASTER DATA MANAGEMENT (MDM) — Gestión Dinámica de Marcas
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def get_brands() -> List[ProductBrand]:
+    """Obtiene el catálogo maestro de marcas"""
+    from app.models.inventory import ProductBrand
+    return await ProductBrand.find_all().to_list()
+
+async def create_brand(brand: ProductBrand) -> ProductBrand:
+    """Registra una nueva marca y actualiza el motor semántico"""
+    from app.models.inventory import ProductBrand
+    await brand.insert()
+    
+    # Sincronizar el motor inteligente de norm_utils
+    from app.utils.norm_utils import _refresh_brands_cache
+    await _refresh_brands_cache()
+    
+    return brand
+
+async def update_brand(brand_id: str, brand_data: ProductBrand) -> ProductBrand:
+    """Actualiza una marca y sus alias de importación"""
+    from app.models.inventory import ProductBrand
+    from beanie import PydanticObjectId
+    
+    brand = await ProductBrand.get(PydanticObjectId(brand_id))
+    if not brand:
+        raise NotFoundException("Brand", brand_id)
+    
+    brand.name = brand_data.name
+    brand.aliases = brand_data.aliases
+    brand.description = brand_data.description
+    brand.is_active = brand_data.is_active
+    await brand.save()
+    
+    # Sincronizar motor
+    from app.utils.norm_utils import _refresh_brands_cache
+    await _refresh_brands_cache()
+    
+    return brand
+
+async def delete_brand(brand_id: str):
+    """Elimina una marca del catálogo maestro"""
+    from app.models.inventory import ProductBrand
+    from beanie import PydanticObjectId
+    
+    brand = await ProductBrand.get(PydanticObjectId(brand_id))
+    if not brand:
+        raise NotFoundException("Brand", brand_id)
+    
+    await brand.delete()
+    
+    # Sincronizar motor
+    from app.utils.norm_utils import _refresh_brands_cache
+    await _refresh_brands_cache()

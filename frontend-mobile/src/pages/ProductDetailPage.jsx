@@ -160,42 +160,51 @@ const ProductDetailPage = () => {
                     
                     <div className="grid grid-cols-2 gap-4">
                         {[
-                            { qty: 3, label: 'PACK 3', discount: product.discount_3_pct || 5 },
-                            { qty: 6, label: 'PACK 6', discount: product.discount_6_pct || 10 },
-                            { qty: 12, label: 'PACK 12', discount: product.discount_12_pct || 15 }
-                        ].map((tier) => (
-                            <button
-                                key={tier.qty}
-                                onClick={() => {
-                                    setQuantity(tier.qty);
-                                    showNotification({
-                                        type: 'info',
-                                        title: 'Nivel Aplicado',
-                                        message: `Has seleccionado el Pack de ${tier.qty} unidades.`
-                                    });
-                                }}
-                                className={`
-                                    relative overflow-hidden p-5 rounded-[2rem] border-2 transition-all duration-300 text-left
-                                    ${quantity === tier.qty 
-                                        ? 'bg-brand-primary/10 border-brand-primary shadow-[0_0_30px_rgba(16,185,129,0.2)]' 
-                                        : 'bg-brand-surface border-white/5 shadow-xl'}
-                                `}
-                            >
-                                <span className="block text-[10px] font-black text-brand-text-dim uppercase tracking-widest mb-1">{tier.label}</span>
-                                <span className="block text-brand-lg font-black text-white mb-1">-{tier.discount}%</span>
-                                <span className="block text-[9px] font-black text-brand-primary uppercase tracking-tighter">Aplicar Descuento</span>
-                            </button>
-                        ))}
+                            { qty: 3, label: 'PACK 3', discount: (product.discount_3_pct || 5) + (product.promo_discount_pct || 0) },
+                            { qty: 6, label: 'PACK 6', discount: (product.discount_6_pct || 10) + (product.promo_discount_pct || 0) },
+                            { qty: 12, label: 'PACK 12', discount: (product.discount_12_pct || 15) + (product.promo_discount_pct || 0) }
+                        ].map((tier) => {
+                            const basePrice = product.price_retail || product.price || 0;
+                            const unitPrice = basePrice * (1 - tier.discount / 100);
+                            const totalPrice = unitPrice * tier.qty;
+                            return (
+                                <button
+                                    key={tier.qty}
+                                    onClick={() => {
+                                        setQuantity(tier.qty);
+                                        showNotification({
+                                            type: 'info',
+                                            title: 'Nivel Aplicado',
+                                            message: `Pack ${tier.qty}u — S/ ${unitPrice.toFixed(2)}/u`
+                                        });
+                                    }}
+                                    className={`
+                                        relative overflow-hidden p-5 rounded-[2rem] border-2 transition-all duration-300 text-left
+                                        ${quantity === tier.qty 
+                                            ? 'bg-brand-primary/10 border-brand-primary shadow-[0_0_30px_rgba(16,185,129,0.2)]' 
+                                            : 'bg-brand-surface border-white/5 shadow-xl'}
+                                    `}
+                                >
+                                    <span className="block text-[10px] font-black text-brand-text-dim uppercase tracking-widest mb-1">{tier.label}</span>
+                                    <span className="block text-brand-lg font-black text-white mb-0.5">-{tier.discount}%</span>
+                                    <span className="block text-[11px] font-black text-brand-primary">S/ {unitPrice.toFixed(2)}/u</span>
+                                    <span className="block text-[9px] font-bold text-brand-text-dim mt-0.5">Total: S/ {totalPrice.toFixed(2)}</span>
+                                </button>
+                            );
+                        })}
 
                         <button
                             onClick={() => setIsVolumeModalOpen(true)}
-                            className="p-5 rounded-[2rem] border-2 border-brand-orange/30 bg-brand-orange/5 shadow-xl flex flex-col justify-center items-start text-left gap-1 active:scale-95 transition-all group"
+                            className="p-5 rounded-[2rem] border-2 border-brand-orange/30 bg-brand-orange/5 shadow-xl flex flex-col justify-center items-start text-left gap-1.5 active:scale-95 transition-all group"
                         >
-                            <span className="text-brand-orange font-black text-brand-sm uppercase tracking-tighter group-hover:scale-105 transition-transform">
+                            <span className="text-brand-orange font-black text-brand-sm uppercase tracking-tighter">
                                 +50 UNIDADES
                             </span>
-                            <span className="text-brand-xs font-bold text-brand-text-muted uppercase tracking-widest leading-tight">
-                                SOLICITAR PRECIO ESPECIAL
+                            <span className="text-[9px] font-black text-brand-text-muted uppercase tracking-widest leading-tight">
+                                SOLICITAR COTIZACIÓN
+                            </span>
+                            <span className="mt-1 px-2 py-0.5 bg-brand-orange/20 border border-brand-orange/40 rounded-lg text-[8px] font-black text-brand-orange uppercase tracking-wider">
+                                Precio Manual
                             </span>
                         </button>
                     </div>

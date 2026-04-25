@@ -48,6 +48,10 @@ class User(Document):
     custom_discount_percent: float = 0.0 # Descuento adicional por ser cliente especial
     is_active: bool = True
     
+    # Multi-company Context
+    assigned_companies: List[str] = [] # List of Company RUCs or IDs
+    current_company_id: Optional[str] = None # Current context for the session
+    
     # Loyalty & Sales Stats
     loyalty_points: int = 0 # Puntos Web (Públicos)
     internal_points_local: int = 0 # Puntos Locales (Internos)

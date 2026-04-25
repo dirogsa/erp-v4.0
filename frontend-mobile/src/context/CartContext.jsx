@@ -51,10 +51,9 @@ export const CartProvider = ({ children }) => {
         if (item.type === 'MARKETING') return sum;
         
         // 1. Dynamic Volume Discount (Synchronized with Backend Tiers)
+        // NOTE: 50+ units require manual quotation, no automatic discount applied
         let volMultiplier = 1;
-        if (item.quantity >= 50) {
-            volMultiplier = 1 - ((item.discount_50_plus_pct || 0) / 100);
-        } else if (item.quantity >= 12) {
+        if (item.quantity >= 12) {
             volMultiplier = 1 - ((item.discount_12_pct || 0) / 100);
         } else if (item.quantity >= 6) {
             volMultiplier = 1 - ((item.discount_6_pct || 0) / 100);

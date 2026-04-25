@@ -2,7 +2,8 @@ from typing import List, Optional
 from app.models.inventory import ProductCategory
 from app.exceptions.business_exceptions import DuplicateEntityException, NotFoundException
 
-async def get_categories() -> List[ProductCategory]:
+async def get_categories(company_id: Optional[str] = None) -> List[ProductCategory]:
+    # En el Catálogo Maestro Global, las categorías son compartidas por todas las empresas
     return await ProductCategory.find_all().to_list()
 
 async def create_category(category_data: ProductCategory) -> ProductCategory:

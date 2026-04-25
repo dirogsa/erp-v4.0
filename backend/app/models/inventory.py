@@ -1,7 +1,7 @@
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 from enum import Enum
-from beanie import Document, Indexed
+from beanie import Document, Indexed, PydanticObjectId
 from pydantic import BaseModel, field_validator, Field
 import pymongo
 
@@ -19,17 +19,6 @@ class IssuerInfo(BaseModel):
     bank_name: Optional[str] = None
     account_soles: Optional[str] = None
     account_dollars: Optional[str] = None
-
-
-class Warehouse(Document):
-    name: str
-    code: Indexed(str, unique=True)
-    address: str
-    is_main: bool = False
-    is_active: bool = True
-    
-    class Settings:
-        name = "warehouses"
 
 class MovementType(str, Enum):
     IN = "IN"   # Entrada (Compras, Devoluciones)
@@ -51,8 +40,6 @@ class MovementType(str, Enum):
     LOSS_EXPIRED = "LOSS_EXPIRED"        # Vencido/Caducado
     LOSS_THEFT = "LOSS_THEFT"            # Robo
     LOSS_OTHER = "LOSS_OTHER"            # Otra merma
-
-
 
 class MeasureType(str, Enum):
     MM = "mm"
@@ -80,6 +67,17 @@ class ProductStatus(str, Enum):
     DISCONTINUED = "DISCONTINUED"
     OUT_OF_STOCK = "OUT_OF_STOCK"
     PENDING_REVIEW = "PENDING_REVIEW"
+
+class Warehouse(Document):
+    code: Indexed(str, unique=True)
+    name: str
+    location: Optional[str] = None
+    company_id: Optional[str] = None  # Legacy / Default owner
+    allowed_companies: List[str] = [] # Companies that can use this warehouse
+    is_active: bool = True
+
+    class Settings:
+        name = "warehouses"
 
 class VehicleBrand(Document):
     name: Indexed(str, unique=True)
@@ -145,18 +143,49 @@ class AttributeDefinition(BaseModel):
     key: str # unique key for the attribute (e.g., "material")
     label: str # Display name (e.g., "Material")
     type: AttributeType
+    unit: Optional[str] = None # New: Unit of measure (mm, V, Ah)
     options: List[str] = [] # For SELECT type
+    import_mapping: List[str] = [] # New: Aliases for parser (e.g., ["OD", "Outer Diameter"])
     required: bool = False
+
+class CompanyProductData(BaseModel):
+    """Datos específicos de una empresa para un producto (Stock, Costo, Precio)"""
+    stock_current: int = 0
+    cost: float = 0.0
+    
+    # Metadatos de auditoría por empresa
+    last_purchase_date: Optional[datetime] = None
+    last_sale_date: Optional[datetime] = None
 
 class ProductCategory(Document):
     name: str
+    parent_id: Optional[str] = None # New: Hierarchy support
     description: Optional[str] = None
-    import_aliases: List[str] = [] # Nombres en inglés/Cruce (ej: ["OIL FILTER", "LUBE FILTER"])
-    features_schema: List[str] = [] # List of labels for checkboxes (e.g. ["Cuerpo Metálico", "Tiene Prefiltro"])
-    attributes_schema: List[AttributeDefinition] = [] # Typed KV attributes
+    icon: str = "Package" # New: Lucide icon name
+    color: str = "#6366f1" # New: UI Theme color
+    import_aliases: List[str] = []
+    features_schema: List[str] = [] # Note: We could upgrade this to objects too
+    attributes_schema: List[AttributeDefinition] = []
     
     class Settings:
         name = "product_categories"
+        indexes = [
+            pymongo.IndexModel([("name", pymongo.ASCENDING)], unique=True)
+        ]
+
+class ProductBrand(Document):
+    """Catálogo Maestro de Marcas (MDM)"""
+    name: str
+    aliases: List[str] = [] # Términos de búsqueda en XML (Ej: ["MANN", "MANN-FILTER"])
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    is_active: bool = True
+    
+    class Settings:
+        name = "product_brands"
+        indexes = [
+            pymongo.IndexModel([("name", pymongo.ASCENDING)], unique=True)
+        ]
 
 class Product(Document):
     sku: Indexed(str)
@@ -168,29 +197,21 @@ class Product(Document):
     shape: Optional[str] = None
     type: ProductType = ProductType.COMMERCIAL
     
+    # --- PROPIEDAD Y SEGMENTACIÓN ---
+    company_data: Dict[str, CompanyProductData] = {}
+    
     # Category & Attributes
     category_id: Optional[str] = None
     custom_attributes: Dict[str, Any] = {} # flat dict: {"thread": "3/4", "material": "Metal"}
     features: List[str] = [] # list of active feature labels: ["Cuerpo Metálico"]
-    # Precios y Stock
-    price_retail: float = 0.0
-    price_wholesale: float = 0.0
     
-    # Descuentos por volumen (Porcentaje) - Sincronizados con Mobile 3/6/12/50
-    discount_3_pct: float = 0.0
-    discount_6_pct: float = 0.0
-    discount_12_pct: float = 0.0
-    discount_50_plus_pct: float = 0.0
-    
-    # Oferta Especial (Porcentaje adicional por SKU específico)
-    promo_discount_pct: float = 0.0
-
-    cost: float = 0.0
+    # Inyectados dinámicamente según la empresa que consulte
     stock_current: int = 0
-    loyalty_points: int = 0 # Puntos que otorga al comprar
-    points_cost: int = 0    # Puntos necesarios para canje (0 = no canjeable)
-
+    cost: float = 0.0
     
+    loyalty_points: int = 0
+    points_cost: int = 0
+
     # Nuevos campos para Filtros Automotrices (Importación avanzada)
     ean: Optional[Indexed(str)] = None
     tech_bulletin: Optional[str] = None
@@ -209,9 +230,9 @@ class Product(Document):
     status: ProductStatus = ProductStatus.AVAILABLE
     image_gallery: List[Dict[str, Any]] = []
     
-    created_at: datetime = datetime.now()
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    @field_validator('price_retail', 'cost', 'price_wholesale', 'discount_3_pct', 'discount_6_pct', 'discount_12_pct', 'discount_50_plus_pct', 'promo_discount_pct')
+    @field_validator('cost')
     @classmethod
     def round_amounts(cls, v):
         """Redondear a 3 decimales"""
@@ -220,7 +241,7 @@ class Product(Document):
     class Settings:
         name = "products"
         indexes = [
-            # Índice Compuesto Único: La clave del éxito para marcas duplicadas
+            # Índice Compuesto Único: SKU + Marca (Un solo registro global)
             pymongo.IndexModel(
                 [("sku", pymongo.ASCENDING), ("brand", pymongo.ASCENDING)],
                 unique=True
@@ -234,41 +255,26 @@ class Product(Document):
                 ("ean", pymongo.TEXT),
                 ("equivalences.code", pymongo.TEXT),
                 ("applications.model", pymongo.TEXT)
-            ])
+            ], weights={"name": 10, "sku": 5, "brand": 3})
         ]
 
 class PriceListType(str, Enum):
-    RETAIL = "RETAIL"       # Minorista
-    WHOLESALE = "WHOLESALE" # Mayorista
-
-class PriceHistory(Document):
-    product_id: Optional[str] = None
-    product_sku: str
-    price_type: PriceListType
-    old_price: float
-    new_price: float
-    changed_at: datetime = datetime.now()
-    changed_by: Optional[str] = None
-    reason: Optional[str] = None  # "Actualización mensual", etc.
-
-    class Settings:
-        name = "price_history"
-
+    LIST = "LIST"           # Precio de Lista (Único)
 
 class StockMovement(Document):
-    product_id: Optional[str] = None
-    product_sku: str
-    quantity: int
+    product_id: PydanticObjectId
+    sku: str
+    warehouse_id: str
+    quantity: int # Positive for IN, negative for OUT
     movement_type: MovementType
-    
-    warehouse_id: Optional[str] = None          # Origen / Ubicación del movimiento
-    target_warehouse_id: Optional[str] = None   # Solo para TRANSFER
-    
-    unit_cost: Optional[float] = None  # Costo unitario de este lote específico
-    reference_document: str # ID de Factura o Orden
-    date: datetime = datetime.now()
-    notes: Optional[str] = None          # Notas detalladas
-    responsible: Optional[str] = None    # Quién registró
+    reference_id: Optional[str] = None # Invoice ID, Order ID, etc.
+    reference_type: Optional[str] = None # "SALES_INVOICE", "PURCHASE_INVOICE", etc.
+    company_id: str # The company that performed the movement
+    legal_owner_id: Optional[str] = None # The actual legal owner of the stock
+    unit_cost: Optional[float] = None
+    date: datetime = Field(default_factory=datetime.utcnow)
+    notes: Optional[str] = None
+    user_id: Optional[str] = None
 
     @field_validator('unit_cost')
     @classmethod
@@ -278,6 +284,51 @@ class StockMovement(Document):
 
     class Settings:
         name = "stock_movements"
+        indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("sku", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("legal_owner_id", pymongo.ASCENDING), ("sku", pymongo.ASCENDING)]),
+        ]
+
+class IntercompanyStatus(str, Enum):
+    PENDING = "PENDING"      # Sale made, needs settlement
+    REVIEW = "REVIEW"       # Grouped for billing
+    COMPLETED = "COMPLETED" # SUNAT doc registered
+
+class IntercompanyTransaction(Document):
+    """Tracks stock sold by one company that belongs to another"""
+    from_company_id: str # The legal owner (Jeef)
+    to_company_id: str   # The seller (Dirogsa)
+    sku: str
+    quantity: int
+    unit_cost: float
+    sale_reference: str  # The original Sales Invoice ID
+    settlement_id: Optional[str] = None # Link to the consolidated settlement
+    status: IntercompanyStatus = IntercompanyStatus.PENDING
+    date: datetime = Field(default_factory=datetime.utcnow)
+
+    class Settings:
+        name = "intercompany_transactions"
+        indexes = [
+            pymongo.IndexModel([("to_company_id", pymongo.ASCENDING), ("status", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("settlement_id", pymongo.ASCENDING)]),
+        ]
+
+class PriceHistory(Document):
+    product_id: Optional[str] = None
+    product_sku: str
+    price_type: PriceListType
+    old_price: float
+    new_price: float
+    changed_at: datetime = Field(default_factory=datetime.utcnow)
+    changed_by: Optional[str] = None
+    reason: Optional[str] = None  # "Actualización mensual", etc.
+    company_id: Indexed(str)
+
+    class Settings:
+        name = "price_history"
+        indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("product_sku", pymongo.ASCENDING)])
+        ]
 
 class GuideType(str, Enum):
     RECEPTION = "RECEPTION"         # Recepción de compra
@@ -324,7 +375,7 @@ class DeliveryGuide(Document):
     driver_name: Optional[str] = None        # Nombre del chofer
     
     # Fechas
-    issue_date: datetime = datetime.now()
+    issue_date: datetime = Field(default_factory=datetime.utcnow)
     dispatch_date: Optional[datetime] = None
     delivery_date: Optional[datetime] = None
     
@@ -335,6 +386,7 @@ class DeliveryGuide(Document):
 
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
+    company_id: Optional[str] = None
     
     @field_validator('items', mode='before')
     @classmethod
@@ -346,3 +398,6 @@ class DeliveryGuide(Document):
     
     class Settings:
         name = "delivery_guides"
+        indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("guide_number", pymongo.ASCENDING)], unique=True)
+        ]

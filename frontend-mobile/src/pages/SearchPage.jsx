@@ -29,6 +29,7 @@ const SearchPage = () => {
         make: queryParams.get('make') || '', 
         model: queryParams.get('model') || '' 
     });
+    const [showAdvanced, setShowAdvanced] = useState(false); // Toggle for filters
 
     const searchInput = useRef(null);
 
@@ -129,6 +130,7 @@ const SearchPage = () => {
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            onFocus={() => setShowAdvanced(false)}
                             placeholder="Buscar por código o descripción..."
                             className="w-full pl-11 pr-4 py-3.5 bg-brand-surface border border-brand-border rounded-xl text-brand-sm font-bold focus:border-brand-primary focus:outline-none transition-all placeholder:text-brand-muted/40 shadow-xl"
                         />
@@ -141,87 +143,113 @@ const SearchPage = () => {
                             </button>
                         )}
                     </div>
-                </div>
 
-                {/* Category Quick-Select (Pillar A) */}
-                <div className="flex overflow-x-auto gap-2 px-4 pb-4 no-scrollbar">
                     <button
-                        onClick={() => setSelectedCategory(null)}
-                        className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
-                            !selectedCategory 
-                            ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-lg shadow-brand-primary/20' 
+                        onClick={() => setShowAdvanced(!showAdvanced)}
+                        className={`h-12 w-12 flex-shrink-0 rounded-xl border transition-all flex items-center justify-center relative ${
+                            showAdvanced || selectedCategory || activeFilters.make
+                            ? 'bg-brand-primary border-brand-primary text-brand-bg shadow-lg shadow-brand-primary/20' 
                             : 'bg-brand-surface border-brand-border text-brand-text-dim'
                         }`}
                     >
-                        Todos
+                        <AdjustmentsHorizontalIcon className="h-6 w-6" />
+                        {(selectedCategory || activeFilters.make) && (
+                            <span className="absolute -top-1 -right-1 h-4 w-4 bg-brand-danger rounded-full border-2 border-brand-bg"></span>
+                        )}
                     </button>
-                    {categories.map(cat => (
+                </div>
+
+                {/* Category Quick-Select (NOW COLLAPSIBLE) */}
+                {showAdvanced && (
+                    <div className="flex overflow-x-auto gap-2 px-4 pb-4 no-scrollbar animate-in slide-in-from-top duration-300">
                         <button
-                            key={cat._id || cat.name}
-                            onClick={() => setSelectedCategory(cat.name)}
+                            onClick={() => setSelectedCategory(null)}
                             className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
-                                selectedCategory === cat.name 
-                                ? 'bg-brand-primary text-brand-bg border-brand-primary shadow-lg shadow-brand-primary/20' 
+                                !selectedCategory 
+                                ? 'bg-brand-primary text-brand-bg border-brand-primary' 
                                 : 'bg-brand-surface border-brand-border text-brand-text-dim'
                             }`}
                         >
-                            {cat.name}
+                            Todos
                         </button>
-                    ))}
-                </div>
+                        {categories.map(cat => (
+                            <button
+                                key={cat._id || cat.name}
+                                onClick={() => setSelectedCategory(cat.name)}
+                                className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
+                                    selectedCategory === cat.name 
+                                    ? 'bg-brand-primary text-brand-bg border-brand-primary' 
+                                    : 'bg-brand-surface border-brand-border text-brand-text-dim'
+                                }`}
+                            >
+                                {cat.name}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </header>
 
             <main className="flex-1 overflow-y-auto no-scrollbar pb-20">
-                {/* Vehicle Selection Wizard (Pillar B) */}
-                <section className="p-4 space-y-4">
-                    <div className="bg-brand-surface/30 border border-white/5 rounded-[2rem] p-6 space-y-4 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="h-8 w-8 bg-brand-primary/10 rounded-lg flex items-center justify-center border border-brand-primary/20">
-                                <TruckIcon className="h-5 w-5 text-brand-primary" />
+                {/* Vehicle Selection Wizard (NOW COLLAPSIBLE) */}
+                {showAdvanced && (
+                    <section className="p-4 space-y-4 animate-in fade-in duration-500">
+                        <div className="bg-brand-surface/30 border border-white/5 rounded-[2rem] p-6 space-y-4 shadow-2xl">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="h-8 w-8 bg-brand-primary/10 rounded-lg flex items-center justify-center border border-brand-primary/20">
+                                    <TruckIcon className="h-5 w-5 text-brand-primary" />
+                                </div>
+                                <h3 className="text-brand-xs font-black text-white uppercase tracking-widest">Filtros por Aplicación Vehicular</h3>
                             </div>
-                            <h3 className="text-brand-xs font-black text-white uppercase tracking-widest">Filtros por Aplicación Vehicular</h3>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] font-black text-brand-text-dim uppercase px-2">Marca</label>
-                                <select
-                                    value={activeFilters.make}
-                                    onChange={(e) => setActiveFilters({ ...activeFilters, make: e.target.value, model: '' })}
-                                    className="w-full bg-brand-bg border border-brand-border rounded-xl p-3.5 text-xs font-bold text-white focus:border-brand-primary outline-none appearance-none uppercase"
-                                >
-                                    <option value="">CUALQUIER MARCA</option>
-                                    {consolidatedBrands.map(b => (
-                                         <option key={b.name} value={b.name}>
-                                             {b.is_popular ? `⭐ ${b.name}` : b.name}
-                                         </option>
-                                     ))}
-                                </select>
+                            
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black text-brand-text-dim uppercase px-2">Marca</label>
+                                    <select
+                                        value={activeFilters.make}
+                                        onChange={(e) => setActiveFilters({ ...activeFilters, make: e.target.value, model: '' })}
+                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3.5 text-xs font-bold text-white focus:border-brand-primary outline-none appearance-none uppercase"
+                                    >
+                                        <option value="">CUALQUIER MARCA</option>
+                                        {consolidatedBrands.map(b => (
+                                            <option key={b.name} value={b.name}>
+                                                {b.is_popular ? `⭐ ${b.name}` : b.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black text-brand-text-dim uppercase px-2">Modelo</label>
+                                    <select
+                                        value={activeFilters.model}
+                                        onChange={(e) => setActiveFilters({ ...activeFilters, model: e.target.value })}
+                                        disabled={!activeFilters.make}
+                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3.5 text-xs font-bold text-white focus:border-brand-primary outline-none appearance-none uppercase disabled:opacity-20"
+                                    >
+                                        <option value="">CUALQUIER MODELO</option>
+                                        {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                </div>
                             </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] font-black text-brand-text-dim uppercase px-2">Modelo</label>
-                                <select
-                                    value={activeFilters.model}
-                                    onChange={(e) => setActiveFilters({ ...activeFilters, model: e.target.value })}
-                                    disabled={!activeFilters.make}
-                                    className="w-full bg-brand-bg border border-brand-border rounded-xl p-3.5 text-xs font-bold text-white focus:border-brand-primary outline-none appearance-none uppercase disabled:opacity-20"
-                                >
-                                    <option value="">CUALQUIER MODELO</option>
-                                    {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
-                                </select>
-                            </div>
-                        </div>
 
-                        {activeFilters.make && (
-                            <button 
-                                onClick={() => setActiveFilters({ make: '', model: '' })}
-                                className="w-full py-2 text-[9px] font-black text-brand-danger uppercase tracking-tighter hover:opacity-70"
+                            <Button 
+                                onClick={() => setShowAdvanced(false)}
+                                className="w-full"
+                                variant="secondary"
                             >
-                                Limpiar Filtros de Vehículo
-                            </button>
-                        )}
-                    </div>
-                </section>
+                                Aplicar Filtros
+                            </Button>
+
+                            {activeFilters.make && (
+                                <button 
+                                    onClick={() => setActiveFilters({ make: '', model: '' })}
+                                    className="w-full py-2 text-[9px] font-black text-brand-danger uppercase tracking-tighter hover:opacity-70"
+                                >
+                                    Limpiar Filtros de Vehículo
+                                </button>
+                            )}
+                        </div>
+                    </section>
+                )}
 
                 {/* Results Area */}
                 <div className="px-4 pb-10">

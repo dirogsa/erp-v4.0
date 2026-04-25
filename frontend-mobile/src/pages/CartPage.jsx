@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -94,10 +94,13 @@ const CartPage = () => {
                         
                         <div className="space-y-4 mb-8">
                             {orderedItems.map((item, idx) => {
-                                let multiplier = 1;
-                                if (item.quantity >= 12) multiplier = 0.85;
-                                else if (item.quantity >= 6) multiplier = 0.90;
-                                else if (item.quantity >= 3) multiplier = 0.95;
+                                // Motor de descuentos sincronizado con CartContext y backend
+                                let volDiscount = 0;
+                                if (item.quantity >= 12) volDiscount = item.discount_12_pct || 0;
+                                else if (item.quantity >= 6) volDiscount = item.discount_6_pct || 0;
+                                else if (item.quantity >= 3) volDiscount = item.discount_3_pct || 0;
+                                const promoDiscount = item.promo_discount_pct || 0;
+                                const multiplier = (1 - volDiscount / 100) * (1 - promoDiscount / 100);
                                 const itemFinalPrice = item.price * multiplier;
 
                                 return (
@@ -286,3 +289,4 @@ const CartPage = () => {
 };
 
 export default CartPage;
+

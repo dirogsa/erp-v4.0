@@ -19,6 +19,7 @@ import Losses from './pages/Losses';
 import Transfers from './pages/Transfers';
 import Dashboard from './pages/Dashboard';
 import Reports from './pages/Reports';
+import BrandsManager from './pages/BrandsManager';
 
 import Companies from './pages/Companies';
 import Warehouses from './pages/Warehouses';
@@ -27,11 +28,9 @@ import CatalogConfig from './pages/CatalogConfig';
 import CatalogView from './pages/CatalogView';
 import B2BManagement from './pages/B2BManagement';
 import BrandManagement from './pages/BrandManagement';
-import PricingManagement from './pages/PricingManagement';
+import PricingStrategy from './pages/PricingStrategy';
 import Marketing from './pages/Marketing';
 import Audit from './pages/Audit';
-import SalesPolicies from './pages/SalesPolicies';
-import PriceUpdateMasive from './pages/PriceUpdateMasive';
 import CatalogIngestion from './pages/CatalogIngestion';
 import BulkXMLImport from './pages/BulkXMLImport';
 import FinancialAudit from './pages/FinancialAudit';
@@ -94,13 +93,12 @@ function App() {
                           <Route path="/catalog" element={<CatalogConfig />} />
                           <Route path="/catalog/view" element={<CatalogView />} />
                           <Route path="/brands" element={<BrandManagement />} />
+                          <Route path="/inventory/brands-master" element={<BrandsManager />} />
                           <Route path="/b2b" element={<B2BManagement />} />
-                          <Route path="/pricing" element={<PricingManagement />} />
+                          <Route path="/pricing-strategy" element={<PricingStrategy />} />
                           <Route path="/marketing" element={<Marketing />} />
                           <Route path="/audit" element={<Audit />} />
                           <Route path="/audit/financial" element={<FinancialAudit />} />
-                          <Route path="/sales-policies" element={<SalesPolicies />} />
-                          <Route path="/price-update" element={<PriceUpdateMasive />} />
                           <Route path="/staff" element={<StaffManagement />} />
                           <Route path="/exchange-rates" element={<ExchangeRates />} />
                         </Routes>

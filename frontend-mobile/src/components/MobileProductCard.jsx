@@ -142,7 +142,7 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
                     ) : (
                         <div className="flex flex-col items-start gap-1">
                             <span className="text-brand-price leading-none text-xl">
-                                S/ {product.price_retail ? product.price_retail.toFixed(2) : '0.00'}
+                                S/ {(product.price || product.price_retail || 0).toFixed(2)}
                             </span>
                             {(product.loyalty_points > 0 || true) && (
                                 <div className="flex items-center px-1.5 py-0.5 bg-brand-primary/10 rounded-md">

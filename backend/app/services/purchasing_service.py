@@ -404,7 +404,7 @@ async def delete_supplier(id: PydanticObjectId) -> bool:
 
 # ==================== RECEPTION ====================
 
-async def create_reception_guide(invoice_number: str, notes: str, created_by: str, sunat_number: Optional[str] = None) -> Dict[str, Any]:
+async def create_reception_guide(invoice_number: str, notes: str, created_by: str, sunat_number: Optional[str] = None, company_id: Optional[str] = None) -> Dict[str, Any]:
     invoice = await PurchaseInvoice.find_one(PurchaseInvoice.invoice_number == invoice_number)
     if not invoice:
         raise NotFoundException("Invoice", invoice_number)
@@ -464,7 +464,9 @@ async def create_reception_guide(invoice_number: str, notes: str, created_by: st
             quantity=item.quantity,
             movement_type=MovementType.IN,
             reference=guide_number,
-            unit_cost=item.unit_cost
+            unit_cost=item.unit_cost,
+            company_id=company_id or invoice.company_id,
+            legal_owner_id=company_id or invoice.company_id
         )
     
     invoice.reception_status = "RECEIVED"
@@ -477,7 +479,7 @@ async def create_reception_guide(invoice_number: str, notes: str, created_by: st
         "items_count": len(guide_items)
     }
 
-async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_rate: Optional[float] = None) -> PurchaseInvoice:
+async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_rate: Optional[float] = None, company_id: Optional[str] = None) -> PurchaseInvoice:
     """Importación directa de factura de proveedor XML saltando cotización/orden manual"""
     from app.models.purchasing import PurchaseOrder, PurchaseInvoice, OrderStatus, PaymentStatus
     from app.models.inventory import DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
@@ -566,7 +568,8 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
         total_amount=data['total_amount'],
         currency=currency_val,
         exchange_rate=current_exchange_rate,
-        date=datetime.fromisoformat(data['date'])
+        date=datetime.fromisoformat(data['date']),
+        company_id=company_id
     )
     await order.insert()
     
@@ -596,9 +599,8 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
         total_amount=order.total_amount,
         currency=order.currency,
         exchange_rate=current_exchange_rate,
-        payment_status=PaymentStatus.PAID,
-        amount_paid=order.total_amount,
-        reception_status="PENDING"
+        reception_status="PENDING",
+        company_id=company_id
     )
     await invoice.insert()
     
@@ -627,34 +629,22 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
                 unit_cost=item.unit_cost
             ))
             
-            # Movimiento de inventario (IN) - SOLO SI EL PRODUCTO EXISTE EN EL MAESTRO
-            if product:
-                await inventory_service.register_movement(
-                    sku=item.product_sku,
-                    quantity=item.quantity,
-                    movement_type=MovementType.IN,
-                    reference=guide_number,
-                    date=order.date,
-                    unit_cost=item.unit_cost,
-                    product_id=str(product.id)
-                )
-            else:
-                print(f"INFO: SKU {item.product_sku} no está en maestro. Saltando registro de stock (Producto Virtual).")
+            # EL STOCK YA NO SE MUEVE AUTOMÁTICAMENTE AQUÍ.
+            # Se delegará a la confirmación física de la Guía de Recepción (Logística).
             
         guide = DeliveryGuide(
             guide_number=guide_number,
             guide_type=GuideType.RECEPTION,
-            status=GuideStatus.DELIVERED,
+            status=GuideStatus.DRAFT,     # Nace pendiente de confirmación física
             invoice_number=invoice_number,
             order_number=order_number,
-            customer_name=order.supplier_name, # En recepción el supplier es el 'customer' de la guía
+            customer_name=order.supplier_name, 
             items=guide_items,
-            issue_date=order.date,
-            delivery_date=order.date
+            issue_date=order.date
         )
         await guide.insert()
         
-        invoice.reception_status = "RECEIVED"
+        # La factura se mantiene en PENDING de recepción hasta que se procese la guía
         invoice.guide_id = str(guide.id)
         await invoice.save()
 

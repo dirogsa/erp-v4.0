@@ -49,6 +49,8 @@ async def init_db():
                 "app.models.auth.ActivityLog",
                 "app.models.staff.Staff",
                 "app.models.pricing.PricingRule",
+                "app.models.pricing.PriceList",
+                "app.models.pricing.PriceEntry",
                 "app.models.marketing.LoyaltyConfig",
                 "app.models.finance.ExchangeRate"
             ],

@@ -51,9 +51,10 @@ const QuickImportModal = ({ visible, onClose, onImport }) => {
                         product_sku: product.sku,
                         product_name: product.name,
                         quantity: qty,
-                        unit_price: price || product.price_retail,
-                        stock: product.stock_current,
-                        subtotal: qty * (price || product.price_retail)
+                        unit_price: price || product.price_list,
+                        sku: product.sku,
+                        name: product.name,
+                        subtotal: qty * (price || product.price_list)
                     });
                 } else {
                     errors.push(`Fila ${i + 1}: SKU "${sku}" no encontrado.`);

@@ -19,6 +19,12 @@ api.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Multi-company context header
+  const companyId = localStorage.getItem('erp_company_id');
+  if (companyId) {
+    config.headers['X-Company-ID'] = companyId;
+  }
   console.log(`[API] Requesting: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.params || '');
   return config;
 });
@@ -285,11 +291,39 @@ export const brandService = {
   deleteBrand: (name) => api.delete(`/brands/${name}`),
 };
 
+export const productBrandService = {
+  getBrands: () => api.get('/inventory/brands'),
+  createBrand: (brand) => api.post('/inventory/brands', brand),
+  updateBrand: (id, brand) => api.put(`/inventory/brands/${id}`, brand),
+  deleteBrand: (id) => api.delete(`/inventory/brands/${id}`),
+};
+
 export const pricingService = {
+  // Listas de Precios
+  getLists: () => api.get('/pricing/lists'),
+  createList: (data) => api.post('/pricing/lists', data),
+  deleteList: (id) => api.delete(`/pricing/lists/${id}`),
+
+  // Entradas de Precio Individuales
+  getEntries: (listId) => api.get(`/pricing/entries/${listId}`),
+  saveEntry: (data) => api.post('/pricing/entries', data),
+
+  // Reglas (Legacy/Automation)
   getRules: () => api.get('/pricing/rules'),
   createRule: (rule) => api.post('/pricing/rules', rule),
   updateRule: (id, rule) => api.put(`/pricing/rules/${id}`, rule),
   deleteRule: (id) => api.delete(`/pricing/rules/${id}`),
+
+  // Operaciones Masivas
+  bulkUpdateFromText: (data) => api.post('/pricing/bulk-update', data),
+  importCsv: (file, listName) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/pricing/import-csv?list_name=${encodeURIComponent(listName)}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000
+    });
+  }
 };
 
 export const dataExchangeService = {
@@ -340,6 +374,12 @@ export const financeService = {
   getExchangeRates: () => api.get('/finance/exchange-rates'),
   getExchangeRate: (date) => api.get(`/finance/exchange-rate/${date}`),
   saveExchangeRate: (date, data) => api.post(`/finance/exchange-rate/${date}`, data),
+};
+
+export const intercompanyService = {
+  getPending: () => api.get('/intercompany/pending'),
+  settleBatch: (ids) => api.post('/intercompany/settle', ids),
+  completeSettlement: (ids, sunatNumber) => api.post('/intercompany/complete', ids, { params: { sunat_number: sunatNumber } }),
 };
 
 export default api;

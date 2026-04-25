@@ -8,7 +8,7 @@ from app.models.marketing import LoyaltyConfig
 
 
 from app.models.inventory import Product, DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
-from app.services import inventory_service, audit_service
+from app.services import inventory_service, audit_service, price_service
 from app.services.audit_service import AuditService
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, DuplicateEntityException
 from app.schemas.common import PaginatedResponse
@@ -150,12 +150,28 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
     fetched_products = {}
     
     for item in order.items:
-        # Fetch product to check points_cost
+        # Fetch product
         if item.product_sku not in fetched_products:
             prod = await Product.find_one(Product.sku == item.product_sku)
             fetched_products[item.product_sku] = prod
         
         product = fetched_products.get(item.product_sku)
+        if not product:
+            raise NotFoundException("Product", item.product_sku)
+
+        # WORLD-CLASS DYNAMIC PRICING ENGINE INJECTION
+        # Validate or Fetch the price based on quantity and strategy
+        price_data = await price_service.get_active_price(
+            product_id=product.id, 
+            quantity=int(item.quantity),
+            price_list_name="General" # Default for now, can be expanded to customer-specific list
+        )
+        
+        if price_data["price"] > 0:
+            # Overwrite with the official strategy price
+            item.unit_price = price_data["price"]
+            # Recalculate unit_value (without tax)
+            item.unit_value = round(item.unit_price / (1 + item.tax_rate), 4)
         
         if product and getattr(product, 'points_cost', 0) > 0:
             points_spent += product.points_cost * item.quantity
@@ -1163,7 +1179,7 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
         raw_desc = item.get('product_name') or item.get('description', '')
         
         # PROCESAMIENTO INTELIGENTE: SKU Normalizado + Marca Detectada Semánticamente
-        clean_sku, detected_brand = smart_parse_item(raw_sku, raw_desc)
+        clean_sku, detected_brand = await smart_parse_item(raw_sku, raw_desc)
         
         # Clasificaciones ERP
         classification = item.get('classification') or item.get('product_type') or 'COMMERCIAL'
@@ -1172,12 +1188,12 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
         # Buscar en maestro usando la clave compuesta (SKU + Marca)
         product = await inventory_service.find_product_robustly(clean_sku, brand=detected_brand)
         
-        # BLOQUEO DE INTEGRIDAD: Solo si es Filtro (Core) y no existe bajo la marca detectada
+        # BLOQUEO DE INTEGRIDAD (REQUERIDO): Solo si es Filtro (Core) y no existe bajo la marca detectada
         if not product and not is_misc and (classification in ['FILTER', 'COMMERCIAL']):
             raise ValidationException(
                 f"PRODUCTO NO ENCONTRADO EN MAESTRO: El sistema identificó el código '{clean_sku}' "
                 f"de la marca '{detected_brand}' (detectada por descripción), pero este binomio no existe. "
-                f"Por favor, registre el producto con la marca '{detected_brand}' en Inventario."
+                f"Por favor, registre el producto en el inventario antes de importar la factura."
             )
         
         order_items.append(OrderItem(
@@ -1190,12 +1206,18 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
             tax_rate=item.get('tax_rate', 0.18),
             invoiced_quantity=item['quantity']
         ))
+    
+    # 1.6 Vincular Cliente Existente (REQUISITO PROFESIONAL)
+    customer_ruc = data['customer']['ruc']
+    customer = await Customer.find_one(Customer.ruc == customer_ruc)
+    if not customer:
+        raise ValidationException(f"CLIENTE NO REGISTRADO: El RUC {customer_ruc} no existe en el maestro. Por favor, regístrelo manualmente antes de importar.")
         
     order = SalesOrder(
         order_number=order_number,
-        customer_name=data['customer']['name'],
-        customer_ruc=data['customer']['ruc'],
-        delivery_address=data['customer'].get('address') or "Dirección en XML",
+        customer_name=customer.name,
+        customer_ruc=customer.ruc,
+        delivery_address=customer.address or data['customer'].get('address') or "Dirección en XML",
         items=order_items,
         status=OrderStatus.INVOICED,
         total_amount=data['total_amount'],
@@ -1225,6 +1247,13 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
     
     invoice_number = f"{prefix_inv}-{new_num_inv:04d}"
     
+    # Determinar estado de pago basado en XML
+    payment_mode = data.get('payment_terms', 'Contado')
+    is_credit = payment_mode.lower() == 'crédito' or len(data.get('installments', [])) > 0
+    
+    payment_status = PaymentStatus.PENDING if is_credit else PaymentStatus.PAID
+    amount_paid = 0 if is_credit else order.total_amount
+
     invoice = SalesInvoice(
         invoice_number=invoice_number,
         sunat_number=data.get('sunat_number') or data.get('document_number'),
@@ -1238,9 +1267,10 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
         total_amount=order.total_amount,
         currency=order.currency,
         exchange_rate=order.exchange_rate,
-        payment_status=PaymentStatus.PAID,
-        amount_paid=order.total_amount,
+        payment_status=payment_status,
+        amount_paid=amount_paid,
         issuer_info=order.issuer_info,
+        payment_terms={"mode": payment_mode, "installments": data.get('installments', [])},
         dispatch_status="PENDING"
     )
     await invoice.insert()

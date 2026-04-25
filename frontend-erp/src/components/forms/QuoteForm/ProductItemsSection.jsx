@@ -108,14 +108,14 @@ const ProductItemsSection = ({
 
         row.product_sku = product.sku;
         row.product_name = product.name;
-        row.unit_price = product.price_retail || 0;
-        // Persistence of list prices for UI suggestions
-        row.price_retail = product.price_retail || 0;
-        row.price_wholesale = product.price_wholesale || 0;
-
+        row.unit_price = product.price_list || 0;
+        row.price_list = product.price_list || 0;
+        row.discount_3_pct = product.discount_3_pct || 0;
+        row.discount_6_pct = product.discount_6_pct || 0;
+        row.discount_12_pct = product.discount_12_pct || 0;
         row.stock = product.stock_current || 0;
         row.quantity = 1;
-        row.subtotal = product.price_retail || 0;
+        row.subtotal = product.price_list || 0;
 
         setRows(newRows);
         setActiveSearchRow(null);
@@ -343,7 +343,7 @@ const ProductItemsSection = ({
                                                             <div style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>{p.name}</div>
                                                             <div style={{ fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
                                                                 <span style={{ color: p.stock_current > 0 ? '#34d399' : '#f87171' }}>Stock: {p.stock_current}</span>
-                                                                <span>S/ {p.price_retail}</span>
+                                                                <span>S/ {p.price_list}</span>
                                                             </div>
                                                         </div>
                                                     ))
@@ -419,52 +419,29 @@ const ProductItemsSection = ({
                                             }}
                                         />
 
-                                        {/* UX: PRECIO SUGERIDO (Smart Tags) */}
                                         {row.product_sku && (
                                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', fontSize: '0.7rem', marginTop: '6px' }}>
-                                                {(row.price_retail > 0 || row.price_wholesale > 0) ? (
+                                                {row.price_list > 0 ? (
                                                     <>
-                                                        {row.price_retail > 0 && (
+                                                        <span
+                                                            onClick={() => handleRowChange(index, 'unit_price', row.price_list)}
+                                                            style={{ cursor: 'pointer', color: 'white', backgroundColor: parseFloat(row.unit_price) === parseFloat(row.price_list) ? '#2563eb' : '#334155', padding: '2px 6px', borderRadius: '4px', border: '1px solid #475569', transition: 'all 0.2s', whiteSpace: 'nowrap' }}
+                                                            title="Aplicar Precio de Lista"
+                                                        >
+                                                            Lista: S/ {row.price_list}
+                                                        </span>
+                                                        {row.discount_3_pct > 0 && (
                                                             <span
-                                                                onClick={() => handleRowChange(index, 'unit_price', row.price_retail)}
-                                                                style={{
-                                                                    cursor: 'pointer',
-                                                                    color: 'white',
-                                                                    backgroundColor: parseFloat(row.unit_price) === parseFloat(row.price_retail) ? '#2563eb' : '#334155',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '4px',
-                                                                    border: '1px solid #475569',
-                                                                    transition: 'all 0.2s',
-                                                                    whiteSpace: 'nowrap'
-                                                                }}
-                                                                title="Aplicar Precio Minorista"
+                                                                onClick={() => handleRowChange(index, 'unit_price', parseFloat((row.price_list * (1 - row.discount_3_pct / 100)).toFixed(3)))}
+                                                                style={{ cursor: 'pointer', color: '#10b981', backgroundColor: '#0f2a1e', padding: '2px 6px', borderRadius: '4px', border: '1px solid #10b98133', whiteSpace: 'nowrap' }}
+                                                                title="Aplicar precio Pack 3"
                                                             >
-                                                                Min: {row.price_retail}
-                                                            </span>
-                                                        )}
-                                                        {row.price_wholesale > 0 && (
-                                                            <span
-                                                                onClick={() => handleRowChange(index, 'unit_price', row.price_wholesale)}
-                                                                style={{
-                                                                    cursor: 'pointer',
-                                                                    color: 'white',
-                                                                    backgroundColor: parseFloat(row.unit_price) === parseFloat(row.price_wholesale) ? '#059669' : '#334155',
-                                                                    padding: '2px 6px',
-                                                                    borderRadius: '4px',
-                                                                    border: '1px solid #475569',
-                                                                    transition: 'all 0.2s',
-                                                                    whiteSpace: 'nowrap'
-                                                                }}
-                                                                title="Aplicar Precio Mayorista"
-                                                            >
-                                                                May: {row.price_wholesale}
+                                                                Pack3: S/ {(row.price_list * (1 - row.discount_3_pct / 100)).toFixed(2)}
                                                             </span>
                                                         )}
                                                     </>
                                                 ) : (
-                                                    <span style={{ color: '#64748b', fontStyle: 'italic' }}>
-                                                        Sin precios sugeridos
-                                                    </span>
+                                                    <span style={{ color: '#64748b', fontStyle: 'italic' }}>Sin precio de lista</span>
                                                 )}
                                             </div>
                                         )}

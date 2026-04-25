@@ -31,13 +31,10 @@ class DispatchRequest(BaseModel):
 class SalesPolicyUpdate(BaseModel):
     cash_discount: float
     credit_30_days: float
+    # Credit terms surcharges
     credit_60_days: float
     credit_90_days: float
     credit_180_days: float
-    retail_markup_pct: Optional[float] = 20.0
-    vol_6_discount_pct: Optional[float] = 3.0
-    vol_12_discount_pct: Optional[float] = 7.0
-    vol_24_discount_pct: Optional[float] = 12.0
     min_margin_guard_pct: Optional[float] = 12.0
 
 class SalesPolicyResponse(SalesPolicyUpdate):

@@ -2,6 +2,8 @@ from fastapi import APIRouter
 from typing import List
 from app.models.inventory import ProductCategory
 from app.services import category_service
+from fastapi import Depends
+from app.dependencies.company import get_current_company_id
 
 router = APIRouter(prefix="/categories", tags=["Product Categories"])
 

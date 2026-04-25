@@ -90,17 +90,21 @@ export const parseUBLXml = (xmlString) => {
         if (pmid) {
             paymentTerms = pmid; // 'Contado' o 'CuotaXXX'
         }
-        // If it's credit, it should have installments
+        // Standard SUNAT Credit detection
         const id = getTagText(item, 'cbc:ID');
-        if (id && id.toLowerCase().includes('cuota')) {
+        if (id && (id.toLowerCase().includes('cuota') || id.toLowerCase().includes('installment'))) {
             installments.push({
                 index: id,
                 amount: parseFloat(getTagText(item, 'cbc:Amount') || '0'),
-                dueDate: getTagText(item, 'cbc:DueDate')
+                dueDate: getTagText(item, 'cbc:PaymentDueDate') || getTagText(item, 'cbc:DueDate')
             });
         }
     }
-    if (installments.length > 0) paymentTerms = 'Crédito';
+    
+    // Explicitly set 'Crédito' if installments exist or if PaymentMeansID says so
+    if (installments.length > 0 || paymentTerms.toLowerCase().includes('credito') || paymentTerms.toLowerCase().includes('credit')) {
+        paymentTerms = 'Crédito';
+    }
 
     // 3. Supplier & Customer Info
     const supplierParty = findElement(xmlDoc, 'cac:AccountingSupplierParty');

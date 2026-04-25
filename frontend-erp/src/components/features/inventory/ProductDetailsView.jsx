@@ -196,7 +196,7 @@ const ProductDetailsView = ({ product, onClose }) => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem' }}>
                         <InfoItem label="Stock Actual" value={product.stock_current} highlight />
-                        <InfoItem label="Precio Sugerido" value={`S/ ${(product.price_retail || 0).toFixed(2)}`} />
+                        <InfoItem label="Precio Sugerido" value={`S/ ${(product.price_list || 0).toFixed(2)}`} />
                         <InfoItem label="Ubicación" value={product.location || 'General'} />
                         <InfoItem label="Peso" value={`${product.weight_g || 0} g`} />
                     </div>

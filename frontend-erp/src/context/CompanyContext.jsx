@@ -5,11 +5,9 @@ const CompanyContext = createContext();
 
 export const CompanyProvider = ({ children }) => {
     const [companies, setCompanies] = useState([]);
-    const [activeLocalCompany, setActiveLocalCompany] = useState(null);
-    const [activeWebCompany, setActiveWebCompany] = useState(null);
+    const [activeCompany, setActiveCompany] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Initialize: Load companies and set active
     useEffect(() => {
         loadCompanies();
     }, []);
@@ -20,12 +18,22 @@ export const CompanyProvider = ({ children }) => {
             const fetchedCompanies = res.data;
             setCompanies(fetchedCompanies);
 
-            // Determine active local and web companies from backend flags
-            const local = fetchedCompanies.find(c => c.is_active_local);
-            const web = fetchedCompanies.find(c => c.is_active_web);
+            // 1. Check LocalStorage for previously selected company
+            const savedCompanyId = localStorage.getItem('erp_company_id');
+            let selected = null;
 
-            setActiveLocalCompany(local || fetchedCompanies[0] || null);
-            setActiveWebCompany(web || fetchedCompanies[0] || null);
+            if (savedCompanyId) {
+                selected = fetchedCompanies.find(c => c._id === savedCompanyId);
+            }
+
+            // 2. Fallback to active_local or first one
+            if (!selected) {
+                selected = fetchedCompanies.find(c => c.is_active_local) || fetchedCompanies[0];
+            }
+
+            if (selected) {
+                selectCompany(selected);
+            }
 
         } catch (err) {
             console.error('[COMPANY] Error loading companies:', err);
@@ -34,14 +42,10 @@ export const CompanyProvider = ({ children }) => {
         }
     };
 
-    const switchCompany = async (companyId, type = 'local') => {
-        try {
-            const data = type === 'local' ? { is_active_local: true } : { is_active_web: true };
-            await companyService.updateCompany(companyId, data);
-            await loadCompanies();
-        } catch (err) {
-            console.error(`Error switching ${type} company:`, err);
-        }
+    const selectCompany = (company) => {
+        setActiveCompany(company);
+        localStorage.setItem('erp_company_id', company._id);
+        console.log(`[CONTEXT] Context switched to: ${company.name}`);
     };
 
     const refreshCompanies = async () => {
@@ -51,10 +55,8 @@ export const CompanyProvider = ({ children }) => {
     return (
         <CompanyContext.Provider value={{
             companies,
-            activeCompany: activeLocalCompany, // Backward compatibility
-            activeLocalCompany,
-            activeWebCompany,
-            switchCompany,
+            activeCompany,
+            selectCompany,
             loading,
             refreshCompanies
         }}>

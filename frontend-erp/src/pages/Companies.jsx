@@ -179,6 +179,59 @@ const Companies = () => {
                                 <input className="input-field" value={formData.account_dollars || ''} onChange={e => setFormData({ ...formData, account_dollars: e.target.value })} />
                             </div>
 
+                            {/* Enterprise Architecture Settings */}
+                            <div style={{ gridColumn: 'span 2', marginTop: '1rem', borderTop: '1px solid #3b82f6', paddingTop: '0.5rem' }}>
+                                <strong style={{ color: '#3b82f6' }}>⚙️ Configuración Corporativa (Catálogo Maestro)</strong>
+                            </div>
+                            <div>
+                                <label>Grupo de Almacén Compartido</label>
+                                <input 
+                                    className="input-field" 
+                                    placeholder="ej: GRUPO-CENTRAL"
+                                    value={formData.enterprise_settings?.warehouse_group_id || 'DEFAULT'} 
+                                    onChange={e => setFormData({ 
+                                        ...formData, 
+                                        enterprise_settings: { ...formData.enterprise_settings, warehouse_group_id: e.target.value } 
+                                    })} 
+                                />
+                                <small style={{ fontSize: '0.7rem', color: '#64748b' }}>Empresas en el mismo grupo comparten stock físico.</small>
+                            </div>
+                            <div>
+                                <label>Margen de Traspaso Interno (%)</label>
+                                <input 
+                                    className="input-field" 
+                                    type="number"
+                                    value={formData.enterprise_settings?.transfer_price_margin_pct || 0} 
+                                    onChange={e => setFormData({ 
+                                        ...formData, 
+                                        enterprise_settings: { ...formData.enterprise_settings, transfer_price_margin_pct: parseFloat(e.target.value) } 
+                                    })} 
+                                />
+                                <small style={{ fontSize: '0.7rem', color: '#64748b' }}>Ganancia que cobra el dueño por ceder stock (0 = al costo).</small>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem' }}>
+                                <input 
+                                    type="checkbox"
+                                    checked={formData.enterprise_settings?.allow_cross_company_sales ?? true} 
+                                    onChange={e => setFormData({ 
+                                        ...formData, 
+                                        enterprise_settings: { ...formData.enterprise_settings, allow_cross_company_sales: e.target.checked } 
+                                    })} 
+                                />
+                                <label style={{ marginBottom: 0 }}>Permitir Ventas Cruzadas</label>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.2rem' }}>
+                                <input 
+                                    type="checkbox"
+                                    checked={formData.enterprise_settings?.auto_intercompany_settlement ?? true} 
+                                    onChange={e => setFormData({ 
+                                        ...formData, 
+                                        enterprise_settings: { ...formData.enterprise_settings, auto_intercompany_settlement: e.target.checked } 
+                                    })} 
+                                />
+                                <label style={{ marginBottom: 0 }}>Generar Deudas Automáticas</label>
+                            </div>
+
                             {/* Departments Info */}
                             <div style={{ gridColumn: 'span 2', marginTop: '1.5rem', borderTop: '1px solid #ccc', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <strong>Estructura Organizacional (Áreas/Encargados)</strong>

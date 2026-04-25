@@ -1,8 +1,9 @@
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
-from beanie import Document
+from beanie import Document, Indexed
 from pydantic import BaseModel, field_validator
+import pymongo
 
 class OrderStatus(str, Enum):
     PENDING = "PENDING"      # Orden creada, sin facturar
@@ -57,6 +58,7 @@ class PurchaseOrder(Document):
     currency: str = "SOLES"
     exchange_rate: Optional[float] = None
     show_prices: bool = True
+    company_id: Optional[str] = None
 
     @field_validator('total_amount')
     @classmethod
@@ -66,6 +68,9 @@ class PurchaseOrder(Document):
 
     class Settings:
         name = "purchase_orders"
+        indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("order_number", pymongo.ASCENDING)], unique=True)
+        ]
 
 class QuoteStatus(str, Enum):
     DRAFT = "DRAFT"
@@ -93,6 +98,7 @@ class PurchaseQuote(Document):
     currency: str = "SOLES"
     show_prices: bool = False
     issuer_info: Optional[dict] = None
+    company_id: Optional[str] = None
     
     @field_validator('total_amount')
     @classmethod
@@ -102,6 +108,9 @@ class PurchaseQuote(Document):
 
     class Settings:
         name = "purchase_quotes"
+        indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("quote_number", pymongo.ASCENDING)], unique=True)
+        ]
 
 class PurchaseInvoice(Document):
     """Factura de compra - Documento fiscal independiente"""
@@ -133,9 +142,14 @@ class PurchaseInvoice(Document):
     def round_amounts(cls, v):
         """Redondear a 3 decimales"""
         return round(v, 3) if v is not None else v
+    
+    company_id: Optional[str] = None
 
     class Settings:
         name = "purchase_invoices"
+        indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("invoice_number", pymongo.ASCENDING)], unique=True)
+        ]
 
 class Supplier(Document):
     name: str
@@ -148,3 +162,6 @@ class Supplier(Document):
 
     class Settings:
         name = "suppliers"
+        indexes = [
+            pymongo.IndexModel([("ruc", pymongo.ASCENDING)], unique=True)
+        ]

@@ -5,7 +5,7 @@ import ProductsTable from '../components/features/inventory/ProductsTable';
 import ProductForm from '../components/features/inventory/ProductForm';
 import TransfersSection from '../components/features/inventory/TransfersSection';
 import LossesSection from '../components/features/inventory/LossesSection';
-import PriceManagement from '../components/features/inventory/PriceManagement';
+
 import LoyaltyManagement from '../components/features/inventory/LoyaltyManagement';
 import Pagination from '../components/common/Table/Pagination';
 import { useProducts } from '../hooks/useProducts';
@@ -237,20 +237,6 @@ const Inventory = ({ forcedType = null }) => {
                         ⚖️ Ajustes
                     </button>
                     <button
-                        onClick={() => { setActiveTab('prices'); setSelectedIds([]); }}
-                        style={{
-                            padding: '1rem 2rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'prices' ? '2px solid #3b82f6' : 'none',
-                            color: activeTab === 'prices' ? '#3b82f6' : '#94a3b8',
-                            cursor: 'pointer',
-                            fontWeight: '500'
-                        }}
-                    >
-                        💲 Precios
-                    </button>
-                    <button
                         onClick={() => { setActiveTab('loyalty'); setSelectedIds([]); }}
                         style={{
                             padding: '1rem 2rem',
@@ -407,7 +393,7 @@ const Inventory = ({ forcedType = null }) => {
 
             {activeTab === 'losses' && <LossesSection />}
 
-            {activeTab === 'prices' && <PriceManagement />}
+
 
             {activeTab === 'loyalty' && <LoyaltyManagement />}
 

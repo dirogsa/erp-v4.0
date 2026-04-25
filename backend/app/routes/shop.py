@@ -190,7 +190,6 @@ class ShopProductResponse(BaseModel):
     discount_3_pct: float = 0.0
     discount_6_pct: float = 0.0
     discount_12_pct: float = 0.0
-    discount_50_plus_pct: float = 0.0
     promo_discount_pct: float = 0.0
     type: Optional[str] = "COMMERCIAL"
 
@@ -413,6 +412,10 @@ async def get_shop_products(
     role = current_user.role if current_user else UserRole.CUSTOMER_B2C
     print(f"[SHOP] User role: {role}")
     
+    # Obtener políticas globales para fallback
+    from app.models.sales import SalesPolicy
+    policy = await SalesPolicy.find_one({})
+    
     response_items = []
     for p in products:
         # For list, we show base price (quantity=1)
@@ -431,10 +434,9 @@ async def get_shop_products(
 
             category_id=p.category_id,
             is_new=p.is_new,
-            discount_3_pct=p.discount_3_pct,
-            discount_6_pct=p.discount_6_pct,
-            discount_12_pct=p.discount_12_pct,
-            discount_50_plus_pct=p.discount_50_plus_pct,
+            discount_3_pct=p.discount_3_pct if p.discount_3_pct > 0 else (policy.vol_3_discount_pct if policy else 0),
+            discount_6_pct=p.discount_6_pct if p.discount_6_pct > 0 else (policy.vol_6_discount_pct if policy else 0),
+            discount_12_pct=p.discount_12_pct if p.discount_12_pct > 0 else (policy.vol_12_discount_pct if policy else 0),
             promo_discount_pct=p.promo_discount_pct
         ))
 
@@ -472,8 +474,10 @@ async def get_shop_product_detail(
     })
     if not p:
         raise HTTPException(status_code=404, detail="Product not found or not available in shop")
-
     price = await get_product_price_for_user(p, 1, current_user)
+    
+    from app.models.sales import SalesPolicy
+    policy = await SalesPolicy.find_one({})
 
     return ShopProductDetailResponse(
         sku=p.sku,
@@ -493,10 +497,9 @@ async def get_shop_product_detail(
         applications=p.applications,
         weight_g=p.weight_g,
         features=p.features,
-        discount_3_pct=p.discount_3_pct,
-        discount_6_pct=p.discount_6_pct,
-        discount_12_pct=p.discount_12_pct,
-        discount_50_plus_pct=p.discount_50_plus_pct,
+        discount_3_pct=p.discount_3_pct if p.discount_3_pct > 0 else (policy.vol_3_discount_pct if policy else 0),
+        discount_6_pct=p.discount_6_pct if p.discount_6_pct > 0 else (policy.vol_6_discount_pct if policy else 0),
+        discount_12_pct=p.discount_12_pct if p.discount_12_pct > 0 else (policy.vol_12_discount_pct if policy else 0),
         promo_discount_pct=p.promo_discount_pct
     )
 
@@ -618,14 +621,21 @@ async def get_predictive_order(current_user: User = Depends(get_current_user)):
     # 4. Obtener datos actuales de esos productos
     products = await Product.find({"sku": {"$in": sku_list}, "is_active_in_shop": True}).to_list()
     
+    # Obtener políticas globales para fallback
+    from app.models.sales import SalesPolicy
+    policy = await SalesPolicy.find_one({})
+    
     # Resolve pricing
     role = current_user.role
     response_items = []
     for p in products:
-        price = p.price_wholesale if role == UserRole.CUSTOMER_B2B else p.price_retail
+        price = p.price_list
         response_items.append(ShopProductResponse(
-            **p.model_dump(exclude={"id"}),
-            price=price
+            **p.model_dump(exclude={"id", "discount_3_pct", "discount_6_pct", "discount_12_pct"}),
+            price=price,
+            discount_3_pct=p.discount_3_pct if p.discount_3_pct > 0 else (policy.vol_3_discount_pct if policy else 0),
+            discount_6_pct=p.discount_6_pct if p.discount_6_pct > 0 else (policy.vol_6_discount_pct if policy else 0),
+            discount_12_pct=p.discount_12_pct if p.discount_12_pct > 0 else (policy.vol_12_discount_pct if policy else 0)
         ))
         
     return response_items

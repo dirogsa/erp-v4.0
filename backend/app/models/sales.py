@@ -2,8 +2,9 @@ from typing import List, Optional
 from datetime import datetime
 from enum import Enum
 from beanie import Document, Indexed
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 from .auth import UserTier
+import pymongo
 
 class OrderStatus(str, Enum):
     PENDING = "PENDING"          # Orden creada, sin facturar
@@ -45,16 +46,11 @@ class SalesPolicy(Document):
     credit_60_days: float = 5.0        # Recargo % para 60 días
     credit_90_days: float = 8.0        # Recargo % para 90 días
     credit_180_days: float = 15.0      # Recargo % para 180 días
-    # Relational Engine (Precios Automáticos - Sincronizados 3/6/12/50)
-    retail_markup_pct: float = 20.0    # Margen sugerido sobre mayorista
-    vol_3_discount_pct: float = 3.0    # Descuento para 3u
-    vol_6_discount_pct: float = 5.0    # Descuento para 6u
-    vol_12_discount_pct: float = 10.0  # Descuento para 12u
-    vol_50_plus_discount_pct: float = 20.0 # Descuento para 50u o más
     # Security Guard (Stop Loss)
     min_margin_guard_pct: float = 12.0 # Margen mínimo permitido
     last_updated: datetime = datetime.utcnow()
     updated_by: Optional[str] = None    # Username del SuperAdmin
+    company_id: Optional[str] = None
     
     class Settings:
         name = "sales_policies"
@@ -89,7 +85,7 @@ class OrderItem(BaseModel):
     product_sku: str
     product_name: Optional[str] = None
     brand: Optional[str] = "OEM"
-    quantity: int
+    quantity: float
     unit_value: float = 0.0 # Sin IGV
     unit_price: float = 0.0 # Con IGV
     tax_rate: float = 0.18
@@ -151,6 +147,8 @@ class SalesOrder(Document):
 
     # Origen del pedido
     source: str = "ERP"
+    
+    company_id: Optional[str] = None
 
     @field_validator('total_amount')
     @classmethod
@@ -161,6 +159,7 @@ class SalesOrder(Document):
     class Settings:
         name = "sales_orders"
         indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("order_number", pymongo.ASCENDING)], unique=True),
             "items.product_id",
             "items.product_sku"
         ]
@@ -193,6 +192,7 @@ class SalesQuote(Document):
 
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
+    company_id: Optional[str] = None
 
 
     @field_validator('total_amount')
@@ -203,6 +203,9 @@ class SalesQuote(Document):
 
     class Settings:
         name = "sales_quotes"
+        indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("quote_number", pymongo.ASCENDING)], unique=True)
+        ]
 
 class SalesInvoice(Document):
     """Factura de venta - Documento fiscal independiente"""
@@ -237,6 +240,7 @@ class SalesInvoice(Document):
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
     exchange_rate: Optional[float] = None # Persistence of TC used at issuance
+    company_id: Optional[str] = None
 
     @field_validator('total_amount', 'amount_paid')
     @classmethod
@@ -247,18 +251,10 @@ class SalesInvoice(Document):
     class Settings:
         name = "sales_invoices"
         indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("invoice_number", pymongo.ASCENDING)], unique=True),
             "items.product_id",
             "items.product_sku"
         ]
-
-# ... CustomerBranch and Customer skipped (no issuer info needed) ...
-
-# Redefine skipped classes to keep file valid if I don't see them
-# Actually replace_file_content replaces chunks. I should target specific blocks. 
-# But let's try to be precise with target content to avoid replacing the whole file if possible.
-# Wait, I cannot use multiple ReplacementChunks with the simple replace_file_content tool.
-# I should use multi_replace_file_content or make separate calls.
-# I will cancel this big replacement and use multi_replace_file_content.
 
 class CustomerBranch(BaseModel):
     """Sucursal de un cliente"""
@@ -278,7 +274,7 @@ class DigitalDocument(BaseModel):
 
 class Customer(Document):
     name: str
-    ruc: Indexed(str, unique=True)
+    ruc: str
     address: Optional[str] = None
     ubigeo: Optional[str] = None
     phone: Optional[str] = None
@@ -297,10 +293,14 @@ class Customer(Document):
     digital_dossier: List[DigitalDocument] = [] # Expediente de riesgo
     internal_notes: Optional[str] = None # Notas solo visibles en ERP
     
-    created_at: datetime = datetime.now()
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = True
 
     class Settings:
         name = "customers"
+        indexes = [
+            pymongo.IndexModel([("ruc", pymongo.ASCENDING)], unique=True)
+        ]
 
 class NoteType(str, Enum):
     CREDIT = "CREDIT"  # Nota de Crédito

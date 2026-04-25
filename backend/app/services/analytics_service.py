@@ -158,7 +158,7 @@ async def get_inventory_valuation() -> Dict[str, Any]:
     
     for p in products:
         cost = p.cost or 0.0
-        retail = p.price_retail or 0.0
+        retail = p.price_list or 0.0
         stock = p.stock_current
         
         cost_value = stock * cost

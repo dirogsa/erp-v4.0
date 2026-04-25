@@ -8,7 +8,7 @@ import './Sidebar.css';
 
 const Sidebar = ({ isOpen, onClose }) => {
     const { user, logout } = useAuth();
-    const { activeCompany } = useCompany();
+    const { activeCompany, companies, selectCompany } = useCompany();
 
     // Filter menu items based on user role recursively
     const filteredMenu = MENU_CONFIG
@@ -42,12 +42,30 @@ const Sidebar = ({ isOpen, onClose }) => {
                 </div>
             </div>
 
-            {/* Company indicator */}
+            {/* Company Selector */}
             <div className="sidebar-company">
-                <span className="sidebar-company-label">Emisor:</span>
-                <span className="sidebar-company-name">
-                    {activeCompany ? activeCompany.name : 'Sin seleccionar'}
-                </span>
+                <label className="sidebar-company-label">🏢 EMPRESA ACTIVA:</label>
+                <select 
+                    className="sidebar-company-select"
+                    value={activeCompany?._id || ''}
+                    onChange={(e) => {
+                        const comp = companies.find(c => c._id === e.target.value);
+                        if (comp) {
+                            selectCompany(comp);
+                            // Refresh page to clear all local states and force new company context
+                            window.location.reload();
+                        }
+                    }}
+                >
+                    {companies.map(c => (
+                        <option key={c._id} value={c._id}>{c.name}</option>
+                    ))}
+                </select>
+                {activeCompany && (
+                    <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem', paddingLeft: '0.25rem' }}>
+                        RUC: {activeCompany.ruc}
+                    </div>
+                )}
             </div>
 
             {/* Navigation */}

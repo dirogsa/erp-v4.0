@@ -1,9 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from typing import Optional
 from pydantic import BaseModel
 from app.models.inventory import DeliveryGuide
 from app.services import delivery_service
 from app.schemas.common import PaginatedResponse
+
+from .auth import get_current_user, check_role
+from app.dependencies.company import get_current_company_id
 
 router = APIRouter(prefix="/delivery", tags=["Delivery Guides"])
 
@@ -52,9 +55,12 @@ async def create_guide(data: GuideCreation):
 
 
 @router.put("/guides/{guide_number}/dispatch", response_model=DeliveryGuide)
-async def dispatch_guide(guide_number: str):
+async def dispatch_guide(
+    guide_number: str,
+    company_id: str = Depends(get_current_company_id)
+):
     """Marcar guía como despachada - DESCUENTA STOCK"""
-    return await delivery_service.dispatch_guide(guide_number)
+    return await delivery_service.dispatch_guide(guide_number, company_id=company_id)
 
 
 @router.put("/guides/{guide_number}/deliver", response_model=DeliveryGuide)

@@ -25,7 +25,7 @@ const ProductItemsSection = ({
     // Cuando se selecciona un producto, actualizar precio sugerido
     useEffect(() => {
         if (selectedProduct) {
-            const productPrice = selectedProduct.price_retail || 0;
+            const productPrice = selectedProduct.price_list || 0;
             setPrice(isNaN(productPrice) ? 0 : productPrice);
         }
     }, [selectedProduct]);
@@ -179,38 +179,32 @@ const ProductItemsSection = ({
                             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                                 <button
                                     type="button"
-                                    onClick={() => setPrice(selectedProduct.price_retail || 0)}
-                                    style={{
-                                        fontSize: '0.7rem',
-                                        padding: '0.25rem',
-                                        background: '#3b82f6',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '0.25rem',
-                                        cursor: 'pointer',
-                                        flex: 1
-                                    }}
-                                    title="Usar Precio Minorista"
+                                    onClick={() => setPrice(selectedProduct.price_list || 0)}
+                                    style={{ fontSize: '0.7rem', padding: '0.25rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer', flex: 1 }}
+                                    title="Precio de Lista"
                                 >
-                                    Min: {formatCurrency(selectedProduct.price_retail || 0)}
+                                    Lista: {formatCurrency(selectedProduct.price_list || 0)}
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setPrice(selectedProduct.price_wholesale || 0)}
-                                    style={{
-                                        fontSize: '0.7rem',
-                                        padding: '0.25rem',
-                                        background: '#10b981',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '0.25rem',
-                                        cursor: 'pointer',
-                                        flex: 1
-                                    }}
-                                    title="Usar Precio Mayorista"
-                                >
-                                    May: {formatCurrency(selectedProduct.price_wholesale || 0)}
-                                </button>
+                                {(selectedProduct.discount_3_pct > 0) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setPrice(parseFloat((selectedProduct.price_list * (1 - selectedProduct.discount_3_pct / 100)).toFixed(3)))}
+                                        style={{ fontSize: '0.7rem', padding: '0.25rem', background: '#0f2a1e', color: '#10b981', border: '1px solid #10b98133', borderRadius: '0.25rem', cursor: 'pointer', flex: 1 }}
+                                        title="Pack 3"
+                                    >
+                                        Pack3: {formatCurrency(selectedProduct.price_list * (1 - selectedProduct.discount_3_pct / 100))}
+                                    </button>
+                                )}
+                                {(selectedProduct.discount_6_pct > 0) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setPrice(parseFloat((selectedProduct.price_list * (1 - selectedProduct.discount_6_pct / 100)).toFixed(3)))}
+                                        style={{ fontSize: '0.7rem', padding: '0.25rem', background: '#0f2a1e', color: '#10b981', border: '1px solid #10b98133', borderRadius: '0.25rem', cursor: 'pointer', flex: 1 }}
+                                        title="Pack 6"
+                                    >
+                                        Pack6: {formatCurrency(selectedProduct.price_list * (1 - selectedProduct.discount_6_pct / 100))}
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>

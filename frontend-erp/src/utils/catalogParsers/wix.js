@@ -1,4 +1,4 @@
-import { resolveCategoryName, normalizeSku } from './common';
+import { resolveCategoryName, normalizeSku, normalizeSpecs } from './common';
 
 /**
  * Parser especializado para el nuevo formato Global de WIX Filters (wixfilters.com)
@@ -336,6 +336,10 @@ export const parseWix = (doc, domain, dbCategories = []) => {
         const pdfLink = downloadsPanel.querySelector('a[href*=".pdf"]');
         if (pdfLink) data.manual_pdf_url = pdfLink.getAttribute('href');
     }
+
+    // 10. Normalización Final (Inteligencia Enterprise)
+    // Traducimos los labels crudos al estándar definido en la BD
+    data.specs = normalizeSpecs(data.specs, data.category_name, dbCategories);
 
     return data;
 };

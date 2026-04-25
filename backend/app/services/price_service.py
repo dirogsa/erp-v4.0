@@ -2,179 +2,119 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from io import StringIO
 import csv
-from app.models.inventory import Product, PriceHistory, PriceListType
+from app.models.inventory import Product
+from app.models.pricing import PriceList, PriceEntry
 from app.exceptions.business_exceptions import NotFoundException, ValidationException
-from app.schemas.common import PaginatedResponse
+from beanie import PydanticObjectId
 
-async def get_products_with_prices(
-    skip: int = 0,
-    limit: int = 50,
-    search: Optional[str] = None
-) -> PaginatedResponse[Product]:
-    query = {}
+async def get_active_price(product_id: PydanticObjectId, quantity: int = 1, price_list_name: str = "General") -> Dict[str, Any]:
+    """
+    Busca el mejor precio disponible para un producto según cantidad y lista.
+    Prioriza: Campañas Activas > Listas Específicas > Lista General.
+    """
+    # 1. Buscar la lista solicitada
+    plist = await PriceList.find_one(PriceList.name == price_list_name, PriceList.is_active == True)
+    if not plist:
+        # Fallback a General si no existe la solicitada
+        plist = await PriceList.find_one(PriceList.name == "General", PriceList.is_active == True)
     
-    if search:
-        query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"sku": {"$regex": search, "$options": "i"}}
-        ]
+    if not plist:
+        return {"price": 0.0, "currency": "PEN", "list_name": "NONE"}
 
-    total = await Product.find(query).count()
-    items = await Product.find(query).skip(skip).limit(limit).to_list()
+    # 2. Buscar campañas activas que puedan sobreescribir el precio (Prioridad)
+    campaign = await PriceList.find_one(
+        PriceList.is_campaign == True,
+        PriceList.is_active == True,
+        PriceList.start_date <= datetime.utcnow(),
+        PriceList.end_date >= datetime.utcnow()
+    ).sort("-priority")
     
-    return PaginatedResponse(
-        items=items,
-        total=total,
-        page=skip // limit + 1,
-        pages=(total + limit - 1) // limit,
-        size=limit
-    )
+    target_list_id = campaign.id if campaign else plist.id
+    
+    # 3. Buscar la entrada de precio que coincida con la cantidad (la mayor cantidad <= quantity)
+    # Ejemplo: Si quantity=15 y hay precios para 1, 10 y 20. Debería elegir el de 10.
+    price_entry = await PriceEntry.find(
+        PriceEntry.product_id == product_id,
+        PriceEntry.price_list_id == target_list_id,
+        PriceEntry.min_quantity <= quantity
+    ).sort("-min_quantity").first_or_none()
 
-async def update_product_price(
-    sku: str,
-    price_type: PriceListType,
-    new_price: float,
-    reason: Optional[str] = None,
-    changed_by: Optional[str] = None,
-    discount_3_pct: Optional[float] = None,
-    discount_6_pct: Optional[float] = None,
-    discount_12_pct: Optional[float] = None,
-    discount_50_plus_pct: Optional[float] = None,
-    promo_discount_pct: Optional[float] = None
-) -> Product:
+    if not price_entry and campaign:
+        # Si no hubo precio en la campaña, buscar en la lista base
+        price_entry = await PriceEntry.find(
+            PriceEntry.product_id == product_id,
+            PriceEntry.price_list_id == plist.id,
+            PriceEntry.min_quantity <= quantity
+        ).sort("-min_quantity").first_or_none()
+
+    if not price_entry:
+        return {"price": 0.0, "currency": "PEN", "list_name": "NOT_FOUND"}
+
+    return {
+        "price": price_entry.price,
+        "currency": price_entry.currency,
+        "list_name": campaign.name if campaign else plist.name,
+        "min_quantity": price_entry.min_quantity
+    }
+
+async def update_price(
+    sku: str, 
+    price: float, 
+    list_name: str = "General", 
+    min_quantity: int = 1, 
+    currency: str = "PEN"
+):
     product = await Product.find_one(Product.sku == sku)
     if not product:
         raise NotFoundException("Product", sku)
     
-    # Get old price
-    # Get old price
-    if price_type == PriceListType.RETAIL:
-        old_price = product.price_retail
-    else:
-        old_price = product.price_wholesale
+    plist = await PriceList.find_one(PriceList.name == list_name)
+    if not plist:
+        # Auto-crear lista si no existe (Convenience)
+        plist = PriceList(name=list_name)
+        await plist.insert()
     
-    # Skip if no change
-    if old_price == new_price:
-        return product
-    
-    # Create history entry
-    history = PriceHistory(
-        product_sku=sku,
-        price_type=price_type,
-        old_price=old_price,
-        new_price=new_price,
-        changed_at=datetime.now(),
-        changed_by=changed_by,
-        reason=reason
+    # Upsert PriceEntry
+    entry = await PriceEntry.find_one(
+        PriceEntry.product_id == product.id,
+        PriceEntry.price_list_id == plist.id,
+        PriceEntry.min_quantity == min_quantity
     )
-    await history.insert()
     
-    # Update product price
-    # Update product price
-    if price_type == PriceListType.RETAIL:
-        product.price_retail = round(new_price, 3)
+    if entry:
+        entry.price = price
+        entry.currency = currency
+        entry.last_updated = datetime.utcnow()
+        await entry.save()
     else:
-        product.price_wholesale = round(new_price, 3)
+        entry = PriceEntry(
+            product_id=product.id,
+            sku=sku,
+            price_list_id=plist.id,
+            price=price,
+            currency=currency,
+            min_quantity=min_quantity
+        )
+        await entry.insert()
     
-    if discount_3_pct is not None:
-        product.discount_3_pct = round(discount_3_pct, 3)
-    if discount_6_pct is not None:
-        product.discount_6_pct = round(discount_6_pct, 3)
-    if discount_12_pct is not None:
-        product.discount_12_pct = round(discount_12_pct, 3)
-    if discount_50_plus_pct is not None:
-        product.discount_50_plus_pct = round(discount_50_plus_pct, 3)
-    if promo_discount_pct is not None:
-        product.promo_discount_pct = round(promo_discount_pct, 3)
-    
-    await product.save()
-    return product
+    return entry
 
-async def get_price_history(
-    sku: str,
-    price_type: Optional[str] = None
-) -> List[PriceHistory]:
-    query = {"product_sku": sku}
-    if price_type:
-        query["price_type"] = price_type
-    
-    return await PriceHistory.find(query).sort("-changed_at").to_list()
-
-async def bulk_update_prices(
-    updates: List[Dict[str, Any]],
-    reason: Optional[str] = None,
-    changed_by: Optional[str] = None
-) -> Dict[str, Any]:
-    """
-    Bulk update prices from a list of dicts.
-    Each dict should have: sku, price (retail), price_wholesale (optional)
-    """
+async def bulk_update_from_csv(csv_content: str, list_name: str = "General"):
+    reader = csv.DictReader(StringIO(csv_content))
     updated = 0
     errors = []
     
-    for item in updates:
-        sku = item.get("sku")
-        if not sku:
-            errors.append({"error": "Missing SKU", "data": item})
+    for row in reader:
+        sku = row.get("sku", "").strip()
+        price_str = row.get("price") or row.get("price_list")
+        
+        if not sku or not price_str:
             continue
             
         try:
-            # Update retail price if provided
-            if "price" in item and item["price"] is not None:
-                await update_product_price(
-                    sku=sku,
-                    price_type=PriceListType.RETAIL,
-                    new_price=float(item["price"]),
-                    reason=reason,
-                    changed_by=changed_by
-                )
-                updated += 1
-            
-            # Update wholesale price if provided
-            if "price_wholesale" in item and item["price_wholesale"] is not None:
-                await update_product_price(
-                    sku=sku,
-                    price_type=PriceListType.WHOLESALE,
-                    new_price=float(item["price_wholesale"]),
-                    reason=reason,
-                    changed_by=changed_by
-                )
-                
-        except NotFoundException:
-            errors.append({"error": f"Product {sku} not found", "sku": sku})
+            await update_price(sku=sku, price=float(price_str), list_name=list_name)
+            updated += 1
         except Exception as e:
-            errors.append({"error": str(e), "sku": sku})
-    
-    return {
-        "updated": updated,
-        "errors": errors,
-        "total_processed": len(updates)
-    }
-
-async def parse_csv_prices(csv_content: str) -> List[Dict[str, Any]]:
-    """
-    Parse CSV content for price updates.
-    Expected columns: sku, price, price_wholesale (optional)
-    """
-    reader = csv.DictReader(StringIO(csv_content))
-    updates = []
-    
-    for row in reader:
-        update = {"sku": row.get("sku", "").strip()}
-        
-        if "price" in row and row["price"]:
-            try:
-                update["price"] = float(row["price"])
-            except ValueError:
-                pass
-                
-        if "price_wholesale" in row and row["price_wholesale"]:
-            try:
-                update["price_wholesale"] = float(row["price_wholesale"])
-            except ValueError:
-                pass
-        
-        if update.get("sku"):
-            updates.append(update)
-    
-    return updates
+            errors.append({"sku": sku, "error": str(e)})
+            
+    return {"updated": updated, "errors": errors}

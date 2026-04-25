@@ -1,4 +1,4 @@
-import { resolveCategoryName } from './common';
+import { resolveCategoryName, normalizeSpecs } from './common';
 
 /**
  * Parser específico para catálogos de AZUMI
@@ -167,6 +167,9 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp', dbCategories = [
             });
         });
     });
+
+    // 7. Normalización Final (Inteligencia Enterprise)
+    data.specs = normalizeSpecs(data.specs, data.category_name, dbCategories);
 
     return data;
 };

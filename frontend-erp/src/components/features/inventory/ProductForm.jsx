@@ -552,31 +552,7 @@ const ProductForm = ({
                         />
                     </div>
 
-                    {formData.type === 'COMMERCIAL' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', background: '#0f172a', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #334155' }}>
-                            <Input
-                                label="% Desc. 6 Unid."
-                                type="number"
-                                value={formData.discount_6_pct}
-                                onChange={(e) => setFormData({ ...formData, discount_6_pct: parseFloat(e.target.value) || 0 })}
-                                placeholder="0"
-                            />
-                            <Input
-                                label="% Desc. 12 Unid."
-                                type="number"
-                                value={formData.discount_12_pct}
-                                onChange={(e) => setFormData({ ...formData, discount_12_pct: parseFloat(e.target.value) || 0 })}
-                                placeholder="0"
-                            />
-                            <Input
-                                label="% Desc. 24 Unid."
-                                type="number"
-                                value={formData.discount_24_pct}
-                                onChange={(e) => setFormData({ ...formData, discount_24_pct: parseFloat(e.target.value) || 0 })}
-                                placeholder="0"
-                            />
-                        </div>
-                    )}
+
                     <Input
                         label="Marca del Producto (Fabricante)"
                         value={formData.brand}

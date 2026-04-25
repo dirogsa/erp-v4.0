@@ -68,13 +68,13 @@ async def log_requests(request: Request, call_next):
 # Esto acelera el arranque y ayuda a evitar importaciones circulares.
 
 def include_routers(app: FastAPI):
-    from app.routes import auth, companies, categories, brands, finance, analytics, inventory, prices, delivery, io, purchasing, purchase_quotes, financial, sales, sales_quotes, sales_config, pricing, marketing, audit, staff, shop
+    from app.routes import auth, companies, categories, brands, finance, analytics, inventory, delivery, io, purchasing, purchase_quotes, financial, sales, sales_quotes, sales_config, pricing, marketing, audit, staff, shop, intercompany
     
     routes = [
         auth, companies, categories, brands, finance, analytics, 
-        inventory, prices, delivery, io, purchasing, purchase_quotes, 
+        inventory, delivery, io, purchasing, purchase_quotes, 
         financial, sales_quotes, sales, sales_config, pricing, 
-        marketing, audit, staff, shop
+        marketing, audit, staff, shop, intercompany
     ]
     
     for route in routes:

@@ -1,18 +1,21 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
-from pydantic import BaseModel
 from beanie import PydanticObjectId
-from app.models.purchasing import PurchaseOrder, PurchaseInvoice, Supplier, PaymentStatus
+from app.models.auth import User, UserRole
+from app.models.purchasing import PurchaseOrder, PurchaseInvoice, Supplier
 from app.services import purchasing_service
 from app.schemas.purchasing_schemas import InvoiceCreation, PaymentRegistration, ReceptionRequest, InvoiceXmlImport
 from app.schemas.common import PaginatedResponse
+from .auth import get_current_user, check_role
+from app.dependencies.company import get_current_company_id
 
 router = APIRouter(prefix="/purchasing", tags=["Purchasing"])
 
 # ==================== ORDERS ====================
 
 @router.post("/orders", response_model=PurchaseOrder)
-async def create_order(order: PurchaseOrder):
+async def create_order(order: PurchaseOrder, company_id: str = Depends(get_current_company_id)):
+    order.company_id = company_id
     return await purchasing_service.create_order(order)
 
 @router.get("/orders", response_model=PaginatedResponse[PurchaseOrder])
@@ -29,14 +32,15 @@ async def get_orders(
 # ==================== INVOICES ====================
 
 @router.post("/invoices", response_model=PurchaseInvoice)
-async def create_invoice(invoice_data: InvoiceCreation):
+async def create_invoice(invoice_data: InvoiceCreation, company_id: str = Depends(get_current_company_id)):
     return await purchasing_service.create_invoice(
         invoice_data.order_number,
         invoice_data.sunat_number,
         invoice_data.invoice_date,
         invoice_data.payment_status,
         invoice_data.amount_paid,
-        invoice_data.payment_date
+        invoice_data.payment_date,
+        company_id=company_id
     )
 
 @router.get("/invoices", response_model=PaginatedResponse[PurchaseInvoice])
@@ -97,16 +101,18 @@ async def update_supplier(id: PydanticObjectId, supplier_data: Supplier):
 # ==================== RECEPTION ====================
 
 @router.post("/invoices/{invoice_number}/receive")
-async def create_reception_guide(invoice_number: str, reception_data: ReceptionRequest):
+async def create_reception_guide(invoice_number: str, reception_data: ReceptionRequest, company_id: str = Depends(get_current_company_id)):
     return await purchasing_service.create_reception_guide(
         invoice_number,
         reception_data.notes,
-        reception_data.created_by
+        reception_data.created_by,
+        company_id=company_id
     )
 @router.post("/import-invoice-xml", response_model=PurchaseInvoice)
-async def import_invoice_xml(request: InvoiceXmlImport):
+async def import_invoice_xml(request: InvoiceXmlImport, company_id: str = Depends(get_current_company_id)):
     return await purchasing_service.import_invoice_xml(
         request.xml_data, 
         request.auto_reception, 
-        request.exchange_rate
+        request.exchange_rate,
+        company_id=company_id
     )

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import { formatCurrency } from '../../../utils/formatters';
-import { financeService } from '../../../services/api';
+import { financeService, salesService } from '../../../services/api';
 import { Loader2, Zap, FileText } from 'lucide-react';
 
 const EMITTER_MAP = {
@@ -13,9 +13,12 @@ const EMITTER_MAP = {
 const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
     const [exchangeRate, setExchangeRate] = useState(1);
     const [isTcMissing, setIsTcMissing] = useState(false);
+    const [isCustomerMissing, setIsCustomerMissing] = useState(false);
     const [localItems, setLocalItems] = useState([]);
     const [emitter, setEmitter] = useState(null);
     const [isFetchingTc, setIsFetchingTc] = useState(false);
+    const [isFetchingCustomer, setIsFetchingCustomer] = useState(false);
+    const [customerInfo, setCustomerInfo] = useState(null);
 
     useEffect(() => {
         if (doc) {
@@ -52,9 +55,24 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                         setIsTcMissing(true);
                     })
                     .finally(() => setIsFetchingTc(false));
-            } else {
                 setExchangeRate(1);
                 setIsTcMissing(false);
+            }
+
+            // Validar Cliente (RUC)
+            if (doc.customer && doc.customer.ruc) {
+                setIsFetchingCustomer(true);
+                salesService.getCustomerByRuc(doc.customer.ruc)
+                    .then(res => {
+                        setCustomerInfo(res.data);
+                        setIsCustomerMissing(false);
+                    })
+                    .catch(err => {
+                        console.warn("Cliente no encontrado:", doc.customer.ruc);
+                        setCustomerInfo(null);
+                        setIsCustomerMissing(true);
+                    })
+                    .finally(() => setIsFetchingCustomer(false));
             }
         }
     }, [doc]);
@@ -195,6 +213,30 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                             <label style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' }}>Total Original XML</label>
                             <div style={{ padding: '0.75rem', color: 'white', fontWeight: '900', fontSize: '1.4rem' }}>
                                 {doc.currency === 'DOLARES' || doc.currency === 'USD' ? `$ ` : `S/ `} {doc.total_amount.toFixed(2)}
+                            </div>
+                        </div>
+
+                        {/* Customer Validation Tag */}
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                            <label style={{ 
+                                display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', 
+                                color: isCustomerMissing ? '#f87171' : '#10b981', 
+                                marginBottom: '0.5rem', fontWeight: 'bold', textTransform: 'uppercase' 
+                            }}>
+                                <span>Validación Cliente</span>
+                                {isFetchingCustomer ? <Loader2 className="animate-spin" size={12} /> : 
+                                 isCustomerMissing ? <span>❌ NO ENCONTRADO</span> : <span>✅ REGISTRADO</span>}
+                            </label>
+                            <div style={{ 
+                                padding: '0.75rem', 
+                                backgroundColor: isCustomerMissing ? 'rgba(248, 113, 113, 0.1)' : 'rgba(16, 185, 129, 0.1)', 
+                                borderRadius: '0.75rem', 
+                                border: isCustomerMissing ? '1px solid #f87171' : '1px solid #10b981',
+                                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                color: isCustomerMissing ? '#f87171' : '#10b981',
+                                fontWeight: 'bold'
+                            }}>
+                                {isFetchingCustomer ? 'Verificando...' : isCustomerMissing ? 'DEBE REGISTRAR AL CLIENTE' : customerInfo?.name || 'VÁLIDO'}
                             </div>
                         </div>
                     </div>

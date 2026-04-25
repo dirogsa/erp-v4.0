@@ -160,22 +160,21 @@ const CatalogIngestion = () => {
             }
 
             if (newProducts.length > 0) {
-                setParsedProducts(prev => {
-                    const filtered = newProducts.filter(newItem => 
-                        !prev.some(existing => existing.sku === newItem.sku && existing.brand === newItem.brand)
-                    );
-                    
-                    const addedCount = filtered.length;
-                    const skippedCount = newProducts.length - filtered.length;
-                    
-                    if (skippedCount > 0) {
-                        showNotification(`${addedCount} agregados, ${skippedCount} omitidos (duplicados en lista)`, 'warning');
-                    } else {
-                        showNotification(`${addedCount} archivos procesados correctamente`, 'success');
-                    }
-                    
-                    return [...prev, ...filtered];
-                });
+                // Realizar filtrado fuera del setter de estado para evitar efectos secundarios en render
+                const filtered = newProducts.filter(newItem => 
+                    !parsedProducts.some(existing => existing.sku === newItem.sku && existing.brand === newItem.brand)
+                );
+                
+                const addedCount = filtered.length;
+                const skippedCount = newProducts.length - filtered.length;
+                
+                if (skippedCount > 0) {
+                    showNotification(`${addedCount} agregados, ${skippedCount} omitidos (duplicados en lista)`, 'warning');
+                } else {
+                    showNotification(`${addedCount} archivos procesados correctamente`, 'success');
+                }
+                
+                setParsedProducts(prev => [...prev, ...filtered]);
             } else {
                 showNotification('No se pudieron extraer productos de los archivos seleccionados', 'warning');
             }

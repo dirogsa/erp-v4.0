@@ -30,6 +30,27 @@ export const MENU_CONFIG = [
         isGroup: false
     },
     {
+        id: 'socios',
+        label: 'SOCIOS Y CLIENTES',
+        icon: '🤝',
+        roles: [ROLES.ADMIN, ROLES.SELLER, ROLES.ACCOUNTANT],
+        isGroup: true,
+        children: [
+            { id: 'customers', label: 'Cartera de Clientes', path: '/customers', icon: '👥' },
+            { id: 'b2b-apps', label: 'Solicitudes B2B', path: '/b2b', icon: '📩' }
+        ]
+    },
+    {
+        id: 'estrategia-precios',
+        label: 'ESTRATEGIA DE PRECIOS',
+        icon: '💰',
+        roles: [ROLES.ADMIN, ROLES.ACCOUNTANT],
+        isGroup: true,
+        children: [
+            { id: 'pricing-manager', label: 'Consola Estratégica', path: '/pricing-strategy', icon: '🎮' }
+        ]
+    },
+    {
         id: 'comercial',
         label: 'ÁREA COMERCIAL',
         icon: '💼',
@@ -37,7 +58,6 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'sales', label: 'Gestión de Ventas', path: '/sales', icon: '🛍️' },
-            { id: 'customers', label: 'Cartera de Clientes', path: '/customers', icon: '👥' },
             { id: 'catalog', label: 'Catálogo Digital', path: '/catalog', icon: '📖' },
             { id: 'marketing', label: 'Lealtad y Puntos', path: '/marketing', icon: '🎁', roles: [ROLES.ADMIN, ROLES.SELLER, ROLES.ACCOUNTANT] }
         ]
@@ -50,6 +70,7 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'inventory', label: 'Maestro de Productos', path: '/inventory', icon: '📦' },
+            { id: 'brands-master', label: 'Maestro de Marcas (MDM)', path: '/inventory/brands-master', icon: '💎' },
             { id: 'brands', label: 'Marcas / Modelos', path: '/brands', icon: '🏎️' },
             { id: 'categories', label: 'Categorías de Stock', path: '/categories', icon: '🏷️' },
             { id: 'warehouses', label: 'Sedes y Almacenes', path: '/warehouses', icon: '🏢' },
@@ -66,7 +87,6 @@ export const MENU_CONFIG = [
         children: [
             { id: 'bulk-xml', label: 'Importador XML SUNAT', path: '/bulk/xml', icon: '📄' },
             { id: 'bulk-ingestion', label: 'Ingesta de Catálogos', path: '/catalog-ingestion', icon: '🚀' },
-            { id: 'bulk-prices', label: 'Precios Masivos', path: '/price-update', icon: '📈' },
             { id: 'data-center', label: 'Centro de Datos (CSV)', path: '/import-export', icon: '📤' }
         ]
     },
@@ -91,10 +111,7 @@ export const MENU_CONFIG = [
             { id: 'reports', label: 'Análisis y Reportes', path: '/reports', icon: '📊' },
             { id: 'companies', label: 'Gestión de Empresas', path: '/companies', icon: '🏢' },
             { id: 'exchange-rates', label: 'Tipos de Cambio', path: '/exchange-rates', icon: '💱' },
-            { id: 'pricing', label: 'Precios Especiales B2B', path: '/pricing', icon: '🏷️' },
-            { id: 'financial-audit', label: 'Auditoría Financiera', path: '/audit/financial', icon: '🛡️', roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] },
-            { id: 'b2b', label: 'Socios de Negocio B2B', path: '/b2b', icon: '🤝' },
-            { id: 'policies', label: 'Políticas de Venta', path: '/sales-policies', icon: '⚖️' }
+            { id: 'financial-audit', label: 'Auditoría Financiera', path: '/audit/financial', icon: '🛡️', roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] }
         ]
     },
     {

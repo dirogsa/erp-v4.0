@@ -7,6 +7,16 @@ class Department(BaseModel):
     name: str # e.g., "Cobranzas", "Ventas", "Logística"
     staff_id: Optional[str] = None # Link to Staff member
 
+class EnterpriseSettings(BaseModel):
+    # ID del Grupo de Almacén: Empresas con el mismo ID comparten inventario físico
+    warehouse_group_id: str = "DEFAULT"
+    # Autocancelación: ¿Se generan deudas automáticas en ventas cruzadas?
+    auto_intercompany_settlement: bool = True
+    # Margen de Traspaso: % de ganancia que cobra el dueño al ceder stock (0 = al costo)
+    transfer_price_margin_pct: float = 0.0
+    # ¿Permitir vender stock de otras empresas del mismo grupo?
+    allow_cross_company_sales: bool = True
+
 class Company(Document):
     name: str
     ruc: Indexed(str, unique=True)
@@ -15,6 +25,9 @@ class Company(Document):
     email: Optional[str] = None
     website: Optional[str] = None
     logo_url: Optional[str] = None
+    
+    # Configuración de Gobierno Corporativo
+    enterprise_settings: EnterpriseSettings = EnterpriseSettings()
     
     # Bank Info
     bank_name: Optional[str] = None
