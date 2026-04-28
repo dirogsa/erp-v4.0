@@ -11,7 +11,10 @@ const PricingPolicies = () => {
         credit_60_days: 0,
         credit_90_days: 0,
         credit_180_days: 0,
-        min_margin_guard_pct: 12
+        min_margin_guard_pct: 12,
+        vol_3_discount_pct: 0,
+        vol_6_discount_pct: 0,
+        vol_12_discount_pct: 0
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -110,6 +113,52 @@ const PricingPolicies = () => {
                     </div>
                     <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '1rem' }}>
                         Estos porcentajes se sumarán automáticamente al precio base cuando el vendedor elija el plazo en la orden de venta.
+                    </p>
+                </div>
+
+                {/* Columna 3: Descuentos por Volumen (Packs) */}
+                <div style={{
+                    gridColumn: 'span 2',
+                    background: 'rgba(16, 185, 129, 0.05)',
+                    padding: '2rem',
+                    borderRadius: '1.5rem',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    marginTop: '1rem'
+                }}>
+                    <h3 style={{ color: '#10b981', fontSize: '1.1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        📦 Descuentos Globales por Volumen (Packs)
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+                        <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '1rem', border: '1px solid #334155' }}>
+                            <Input 
+                                label="Pack 3u (%)" 
+                                type="number" 
+                                value={policies.vol_3_discount_pct} 
+                                onChange={e => handleChange('vol_3_discount_pct', e.target.value)} 
+                            />
+                            <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.5rem' }}>Descuento base para compras de 3 a 5 unidades.</p>
+                        </div>
+                        <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '1rem', border: '1px solid #334155' }}>
+                            <Input 
+                                label="Pack 6u (%)" 
+                                type="number" 
+                                value={policies.vol_6_discount_pct} 
+                                onChange={e => handleChange('vol_6_discount_pct', e.target.value)} 
+                            />
+                            <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.5rem' }}>Descuento base para compras de 6 a 11 unidades.</p>
+                        </div>
+                        <div style={{ padding: '1rem', background: '#0f172a', borderRadius: '1rem', border: '1px solid #334155' }}>
+                            <Input 
+                                label="Pack 12u (%)" 
+                                type="number" 
+                                value={policies.vol_12_discount_pct} 
+                                onChange={e => handleChange('vol_12_discount_pct', e.target.value)} 
+                            />
+                            <p style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.5rem' }}>Descuento base para compras de 12 unidades a más.</p>
+                        </div>
+                    </div>
+                    <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: '1rem', fontStyle: 'italic' }}>
+                        * Estos descuentos se aplican automáticamente a todos los productos que NO tengan un descuento manual específico.
                     </p>
                 </div>
 

@@ -4,7 +4,7 @@ import { resolveCategoryName, normalizeSku, normalizeSpecs } from './common';
  * Parser especializado para el nuevo formato Global de WIX Filters (wixfilters.com)
  * Extrae información detallada: SKU, EAN, Medidas, Aplicaciones completas y OE-Numbers.
  */
-export const parseWix = (doc, domain, dbCategories = []) => {
+const parseWixModern = (doc, domain, dbCategories = []) => {
     const data = {
         brand: 'WIX',
         sku: '',
@@ -342,4 +342,134 @@ export const parseWix = (doc, domain, dbCategories = []) => {
     data.specs = normalizeSpecs(data.specs, data.category_name, dbCategories);
 
     return data;
+};
+
+/**
+ * Parser especializado para el formato Legacy/USA de WIX (PartDetails.aspx)
+ * Maneja tablas con IDs gvpd, gvPa, etc.
+ */
+const parseWixUSA = (doc, dbCategories = []) => {
+    const data = {
+        brand: 'WIX',
+        sku: '',
+        name: '',
+        ean: '',
+        type: 'COMMERCIAL',
+        is_active_in_shop: false,
+        status: 'AVAILABLE',
+        category_name: '',
+        description: '',
+        image_url: '',
+        image_gallery: [],
+        tech_drawing_url: '',
+        manual_pdf_url: '',
+        weight_g: 0,
+        shape: '',
+        specs: [],
+        applications: [],
+        equivalences: [],
+        tech_bulletin: ''
+    };
+
+    // 1. Especificaciones Principales (Tabla #gvpd)
+    const pdTable = doc.querySelector('#gvpd');
+    if (pdTable) {
+        pdTable.querySelectorAll('tr').forEach(row => {
+            const labelEl = row.querySelector('.partAttribute');
+            const tds = row.querySelectorAll('td');
+            const valueEl = tds.length >= 2 ? tds[1] : null;
+            
+            if (!labelEl || !valueEl) return;
+
+            const label = labelEl.innerText.trim().replace(':', '');
+            const value = valueEl.innerText.trim();
+
+            if (/Part Number/i.test(label)) {
+                data.sku = normalizeSku(value);
+            } else if (/UPC Number/i.test(label)) {
+                data.ean = value;
+            } else if (/Style/i.test(label)) {
+                data.shape = value;
+            } else if (/Service/i.test(label)) {
+                data.category_name = resolveCategoryName(value, dbCategories);
+            } else if (value && value !== '\u00A0' && value !== '') {
+                // Es una medida técnica (Length, Width, Height, etc.)
+                let cleanValue = value;
+                
+                // Si tiene conversión métrica (ej: 11.26 (286)*), la preferimos
+                const metricMatch = value.match(/\(([\d.]+)\)\*/);
+                if (metricMatch) {
+                    cleanValue = metricMatch[1]; // Tomamos el valor en mm
+                }
+
+                data.specs.push({
+                    label: label,
+                    value: cleanValue,
+                    measure_type: 'mm'
+                });
+            }
+        });
+    }
+
+    // 2. Aplicación Principal (Tabla #gvPa)
+    const paTable = doc.querySelector('#gvPa');
+    if (paTable) {
+        paTable.querySelectorAll('tr').forEach(row => {
+            const tds = row.querySelectorAll('td');
+            if (tds.length >= 2) {
+                const appText = tds[1].innerText.trim();
+                // Formato: "Jeep Grand Cherokee (21-25)"
+                const match = appText.match(/(.+?)\s*\((.+?)\)/);
+                if (match) {
+                    data.applications.push({
+                        make: '', 
+                        model: match[1].trim(),
+                        year: match[2].trim(),
+                        engine: 'Principle Application',
+                        notes: ''
+                    });
+                } else {
+                    data.applications.push({
+                        make: '',
+                        model: appText,
+                        year: '',
+                        engine: 'Principle Application',
+                        notes: ''
+                    });
+                }
+            }
+        });
+    }
+
+    // 3. Imagen (Zoom o Miniatura)
+    const mainImg = doc.querySelector('#zoomImage') || doc.querySelector('#image');
+    if (mainImg) {
+        data.image_url = mainImg.getAttribute('src');
+    }
+
+    // 4. Nombre Final Estándar
+    if (data.sku) {
+        data.name = `${data.category_name || 'FILTRO'} ${data.brand} ${data.sku}`.trim();
+    }
+
+    // 5. Normalización de Specs
+    data.specs = normalizeSpecs(data.specs, data.category_name, dbCategories);
+
+    return data;
+};
+
+/**
+ * Orquestador principal para la marca WIX
+ * Detecta automáticamente si es el formato Moderno o USA/Legacy
+ */
+export const parseWix = (doc, domain, dbCategories = []) => {
+    // Firma de WIX USA (ASP.NET Legacy)
+    if (doc.querySelector('#gvpd') || doc.querySelector('form[action*="PartDetails.aspx"]')) {
+        console.log("[Parser] Detectado formato WIX USA (Legacy)");
+        return parseWixUSA(doc, dbCategories);
+    }
+
+    // Fallback al formato Moderno (Global/Europe)
+    console.log("[Parser] Detectado formato WIX Global (Modern)");
+    return parseWixModern(doc, domain, dbCategories);
 };

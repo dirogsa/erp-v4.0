@@ -11,27 +11,13 @@ import asyncio
 from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus, CompanyProductData
 
 def populate_company_data(product: Product, company_id: Optional[str]):
+    """Inyecta metadatos específicos (auditoría) pero mantiene stock y precio globales"""
     if not company_id:
         return product
     
-    data = product.company_data.get(company_id)
-    if data:
-        product.stock_current = data.stock_current
-        product.cost = data.cost
-        product.price_list = data.price_list
-        product.discount_3_pct = data.discount_3_pct
-        product.discount_6_pct = data.discount_6_pct
-        product.discount_12_pct = data.discount_12_pct
-        product.promo_discount_pct = data.promo_discount_pct
-    else:
-        # Valores por defecto para empresa sin datos aún
-        product.stock_current = 0
-        product.cost = 0.0
-        product.price_list = 0.0
-        product.discount_3_pct = 0.0
-        product.discount_6_pct = 0.0
-        product.discount_12_pct = 0.0
-        product.promo_discount_pct = 0.0
+    # Mantener el objeto product como la fuente de verdad global
+    # Los metadatos de auditoría pueden ser útiles para ver la última vez 
+    # que ESTA empresa vendió el producto, pero el stock y precio son únicos.
     return product
 
 async def external_lookup(sku: str) -> str:
@@ -137,18 +123,8 @@ async def find_product_robustly(sku: str, brand: Optional[str] = None, company_i
     product = await Product.find_one({"equivalences.code": sku_clean})
     if product: return populate_company_data(product, company_id)
 
-    # 4. Caso SUNAT: Si tiene espacios o marca pegada
-    if ' ' in sku.strip():
-        parts = sku.strip().split()
-        first_word = normalize_sku(parts[0])
-        if len(first_word) > 2:
-            product = await Product.find_one({
-                "$or": [
-                    {"sku": first_word},
-                    {"equivalences.code": first_word}
-                ]
-            })
-            if product: return populate_company_data(product, company_id)
+    # 4. Caso SUNAT (DESACTIVADO): Se eliminó para evitar que el sistema ignore sufijos importantes (Ej: 'WA9432 F' ya no coincidirá con 'WA9432')
+    # Si el usuario quiere buscar por palabra, debe usar el buscador inteligente de la UI, no la carga de stock/precios.
 
     # 5. AUTO-CREACIÓN DE GENÉRICOS (Ahora Globales)
     generic_skus = ['VARIOS-GENERICO', 'VARIOS-ACEITES', 'VARIOS-BUJIAS', 'VARIOS-BATERIAS', 'VARIOS-REFRIGERANTES', 'GENERICO']
@@ -207,6 +183,15 @@ async def resolve_category_id(name_alias: str) -> Optional[str]:
     return None
 
 async def create_product(product_data: Product, initial_stock: int = 0, user: Optional[User] = None, company_id: Optional[str] = None):
+    # Normalizar SKU y Marca antes de operar
+    product_data.sku = normalize_sku(product_data.sku)
+    product_data.brand = product_data.brand.upper().strip()
+
+    # Normalizar códigos de equivalencia
+    if product_data.equivalences:
+        for eq in product_data.equivalences:
+            eq.code = normalize_sku(eq.code)
+
     # Verificar si el SKU y la Marca ya existen globalmente
     existing = await Product.find_one(Product.sku == product_data.sku, Product.brand == product_data.brand)
     
@@ -218,6 +203,10 @@ async def create_product(product_data: Product, initial_stock: int = 0, user: Op
         brands = set(app.make.upper() for app in product_data.applications if app.make)
         if brands:
             await ensure_brands_exist(list(brands))
+
+    # Blindaje: Productos comerciales no pueden tener precio en puntos
+    if product_data.type == ProductType.COMMERCIAL:
+        product_data.points_cost = 0
 
     # Guardar producto global
     await product_data.insert()
@@ -244,7 +233,7 @@ async def create_product(product_data: Product, initial_stock: int = 0, user: Op
 
     return populate_company_data(product_data, company_id)
 
-async def bulk_create_products(products: List[Product], update_existing: bool = True, user: Optional[User] = None):
+async def bulk_create_products(products: List[Product], update_existing: bool = True, user: Optional[User] = None, company_id: Optional[str] = None):
     # 1. Asegurar que las marcas vehiculares existan
     all_brands = set()
     for p in products:
@@ -264,11 +253,21 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
 
     for p_data in products:
         try:
+            # Normalizar datos de entrada
+            p_data.sku = normalize_sku(p_data.sku)
+            if p_data.equivalences:
+                for eq in p_data.equivalences:
+                    eq.code = normalize_sku(eq.code)
+            
             # Resolver categoría
             if p_data.category_name:
                 resolved_id = await resolve_category_id(p_data.category_name)
                 if resolved_id:
                     p_data.category_id = resolved_id
+                    
+            # Blindaje de Negocio
+            if p_data.type == ProductType.COMMERCIAL:
+                p_data.points_cost = 0
             
             # Buscar por SKU y Marca (Global)
             existing = await Product.find_one(Product.sku == p_data.sku, Product.brand == p_data.brand)
@@ -299,12 +298,12 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
                 
                 await existing.save()
                 updated_count += 1
-                results.append(populate_company_data(existing, user.company_id if user else None))
+                results.append(populate_company_data(existing, company_id or (user.current_company_id if user else None)))
             else:
                 # INSERTAR: Crear nuevo global
                 await p_data.insert()
                 created_count += 1
-                results.append(populate_company_data(p_data, user.company_id if user else None))
+                results.append(populate_company_data(p_data, company_id or (user.current_company_id if user else None)))
         except Exception as e:
             print(f"Error procesando producto {p_data.sku}: {str(e)}")
 
@@ -343,9 +342,6 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None, 
     
     # Pricing
     product.price_list = update_data.price_list
-    product.discount_3_pct = update_data.discount_3_pct
-    product.discount_6_pct = update_data.discount_6_pct
-    product.discount_12_pct = update_data.discount_12_pct
     product.cost = update_data.cost
     product.loyalty_points = update_data.loyalty_points
     product.points_cost = update_data.points_cost
@@ -358,6 +354,10 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None, 
     # Shop visibility flags
     product.is_new = update_data.is_new
     product.is_active_in_shop = update_data.is_active_in_shop
+    
+    # Blindaje: Productos comerciales no pueden tener precio en puntos
+    if product.type == ProductType.COMMERCIAL:
+        product.points_cost = 0
     
     await product.save()
     
@@ -414,8 +414,7 @@ async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: A
         movement_type=actual_type,
         reference=f"ADJUST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
         notes=notes,
-        company_id=company_id or product.company_id,
-        legal_owner_id=product.company_id,
+        company_id=company_id, # La empresa que hace el ajuste
         product_id=product.id
     )
     
@@ -433,8 +432,7 @@ async def register_loss(sku: str, quantity: int, loss_type: Any, notes: str, res
         movement_type=MovementType.OUT, # Las mermas son salidas
         reference=f"LOSS-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
         notes=f"{loss_type}: {notes} (Resp: {responsible})",
-        company_id=company_id or product.company_id,
-        legal_owner_id=product.company_id,
+        company_id=company_id,
         product_id=product.id
     )
     
@@ -592,18 +590,18 @@ async def register_transfer_out(target_warehouse_id: str, items: List[Dict[str, 
         "total_cost": round(total_cost, 3)
     }
 
-async def calculate_weighted_average_cost(comp_data: CompanyProductData, new_quantity: int, new_unit_cost: float) -> float:
+async def calculate_weighted_average_cost(product: Product, new_quantity: int, new_unit_cost: float) -> float:
     """
-    Calcula el nuevo costo promedio ponderado para una empresa específica.
+    Calcula el nuevo costo promedio ponderado GLOBAL del almacén.
     """
-    current_value = comp_data.stock_current * comp_data.cost
+    current_value = product.stock_current * product.cost
     new_value = new_quantity * new_unit_cost
     total_value = current_value + new_value
-    total_quantity = comp_data.stock_current + new_quantity
+    total_quantity = product.stock_current + new_quantity
     
     if total_quantity > 0:
         return round(total_value / total_quantity, 3)
-    return comp_data.cost
+    return product.cost
 
 async def register_movement(
     sku: str, 
@@ -642,10 +640,10 @@ async def register_movement(
     comp_data = product.company_data[company_id]
     owner_data = product.company_data[actual_owner_id]
 
-    # 1. Si es entrada con costo, recalcular costo promedio para la empresa operadora
+    # 1. Si es entrada con costo, recalcular costo promedio GLOBAL
     if movement_type == MovementType.IN and unit_cost is not None:
-        new_cost = await calculate_weighted_average_cost(comp_data, quantity, unit_cost)
-        comp_data.cost = new_cost
+        new_cost = await calculate_weighted_average_cost(product, quantity, unit_cost)
+        product.cost = new_cost
 
     # 2. Registrar el movimiento en el Kardex
     movement = StockMovement(
@@ -653,7 +651,7 @@ async def register_movement(
         sku=sku,
         quantity=quantity,
         movement_type=movement_type,
-        unit_cost=unit_cost or comp_data.cost,
+        unit_cost=unit_cost or product.cost,
         reference_id=reference,
         reference_type="DIRECT" if "ADJUST" in reference else "SALES_INVOICE",
         company_id=company_id,
@@ -663,27 +661,23 @@ async def register_movement(
     )
     await movement.insert()
 
-    # 3. --- LÓGICA INTER-COMPANY ---
-    if company_id != actual_owner_id and movement_type == MovementType.OUT:
-        from app.models.inventory import IntercompanyTransaction, IntercompanyStatus
-        inter_tx = IntercompanyTransaction(
-            from_company_id=actual_owner_id,
-            to_company_id=company_id,
-            sku=sku,
-            quantity=quantity,
-            unit_cost=owner_data.cost,
-            sale_reference=reference,
-            status=IntercompanyStatus.PENDING
-        )
-        await inter_tx.insert()
-
-    # 4. Actualizar stock en el bucket del dueño legal
+    # 3. Actualizar metadatos de auditoría por empresa
+    if company_id not in product.company_data:
+        product.company_data[company_id] = CompanyProductData()
+    
+    comp_metadata = product.company_data[company_id]
     if movement_type == MovementType.IN:
-        owner_data.stock_current += quantity
+        comp_metadata.last_purchase_date = date or datetime.utcnow()
     elif movement_type == MovementType.OUT:
-        if owner_data.stock_current < quantity:
-            raise InsufficientStockException(sku, owner_data.stock_current, quantity)
-        owner_data.stock_current -= quantity
+        comp_metadata.last_sale_date = date or datetime.utcnow()
+
+    # 4. Actualizar stock GLOBAL
+    if movement_type == MovementType.IN:
+        product.stock_current += quantity
+    elif movement_type == MovementType.OUT:
+        if product.stock_current < quantity:
+            raise InsufficientStockException(sku, product.stock_current, quantity)
+        product.stock_current -= quantity
     
     await product.save()
     return movement

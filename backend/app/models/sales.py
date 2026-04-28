@@ -48,6 +48,12 @@ class SalesPolicy(Document):
     credit_180_days: float = 15.0      # Recargo % para 180 días
     # Security Guard (Stop Loss)
     min_margin_guard_pct: float = 12.0 # Margen mínimo permitido
+    
+    # Global Volume Discounts
+    vol_3_discount_pct: float = 0.0
+    vol_6_discount_pct: float = 0.0
+    vol_12_discount_pct: float = 0.0
+
     last_updated: datetime = datetime.utcnow()
     updated_by: Optional[str] = None    # Username del SuperAdmin
     company_id: Optional[str] = None

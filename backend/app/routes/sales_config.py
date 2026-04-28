@@ -25,6 +25,9 @@ async def get_sales_policies(company_id: str = Depends(get_current_company_id)):
         credit_90_days=policy.credit_90_days,
         credit_180_days=policy.credit_180_days,
         min_margin_guard_pct=policy.min_margin_guard_pct,
+        vol_3_discount_pct=policy.vol_3_discount_pct,
+        vol_6_discount_pct=policy.vol_6_discount_pct,
+        vol_12_discount_pct=policy.vol_12_discount_pct,
         last_updated=policy.last_updated.isoformat(),
         updated_by=policy.updated_by
     )
@@ -48,6 +51,9 @@ async def update_sales_policies(
     
     # Update new fields
     policy.min_margin_guard_pct = policy_in.min_margin_guard_pct
+    policy.vol_3_discount_pct = policy_in.vol_3_discount_pct
+    policy.vol_6_discount_pct = policy_in.vol_6_discount_pct
+    policy.vol_12_discount_pct = policy_in.vol_12_discount_pct
 
     policy.last_updated = datetime.utcnow()
     policy.updated_by = current_user.username
@@ -61,6 +67,9 @@ async def update_sales_policies(
         credit_90_days=policy.credit_90_days,
         credit_180_days=policy.credit_180_days,
         min_margin_guard_pct=policy.min_margin_guard_pct,
+        vol_3_discount_pct=policy.vol_3_discount_pct,
+        vol_6_discount_pct=policy.vol_6_discount_pct,
+        vol_12_discount_pct=policy.vol_12_discount_pct,
         last_updated=policy.last_updated.isoformat(),
         updated_by=policy.updated_by
     )

@@ -154,6 +154,9 @@ const Customers = () => {
                                     color: selectedCustomer.classification === 'ORO' ? '#92400e' : '#475569',
                                     padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold'
                                 }}>{selectedCustomer.classification || 'STANDARD'}</span></p>
+                                {selectedCustomer.assigned_price_list && (
+                                    <p><strong>Lista de Precios Manual:</strong> <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>{selectedCustomer.assigned_price_list}</span></p>
+                                )}
 
                                 <div style={{
                                     display: 'grid',

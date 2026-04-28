@@ -530,33 +530,62 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
         else:
             current_exchange_rate = rate_obj.sale
 
-        # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN OBLIGATORIA SOLO PARA FILTROS)
-        order_items = []
-        from app.models.purchasing import OrderItem
-        for item in data.get('items', []):
-            sku = item['product_sku']
-            # Obtener tipo de producto asignado en revisión (Frontend usa 'classification')
-            classification = item.get('classification') or item.get('product_type') or item.get('type') or 'COMMERCIAL'
-            is_misc = item.get('is_misc', False)
-            
-            # Buscar en maestro
-            product = await inventory_service.find_product_robustly(sku)
-            
-            # Bloqueo estricto SOLO para filtros (FILTER/COMMERCIAL)
-            if not product and not is_misc and (classification in ['FILTER', 'COMMERCIAL']):
-                raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
+    # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN OBLIGATORIA SOLO PARA FILTROS)
+    order_items = []
+    from app.models.purchasing import OrderItem, SupplierProductPrice
+    for item in data.get('items', []):
+        sku = item['product_sku']
+        # Obtener tipo de producto asignado en revisión (Frontend usa 'classification')
+        classification = item.get('classification') or item.get('product_type') or item.get('type') or 'COMMERCIAL'
+        is_misc = item.get('is_misc', False)
+        
+        # Buscar en maestro
+        product = await inventory_service.find_product_robustly(sku)
+        
+        # Bloqueo estricto SOLO para filtros (FILTER/COMMERCIAL)
+        if not product and not is_misc and (classification in ['FILTER', 'COMMERCIAL']):
+            raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
 
-            order_items.append(OrderItem(
-                product_id=str(product.id) if product else None,
-                product_sku=product.sku if product else sku,
-                product_name=product.name if product else item.get('product_name', 'Producto No Registrado'), 
-                quantity=item['quantity'],
-                unit_value=item.get('unit_value', item['unit_price'] / 1.18),
-                unit_price=item['unit_price'],
-                unit_cost=item['unit_price'], 
-                tax_rate=item.get('tax_rate', 0.18),
-                is_custom=True if not product else False
-            ))
+        # --- LÓGICA DE CLASE MUNDIAL: Catálogo de Precios por Proveedor ---
+        if product and supplier_ruc:
+            price_val = item['unit_price']
+            price_base = item.get('unit_value', price_val / 1.18)
+            
+            # Buscar si ya tenemos registro de este proveedor para este producto
+            s_price = await SupplierProductPrice.find_one({
+                "supplier_ruc": supplier_ruc,
+                "product_sku": product.sku,
+                "company_id": company_id
+            })
+            
+            if s_price:
+                s_price.last_purchase_value = price_base
+                s_price.last_purchase_price = price_val
+                s_price.currency = currency_val
+                s_price.last_purchase_date = datetime.now()
+                await s_price.save()
+            else:
+                s_price = SupplierProductPrice(
+                    supplier_ruc=supplier_ruc,
+                    product_sku=product.sku,
+                    company_id=company_id,
+                    last_purchase_value=price_base,
+                    last_purchase_price=price_val,
+                    currency=currency_val
+                )
+                await s_price.insert()
+
+        order_items.append(OrderItem(
+            product_id=str(product.id) if product else None,
+            product_sku=product.sku if product else sku,
+            product_name=product.name if product else item.get('product_name', 'Producto No Registrado'), 
+            quantity=item['quantity'],
+            unit_value=item.get('unit_value', item['unit_price'] / 1.18),
+            unit_price=item['unit_price'],
+            unit_cost=item['unit_price'], 
+            tax_rate=item.get('tax_rate', 0.18),
+            is_custom=True if not product else False
+        ))
         
     order = PurchaseOrder(
         order_number=order_number,

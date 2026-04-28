@@ -149,10 +149,7 @@ class AttributeDefinition(BaseModel):
     required: bool = False
 
 class CompanyProductData(BaseModel):
-    """Datos específicos de una empresa para un producto (Stock, Costo, Precio)"""
-    stock_current: int = 0
-    cost: float = 0.0
-    
+    """Metadatos legales/auditoría por empresa para un producto"""
     # Metadatos de auditoría por empresa
     last_purchase_date: Optional[datetime] = None
     last_sale_date: Optional[datetime] = None
@@ -207,7 +204,8 @@ class Product(Document):
     
     # Inyectados dinámicamente según la empresa que consulte
     stock_current: int = 0
-    cost: float = 0.0
+    cost: float = 0.0 # ¡IMPORTANTE! Costo Unitario de compra siempre CON IGV incluido
+    price_list: float = 0.0 # ¡IMPORTANTE! Precio Base Sugerido siempre CON IGV incluido
     
     loyalty_points: int = 0
     points_cost: int = 0

@@ -292,7 +292,32 @@ const BulkXMLImport = () => {
                                 </button>
                             </div>
                             <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                <Button variant="secondary" size="small" onClick={() => { setXmlBatch([]); setFilter('ALL'); }}>Limpiar Lista</Button>
+                                {counts.success > 0 && (
+                                    <Button 
+                                        variant="secondary" 
+                                        size="small" 
+                                        onClick={() => {
+                                            if (window.confirm(`¿Deseas remover de la vista los ${counts.success} documentos ya procesados?`)) {
+                                                setXmlBatch(prev => prev.filter(d => d.status !== 'SUCCESS'));
+                                            }
+                                        }}
+                                        style={{ color: '#10b981', borderColor: '#10b98144' }}
+                                    >
+                                        🧹 Borrar Procesados ({counts.success})
+                                    </Button>
+                                )}
+                                <Button 
+                                    variant="secondary" 
+                                    size="small" 
+                                    onClick={() => {
+                                        if (window.confirm("¿Estás seguro de limpiar TODA la lista actual? Se perderán los documentos no procesados.")) {
+                                            setXmlBatch([]); 
+                                            setFilter('ALL');
+                                        }
+                                    }}
+                                >
+                                    Vaciar Todo
+                                </Button>
                                 <Button 
                                     variant="primary" 
                                     size="small"

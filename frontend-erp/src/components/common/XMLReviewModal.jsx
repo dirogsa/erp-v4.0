@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Button from './Button';
 import Input from './Input';
 import { formatCurrency } from '../../utils/formatters';
-import { financeService } from '../../services/api';
-import { Loader2, Zap, FileText } from 'lucide-react';
+import { financeService, categoryService } from '../../services/api';
+import { Loader2, Zap, FileText, Tag } from 'lucide-react';
 
 const EMITTER_MAP = {
     '20606277432': { name: 'DIROGSA S.R.L.', logo: '🏢', businessName: 'DIROGSA', color: '#10b981' },
@@ -16,6 +16,14 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
     const [localItems, setLocalItems] = useState([]);
     const [emitter, setEmitter] = useState(null);
     const [isFetchingTc, setIsFetchingTc] = useState(false);
+    const [categories, setCategories] = useState([]);
+
+    useEffect(() => {
+        // Cargar categorías del maestro para el dropdown dinámico
+        categoryService.getCategories()
+            .then(res => setCategories(res.data))
+            .catch(err => console.error("Error loading categories for XML review", err));
+    }, []);
 
     useEffect(() => {
         if (doc) {
@@ -249,28 +257,48 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                                         </td>
                                         <td style={{ textAlign: 'center', padding: '1rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-                                                <select
-                                                    value={item.classification || 'FILTER'}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value;
-                                                        const newItems = [...localItems];
-                                                        newItems[idx].classification = val;
-                                                        // Marcamos que es misceláneo si no es filtro
-                                                        newItems[idx].is_misc = val !== 'FILTER';
-                                                        setLocalItems(newItems);
-                                                    }}
-                                                    style={{
-                                                        background: '#1e293b', border: '1px solid #334155', color: 'white',
-                                                        fontSize: '0.75rem', padding: '0.4rem', borderRadius: '0.5rem', outline: 'none'
-                                                    }}
-                                                >
-                                                    <option value="FILTER">📑 Filtro</option>
-                                                    <option value="LUBRICANT">🛢️ Aceite</option>
-                                                    <option value="SPARK_PLUG">🛠️ Bujía</option>
-                                                    <option value="BATTERY">🔋 Batería</option>
-                                                    <option value="COOLANT">🧊 Refrigerante</option>
-                                                    <option value="MISC">📦 Otros</option>
-                                                </select>
+                                                    <select
+                                                        value={item.classification || 'FILTER'}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            const newItems = [...localItems];
+                                                            newItems[idx].classification = val;
+                                                            newItems[idx].is_misc = val !== 'FILTER';
+                                                            setLocalItems(newItems);
+                                                        }}
+                                                        style={{
+                                                            background: '#1e293b', border: '1px solid #334155', color: 'white',
+                                                            fontSize: '0.75rem', padding: '0.4rem', borderRadius: '0.5rem', outline: 'none',
+                                                            minWidth: '140px'
+                                                        }}
+                                                    >
+                                                        {/* Opción por defecto siempre presente */}
+                                                        <option value="FILTER">📑 Filtro</option>
+                                                        
+                                                        {/* Categorías dinámicas del Maestro */}
+                                                        {categories.map(cat => {
+                                                            const emojiMap = {
+                                                                'Package': '📦', 'Droplet': '🛢️', 'Zap': '⚡', 
+                                                                'Filter': '📑', 'Battery': '🔋', 'Truck': '🚚', 'Layers': '🗂️'
+                                                            };
+                                                            const emoji = emojiMap[cat.icon] || '🏷️';
+                                                            return (
+                                                                <option key={cat._id} value={cat.name.toUpperCase().replace(/\s+/g, '_')}>
+                                                                    {emoji} {cat.name}
+                                                                </option>
+                                                            );
+                                                        })}
+
+                                                        {/* Fallback si no hay categorías */}
+                                                        {categories.length === 0 && (
+                                                            <>
+                                                                <option value="LUBRICANT">🛢️ Aceite</option>
+                                                                <option value="SPARK_PLUG">🛠️ Bujía</option>
+                                                                <option value="BATTERY">🔋 Batería</option>
+                                                            </>
+                                                        )}
+                                                        <option value="MISC">📦 Otros</option>
+                                                    </select>
 
                                                 {item.classification && item.classification !== 'FILTER' && (
                                                     <button

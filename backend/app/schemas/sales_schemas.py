@@ -36,6 +36,9 @@ class SalesPolicyUpdate(BaseModel):
     credit_90_days: float
     credit_180_days: float
     min_margin_guard_pct: Optional[float] = 12.0
+    vol_3_discount_pct: float = 0.0
+    vol_6_discount_pct: float = 0.0
+    vol_12_discount_pct: float = 0.0
 
 class SalesPolicyResponse(SalesPolicyUpdate):
     last_updated: str

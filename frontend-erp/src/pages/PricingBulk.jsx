@@ -26,35 +26,125 @@ const PricingBulk = () => {
         fetchLists();
     }, []);
 
+    const [adjustMode, setAdjustMode] = useState('price'); // 'price', 'cost', 'both'
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [unrecognizedItems, setUnrecognizedItems] = useState([]);
+    const [formatErrors, setFormatErrors] = useState([]);
+
     // Parser inteligente para texto pegado desde Excel/Texto
-    const handleParseText = () => {
+    const handleParseText = async () => {
         if (!pasteText.trim()) return;
 
-        // Regex para capturar SKU (alfanumérico/guiones) y Precio (decimal)
-        // Soporta: SKU\tPrecio, SKU Precio, SKU,Precio
+        setIsAnalyzing(true);
+        setFormatErrors([]);
+        setUnrecognizedItems([]);
+        setParsedData([]);
+
         const lines = pasteText.split(/\r?\n/);
         const detected = [];
+        const badLines = [];
         
-        lines.forEach(line => {
-            if (!line.trim()) return;
-            // Busca la primera palabra (SKU) y el primer número decimal que encuentre
-            const parts = line.trim().split(/[\s\t,]+/);
-            if (parts.length >= 2) {
-                const sku = parts[0].trim().toUpperCase();
-                const price = parseFloat(parts[1].replace(/[^\d.]/g, ''));
-                
-                if (sku && !isNaN(price)) {
-                    detected.push({ sku, price });
+        lines.forEach((line, index) => {
+            const rawLine = line.trim();
+            if (!rawLine) return;
+
+            // 1. Detección Inteligente de Cabeceras
+            const lowerLine = rawLine.toLowerCase();
+            if (lowerLine.includes('codigo') || lowerLine.includes('precio') || lowerLine.includes('sku') || lowerLine.includes('costo')) {
+                console.log(`[Parser] Cabecera detectada y omitida en L${index + 1}`);
+                return;
+            }
+
+            // 2. Prioridad de Tabulación (Excel). Si no hay tabs, usamos espacios múltiples.
+            let parts = rawLine.split('\t');
+            if (parts.length < 2) {
+                parts = rawLine.split(/[\s]{2,}/); // Mínimo 2 espacios para no romper SKUs con espacios simples
+                if (parts.length < 2) {
+                    parts = rawLine.split(' '); // Último recurso: espacio simple
+                }
+            }
+            
+            // Limpiar partes
+            parts = parts.map(p => p.trim()).filter(p => p !== "");
+
+            if (parts.length < 2) {
+                // Ignorar líneas basura (como un '0' huérfano)
+                return;
+            }
+
+            // 3. Limpieza de SKU (Tomar solo la primera palabra como pidió el usuario)
+            const fullSku = parts[0].toUpperCase();
+            const sku = fullSku.split(' ')[0]; 
+            
+            if (adjustMode === 'price') {
+                // Formato: SKU [Marca?] PRECIO
+                if (parts.length >= 3) {
+                    const brand = parts[1].toUpperCase();
+                    const price = parseFloat(parts[2].replace(/[^\d.]/g, ''));
+                    if (sku && brand && !isNaN(price)) detected.push({ sku, brand, price });
+                    else badLines.push({ line, index: index + 1, reason: 'Formato inválido (Esperado: SKU MARCA PRECIO)' });
+                } else {
+                    const price = parseFloat(parts[parts.length - 1].replace(/[^\d.]/g, ''));
+                    if (sku && !isNaN(price)) detected.push({ sku, price });
+                    else badLines.push({ line, index: index + 1, reason: 'Formato inválido (Esperado: SKU PRECIO)' });
+                }
+            } 
+            else if (adjustMode === 'cost') {
+                // Formato: SKU [Marca?] COSTO
+                if (parts.length >= 3) {
+                    const brand = parts[1].toUpperCase();
+                    const cost = parseFloat(parts[2].replace(/[^\d.]/g, ''));
+                    if (sku && brand && !isNaN(cost)) detected.push({ sku, brand, cost });
+                    else badLines.push({ line, index: index + 1, reason: 'Formato inválido (Esperado: SKU MARCA COSTO)' });
+                } else {
+                    const cost = parseFloat(parts[parts.length - 1].replace(/[^\d.]/g, ''));
+                    if (sku && !isNaN(cost)) detected.push({ sku, cost });
+                    else badLines.push({ line, index: index + 1, reason: 'Formato inválido (Esperado: SKU COSTO)' });
+                }
+            }
+            else if (adjustMode === 'both') {
+                // Formato: SKU [Marca?] COSTO PRECIO
+                if (parts.length >= 4) {
+                    const brand = parts[1].toUpperCase();
+                    const cost = parseFloat(parts[2].replace(/[^\d.]/g, ''));
+                    const price = parseFloat(parts[3].replace(/[^\d.]/g, ''));
+                    if (sku && brand && !isNaN(cost) && !isNaN(price)) detected.push({ sku, brand, cost, price });
+                    else badLines.push({ line, index: index + 1, reason: 'Formato inválido (Esperado: SKU MARCA COSTO PRECIO)' });
+                } else {
+                    const cost = parseFloat(parts[1]?.replace(/[^\d.]/g, ''));
+                    const price = parseFloat(parts[2]?.replace(/[^\d.]/g, ''));
+                    if (sku && !isNaN(cost) && !isNaN(price)) detected.push({ sku, cost, price });
+                    else badLines.push({ line, index: index + 1, reason: 'Formato inválido (Esperado: SKU COSTO PRECIO)' });
                 }
             }
         });
 
-        if (detected.length === 0) {
-            showNotification('No se detectaron datos válidos. Usa el formato: SKU [Espacio/Tab] PRECIO', 'warning');
-        } else {
-            setParsedData(detected);
-            showNotification(`Se detectaron ${detected.length} productos listos para procesar.`, 'success');
+        if (detected.length === 0 && badLines.length === 0) {
+            showNotification('No se detectaron datos.', 'warning');
+            setIsAnalyzing(false);
+            return;
         }
+
+        setFormatErrors(badLines);
+
+        if (detected.length > 0) {
+            try {
+                const res = await pricingService.analyzeBulk({
+                    items: detected,
+                    list_name: selectedList,
+                    mode: adjustMode
+                });
+                
+                setParsedData(res.data.valid);
+                setUnrecognizedItems(res.data.unrecognized);
+
+                const summary = `Análisis: ${res.data.valid.length} válidos, ${res.data.unrecognized.length} no encontrados.`;
+                showNotification(summary, res.data.unrecognized.length > 0 ? 'warning' : 'success');
+            } catch (error) {
+                showNotification('Error al validar productos', 'error');
+            }
+        }
+        setIsAnalyzing(false);
     };
 
     const handleExecuteUpdate = async () => {
@@ -62,19 +152,25 @@ const PricingBulk = () => {
 
         setIsProcessing(true);
         try {
-            // Enviamos los datos parseados al backend
-            // El backend ya tiene un endpoint para esto o usaremos el mismo de importación masiva adaptado
             const res = await pricingService.bulkUpdateFromText({
-                items: parsedData,
-                list_name: selectedList
+                items: parsedData.map(i => ({ 
+                    sku: i.sku, 
+                    brand: i.brand,
+                    price: i.proposed_price,
+                    cost: i.proposed_cost 
+                })),
+                list_name: selectedList,
+                mode: adjustMode
             });
             
             setResult(res.data);
             setParsedData([]);
+            setUnrecognizedItems([]);
+            setFormatErrors([]);
             setPasteText('');
-            showNotification('Actualización de precios completada con éxito', 'success');
+            showNotification('Actualización maestra completada', 'success');
         } catch (error) {
-            showNotification('Error al procesar la actualización masiva', 'error');
+            showNotification('Error en la actualización', 'error');
         } finally {
             setIsProcessing(false);
         }
@@ -87,19 +183,22 @@ const PricingBulk = () => {
                 .tab-btn { padding: 0.5rem 1.5rem; border: none; cursor: pointer; font-weight: 700; font-size: 0.8rem; transition: all 0.2s; }
                 .tab-btn.active { background: #3b82f6; color: white; border-radius: 0.5rem; }
                 .tab-btn.inactive { background: transparent; color: #64748b; }
+                .mode-btn { padding: 0.4rem 0.8rem; border: 1px solid #334155; cursor: pointer; font-size: 0.75rem; background: #0f172a; color: #94a3b8; transition: all 0.2s; }
+                .mode-btn.active { background: #1e293b; color: #3b82f6; border-color: #3b82f6; font-weight: bold; }
+                .error-badge { background: #ef4444; color: white; padding: 0.2rem 0.5rem; borderRadius: 0.4rem; fontSize: 0.7rem; fontWeight: bold; }
             `}</style>
 
             <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
-                    <h2 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '0.5rem' }}>Ajustador Inteligente de Precios</h2>
-                    <p style={{ color: '#94a3b8' }}>Sincroniza tus precios base de lista pegando directamente desde Excel.</p>
+                    <h2 style={{ color: 'white', fontSize: '1.5rem', marginBottom: '0.5rem' }}>Ajustador Maestro (Excel)</h2>
+                    <p style={{ color: '#94a3b8' }}>Sincronización masiva de costos, precios y márgenes proyectados.</p>
                 </div>
                 <div style={{ display: 'flex', background: '#0f172a', padding: '0.25rem', borderRadius: '0.75rem', border: '1px solid #334155' }}>
                     <button 
                         className={`tab-btn ${importMode === 'text' ? 'active' : 'inactive'}`}
                         onClick={() => setImportMode('text')}
                     >
-                        📋 Pegar Texto (Excel)
+                        📋 Pegar Texto
                     </button>
                     <button 
                         className={`tab-btn ${importMode === 'csv' ? 'active' : 'inactive'}`}
@@ -121,13 +220,23 @@ const PricingBulk = () => {
                 }}>
                     {importMode === 'text' ? (
                         <div>
+                            <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Modo:</span>
+                                <button className={`mode-btn ${adjustMode === 'price' ? 'active' : ''}`} style={{ borderRadius: '0.5rem 0 0 0.5rem' }} onClick={() => setAdjustMode('price')}>Solo Precios</button>
+                                <button className={`mode-btn ${adjustMode === 'cost' ? 'active' : ''}`} onClick={() => setAdjustMode('cost')}>Solo Costos</button>
+                                <button className={`mode-btn ${adjustMode === 'both' ? 'active' : ''}`} style={{ borderRadius: '0 0.5rem 0.5rem 0' }} onClick={() => setAdjustMode('both')}>Costos + Precios</button>
+                            </div>
                             <textarea
                                 value={pasteText}
                                 onChange={(e) => setPasteText(e.target.value)}
-                                placeholder="Pega aquí tus datos de Excel... (Ej: AP026 6.40)"
+                                placeholder={
+                                    adjustMode === 'price' ? "SKU [Tab] MARCA [Tab] PRECIO..." :
+                                    adjustMode === 'cost' ? "SKU [Tab] MARCA [Tab] COSTO..." :
+                                    "SKU [Tab] MARCA [Tab] COSTO [Tab] PRECIO..."
+                                }
                                 style={{
                                     width: '100%',
-                                    height: '250px',
+                                    height: '200px',
                                     background: '#0f172a',
                                     border: '1px solid #334155',
                                     borderRadius: '1rem',
@@ -141,10 +250,10 @@ const PricingBulk = () => {
                             />
                             <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                                    💡 Se detectarán automáticamente los SKU y precios.
+                                    💡 No incluyas cabeceras. El sistema las detecta por posición.
                                 </p>
-                                <Button onClick={handleParseText} variant="secondary" disabled={!pasteText.trim()}>
-                                    🔍 Analizar Contenido
+                                <Button onClick={handleParseText} variant="secondary" loading={isAnalyzing} disabled={!pasteText.trim()}>
+                                    🔍 Analizar y Calcular Márgenes
                                 </Button>
                             </div>
                         </div>
@@ -158,32 +267,97 @@ const PricingBulk = () => {
                         </div>
                     )}
 
-                    {/* Pre-visualización de Datos Detectados */}
+                    {/* Reporte de Errores */}
+                    {(formatErrors.length > 0 || unrecognizedItems.length > 0) && (
+                        <div style={{ 
+                            marginTop: '2rem', padding: '1.5rem', background: 'rgba(239, 68, 68, 0.05)', 
+                            border: '1px solid #ef4444', borderRadius: '1rem' 
+                        }}>
+                            <h4 style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.85rem' }}>⚠️ Problemas detectados</h4>
+                            <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
+                                {formatErrors.map((err, i) => <div key={i} style={{ fontSize: '0.75rem', color: '#fca5a5', marginBottom: '0.2rem' }}>L{err.index}: {err.reason}</div>)}
+                                {unrecognizedItems.map((item, i) => (
+                                    <div key={i} style={{ fontSize: '0.75rem', color: '#fca5a5', marginBottom: '0.2rem' }}>
+                                        <strong>SKU {item.sku}:</strong> {item.brand === 'AMBIGUO' ? (
+                                            <span style={{ color: '#fbbf24' }}>Ambiguo (Existe en varias marcas). Por favor pega la columna MARCA.</span>
+                                        ) : (
+                                            'No encontrado en el catálogo.'
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Pre-visualización Maestra */}
                     {parsedData.length > 0 && (
-                        <div style={{ marginTop: '2.5rem', borderTop: '1px solid #334155', paddingTop: '2rem', animation: 'fadeIn 0.3s ease-out' }}>
-                            <h3 style={{ color: 'white', fontSize: '1rem', marginBottom: '1rem' }}>Confirmar Actualización ({parsedData.length} ítems)</h3>
-                            <div style={{ maxHeight: '300px', overflowY: 'auto', borderRadius: '0.75rem', border: '1px solid #334155' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                        <div style={{ marginTop: '2.5rem', borderTop: '1px solid #334155', paddingTop: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h3 style={{ color: 'white', fontSize: '1rem' }}>Vista Previa de Rentabilidad</h3>
+                                <div style={{ fontSize: '0.7rem', color: '#64748b' }}>* Margen = ((Precio - Costo) / Precio) * 100</div>
+                            </div>
+                            <div style={{ maxHeight: '400px', overflowY: 'auto', borderRadius: '0.75rem', border: '1px solid #334155' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                                     <thead style={{ position: 'sticky', top: 0, background: '#1e293b' }}>
                                         <tr>
-                                            <th style={{ padding: '0.75rem', textAlign: 'left', color: '#94a3b8' }}>SKU</th>
-                                            <th style={{ padding: '0.75rem', textAlign: 'right', color: '#94a3b8' }}>Nuevo Precio (Lista)</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'left', color: '#94a3b8' }}>Producto</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'left', color: '#94a3b8' }}>Marca</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'right', color: '#94a3b8' }}>Costo</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'right', color: '#94a3b8' }}>Precio</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'center', color: '#94a3b8' }}>Margen</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {parsedData.map((item, i) => (
-                                            <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                <td style={{ padding: '0.75rem', color: 'white', fontWeight: 'bold' }}>{item.sku}</td>
-                                                <td style={{ padding: '0.75rem', textAlign: 'right', color: '#10b981' }}>S/ {item.price.toFixed(2)}</td>
-                                            </tr>
-                                        ))}
+                                        {parsedData.map((item, i) => {
+                                            const costChanged = item.proposed_cost !== null;
+                                            const priceChanged = item.proposed_price !== null;
+                                            
+                                            return (
+                                                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <td style={{ padding: '0.75rem' }}>
+                                                        <div style={{ color: 'white', fontWeight: 'bold' }}>{item.sku}</div>
+                                                        <div style={{ color: '#64748b', fontSize: '0.7rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                                                    </td>
+                                                    <td style={{ padding: '0.75rem' }}>
+                                                        <div style={{ 
+                                                            fontSize: '0.7rem', padding: '0.2rem 0.4rem', background: '#334155', 
+                                                            color: '#e2e8f0', borderRadius: '0.3rem', display: 'inline-block' 
+                                                        }}>
+                                                            {item.brand}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                                                        <div style={{ fontSize: '0.7rem', color: '#64748b', textDecoration: costChanged ? 'line-through' : 'none' }}>
+                                                            S/ {item.current_cost.toFixed(2)}
+                                                        </div>
+                                                        {costChanged && <div style={{ color: '#f59e0b', fontWeight: 'bold' }}>S/ {item.proposed_cost.toFixed(2)}</div>}
+                                                    </td>
+                                                    <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                                                        <div style={{ fontSize: '0.7rem', color: '#64748b', textDecoration: priceChanged ? 'line-through' : 'none' }}>
+                                                            S/ {item.current_price.toFixed(2)}
+                                                        </div>
+                                                        {priceChanged && <div style={{ color: '#10b981', fontWeight: 'bold' }}>S/ {item.proposed_price.toFixed(2)}</div>}
+                                                    </td>
+                                                    <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                                                        <div style={{ 
+                                                            padding: '0.2rem 0.5rem', borderRadius: '0.5rem', display: 'inline-block',
+                                                            background: item.margin > 20 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                                            color: item.margin > 20 ? '#10b981' : '#ef4444',
+                                                            fontWeight: 'bold'
+                                                        }}>
+                                                            {item.margin.toFixed(1)}%
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
                             <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                                <Button onClick={() => setParsedData([])} variant="outline">Limpiar</Button>
+                                <Button onClick={() => { setParsedData([]); setUnrecognizedItems([]); setFormatErrors([]); }} variant="outline">Limpiar</Button>
                                 <Button onClick={handleExecuteUpdate} loading={isProcessing} variant="primary">
-                                    🚀 Confirmar e Impactar en {selectedList}
+                                    🚀 Aplicar Cambios Maestros
                                 </Button>
                             </div>
                         </div>
@@ -199,7 +373,7 @@ const PricingBulk = () => {
                         border: '1px solid #334155'
                     }}>
                         <h4 style={{ color: 'white', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            🎯 Lista Destino
+                            🎯 Lista de Precios
                         </h4>
                         <Select 
                             options={lists.map(l => ({ value: l.name, label: l.name }))}
@@ -207,28 +381,6 @@ const PricingBulk = () => {
                             onChange={(e) => setSelectedList(e.target.value)}
                         />
                     </div>
-
-                    {result && (
-                        <div style={{
-                            background: '#0f172a',
-                            padding: '1.5rem',
-                            borderRadius: '1rem',
-                            border: '1px solid #10b981',
-                            animation: 'fadeIn 0.5s ease-out'
-                        }}>
-                            <h4 style={{ color: '#10b981', marginBottom: '1rem' }}>✅ Resultados</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#94a3b8' }}>Actualizados:</span>
-                                    <span style={{ color: 'white', fontWeight: 'bold' }}>{result.updated}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: '#94a3b8' }}>Omitidos/Error:</span>
-                                    <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{result.errors?.length || 0}</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
 
             </div>

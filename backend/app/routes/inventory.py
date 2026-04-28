@@ -73,8 +73,7 @@ async def bulk_create_products(
     current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN])),
     company_id: str = Depends(get_current_company_id)
 ):
-    # El servicio usará el company_id del current_user inyectado para los buckets
-    return await inventory_service.bulk_create_products(products, update_existing=update_existing, user=current_user)
+    return await inventory_service.bulk_create_products(products, update_existing=update_existing, user=current_user, company_id=company_id)
 
 @router.put("/products/{sku}", response_model=Product)
 async def update_product(

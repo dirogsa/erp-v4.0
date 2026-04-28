@@ -104,26 +104,35 @@ async def bulk_update_prices(
     data: BulkTextUpdate, 
     current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
 ):
-    updated = 0
-    errors = []
-    
+    items_dicts = []
     for item in data.items:
-        try:
-            await price_service.update_price(
-                sku=item.sku, 
-                price=float(item.price), 
-                list_name=data.list_name
-            )
-            updated += 1
-        except Exception as e:
-            errors.append({"sku": item.sku, "error": str(e)})
-            
-    return {
-        "updated": updated,
-        "errors": errors
-    }
+        items_dicts.append({
+            "sku": item.sku,
+            "brand": item.brand,
+            "price": item.price if data.mode in ["price", "both"] else None,
+            "cost": item.cost if data.mode in ["cost", "both"] else None
+        })
+        
+    return await price_service.bulk_update_prices(
+        items=items_dicts,
+        list_name=data.list_name,
+        mode=data.mode
+    )
+
+
+@router.post("/analyze-bulk")
+async def analyze_bulk_prices(
+    data: BulkTextUpdate, 
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.STAFF]))
+):
+    return await price_service.analyze_bulk_prices(
+        items=[item.dict() for item in data.items],
+        list_name=data.list_name,
+        mode=data.mode
+    )
 
 @router.post("/import-csv")
+
 async def import_prices_csv(
     file: UploadFile = File(...),
     list_name: str = Query("General"),

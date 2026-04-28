@@ -38,11 +38,14 @@ class PriceEntryResponse(PriceEntryCreate):
 # --- Bulk Update ---
 class BulkItem(BaseModel):
     sku: str
-    price: float
+    brand: Optional[str] = None
+    price: Optional[float] = None
+    cost: Optional[float] = None
 
 class BulkTextUpdate(BaseModel):
     items: List[BulkItem]
     list_name: str = "General"
+    mode: str = "price" # "price", "cost", or "both"
 
 # --- PricingRule ---
 class PricingRuleCreate(BaseModel):

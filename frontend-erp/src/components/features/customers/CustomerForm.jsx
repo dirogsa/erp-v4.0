@@ -29,6 +29,7 @@ const CustomerForm = ({
         internal_notes: '',
         digital_dossier: [],
         contacts: [],
+        assigned_price_list: null,
         ...initialData
     });
 
@@ -54,6 +55,7 @@ const CustomerForm = ({
             internal_notes: '',
             digital_dossier: [],
             contacts: [],
+            assigned_price_list: null,
             ...initialData
         } : {
             name: '',
@@ -71,7 +73,8 @@ const CustomerForm = ({
             risk_score: 'C',
             internal_notes: '',
             digital_dossier: [],
-            contacts: []
+            contacts: [],
+            assigned_price_list: null
         };
         setFormData(resetData);
     }, [initialData?._id]);
@@ -232,19 +235,36 @@ const CustomerForm = ({
                             }}
                         >
                             <option value="STANDARD">STANDARD (General)</option>
-                            <option value="BRONCE">BRONCE</option>
-                            <option value="PLATA">PLATA</option>
-                            <option value="ORO">ORO</option>
-                            <option value="DIAMANTE">DIAMANTE</option>
+                            <option value="BRONCE">BRONCE (Lista Bronce)</option>
+                            <option value="PLATA">PLATA (Lista Plata)</option>
+                            <option value="ORO">ORO (Lista Oro)</option>
+                            <option value="DIAMANTE">DIAMANTE (Lista Diamante)</option>
                         </select>
                     </div>
-                    <Input
-                        label="% Desc. Adicional (Opcional)"
-                        type="number"
-                        value={formData.custom_discount_percent}
-                        onChange={(e) => setFormData({ ...formData, custom_discount_percent: parseFloat(e.target.value) || 0 })}
-                        placeholder="0"
-                    />
+                    <div className="form-group">
+                        <label style={{ display: 'block', color: '#3b82f6', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Manual: Lista de Precios Asignada</label>
+                        <select
+                            value={formData.assigned_price_list || ''}
+                            onChange={(e) => setFormData({ ...formData, assigned_price_list: e.target.value || null })}
+                            style={{
+                                width: '100%',
+                                padding: '0.625rem',
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #3b82f6',
+                                borderRadius: '0.375rem',
+                                color: 'white',
+                                outline: 'none'
+                            }}
+                        >
+                            <option value="">Automático por Tier (Recomendado)</option>
+                            <option value="General">Lista General (Público)</option>
+                            <option value="Lista Bronce">Lista Bronce</option>
+                            <option value="Lista Plata">Lista Plata</option>
+                            <option value="Lista Oro">Lista Oro</option>
+                            <option value="Lista Diamante">Lista Diamante</option>
+                        </select>
+                        <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>* Sobreescribe el precio automático del Tier.</p>
+                    </div>
                 </div>
 
                 {/* --- GESTIÓN DE RIESGOS Y CRÉDITO (CONTROL INTERNO) --- */}

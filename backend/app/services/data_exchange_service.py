@@ -9,22 +9,26 @@ from pydantic import BaseModel
 from app.models.inventory import Product, Warehouse, DeliveryGuide
 from app.models.sales import SalesQuote, SalesOrder, SalesInvoice, SalesNote, Customer
 from app.models.purchasing import PurchaseQuote, PurchaseOrder, PurchaseInvoice, Supplier
+from app.models.pricing import PriceList, PriceEntry
 
 class DataExchangeService:
     # Service Registry: Maps entity names to Models and their unique keys
+    # Service Registry: Maps entity names to Models and their identity keys
     ENTITY_REGISTRY = {
-        "products": {"model": Product, "key": "sku", "items_field": None},
-        "warehouses": {"model": Warehouse, "key": "code", "items_field": None},
-        "customers": {"model": Customer, "key": "ruc", "items_field": None},
-        "suppliers": {"model": Supplier, "key": "name", "items_field": None},
-        "sales_quotes": {"model": SalesQuote, "key": "quote_number", "items_field": "items"},
-        "sales_orders": {"model": SalesOrder, "key": "order_number", "items_field": "items"},
-        "sales_invoices": {"model": SalesInvoice, "key": "invoice_number", "items_field": "items"},
-        "sales_notes": {"model": SalesNote, "key": "note_number", "items_field": "items"},
-        "purchase_quotes": {"model": PurchaseQuote, "key": "quote_number", "items_field": "items"},
-        "purchase_orders": {"model": PurchaseOrder, "key": "order_number", "items_field": "items"},
-        "purchase_invoices": {"model": PurchaseInvoice, "key": "invoice_number", "items_field": "items"},
-        "delivery_guides": {"model": DeliveryGuide, "key": "guide_number", "items_field": "items"},
+        "products": {"model": Product, "identity_keys": ["sku", "brand"], "items_field": None},
+        "warehouses": {"model": Warehouse, "identity_keys": ["code"], "items_field": None},
+        "customers": {"model": Customer, "identity_keys": ["ruc"], "items_field": None},
+        "suppliers": {"model": Supplier, "identity_keys": ["name"], "items_field": None},
+        "sales_quotes": {"model": SalesQuote, "identity_keys": ["quote_number"], "items_field": "items"},
+        "sales_orders": {"model": SalesOrder, "identity_keys": ["order_number"], "items_field": "items"},
+        "sales_invoices": {"model": SalesInvoice, "identity_keys": ["invoice_number"], "items_field": "items"},
+        "sales_notes": {"model": SalesNote, "identity_keys": ["note_number"], "items_field": "items"},
+        "purchase_quotes": {"model": PurchaseQuote, "identity_keys": ["quote_number"], "items_field": "items"},
+        "purchase_orders": {"model": PurchaseOrder, "identity_keys": ["order_number"], "items_field": "items"},
+        "purchase_invoices": {"model": PurchaseInvoice, "identity_keys": ["invoice_number"], "items_field": "items"},
+        "delivery_guides": {"model": DeliveryGuide, "identity_keys": ["guide_number"], "items_field": "items"},
+        "price_lists": {"model": PriceList, "identity_keys": ["name"], "items_field": None},
+        "price_entries": {"model": PriceEntry, "identity_keys": ["sku", "price_list_id", "min_quantity"], "items_field": None},
     }
 
     @classmethod
@@ -48,6 +52,7 @@ class DataExchangeService:
         
         for record in records:
             data = record.model_dump()
+            data.pop("image_gallery", None) # Excluir de la exportación CSV para no contaminar el Excel
             # Forzamos la extracción del ID primario de Mongo a nivel de fila maestra
             if hasattr(record, "id"):
                 data["id"] = str(record.id)
@@ -68,14 +73,17 @@ class DataExchangeService:
                 rows.append({k: cls._serialize_val(v) for k, v in row.items()})
 
         output = io.StringIO()
-        # Sort fieldnames: put operation, id and natural key first
+        # Sort fieldnames: put operation, id and identity keys first
         sorted_fields = sorted(list(all_fieldnames))
         if "operation" in sorted_fields:
             sorted_fields.insert(0, sorted_fields.pop(sorted_fields.index("operation")))
         if "id" in sorted_fields:
             sorted_fields.insert(1, sorted_fields.pop(sorted_fields.index("id")))
-        if config["key"] in sorted_fields:
-            sorted_fields.insert(2, sorted_fields.pop(sorted_fields.index(config["key"])))
+        
+        # Priorizar llaves de identidad en las primeras columnas
+        for i, id_key in enumerate(config["identity_keys"]):
+            if id_key in sorted_fields:
+                sorted_fields.insert(2 + i, sorted_fields.pop(sorted_fields.index(id_key)))
 
         writer = csv.DictWriter(output, fieldnames=sorted_fields)
         writer.writeheader()
@@ -90,7 +98,7 @@ class DataExchangeService:
 
         config = cls.ENTITY_REGISTRY[entity_name]
         model: Type[Document] = config["model"]
-        parent_key = config["key"]
+        identity_keys = config["identity_keys"]
         items_field = config["items_field"]
         
         # Aumentar el límite de tamaño de campo para evitar errores con JSONs o textos largos
@@ -98,24 +106,31 @@ class DataExchangeService:
         
         reader = csv.DictReader(io.StringIO(csv_content))
         
-        # Group rows by ID (if exists for updates) or by natural_key (for pure inserts of complex objects)
+        # Group rows by ID (if exists for updates) or by composite natural key
         grouped_data: Dict[str, Dict[str, Any]] = {}
         processed_count = 0
         errors = []
 
         for row_idx, row in enumerate(reader, start=2):
             doc_id = row.get("id")
-            natural_key_val = row.get(parent_key)
             
-            # El ID universal manda. Si no hay ID, agrupamos por llave natural temporalmente para crearlo.
+            # Generar llave natural compuesta
+            identity_vals = [row.get(k, "").strip() for k in identity_keys]
+            natural_key_val = "|".join(identity_vals)
+            
+            # El ID universal manda. Si no hay ID, agrupamos por la identidad compuesta.
             group_key = doc_id if (doc_id and doc_id.strip()) else natural_key_val
             
-            if not group_key:
-                errors.append(f"Fila {row_idx}: Falta columna 'id' o '{parent_key}' para agrupar.")
+            if not group_key or group_key == "|": # Caso de llaves vacías
+                errors.append(f"Fila {row_idx}: Faltan columnas de identidad ({', '.join(identity_keys)}).")
                 continue
             
             if group_key not in grouped_data:
-                grouped_data[group_key] = {"id": doc_id, "natural_key_val": natural_key_val, "rows": []}
+                grouped_data[group_key] = {
+                    "id": doc_id, 
+                    "identity_filter": {k: row.get(k) for k in identity_keys},
+                    "rows": []
+                }
             grouped_data[group_key]["rows"].append(row)
 
         success_count = 0
@@ -135,25 +150,19 @@ class DataExchangeService:
             
             for group_key, group in grouped_data.items():
                 doc_id = group["id"]
-                natural_key_val = group["natural_key_val"]
+                identity_filter = group["identity_filter"]
                 first_row = group["rows"][0]
                 
                 try:
                     operation = first_row.get("operation", "UPDATE" if doc_id else "INSERT").upper()
-                    # Reconstruir datos base
                     doc_data = cls._reconstruct_parent(first_row, items_field)
                     
-                    # VALIDACIÓN Y CASTEO: Usamos el modelo para limpiar los datos (ej: castear strings a int/float)
+                    # Validar tipos con el modelo
                     try:
-                        # Creamos una instancia parcial/total para validar tipos (usamos model_validate)
-                        # Nota: Si es UPDATE, puede que falten campos obligatorios, por lo que usamos un truco 
-                        # o simplemente validamos que los campos presentes coincidan en tipo.
-                        # Para este ERP, usaremos model.model_validate con datos parciales o el objeto completo.
                         validated_doc = model.model_validate(doc_data)
                         doc_data = validated_doc.model_dump(exclude={"id"}, exclude_none=True)
                     except Exception as ve:
-                        # Si falla la validación fuerte, intentamos seguir pero avisamos
-                        errors.append(f"Aviso en {group_key}: Validación de tipos falló, se usará data original. Error: {str(ve)}")
+                        errors.append(f"Aviso en {group_key}: Validación falló, se usará data original. {str(ve)}")
                     
                     if doc_id:
                         if operation == "DELETE":
@@ -162,14 +171,12 @@ class DataExchangeService:
                             bulk_ops.append(UpdateOne({"_id": PydanticObjectId(doc_id)}, {"$set": doc_data}))
                     else:
                         if operation == "DELETE":
-                            bulk_ops.append(DeleteOne({parent_key: natural_key_val}))
+                            bulk_ops.append(DeleteOne(identity_filter))
                         else:
-                            # Para INSERT, necesitamos validar si ya existe por llave natural si no hay ID
-                            # O simplemente intentar insertar y que el índice único falle (pero bulk_write fallaría todo el lote)
-                            # Mejor: Usaremos upsert por natural_key si no hay ID para ser más tolerantes
-                            bulk_ops.append(UpdateOne({parent_key: natural_key_val}, {"$set": doc_data}, upsert=True))
+                            # UPSERT basado en identidad compuesta
+                            bulk_ops.append(UpdateOne(identity_filter, {"$set": doc_data}, upsert=True))
                 except Exception as e:
-                    errors.append(f"Error preparando fila {group_key}: {str(e)}")
+                    errors.append(f"Error preparando {group_key}: {str(e)}")
 
             if bulk_ops:
                 try:
@@ -181,10 +188,10 @@ class DataExchangeService:
                 except Exception as e:
                     errors.append(f"Error en ejecución masiva: {str(e)}")
         else:
-            # FLUJO SECUENCIAL (Para entidades complejas con ítems como Facturas/Órdenes)
+            # FLUJO SECUENCIAL (Para entidades complejas como Invoices)
             for group_key, group in grouped_data.items():
                 doc_id = group["id"]
-                natural_key_val = group["natural_key_val"]
+                identity_filter = group["identity_filter"]
                 rows = group["rows"]
                 
                 try:
@@ -193,7 +200,7 @@ class DataExchangeService:
                     doc_data = cls._reconstruct_parent(first_row, items_field)
                     
                     if items_field:
-                        doc_data[items_field] = [cls._reconstruct_item(r) for r in rows if r.get("item_product_sku") or r.get("item_sku") or r.get("item_product_id")]
+                        doc_data[items_field] = [cls._reconstruct_item(r) for r in rows if any(r.get(f"item_{k}") for k in ["sku", "product_id"])]
 
                     if doc_id:
                         try:
@@ -211,7 +218,7 @@ class DataExchangeService:
                             errors.append(f"ID {doc_id} no encontrado.")
                     else:
                         if operation == "DELETE":
-                            existing = await model.find_one({parent_key: natural_key_val})
+                            existing = await model.find_one(identity_filter)
                             if existing: await existing.delete()
                             success_count += 1
                         else:

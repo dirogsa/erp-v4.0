@@ -78,10 +78,6 @@ const ProductForm = ({
         is_active_in_shop: false,
         loyalty_points: 0,
         points_cost: 0,
-        discount_6_pct: 0,
-
-        discount_12_pct: 0,
-        discount_24_pct: 0,
         type: 'COMMERCIAL',
         ean: '',
         tech_bulletin: '',

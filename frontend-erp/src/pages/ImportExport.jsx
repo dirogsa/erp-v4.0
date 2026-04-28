@@ -8,14 +8,26 @@ import { Download, Upload, Info, Database, ShoppingCart, Truck, Tag, FileText, A
 // All entity IDs must match the ENTITY_REGISTRY keys in the backend DataExchangeService
 const ENTITIES_CONFIG = {
     inventory: {
-        label: 'Inventario',
+        label: 'Inventario y Catálogo',
         icon: <Tag size={20} />,
         color: '#60a5fa',
         entities: [
             {
                 id: 'products',
-                label: 'Productos',
-                description: 'Catálogo completo de productos con SKU, nombres, precios y aplicaciones vehiculares.',
+                label: 'Productos (Maestro)',
+                description: 'Catálogo con SKU, Marcas, Novedades, Visibilidad en Tienda y Descuentos por Volumen (Packs).',
+                badge: null
+            },
+            {
+                id: 'price_lists',
+                label: 'Listas de Precios',
+                description: 'Definición de Listas (General, Mayorista, etc.) y Campañas con fechas de vigencia.',
+                badge: null
+            },
+            {
+                id: 'price_entries',
+                label: 'Precios por Producto (Tiers)',
+                description: 'La matriz completa de precios. Vincula SKUs con Listas de Precios y Cantidades Mínimas.',
                 badge: null
             },
             {

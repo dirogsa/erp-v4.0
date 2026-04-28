@@ -46,6 +46,7 @@ class User(Document):
     ruc_linked: Optional[str] = None
     classification: UserTier = UserTier.STANDARD
     custom_discount_percent: float = 0.0 # Descuento adicional por ser cliente especial
+    assigned_price_list: Optional[str] = None # Nombre de la lista asignada (Ej: "Lista Oro")
     is_active: bool = True
     
     # Multi-company Context

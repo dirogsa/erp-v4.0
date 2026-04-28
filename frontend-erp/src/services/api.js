@@ -315,6 +315,7 @@ export const pricingService = {
   deleteRule: (id) => api.delete(`/pricing/rules/${id}`),
 
   // Operaciones Masivas
+  analyzeBulk: (data) => api.post('/pricing/analyze-bulk', data),
   bulkUpdateFromText: (data) => api.post('/pricing/bulk-update', data),
   importCsv: (file, listName) => {
     const formData = new FormData();

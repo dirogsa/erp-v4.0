@@ -165,3 +165,27 @@ class Supplier(Document):
         indexes = [
             pymongo.IndexModel([("ruc", pymongo.ASCENDING)], unique=True)
         ]
+
+class SupplierProductPrice(Document):
+    """Mapeo de Precio por Proveedor (Catálogo Maestro de Compras)"""
+    supplier_ruc: Indexed(str)
+    product_sku: Indexed(str)
+    
+    last_purchase_value: float = 0.0 # Valor sin IGV
+    last_purchase_price: float = 0.0 # Precio con IGV
+    currency: str = "PEN"
+    last_purchase_date: datetime = datetime.now()
+    
+    # Código interno que usa el proveedor (opcional)
+    supplier_part_number: Optional[str] = None
+    company_id: Optional[str] = None
+
+    class Settings:
+        name = "supplier_product_prices"
+        indexes = [
+            # Índice único: un registro por cada combinación Proveedor + Producto + Empresa
+            pymongo.IndexModel(
+                [("supplier_ruc", pymongo.ASCENDING), ("product_sku", pymongo.ASCENDING), ("company_id", pymongo.ASCENDING)],
+                unique=True
+            )
+        ]

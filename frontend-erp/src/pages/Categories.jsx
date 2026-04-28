@@ -290,16 +290,31 @@ Etiqueta: Altura | Unidad: mm | Mapping: H, Height"
                             />
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Categoría Padre</label>
-                                <select 
-                                    style={{ margin: 0 }}
-                                    value={formData.parent_id}
-                                    onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
-                                >
-                                    <option value="">(Ninguna / Raíz)</option>
-                                    {categories.filter(c => c._id !== editingCategory?._id).map(c => (
-                                        <option key={c._id} value={c._id}>{c.name}</option>
-                                    ))}
-                                </select>
+                                    <select 
+                                        style={{ margin: 0 }}
+                                        value={formData.parent_id}
+                                        onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
+                                    >
+                                        <option value="">(Ninguna / Raíz)</option>
+                                        {categories
+                                            .filter(c => !c.parent_id && c._id !== editingCategory?._id)
+                                            .map(parent => (
+                                                <React.Fragment key={parent._id}>
+                                                    <option value={parent._id} style={{ fontWeight: 'bold' }}>
+                                                        📁 {parent.name}
+                                                    </option>
+                                                    {categories
+                                                        .filter(child => child.parent_id === parent._id && child._id !== editingCategory?._id)
+                                                        .map(child => (
+                                                            <option key={child._id} value={child._id}>
+                                                                &nbsp;&nbsp;&nbsp;&nbsp;└─ {child.name}
+                                                            </option>
+                                                        ))
+                                                    }
+                                                </React.Fragment>
+                                            ))
+                                        }
+                                    </select>
                             </div>
                         </div>
 
@@ -448,14 +463,34 @@ const CategoryCard = ({ category, allCategories, onEdit, onDelete }) => {
             </div>
 
             {children.length > 0 && (
-                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        {children.map(child => (
-                            <div key={child._id} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                <ChevronRight size={12} color="var(--primary-color)" /> {child.name}
+                <div style={{ 
+                    borderTop: '1px solid rgba(255,255,255,0.05)', 
+                    paddingTop: '0.75rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem'
+                }}>
+                    {children.map(child => (
+                        <div key={child._id} style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            alignItems: 'center', 
+                            fontSize: '0.8rem', 
+                            color: 'white',
+                            backgroundColor: 'rgba(255,255,255,0.02)',
+                            padding: '0.4rem 0.75rem',
+                            borderRadius: '0.5rem'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <ChevronRight size={14} color={category.color} />
+                                {child.name}
                             </div>
-                        ))}
-                    </div>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button onClick={() => onEdit(child)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0 }}><Edit3 size={14} /></button>
+                                <button onClick={() => onDelete(child._id)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0 }}><Trash2 size={14} /></button>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>
