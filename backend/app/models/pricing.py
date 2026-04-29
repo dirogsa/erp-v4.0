@@ -10,6 +10,8 @@ class PriceList(Document):
     color: str = "#6366f1" # Para identificar la lista en la UI
     is_active: bool = True
     is_campaign: bool = False # Si es True, requiere fechas
+    is_master: bool = False # Solo puede haber una lista maestra (fuente del precio base)
+    discount_percentage: float = 0.0 # Porcentaje de descuento sobre el precio base
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     priority: int = 0 # Para saber qué precio mostrar si hay varios activos

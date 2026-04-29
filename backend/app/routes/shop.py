@@ -353,7 +353,8 @@ async def get_shop_products(
     print(f"[SHOP] GET /products called - search: '{search}', make: {vehicle_brand}, model: {vehicle_model}")
     
     # Base query for commercial products, now highly tolerant of CSV import variations
-    query = {"is_active_in_shop": {"$in": [True, "true", "True", "TRUE", 1, "1"]}}
+    # Consulta profesional: Booleano estricto
+    query = {"is_active_in_shop": True}
     
     if search:
         s = search.strip()
@@ -470,7 +471,7 @@ async def get_shop_product_detail(
 ):
     p = await Product.find_one({
         "sku": sku,
-        "is_active_in_shop": {"$in": [True, "true", "True", "TRUE", 1, "1"]}
+        "is_active_in_shop": True,
     })
     if not p:
         raise HTTPException(status_code=404, detail="Product not found or not available in shop")

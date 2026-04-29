@@ -46,6 +46,7 @@ class BulkTextUpdate(BaseModel):
     items: List[BulkItem]
     list_name: str = "General"
     mode: str = "price" # "price", "cost", or "both"
+    currency: str = "PEN"
 
 # --- PricingRule ---
 class PricingRuleCreate(BaseModel):

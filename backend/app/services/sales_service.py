@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from beanie import PydanticObjectId
@@ -1119,8 +1120,12 @@ async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str
         "delivery_address": invoice.delivery_address
     }
 
-async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate: Optional[float] = None, user: Optional[User] = None) -> SalesInvoice:
+async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: Optional[float] = None, user: Optional[User] = None) -> SalesInvoice:
     """Importación directa de factura XML saltando cotización/orden manual"""
+    if isinstance(data, str):
+        # Aquí iría el parser de XML a dict si el frontend enviara el raw string.
+        # Por ahora lanzamos error descriptivo si llega como string pero no tenemos el parser inyectado.
+        raise ValidationException("El backend recibió un string en lugar de un objeto parseado. Verifique el integrador de XML.")
     from app.models.sales import OrderItem, OrderStatus, PaymentStatus, SalesOrder, SalesInvoice
     from app.models.inventory import DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
     
@@ -1172,33 +1177,54 @@ async def import_invoice_xml(data: dict, auto_guide: bool = True, exchange_rate:
 
     # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN INDUSTRIAL)
     from app.utils.norm_utils import smart_parse_item
-    order_items = []
     
-    for item in data.get('items', []):
+    # 1.5.1 Pre-procesamiento de SKUs y Marcas (Gathering)
+    raw_items = data.get('items', [])
+    processed_keys = []
+    for item in raw_items:
         raw_sku = item.get('product_sku') or item.get('code')
         raw_desc = item.get('product_name') or item.get('description', '')
-        
-        # PROCESAMIENTO INTELIGENTE: SKU Normalizado + Marca Detectada Semánticamente
-        clean_sku, detected_brand = await smart_parse_item(raw_sku, raw_desc)
+        processed_keys.append(smart_parse_item(raw_sku, raw_desc))
+    
+    # Ejecutar normalización en paralelo (CPU Bound but async safe)
+    normalization_results = await asyncio.gather(*processed_keys)
+    
+    # 1.5.2 Búsqueda Masiva de Productos (1 sola query para N ítems)
+    # Optimizamos para 1000-2000 ítems
+    skus_to_find = list(set(r[0] for r in normalization_results))
+    brands_to_find = list(set(r[1] for r in normalization_results))
+    
+    # Búsqueda optimizada por SKU (luego filtramos por marca en memoria para máxima velocidad)
+    db_products = await Product.find({"sku": {"$in": skus_to_find}}).to_list()
+    product_map = {(p.sku, p.brand): p for p in db_products}
+
+    order_items = []
+    for i, item in enumerate(raw_items):
+        clean_sku, detected_brand = normalization_results[i]
         
         # Clasificaciones ERP
         classification = item.get('classification') or item.get('product_type') or 'COMMERCIAL'
         is_misc = item.get('is_misc', False)
 
-        # Buscar en maestro usando la clave compuesta (SKU + Marca)
-        product = await inventory_service.find_product_robustly(clean_sku, brand=detected_brand)
+        # Buscar en el mapa cargado en memoria
+        product = product_map.get((clean_sku, detected_brand))
         
-        # BLOQUEO DE INTEGRIDAD (REQUERIDO): Solo si es Filtro (Core) y no existe bajo la marca detectada
+        # Si no está por marca exacta, intentar buscar solo por SKU en el mapa (Fallback)
+        if not product:
+            # Buscamos el primero que coincida con el SKU si no hay marca específica
+            product = next((p for (s, b), p in product_map.items() if s == clean_sku), None)
+
+        # BLOQUEO DE INTEGRIDAD (REQUERIDO): Solo si es Filtro (Core) y no existe
         if not product and not is_misc and (classification in ['FILTER', 'COMMERCIAL']):
             raise ValidationException(
                 f"PRODUCTO NO ENCONTRADO EN MAESTRO: El sistema identificó el código '{clean_sku}' "
-                f"de la marca '{detected_brand}' (detectada por descripción), pero este binomio no existe. "
-                f"Por favor, registre el producto en el inventario antes de importar la factura."
+                f"de la marca '{detected_brand}', pero no existe en el catálogo global. "
+                f"Por favor, registre el producto antes de importar."
             )
         
         order_items.append(OrderItem(
             product_sku=product.sku if product else clean_sku,
-            product_name=product.name if product else raw_desc, 
+            product_name=product.name if product else item.get('product_name', item.get('description', '')), 
             brand=product.brand if product else detected_brand,
             quantity=item['quantity'],
             unit_value=item.get('unit_value', item['unit_price'] / 1.18),

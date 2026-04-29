@@ -20,10 +20,13 @@ async def init_db():
     db_name = settings.MONGO_DB_NAME
     
     try:
+        print(f"DB: [INFO] Conectando a MongoDB en {mongo_uri.split('@')[-1]}...") # Solo mostramos el host por seguridad
         # Initialize Beanie with the database and document models
+        print("DB: [INFO] Inicializando Beanie y sincronizando modelos (esto puede tardar si se recrean índices)...")
         await init_beanie(
             database=client[db_name], 
             document_models=[
+                # ... (lista de modelos)
                 "app.models.inventory.Product",
                 "app.models.inventory.VehicleBrand",
                 "app.models.inventory.SearchLog",
@@ -54,10 +57,12 @@ async def init_db():
                 "app.models.pricing.PriceList",
                 "app.models.pricing.PriceEntry",
                 "app.models.marketing.LoyaltyConfig",
-                "app.models.finance.ExchangeRate"
+                "app.models.finance.ExchangeRate",
+                "app.models.config.SystemConfig"
             ],
-            allow_index_dropping=True
+            allow_index_dropping=False
         )
+        print("DB: [SUCCESS] Base de datos conectada y modelos sincronizados.")
     except Exception as e:
         print(f"DB: [ERROR] init_db failed: {str(e)}")
         print("DB: [HINT] This error often occurs if your IP is not whitelisted in MongoDB Atlas or if firewall is blocking port 27017.")

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 from app.models.purchasing import PaymentStatus
 
 class InvoiceCreation(BaseModel):
@@ -20,6 +20,6 @@ class ReceptionRequest(BaseModel):
     created_by: str
 
 class InvoiceXmlImport(BaseModel):
-    xml_data: dict
+    xml_data: Any
     auto_reception: bool = True
     exchange_rate: Optional[float] = None

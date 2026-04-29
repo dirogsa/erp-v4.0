@@ -45,7 +45,7 @@ class SalesPolicyResponse(SalesPolicyUpdate):
     updated_by: Optional[str] = None
 
 class InvoiceXmlImport(BaseModel):
-    xml_data: dict
+    xml_data: Any # Puede ser dict (ya parseado) o str (XML crudo)
     auto_guide: bool = True
     exchange_rate: Optional[Union[float, str]] = None
 

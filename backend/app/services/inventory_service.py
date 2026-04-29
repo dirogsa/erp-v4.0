@@ -1,14 +1,17 @@
-from __future__ import annotations
-from typing import List, Optional, Dict, Any
-from datetime import datetime
-from app.exceptions.business_exceptions import NotFoundException, ValidationException, InsufficientStockException, DuplicateEntityException
+import re
+import asyncio
+import logging
+from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus, CompanyProductData, ProductBrand, ProductCategory
+from app.utils.norm_utils import normalize_sku
+from beanie import PydanticObjectId
+from pymongo.operations import ReplaceOne
 from app.models.auth import User
 from app.services.audit_service import AuditService
 from app.services.brand_service import ensure_brands_exist
 from app.services.catalog_service import perform_catalog_lookup
-import re
-import asyncio
-from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus, CompanyProductData
+from app.exceptions.business_exceptions import NotFoundException, ValidationException, InsufficientStockException, DuplicateEntityException
+
+logger = logging.getLogger(__name__)
 
 def populate_company_data(product: Product, company_id: Optional[str]):
     """Inyecta metadatos específicos (auditoría) pero mantiene stock y precio globales"""
@@ -105,7 +108,6 @@ async def find_product_robustly(sku: str, brand: Optional[str] = None, company_i
     """
     if not sku: return None
     
-    from app.utils.norm_utils import normalize_sku
     sku_clean = normalize_sku(sku)
     brand_upper = brand.upper().strip() if brand else None
 
@@ -163,7 +165,6 @@ async def resolve_category_id(name_alias: str) -> Optional[str]:
     if not name_alias: return None
     
     alias = name_alias.upper().strip()
-    from app.models.inventory import ProductCategory
     
     # 1. Búsqueda exacta por Nombre
     category = await ProductCategory.find_one({"name": {"$regex": f"^{alias}$", "$options": "i"}})
@@ -234,7 +235,10 @@ async def create_product(product_data: Product, initial_stock: int = 0, user: Op
     return populate_company_data(product_data, company_id)
 
 async def bulk_create_products(products: List[Product], update_existing: bool = True, user: Optional[User] = None, company_id: Optional[str] = None):
-    # 1. Asegurar que las marcas vehiculares existan
+    if not products:
+        return {"created": 0, "updated": 0, "skipped": 0, "total": 0}
+
+    # 1. Asegurar que las marcas vehiculares existan (Master Data Consistency)
     all_brands = set()
     for p in products:
         if p.applications:
@@ -245,70 +249,58 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
     if all_brands:
         await ensure_brands_exist(list(all_brands))
 
-    # 2. Procesar productos uno por uno (UPSERT / INSERT)
+    # 2. Pre-procesamiento Masivo
+    bulk_ops = []
     created_count = 0
     updated_count = 0
     skipped_count = 0
-    results = []
 
+    # Extraer SKUs y Marcas para búsqueda masiva previa si no queremos sobrescribir todo
+    # Pero para un ERP de alto nivel, el Upsert (ReplaceOne) es el estándar de oro.
+    
+    # 3. Preparar operaciones Bulk
+    collection = Product.get_pymongo_collection()
+    
     for p_data in products:
-        try:
-            # Normalizar datos de entrada
-            p_data.sku = normalize_sku(p_data.sku)
-            if p_data.equivalences:
-                for eq in p_data.equivalences:
-                    eq.code = normalize_sku(eq.code)
-            
-            # Resolver categoría
-            if p_data.category_name:
-                resolved_id = await resolve_category_id(p_data.category_name)
-                if resolved_id:
-                    p_data.category_id = resolved_id
-                    
-            # Blindaje de Negocio
-            if p_data.type == ProductType.COMMERCIAL:
-                p_data.points_cost = 0
-            
-            # Buscar por SKU y Marca (Global)
-            existing = await Product.find_one(Product.sku == p_data.sku, Product.brand == p_data.brand)
-            
-            if existing:
-                if not update_existing:
-                    skipped_count += 1
-                    continue
+        # Normalización "Libro de Texto"
+        p_data.sku = normalize_sku(p_data.sku)
+        p_data.brand = p_data.brand.upper().strip() if p_data.brand else "GENERICO"
+        
+        if p_data.equivalences:
+            for eq in p_data.equivalences:
+                eq.code = normalize_sku(eq.code)
+        
+        # Resolver categoría (Podría optimizarse más con una caché, pero solve_category_id ya usa regex)
+        if p_data.category_name and not p_data.category_id:
+            p_data.category_id = await resolve_category_id(p_data.category_name)
 
-                # ACTUALIZAR FICHA MAESTRA
-                existing.ean = p_data.ean or existing.ean
-                existing.name = p_data.name or existing.name
-                existing.brand = p_data.brand or existing.brand
-                existing.image_url = p_data.image_url or existing.image_url
-                existing.manual_pdf_url = p_data.manual_pdf_url or existing.manual_pdf_url
-                existing.tech_bulletin = p_data.tech_bulletin or existing.tech_bulletin
-                existing.category_name = p_data.category_name or existing.category_name
-                
-                if p_data.category_id:
-                    existing.category_id = p_data.category_id
-                
-                existing.status = p_data.status or existing.status
-                if p_data.image_gallery: existing.image_gallery = p_data.image_gallery
-                
-                if p_data.specs: existing.specs = p_data.specs
-                if p_data.equivalences: existing.equivalences = p_data.equivalences
-                if p_data.applications: existing.applications = p_data.applications
-                
-                await existing.save()
-                updated_count += 1
-                results.append(populate_company_data(existing, company_id or (user.current_company_id if user else None)))
-            else:
-                # INSERTAR: Crear nuevo global
-                await p_data.insert()
-                created_count += 1
-                results.append(populate_company_data(p_data, company_id or (user.current_company_id if user else None)))
-        except Exception as e:
-            print(f"Error procesando producto {p_data.sku}: {str(e)}")
+        if p_data.type == ProductType.COMMERCIAL:
+            p_data.points_cost = 0
+
+        # En Beanie/Motor, convertimos el modelo a dict para pymongo
+        # Excluimos el ID si es nuevo para que Mongo genere uno, o lo mantenemos si queremos UPSERT exacto.
+        product_dict = p_data.model_dump(exclude={"id"})
+        
+        # Operación Atómica: Buscar por SKU + Marca y Reemplazar/Insertar
+        # Esto es lo que garantiza escalabilidad para 2000+ items
+        bulk_ops.append(
+            ReplaceOne(
+                {"sku": p_data.sku, "brand": p_data.brand},
+                product_dict,
+                upsert=update_existing
+            )
+        )
+
+    # 4. Ejecución Masiva en un solo Round-trip
+    if bulk_ops:
+        result = await collection.bulk_write(bulk_ops, ordered=False)
+        created_count = result.upserted_count
+        updated_count = result.modified_count
+        # Nota: En ReplaceOne con upsert, si no existe cuenta como upserted. Si existe y cambia, como modified.
+        # Si existe y es IDÉNTICO, modified_count será 0.
 
     if user:
-        action_desc = f"Se procesaron {len(products)} productos (Creados: {created_count}, Actualizados: {updated_count}, Omitidos: {skipped_count})"
+        action_desc = f"Procesamiento Masivo ERP: {len(products)} ítems (BulkWrite OK)"
         await AuditService.log_action(
             user=user,
             action="BULK_UPSERT",
@@ -320,7 +312,6 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
     return {
         "created": created_count,
         "updated": updated_count,
-        "skipped": skipped_count,
         "total": len(products)
     }
 
@@ -916,12 +907,10 @@ async def smart_search(query: str) -> Dict[str, Any]:
 
 async def get_brands() -> List[ProductBrand]:
     """Obtiene el catálogo maestro de marcas"""
-    from app.models.inventory import ProductBrand
     return await ProductBrand.find_all().to_list()
 
 async def create_brand(brand: ProductBrand) -> ProductBrand:
     """Registra una nueva marca y actualiza el motor semántico"""
-    from app.models.inventory import ProductBrand
     await brand.insert()
     
     # Sincronizar el motor inteligente de norm_utils
@@ -932,9 +921,6 @@ async def create_brand(brand: ProductBrand) -> ProductBrand:
 
 async def update_brand(brand_id: str, brand_data: ProductBrand) -> ProductBrand:
     """Actualiza una marca y sus alias de importación"""
-    from app.models.inventory import ProductBrand
-    from beanie import PydanticObjectId
-    
     brand = await ProductBrand.get(PydanticObjectId(brand_id))
     if not brand:
         raise NotFoundException("Brand", brand_id)
@@ -953,9 +939,6 @@ async def update_brand(brand_id: str, brand_data: ProductBrand) -> ProductBrand:
 
 async def delete_brand(brand_id: str):
     """Elimina una marca del catálogo maestro"""
-    from app.models.inventory import ProductBrand
-    from beanie import PydanticObjectId
-    
     brand = await ProductBrand.get(PydanticObjectId(brand_id))
     if not brand:
         raise NotFoundException("Brand", brand_id)

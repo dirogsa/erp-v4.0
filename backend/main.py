@@ -44,24 +44,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Middleware de diagnóstico rápido
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start_time = time.time()
-    path = request.url.path
-    method = request.method
-    print(f"\n[BACKEND-LOG] ➡️ RECIBIENDO: {method} {path}")
-    import sys
-    sys.stdout.flush()
-    try:
-        response = await call_next(request)
-        process_time = (time.time() - start_time) * 1000
-        print(f"[BACKEND-LOG] ✅ COMPLETADO: {method} {path} en {process_time:.2f}ms. Status: {response.status_code}")
-        sys.stdout.flush()
-        return response
-    except Exception as e:
-        print(f"[BACKEND-LOG] ❌ ERROR PROCESANDO: {method} {path} -> {str(e)}")
-        sys.stdout.flush()
-        raise
+async def diagnostic_middleware(request: Request, call_next):
+    print(f"\n[DEBUG] >> Entrando petición: {request.method} {request.url.path}")
+    response = await call_next(request)
+    print(f"[DEBUG] << Saliendo respuesta: {request.method} {request.url.path} Status: {response.status_code}")
+    return response
 
 # --- LAZY ROUTER LOADING ---
 # Importamos y registramos cada módulo solo cuando es necesario. 

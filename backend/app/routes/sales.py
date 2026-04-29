@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel
 from beanie import PydanticObjectId
 from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, CustomerBranch
@@ -178,7 +178,7 @@ async def create_dispatch_guide(
         dispatch_data.created_by,
         user=current_user
     )
-@router.post("/import-invoice-xml", response_model=SalesInvoice)
+@router.post("/import-invoice-xml", response_model=Any)
 async def import_invoice_xml(
     request: InvoiceXmlImport,
     current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
