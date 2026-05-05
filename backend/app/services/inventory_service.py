@@ -1,6 +1,8 @@
+from typing import Optional, List, Dict, Any
 import re
 import asyncio
 import logging
+from datetime import datetime
 from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus, CompanyProductData, ProductBrand, ProductCategory
 from app.utils.norm_utils import normalize_sku
 from beanie import PydanticObjectId

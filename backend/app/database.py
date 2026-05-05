@@ -60,7 +60,7 @@ async def init_db():
                 "app.models.finance.ExchangeRate",
                 "app.models.config.SystemConfig"
             ],
-            allow_index_dropping=False
+            allow_index_dropping=True
         )
         print("DB: [SUCCESS] Base de datos conectada y modelos sincronizados.")
     except Exception as e:
