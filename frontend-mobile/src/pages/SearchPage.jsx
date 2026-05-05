@@ -119,7 +119,7 @@ const SearchPage = () => {
 
         const timer = setTimeout(fetchResults, 400);
         return () => clearTimeout(timer);
-    }, [searchTerm, selectedCategory, activeFilters, specFilters, activeTab]);
+    }, [searchTerm, selectedCategory, activeFilters, specFilters, activeTab === 'NEW']);
 
     return (
         <div className="bg-brand-bg h-screen text-brand-text flex flex-col font-sans overflow-hidden">
