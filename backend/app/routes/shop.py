@@ -350,6 +350,7 @@ async def get_shop_products(
     spec_h: Optional[str] = None, # Altura
     spec_d: Optional[str] = None, # Diámetro
     spec_t: Optional[str] = None, # Rosca
+    spec_id: Optional[str] = None, # Diámetro Interior
     is_new: Optional[bool] = None,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
@@ -399,14 +400,36 @@ async def get_shop_products(
     elif vehicle_model:
         query["applications.model"] = {"$regex": f"^{vehicle_model}$", "$options": "i"}
 
-    # Dimension (Specs) Filtering - World-Class precision
+    # Dimension (Specs) Filtering - World-Class precision (Numeric Tolerance Support)
     spec_filters = []
-    if spec_h:
-        spec_filters.append({"$elemMatch": {"label": {"$regex": "^H$|^Alto$", "$options": "i"}, "value": {"$regex": spec_h}}})
-    if spec_d:
-        spec_filters.append({"$elemMatch": {"label": {"$regex": "^D$|^Diámetro$|^Diám. Ext.$", "$options": "i"}, "value": {"$regex": spec_d}}})
-    if spec_t:
-        spec_filters.append({"$elemMatch": {"label": {"$regex": "^T$|^Rosca$", "$options": "i"}, "value": {"$regex": spec_t}}})
+    
+    def add_spec_filter(val, regex_labels):
+        if not val: return
+        try:
+            num_val = float(val.replace(',', '.'))
+            # Plan Maestro: Tolerancia de +/- 0.5mm
+            spec_filters.append({
+                "$elemMatch": {
+                    "label": {"$regex": regex_labels, "$options": "i"},
+                    "$or": [
+                        {"value_num": {"$gte": num_val - 0.5, "$lte": num_val + 0.5}},
+                        {"value": {"$regex": val}} # Fallback a texto
+                    ]
+                }
+            })
+        except ValueError:
+            # Si no es número (ej: una rosca "3/4-16"), búsqueda por texto
+            spec_filters.append({
+                "$elemMatch": {
+                    "label": {"$regex": regex_labels, "$options": "i"},
+                    "value": {"$regex": val, "$options": "i"}
+                }
+            })
+
+    add_spec_filter(spec_h, "^H$|^Altura$|^Height$|^Alto$")
+    add_spec_filter(spec_d, "^A$|^D$|^Diámetro Exterior$|^Outer Diameter$|^Diámetro$|^Diám. Ext.$")
+    add_spec_filter(spec_t, "^G$|^T$|^Rosca$|^Thread$|^Paso de Rosca$")
+    add_spec_filter(spec_id, "^B$|^C$|^Diámetro Interior$|^Inner Diameter$")
     
     if spec_filters:
         query["specs"] = {"$all": spec_filters}

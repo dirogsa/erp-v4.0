@@ -1,4 +1,4 @@
-import { resolveCategoryName, normalizeSku } from './common';
+import { resolveCategoryName, normalizeSku, normalizeSpecs } from './common';
 
 /**
  * Parser especializado para el nuevo formato Global de FILTRON (filtron.eu)
@@ -221,6 +221,9 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
         const pdfLink = downloadsPanel.querySelector('a[href*=".pdf"]');
         if (pdfLink) data.manual_pdf_url = pdfLink.getAttribute('href');
     }
+
+    // 10. Normalización de Specs (Inteligencia Enterprise)
+    data.specs = normalizeSpecs(data.specs, data.category_name, dbCategories);
 
     return data;
 };

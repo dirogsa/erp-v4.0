@@ -33,7 +33,7 @@ const SearchPage = () => {
         model: queryParams.get('model') || '' 
     });
     const [activeTab, setActiveTab] = useState('CODES'); // CODES, APPS, DIMENSIONS, NEW
-    const [specFilters, setSpecFilters] = useState({ h: '', d: '', t: '' });
+    const [specFilters, setSpecFilters] = useState({ h: '', d: '', t: '', id: '' });
     
     const searchInput = useRef(null);
 
@@ -105,6 +105,7 @@ const SearchPage = () => {
                     spec_h: specFilters.h,
                     spec_d: specFilters.d,
                     spec_t: specFilters.t,
+                    spec_id: specFilters.id,
                     is_new: activeTab === 'NEW' ? true : undefined
                 });
                 setResults(res.data.items);
@@ -203,37 +204,47 @@ const SearchPage = () => {
                     )}
 
                     {activeTab === 'DIMENSIONS' && (
-                        <div className="grid grid-cols-3 gap-3 animate-in slide-in-from-left duration-300">
-                            <div className="relative">
-                                <span className="absolute top-2 left-3 text-[7px] font-black text-brand-bg/40">ALTO (H)</span>
-                                <input
-                                    type="text"
-                                    value={specFilters.h}
-                                    onChange={(e) => setSpecFilters({ ...specFilters, h: e.target.value })}
-                                    className="w-full pt-5 pb-2 px-3 bg-white rounded-xl text-xs font-black text-brand-bg outline-none shadow-lg"
-                                    placeholder="mm"
-                                />
+                        <div className="space-y-4 animate-in slide-in-from-left duration-300">
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { key: 'h', label: 'ALTURA', code: '(H)', placeholder: 'mm', icon: '📏' },
+                                    { key: 'd', label: 'DIÁM. EXT.', code: '(A)', placeholder: 'mm', icon: '⭕' },
+                                    { key: 't', label: 'ROSCA', code: '(G)', placeholder: 'TPI/M', icon: '⚙️' },
+                                    { key: 'id', label: 'DIÁM. INT.', code: '(B/C)', placeholder: 'mm', icon: '🔘' }
+                                ].map(dim => (
+                                    <div key={dim.key} className="bg-white rounded-xl p-3 relative shadow-lg border-b-2 border-transparent focus-within:border-brand-bg/20 transition-all">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="block text-[8px] font-black text-brand-bg/40 uppercase tracking-tighter">
+                                                {dim.label} <span className="text-brand-primary font-bold">{dim.code}</span>
+                                            </span>
+                                            <span className="text-xs opacity-40">{dim.icon}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="text"
+                                                value={specFilters[dim.key]}
+                                                onChange={(e) => setSpecFilters({ ...specFilters, [dim.key]: e.target.value })}
+                                                className="w-full bg-transparent text-[15px] font-black text-brand-bg outline-none h-8 placeholder:text-brand-bg/10"
+                                                placeholder={dim.placeholder}
+                                            />
+                                            {specFilters[dim.key] && (
+                                                <button 
+                                                    onClick={() => setSpecFilters({ ...specFilters, [dim.key]: '' })}
+                                                    className="flex-shrink-0 text-brand-bg/30 p-1"
+                                                >
+                                                    <XMarkIcon className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="relative">
-                                <span className="absolute top-2 left-3 text-[7px] font-black text-brand-bg/40">DIÁM (D)</span>
-                                <input
-                                    type="text"
-                                    value={specFilters.d}
-                                    onChange={(e) => setSpecFilters({ ...specFilters, d: e.target.value })}
-                                    className="w-full pt-5 pb-2 px-3 bg-white rounded-xl text-xs font-black text-brand-bg outline-none shadow-lg"
-                                    placeholder="mm"
-                                />
-                            </div>
-                            <div className="relative">
-                                <span className="absolute top-2 left-3 text-[7px] font-black text-brand-bg/40">ROSCA (T)</span>
-                                <input
-                                    type="text"
-                                    value={specFilters.t}
-                                    onChange={(e) => setSpecFilters({ ...specFilters, t: e.target.value })}
-                                    className="w-full pt-5 pb-2 px-3 bg-white rounded-xl text-xs font-black text-brand-bg outline-none shadow-lg"
-                                    placeholder="UNF/M"
-                                />
-                            </div>
+                            <button 
+                                onClick={() => setSpecFilters({ h: '', d: '', t: '', id: '' })}
+                                className="w-full py-3 bg-brand-bg/10 rounded-xl text-[10px] font-black text-brand-bg/60 uppercase active:scale-95 transition-all shadow-sm"
+                            >
+                                Limpiar Búsqueda Técnica
+                            </button>
                         </div>
                     )}
                 </div>

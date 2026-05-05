@@ -1,4 +1,4 @@
-import { resolveCategoryName, normalizeSku } from './common';
+import { resolveCategoryName, normalizeSku, normalizeSpecs } from './common';
 
 /**
  * Parser especializado para productos OEM (Original Equipment Manufacturer)
@@ -100,9 +100,11 @@ export const parseOEM = (doc, filename, dbCategories = []) => {
                 value: value
             });
 
-            if (title.toLowerCase().includes('height')) data.height = value;
-            if (title.toLowerCase().includes('width')) data.width = value;
-            if (title.toLowerCase().includes('length')) data.length = value;
+            if (title.toLowerCase().includes('weight')) {
+                const numMatch = value.match(/[\d.]+/);
+                if (numMatch) data.weight_g = parseFloat(numMatch[0]);
+            }
+            if (title.toLowerCase().includes('shape')) data.shape = value;
         }
     });
 
@@ -144,6 +146,9 @@ export const parseOEM = (doc, filename, dbCategories = []) => {
             });
         }
     });
+
+    // 6. Normalización de Specs (Inteligencia Enterprise)
+    data.specs = normalizeSpecs(data.specs, data.category_name, dbCategories);
 
     return data;
 };

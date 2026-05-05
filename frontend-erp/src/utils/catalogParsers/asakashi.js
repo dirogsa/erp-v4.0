@@ -1,4 +1,4 @@
-import { resolveCategoryName, normalizeSku } from './common';
+import { resolveCategoryName, normalizeSku, normalizeSpecs } from './common';
 
 /**
  * Parser para Catálogo JS Asakashi (jsfilter.jp)
@@ -12,6 +12,8 @@ export const parseAsakashi = (doc, baseUrl = 'https://www.jsfilter.jp', dbCatego
             description: '',
             image_url: '',
             category_name: 'FILTRO',
+            weight_g: 0,
+            shape: '',
             specs: [],
             equivalences: [],
             applications: [],
@@ -19,7 +21,6 @@ export const parseAsakashi = (doc, baseUrl = 'https://www.jsfilter.jp', dbCatego
         };
 
         // 1. Extraer SKU y Categoría del título de búsqueda
-        // Estructura: OIL FILTER (ELEMENT) » OE33001
         const titleElement = doc.querySelector('.search-title');
         if (titleElement) {
             const fullTitle = titleElement.innerText.trim();
@@ -27,8 +28,6 @@ export const parseAsakashi = (doc, baseUrl = 'https://www.jsfilter.jp', dbCatego
                 const parts = fullTitle.split('»');
                 const rawCategory = parts[0].trim();
                 product.sku = normalizeSku(parts[1]);
-                
-                // Sincronizar con categorías de la BD
                 product.category_name = resolveCategoryName(rawCategory, dbCategories);
             } else {
                 product.sku = normalizeSku(fullTitle);
@@ -51,9 +50,16 @@ export const parseAsakashi = (doc, baseUrl = 'https://www.jsfilter.jp', dbCatego
             const label = row.querySelector('.param-title')?.innerText.trim();
             const value = row.querySelector('.param-field')?.innerText.trim();
             if (label && value) {
+                if (/Weight|Peso|Masa/i.test(label)) {
+                    const numMatch = value.match(/[\d.]+/);
+                    if (numMatch) product.weight_g = parseFloat(numMatch[0]);
+                } else if (/Shape|Forma/i.test(label)) {
+                    product.shape = value;
+                }
+
                 product.specs.push({
                     label: label,
-                    measure_type: 'mm', // JS usa mayormente mm
+                    measure_type: (label.toLowerCase().includes('mm') || /height|width|length|diameter/i.test(label)) ? 'mm' : 'other',
                     value: value
                 });
             }
@@ -74,13 +80,11 @@ export const parseAsakashi = (doc, baseUrl = 'https://www.jsfilter.jp', dbCatego
         });
 
         // 5. Aplicaciones
-        // Asakashi separa por bloques de marca (model-title) seguidos de una tabla (model-body)
         const modelTitles = doc.querySelectorAll('.model-title');
         modelTitles.forEach(titleDiv => {
-            const titleText = titleDiv.innerText.trim(); // Ej: "PORSCHE  »  Cayenne"
+            const titleText = titleDiv.innerText.trim();
             const [make, model] = titleText.split('»').map(s => s.trim());
             
-            // La tabla de datos está justo después del título
             const tableContainer = titleDiv.nextElementSibling;
             if (tableContainer && tableContainer.classList.contains('model-body')) {
                 const rows = tableContainer.querySelectorAll('tr.model-data');
@@ -101,8 +105,9 @@ export const parseAsakashi = (doc, baseUrl = 'https://www.jsfilter.jp', dbCatego
             }
         });
 
-        // Nombre descriptivo
+        // 6. Nombre descriptivo y Normalización
         product.name = `JS ${product.category_name} ${product.sku}`;
+        product.specs = normalizeSpecs(product.specs, product.category_name, dbCategories);
 
         return product;
     } catch (error) {
