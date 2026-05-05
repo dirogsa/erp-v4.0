@@ -386,6 +386,9 @@ async def get_shop_products(
     
     if category:
         query["category_id"] = category
+
+    if is_new:
+        query["is_new"] = True
         
     # Precise Vehicle Filtering
     if vehicle_brand and vehicle_model:
