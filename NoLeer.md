@@ -12,6 +12,8 @@ PS D:\Projects> taskkill /PID 7136 /F
 SUCCESS: The process with PID 7136 has been terminated.
 
 
+Actúa como mi Arquitecto Senior. Antes de responder, lee la CONSTITUTION.md de mi proyecto y asegúrate de que tu solución no sea un parche, sino una pieza de ingeniería de clase mundial.
+
 ### 1. Iniciar el Backend
 
 ```bash

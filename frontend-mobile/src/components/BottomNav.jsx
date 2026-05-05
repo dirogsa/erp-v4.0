@@ -7,19 +7,27 @@ import {
     UserIcon,
     ShoppingCartIcon,
     MagnifyingGlassIcon,
-    ClipboardDocumentListIcon
+    ClipboardDocumentListIcon,
+    ChartBarIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../context/AuthContext';
 
 const BottomNav = () => {
     const location = useLocation();
+    const { user } = useAuth();
     
     const navItems = [
         { name: 'Inicio', icon: HomeIcon, path: '/' },
         { name: 'Buscar', icon: MagnifyingGlassIcon, path: '/search' },
         { name: 'Carrito', icon: ShoppingCartIcon, path: '/cart' },
         { name: 'Pedidos', icon: ClipboardDocumentListIcon, path: '/orders' },
-        { name: 'Perfil', icon: UserIcon, path: '/profile' },
     ];
+
+    if (user?.role === 'SUPERADMIN' || user?.role === 'ADMIN') {
+        navItems.push({ name: 'Admin', icon: ChartBarIcon, path: '/admin' });
+    }
+
+    navItems.push({ name: 'Perfil', icon: UserIcon, path: '/profile' });
 
     return (
         <nav className="fixed bottom-0 left-0 right-0 glass-card border-t border-white/5 safe-bottom z-[60] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">

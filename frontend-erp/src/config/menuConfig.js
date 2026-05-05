@@ -111,6 +111,7 @@ export const MENU_CONFIG = [
             { id: 'reports', label: 'Análisis y Reportes', path: '/reports', icon: '📊' },
             { id: 'companies', label: 'Gestión de Empresas', path: '/companies', icon: '🏢' },
             { id: 'exchange-rates', label: 'Tipos de Cambio', path: '/exchange-rates', icon: '💱' },
+            { id: 'system-config', label: 'Configuración Global', path: '/system-config', icon: '⚙️', roles: [ROLES.ADMIN] },
             { id: 'financial-audit', label: 'Auditoría Financiera', path: '/audit/financial', icon: '🛡️', roles: [ROLES.ADMIN, ROLES.ACCOUNTANT] }
         ]
     },

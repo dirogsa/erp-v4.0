@@ -14,7 +14,8 @@ const CustomerForm = ({
 
     const [formData, setFormData] = useState({
         name: '',
-        ruc: '',
+        document_type: 'RUC',
+        document_number: '',
         email: '',
         phone: '',
         address: '',
@@ -29,7 +30,15 @@ const CustomerForm = ({
         internal_notes: '',
         digital_dossier: [],
         contacts: [],
-        assigned_price_list: null,
+        price_list_id: null,
+        currency_preference: 'PEN',
+        seller_id: '',
+        payment_method_id: '',
+        sunat_state: 'ACTIVO',
+        sunat_condition: 'HABIDO',
+        is_retention_agent: false,
+        is_perception_agent: false,
+        main_activity: '',
         ...initialData
     });
 
@@ -40,7 +49,8 @@ const CustomerForm = ({
     useEffect(() => {
         const resetData = initialData ? {
             name: '',
-            ruc: '',
+            document_type: 'RUC',
+            document_number: '',
             email: '',
             phone: '',
             address: '',
@@ -55,11 +65,20 @@ const CustomerForm = ({
             internal_notes: '',
             digital_dossier: [],
             contacts: [],
-            assigned_price_list: null,
+            price_list_id: null,
+            currency_preference: 'PEN',
+            seller_id: '',
+            payment_method_id: '',
+            sunat_state: 'ACTIVO',
+            sunat_condition: 'HABIDO',
+            is_retention_agent: false,
+            is_perception_agent: false,
+            main_activity: '',
             ...initialData
         } : {
             name: '',
-            ruc: '',
+            document_type: 'RUC',
+            document_number: '',
             email: '',
             phone: '',
             address: '',
@@ -74,7 +93,15 @@ const CustomerForm = ({
             internal_notes: '',
             digital_dossier: [],
             contacts: [],
-            assigned_price_list: null
+            price_list_id: null,
+            currency_preference: 'PEN',
+            seller_id: '',
+            payment_method_id: '',
+            sunat_state: 'ACTIVO',
+            sunat_condition: 'HABIDO',
+            is_retention_agent: false,
+            is_perception_agent: false,
+            main_activity: ''
         };
         setFormData(resetData);
     }, [initialData?._id]);
@@ -170,33 +197,156 @@ const CustomerForm = ({
         }));
     };
 
-    const handleSubmit = (e) => {
+    const onSubmitForm = (e) => {
         e.preventDefault();
-        if (!formData.name || !formData.ruc) {
-            showNotification('Razón Social y RUC son obligatorios', 'error');
+        if (!formData.name || !formData.document_number) {
+            showNotification('Razón Social y Número de Documento son obligatorios', 'error');
             return;
         }
         onSubmit(formData);
     };
 
+    const [magicText, setMagicText] = useState('');
+    const [showMagicBox, setShowMagicBox] = useState(false);
+
+    const handleMagicPaste = () => {
+        if (!magicText.trim()) return;
+
+        const data = { ...formData };
+        const lines = magicText.split('\n').map(l => l.trim());
+
+        // 1. Extraer RUC y Razón Social
+        const rucLineIdx = lines.findIndex(l => l.includes('Número de RUC:'));
+        if (rucLineIdx !== -1) {
+            const nextLine = lines[rucLineIdx + 1];
+            const match = nextLine.match(/(\d{11})\s*-\s*(.*)/);
+            if (match) {
+                data.document_number = match[1];
+                data.name = match[2].trim();
+            }
+        }
+
+        // 2. Estado y Condición
+        const stateIdx = lines.findIndex(l => l.includes('Estado del Contribuyente:'));
+        if (stateIdx !== -1) data.sunat_state = lines[stateIdx + 1].replace(/\s+/g, ' ');
+
+        const conditionIdx = lines.findIndex(l => l.includes('Condición del Contribuyente:'));
+        if (conditionIdx !== -1) data.sunat_condition = lines[conditionIdx + 1].replace(/\s+/g, ' ');
+
+        // 3. Domicilio Fiscal
+        const addressIdx = lines.findIndex(l => l.includes('Domicilio Fiscal:'));
+        if (addressIdx !== -1) data.address = lines[addressIdx + 1].replace(/\s+/g, ' ');
+
+        // 4. Actividad Económica
+        const activityIdx = lines.findIndex(l => l.includes('Actividad(es) Económica(s):'));
+        if (activityIdx !== -1) {
+            // Buscamos la línea que empieza con "Principal -"
+            const mainActivity = lines.find((l, i) => i > activityIdx && l.includes('Principal -'));
+            if (mainActivity) data.main_activity = mainActivity;
+        }
+
+        // 5. Padrones (Retención/Percepción)
+        const padronesIdx = lines.findIndex(l => l.includes('Padrones:'));
+        if (padronesIdx !== -1) {
+            const padronesText = lines.slice(padronesIdx + 1, padronesIdx + 5).join(' ').toUpperCase();
+            data.is_retention_agent = padronesText.includes('AGENTE DE RETENCION');
+            data.is_perception_agent = padronesText.includes('AGENTE DE PERCEPCION');
+        }
+
+        setFormData(data);
+        setShowMagicBox(false);
+        setMagicText('');
+        showNotification('Datos de SUNAT procesados e ingresados', 'success');
+    };
+
     return (
-        <form onSubmit={handleSubmit} style={{ padding: '1rem' }}>
-            <div style={{ display: 'grid', gap: '1rem' }}>
+        <form onSubmit={onSubmitForm} style={{ padding: '1.5rem', color: 'white' }}>
+            {/* --- INGESTA MÁGICA SUNAT --- */}
+            <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderRadius: '12px', border: '1px dashed #3b82f6' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ fontSize: '2rem' }}>✨</div>
+                    <div>
+                        <h3 style={{ margin: 0, color: '#3b82f6', fontSize: '1rem' }}>SUNAT Magic Ingestor</h3>
+                        <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>Pega el texto de la consulta RUC para autocompletar</p>
+                    </div>
+                </div>
+                <Button 
+                    type="button" 
+                    variant={showMagicBox ? "secondary" : "success"}
+                    onClick={() => setShowMagicBox(!showMagicBox)}
+                >
+                    {showMagicBox ? 'Cancelar' : 'Pegar de SUNAT'}
+                </Button>
+            </div>
+
+            {showMagicBox && (
+                <div style={{ marginBottom: '2rem', animation: 'fadeIn 0.3s ease' }}>
+                    <textarea
+                        value={magicText}
+                        onChange={(e) => setMagicText(e.target.value)}
+                        placeholder="Pegue aquí el contenido copiado de la consulta RUC de SUNAT..."
+                        style={{
+                            width: '100%',
+                            height: '150px',
+                            backgroundColor: '#0f172a',
+                            color: '#e2e8f0',
+                            border: '1px solid #3b82f6',
+                            borderRadius: '8px',
+                            padding: '1rem',
+                            fontSize: '0.85rem',
+                            fontFamily: 'monospace',
+                            outline: 'none',
+                            resize: 'none'
+                        }}
+                    />
+                    <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button type="button" variant="success" onClick={handleMagicPaste}>
+                            ✨ Inyectar Inteligencia Fiscal
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.8fr 1.2fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <Input
-                    label="Razón Social *"
+                    label="Razón Social"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ej: Empresa SAC"
+                    placeholder="Ej: Filtros San Jorge S.A.C."
                     required
                 />
-                <Input
-                    label="RUC *"
-                    value={formData.ruc}
-                    onChange={(e) => setFormData({ ...formData, ruc: e.target.value })}
-                    placeholder="Ej: 20123456789"
-                    required
-                    maxLength={11}
-                />
+                    <div className="form-group">
+                        <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Tipo Doc.</label>
+                        <select
+                            value={formData.document_type}
+                            onChange={(e) => setFormData({ ...formData, document_type: e.target.value })}
+                            style={{
+                                width: '100%',
+                                padding: '0.625rem',
+                                backgroundColor: '#1e293b',
+                                border: '1px solid #334155',
+                                borderRadius: '0.375rem',
+                                color: 'white',
+                                outline: 'none',
+                                height: '42px' // Altura estándar para alinear con Inputs
+                            }}
+                        >
+                            <option value="RUC">RUC</option>
+                            <option value="DNI">DNI</option>
+                            <option value="CE">C.E.</option>
+                            <option value="PASSPORT">Pasaporte</option>
+                            <option value="OTHERS">Otros</option>
+                        </select>
+                    </div>
+                    <Input
+                        label="Número de Documento"
+                        value={formData.document_number}
+                        onChange={(e) => setFormData({ ...formData, document_number: e.target.value })}
+                        placeholder="Ej: 20501158012"
+                        required
+                    />
+                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <Input
                     label="Email"
                     type="email"
@@ -204,20 +354,19 @@ const CustomerForm = ({
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="contacto@empresa.com"
                 />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <Input
-                        label="Teléfono"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        placeholder="+51 999 999 999"
-                    />
-                    <Input
-                        label="Dirección Principal"
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        placeholder="Av. Principal 123"
-                    />
-                </div>
+                <Input
+                    label="Teléfono"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+51 999..."
+                />
+                <Input
+                    label="Dirección Principal"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    placeholder="Av. Mexico Nro. 1182..."
+                />
+            </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group">
                         <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Clasificación de Cliente (Tier)</label>
@@ -242,10 +391,10 @@ const CustomerForm = ({
                         </select>
                     </div>
                     <div className="form-group">
-                        <label style={{ display: 'block', color: '#3b82f6', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Manual: Lista de Precios Asignada</label>
+                        <label style={{ display: 'block', color: '#3b82f6', fontSize: '0.875rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>Estrategia: Lista de Precios</label>
                         <select
-                            value={formData.assigned_price_list || ''}
-                            onChange={(e) => setFormData({ ...formData, assigned_price_list: e.target.value || null })}
+                            value={formData.price_list_id || ''}
+                            onChange={(e) => setFormData({ ...formData, price_list_id: e.target.value || null })}
                             style={{
                                 width: '100%',
                                 padding: '0.625rem',
@@ -263,7 +412,117 @@ const CustomerForm = ({
                             <option value="Lista Oro">Lista Oro</option>
                             <option value="Lista Diamante">Lista Diamante</option>
                         </select>
-                        <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>* Sobreescribe el precio automático del Tier.</p>
+                    </div>
+                </div>
+
+                <div style={{ padding: '1.25rem', background: '#0f172a', borderRadius: '12px', border: '1px solid #1e293b', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                    <div className="form-group">
+                        <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Moneda de Preferencia</label>
+                        <select
+                            value={formData.currency_preference}
+                            onChange={(e) => setFormData({ ...formData, currency_preference: e.target.value })}
+                            style={{ width: '100%', padding: '0.625rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.375rem', color: 'white' }}
+                        >
+                            <option value="PEN">Soles (PEN)</option>
+                            <option value="USD">Dólares (USD)</option>
+                        </select>
+                    </div>
+                    <Input
+                        label="Vendedor Asignado"
+                        value={formData.seller_id}
+                        onChange={(e) => setFormData({ ...formData, seller_id: e.target.value })}
+                        placeholder="Nombre o ID del vendedor"
+                    />
+                    <div className="form-group">
+                        <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Método de Pago Habitual</label>
+                        <select
+                            value={formData.payment_method_id}
+                            onChange={(e) => setFormData({ ...formData, payment_method_id: e.target.value })}
+                            style={{ width: '100%', padding: '0.625rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.375rem', color: 'white' }}
+                        >
+                            <option value="">No especificado</option>
+                            <option value="TRANSFER">Transferencia Bancaria</option>
+                            <option value="CASH">Efectivo</option>
+                            <option value="CHECK">Cheque</option>
+                            <option value="DEPOSIT">Depósito en Cuenta</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* --- SECCIÓN FISCAL SUNAT --- */}
+                <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: '#0f172a', borderRadius: '12px', border: '1px solid #334155' }}>
+                    <h4 style={{ color: '#3b82f6', marginBottom: '1rem', fontSize: '0.9rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
+                        🛡️ Validación Fiscal (SUNAT)
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.5rem' }}>
+                        <div className="form-group">
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Estado del Contribuyente</label>
+                            <select
+                                value={formData.sunat_state}
+                                onChange={(e) => setFormData({ ...formData, sunat_state: e.target.value })}
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '0.625rem', 
+                                    backgroundColor: '#1e293b', 
+                                    border: `1px solid ${formData.sunat_state === 'ACTIVO' ? '#334155' : '#ef4444'}`, 
+                                    borderRadius: '0.375rem', 
+                                    color: formData.sunat_state === 'ACTIVO' ? 'white' : '#f87171' 
+                                }}
+                            >
+                                <option value="ACTIVO">ACTIVO</option>
+                                <option value="BAJA DE OFICIO">BAJA DE OFICIO</option>
+                                <option value="BAJA DEFINITIVA">BAJA DEFINITIVA</option>
+                                <option value="SUSPENSION TEMPORAL">SUSPENSIÓN TEMPORAL</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Condición</label>
+                            <select
+                                value={formData.sunat_condition}
+                                onChange={(e) => setFormData({ ...formData, sunat_condition: e.target.value })}
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '0.625rem', 
+                                    backgroundColor: '#1e293b', 
+                                    border: `1px solid ${formData.sunat_condition === 'HABIDO' ? '#334155' : '#f59e0b'}`, 
+                                    borderRadius: '0.375rem', 
+                                    color: formData.sunat_condition === 'HABIDO' ? 'white' : '#fbbf24' 
+                                }}
+                            >
+                                <option value="HABIDO">HABIDO</option>
+                                <option value="NO HABIDO">NO HABIDO</option>
+                                <option value="NO HALLADO">NO HALLADO</option>
+                                <option value="PENDIENTE">PENDIENTE</option>
+                            </select>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', justifyContent: 'center' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', color: '#e2e8f0', fontSize: '0.85rem' }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={formData.is_retention_agent}
+                                    onChange={(e) => setFormData({ ...formData, is_retention_agent: e.target.checked })}
+                                    style={{ width: '1.2rem', height: '1.2rem', accentColor: '#3b82f6' }}
+                                />
+                                Agente de Retención
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', color: '#e2e8f0', fontSize: '0.85rem' }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={formData.is_perception_agent}
+                                    onChange={(e) => setFormData({ ...formData, is_perception_agent: e.target.checked })}
+                                    style={{ width: '1.2rem', height: '1.2rem', accentColor: '#10b981' }}
+                                />
+                                Agente de Percepción
+                            </label>
+                        </div>
+                    </div>
+                    <div style={{ marginTop: '1rem' }}>
+                        <Input
+                            label="Actividad Económica (CIIU / Descripción)"
+                            value={formData.main_activity}
+                            onChange={(e) => setFormData({ ...formData, main_activity: e.target.value })}
+                            placeholder="Ej: 4530 - VENTA DE PARTES Y PIEZAS..."
+                        />
                     </div>
                 </div>
 
@@ -511,7 +770,6 @@ const CustomerForm = ({
                         </div>
                     </div>
                 </div>
-            </div>
 
             <div style={{
                 display: 'flex',

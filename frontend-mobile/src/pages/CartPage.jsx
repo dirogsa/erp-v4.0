@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -29,8 +29,7 @@ const CartPage = () => {
     const { showNotification } = useNotifications();
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
-    const [orderNumber, setOrderNumber] = useState('');
-    const [orderedItems, setOrderedItems] = useState([]);
+    const [orderResults, setOrderResults] = useState({ orders: [], quote_number: '' });
 
     const handleCheckout = async () => {
         if (!user) {
@@ -59,16 +58,25 @@ const CartPage = () => {
             };
 
             const res = await shopService.checkout(orderData);
-            setOrderNumber(res.data.number || '0001');
-            setOrderedItems([...cart]); // GUARDAR SNAPSHOT ANTES DE LIMPIAR
+            setOrderResults({
+                orders: res.data.orders || [],
+                quote_number: res.data.quote_number
+            });
+            setOrderedItems([...cart]); 
             setSuccess(true);
             clearCart();
+            
+            showNotification({
+                type: 'success',
+                title: '¡Éxito!',
+                message: 'Tu pedido ha sido procesado exitosamente.'
+            });
         } catch (error) {
             console.error("Checkout error", error);
             showNotification({
                 type: 'error',
                 title: 'Error de Red',
-                message: 'No se pudo procesar el pedido. Revisa tu conexión e intenta de nuevo.'
+                message: error.response?.data?.detail || 'No se pudo procesar el pedido.'
             });
         } finally {
             setLoading(false);
@@ -76,6 +84,9 @@ const CartPage = () => {
     };
 
     if (success) {
+        const standardOrder = orderResults.orders.find(o => o.type === 'STANDARD');
+        const backorder = orderResults.orders.find(o => o.type === 'BACKORDER');
+
         return (
             <div className="bg-brand-bg min-h-screen flex flex-col p-6 animate-in fade-in slide-in-from-bottom-5 duration-700">
                 <header className="py-8 flex flex-col items-center">
@@ -83,49 +94,52 @@ const CartPage = () => {
                         <CheckCircleIcon className="h-10 w-10" />
                     </div>
                     <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Pedido Registrado</h2>
-                    <p className="text-brand-primary font-black text-sm tracking-widest mt-1">Nro: {orderNumber}</p>
+                    <p className="text-brand-primary font-black text-[10px] tracking-widest mt-1 uppercase">Cotización: {orderResults.quote_number}</p>
                 </header>
 
-                <main className="flex-1 overflow-y-auto space-y-8">
-                    <div className="glass-card p-8 rounded-[3rem] border border-white/5 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/10 rounded-full blur-3xl"></div>
+                <main className="flex-1 overflow-y-auto space-y-6">
+                    <div className="glass-card p-6 rounded-[2.5rem] border border-white/5 shadow-2xl space-y-4">
+                        <h3 className="text-[10px] font-black text-brand-metadata uppercase tracking-widest border-b border-white/5 pb-2">Estatus de Despacho</h3>
                         
-                        <h3 className="text-brand-metadata mb-6 border-b border-white/5 pb-4">Resumen de Operación</h3>
-                        
-                        <div className="space-y-4 mb-8">
-                            {orderedItems.map((item, idx) => {
-                                // Motor de descuentos sincronizado con CartContext y backend
-                                let volDiscount = 0;
-                                if (item.quantity >= 12) volDiscount = item.discount_12_pct || 0;
-                                else if (item.quantity >= 6) volDiscount = item.discount_6_pct || 0;
-                                else if (item.quantity >= 3) volDiscount = item.discount_3_pct || 0;
-                                const promoDiscount = item.promo_discount_pct || 0;
-                                const multiplier = (1 - volDiscount / 100) * (1 - promoDiscount / 100);
-                                const itemFinalPrice = item.price * multiplier;
-
-                                return (
-                                    <div key={idx} className="flex justify-between items-center text-brand-sm font-bold">
-                                        <span className="text-brand-text-dim truncate max-w-[200px]">{item.quantity}x {item.name}</span>
-                                        <span className="text-white">S/ {(itemFinalPrice * item.quantity).toFixed(2)}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <div className="flex justify-between items-end pt-6 border-t border-white/10">
-                            <div>
-                                <p className="text-brand-metadata mb-2">Monto de Cotización</p>
-                                <div className="text-brand-2xl font-black text-white tracking-tighter drop-shadow-md">S/ {cartTotal.toFixed(2)}</div>
+                        {standardOrder && (
+                            <div className="bg-brand-primary/10 border border-brand-primary/20 p-4 rounded-2xl flex justify-between items-center">
+                                <div>
+                                    <p className="text-[10px] text-brand-primary font-black uppercase">Listos para Entrega</p>
+                                    <p className="text-brand-sm font-black text-white">{standardOrder.order_number}</p>
+                                </div>
+                                <span className="text-lg">📦</span>
                             </div>
-                            <div className="bg-brand-bg px-4 py-2 rounded-xl border border-white/10 text-brand-xs font-black text-brand-primary uppercase shadow-inner">PEN / SOLES</div>
+                        )}
+
+                        {backorder && (
+                            <div className="bg-brand-orange/10 border border-brand-orange/20 p-4 rounded-2xl flex justify-between items-center">
+                                <div>
+                                    <p className="text-[10px] text-brand-orange font-black uppercase">En Reserva (Faltantes)</p>
+                                    <p className="text-brand-sm font-black text-white">{backorder.order_number}</p>
+                                </div>
+                                <span className="text-lg">🔄</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="bg-brand-surface/50 border border-white/5 p-6 rounded-3xl">
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <p className="text-brand-metadata text-[10px] font-bold uppercase mb-1">Monto Total</p>
+                                <div className="text-brand-2xl font-black text-white tracking-tighter">S/ {cartTotal.toFixed(2)}</div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-brand-metadata text-[10px] font-bold uppercase mb-1">Items</p>
+                                <p className="text-brand-sm font-black text-brand-primary">{orderedItems.length}</p>
+                            </div>
                         </div>
                     </div>
 
                     <div className="bg-brand-primary/5 border border-brand-primary/20 p-5 rounded-3xl">
                         <div className="flex items-start gap-3">
-                            <span className="text-2xl">📄</span>
+                            <span className="text-xl">📄</span>
                             <p className="text-[10px] text-brand-text font-bold uppercase tracking-widest leading-relaxed">
-                                Para enviar la cotización oficial en PDF al WhatsApp, ingrese a <span className="text-brand-primary">Mis Pedidos</span> donde el recibo ya estará guardado con su número definitivo.
+                                Puedes gestionar tus <span className="text-brand-orange">Reservas</span> y ver tus <span className="text-brand-primary">Facturas</span> en la sección de actividad.
                             </p>
                         </div>
                     </div>
@@ -136,7 +150,7 @@ const CartPage = () => {
                         onClick={() => navigate('/orders')}
                         className="w-full bg-brand-primary text-brand-bg py-5 rounded-[1.25rem] font-black text-sm uppercase shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3"
                     >
-                        <ClipboardDocumentListIcon className="h-5 w-5" /> Ir a Mis Pedidos
+                        <ClipboardDocumentListIcon className="h-5 w-5" /> Ver Mi Actividad
                     </button>
                     <button 
                         onClick={() => navigate('/')} 
@@ -177,8 +191,8 @@ const CartPage = () => {
                         </div>
                         <h3 className="text-xl font-black text-brand-text mb-2">Tu pedido está vacío</h3>
                         <p className="text-sm text-brand-muted mb-10 leading-relaxed text-balance">Parece que aún no has seleccionado ningún filtro para tu cotización.</p>
-                        <Link to="/catalog" className="inline-block bg-brand-primary text-brand-bg px-10 py-4 rounded-2xl font-black text-sm uppercase shadow-[0_10px_30px_rgba(0,0,0,0.3)] hover:opacity-90 active:scale-95 transition-all">
-                            Ir al Catálogo
+                        <Link to="/search" className="inline-block bg-brand-primary text-brand-bg px-10 py-4 rounded-2xl font-black text-sm uppercase shadow-[0_10px_30px_rgba(0,0,0,0.3)] hover:opacity-90 active:scale-95 transition-all">
+                            Ir a Buscar Productos
                         </Link>
                     </div>
                 ) : (
@@ -200,12 +214,36 @@ const CartPage = () => {
                                                  <TrashIcon className="h-5 w-5" />
                                              </button>
                                          </div>
-                                         <p className="text-brand-xs font-bold text-brand-text-muted uppercase tracking-widest mb-2">{item.sku}</p>
-                                         
+                                         {item.type !== 'MARKETING' && (
+                                             <div className="space-y-2 mt-1">
+                                                 <div className="flex gap-1.5 flex-wrap">
+                                                     {item.quantity >= 12 ? (
+                                                         <span className="bg-brand-primary text-brand-bg text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-lg shadow-brand-primary/20">Mayorista -{item.discount_12_pct}%</span>
+                                                     ) : item.quantity >= 6 ? (
+                                                         <span className="bg-brand-primary/20 text-brand-primary border border-brand-primary/20 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Semi-Mayorista -{item.discount_6_pct}%</span>
+                                                     ) : item.quantity >= 3 ? (
+                                                         <span className="bg-brand-primary/10 text-brand-primary/80 border border-brand-primary/10 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Volumen -{item.discount_3_pct}%</span>
+                                                     ) : null}
+                                                     
+                                                     {item.promo_discount_pct > 0 && (
+                                                         <span className="bg-brand-danger text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter animate-pulse">PROMO -{item.promo_discount_pct}%</span>
+                                                     )}
+                                                 </div>
+
+                                                 {item.quantity < 12 && (
+                                                     <p className="text-[9px] font-bold text-brand-text-dim/60 italic uppercase tracking-tighter">
+                                                         {item.quantity < 3 ? `Agregue ${3 - item.quantity} más para obtener un -${item.discount_3_pct || 0}% extra` :
+                                                          item.quantity < 6 ? `Agregue ${6 - item.quantity} más para subir a -${item.discount_6_pct || 0}% de descuento` :
+                                                          `Agregue ${12 - item.quantity} más para el máximo de -${item.discount_12_pct || 0}%`}
+                                                     </p>
+                                                 )}
+                                             </div>
+                                         )}
+
                                          {item.quantity >= 50 && (
-                                             <div className="bg-brand-orange/10 border border-brand-orange/30 px-3 py-1.5 rounded-xl mb-4 flex items-center gap-2">
+                                             <div className="bg-brand-orange/10 border border-brand-orange/30 px-3 py-1.5 rounded-xl mt-3 flex items-center gap-2">
                                                  <span className="h-2 w-2 bg-brand-orange rounded-full animate-pulse"></span>
-                                                 <span className="text-[10px] font-black text-brand-orange uppercase tracking-tighter">Precio Sujeto a Cotización Especial (+50u)</span>
+                                                 <span className="text-[10px] font-black text-brand-orange uppercase tracking-tighter">Precio Especial (+50u)</span>
                                              </div>
                                          )}
 
@@ -227,7 +265,7 @@ const CartPage = () => {
                             ))}
                         </div>
 
-                        <Link to="/catalog" className="w-full bg-brand-surface/30 border border-brand-border border-dashed text-brand-muted p-4 rounded-2xl font-black text-brand-xs uppercase flex items-center justify-center gap-2 hover:bg-brand-surface active:bg-brand-surface transition-all tracking-widest mt-4">
+                        <Link to="/search" className="w-full bg-brand-surface/30 border border-brand-border border-dashed text-brand-muted p-4 rounded-2xl font-black text-brand-xs uppercase flex items-center justify-center gap-2 hover:bg-brand-surface active:bg-brand-surface transition-all tracking-widest mt-4">
                             ＋ Continuar agregando productos
                         </Link>
 

@@ -25,6 +25,9 @@ class Company(Document):
     email: Optional[str] = None
     website: Optional[str] = None
     logo_url: Optional[str] = None
+    functional_currency: str = "PEN" # La moneda en la que esta empresa factura y rinde cuentas
+    tax_percentage: float = 18.0 # Cada empresa tiene su propio régimen tributario
+    cost_method: str = "PEPS" # PEPS, Promedio, etc. (Independiente por empresa)
     
     # Configuración de Gobierno Corporativo
     enterprise_settings: EnterpriseSettings = EnterpriseSettings()

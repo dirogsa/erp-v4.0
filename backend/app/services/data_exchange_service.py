@@ -17,7 +17,7 @@ class DataExchangeService:
     ENTITY_REGISTRY = {
         "products": {"model": Product, "identity_keys": ["sku", "brand"], "items_field": None},
         "warehouses": {"model": Warehouse, "identity_keys": ["code"], "items_field": None},
-        "customers": {"model": Customer, "identity_keys": ["ruc"], "items_field": None},
+        "customers": {"model": Customer, "identity_keys": ["document_number"], "items_field": None},
         "suppliers": {"model": Supplier, "identity_keys": ["name"], "items_field": None},
         "sales_quotes": {"model": SalesQuote, "identity_keys": ["quote_number"], "items_field": "items"},
         "sales_orders": {"model": SalesOrder, "identity_keys": ["order_number"], "items_field": "items"},

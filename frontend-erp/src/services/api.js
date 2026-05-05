@@ -235,7 +235,7 @@ export const salesService = {
 
   // Customers
   getCustomers: () => api.get('/sales/customers'),
-  getCustomerByRuc: (ruc) => api.get(`/sales/customers/by-ruc/${ruc}`),
+  getCustomerByNumber: (number) => api.get(`/sales/customers/by-number/${number}`),
   createCustomer: (customer) => api.post('/sales/customers', customer),
   updateCustomer: (id, customer) => api.put(`/sales/customers/${id}`, customer),
   deleteCustomer: (id) => api.delete(`/sales/customers/${id}`),
@@ -375,6 +375,7 @@ export const financeService = {
   getExchangeRates: () => api.get('/finance/exchange-rates'),
   getExchangeRate: (date) => api.get(`/finance/exchange-rate/${date}`),
   saveExchangeRate: (date, data) => api.post(`/finance/exchange-rate/${date}`, data),
+  getCustomerStatement: (number) => api.get(`/sales/customers/${number}/statement`),
 };
 
 export const intercompanyService = {

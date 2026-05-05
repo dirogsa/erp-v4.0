@@ -347,6 +347,9 @@ async def get_shop_products(
     mode: Optional[str] = "all",
     vehicle_brand: Optional[str] = None,
     vehicle_model: Optional[str] = None,
+    spec_h: Optional[str] = None, # Altura
+    spec_d: Optional[str] = None, # Diámetro
+    spec_t: Optional[str] = None, # Rosca
     is_new: Optional[bool] = None,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
@@ -395,6 +398,18 @@ async def get_shop_products(
         query["applications.make"] = {"$regex": f"^{vehicle_brand}$", "$options": "i"}
     elif vehicle_model:
         query["applications.model"] = {"$regex": f"^{vehicle_model}$", "$options": "i"}
+
+    # Dimension (Specs) Filtering - World-Class precision
+    spec_filters = []
+    if spec_h:
+        spec_filters.append({"$elemMatch": {"label": {"$regex": "^H$|^Alto$", "$options": "i"}, "value": {"$regex": spec_h}}})
+    if spec_d:
+        spec_filters.append({"$elemMatch": {"label": {"$regex": "^D$|^Diámetro$|^Diám. Ext.$", "$options": "i"}, "value": {"$regex": spec_d}}})
+    if spec_t:
+        spec_filters.append({"$elemMatch": {"label": {"$regex": "^T$|^Rosca$", "$options": "i"}, "value": {"$regex": spec_t}}})
+    
+    if spec_filters:
+        query["specs"] = {"$all": spec_filters}
 
     # We only apply strict COMMERCIAL type if not doing a direct SKU search to be more flexible
     if not (search and len(search) > 4):
@@ -588,12 +603,107 @@ async def checkout(
     from app.services import sales_quotes_service
     created_quote = await sales_quotes_service.create_quote(new_quote)
 
-
+    # ENTERPRISE AUTO-CONVERSION: Immediately split into Order and Backorder
+    # This provides real-time transparency to the customer about stock availability.
+    conversion_result = await sales_quotes_service.convert_quote_to_order(created_quote.quote_number)
     
     return {
-        "message": "Quotation submitted successfully. Review it in the ERP to finalize your order.",
+        "message": conversion_result.get("message", "Pedido procesado exitosamente."),
         "quote_number": created_quote.quote_number,
+        "orders": conversion_result.get("orders", []),
+        "stock_check": conversion_result.get("stock_check", {}),
         "total_amount": created_quote.total_amount
+    }
+
+@router.get("/admin/stats")
+async def get_admin_dashboard_stats(
+    company_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Returns global or company-specific KPIs for the Admin Dashboard.
+    """
+    if current_user.role not in [UserRole.SUPERADMIN, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Acceso denegado.")
+        
+    query = {}
+    if current_user.role == UserRole.ADMIN:
+        # Strict enforcement: Admin only sees their company
+        query["company_id"] = current_user.current_company_id
+    elif current_user.role == UserRole.SUPERADMIN and company_id:
+        # SuperAdmin can filter by company or see all
+        query["company_id"] = company_id
+        
+    # Parallel counts for performance
+    total_orders = await SalesOrder.find(query).count()
+    backorders_count = await SalesOrder.find({**query, "status": OrderStatus.BACKORDER}).count()
+    pending_count = await SalesOrder.find({**query, "status": OrderStatus.PENDING}).count()
+    
+    # Financial aggregate
+    pipeline = [
+        {"$match": {**query, "status": {"$ne": OrderStatus.CANCELLED}}},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
+    ]
+    revenue_res = await SalesOrder.get_pymongo_collection().aggregate(pipeline).to_list(1)
+    total_revenue = revenue_res[0]["total"] if revenue_res else 0.0
+    
+    return {
+        "total_orders": total_orders,
+        "backorders_count": backorders_count,
+        "pending_count": pending_count,
+        "total_revenue": round(total_revenue, 2)
+    }
+
+@router.get("/admin/orders")
+async def get_admin_orders_dashboard(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    status: Optional[OrderStatus] = None,
+    company_id: Optional[str] = None,
+    customer_ruc: Optional[str] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    MASTER DASHBOARD for Admin/SuperAdmin.
+    - SUPERADMIN: Full visibility, can filter by any company.
+    - ADMIN: Forced visibility to their own current_company_id.
+    """
+    if current_user.role not in [UserRole.SUPERADMIN, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Acceso denegado. Se requiere rol administrativo.")
+
+    query = {}
+    
+    # 1. Multi-tenancy enforcement (The 'Senior Architect' Firewall)
+    if current_user.role == UserRole.ADMIN:
+        query["company_id"] = current_user.current_company_id
+    elif current_user.role == UserRole.SUPERADMIN and company_id:
+        query["company_id"] = company_id
+            
+    # 2. Dynamic Filters
+    if status:
+        query["status"] = status
+    if customer_ruc:
+        query["customer_ruc"] = customer_ruc
+    if start_date or end_date:
+        query["date"] = {}
+        if start_date:
+            query["date"]["$gte"] = start_date
+        if end_date:
+            query["date"]["$lte"] = end_date
+
+    # 3. Scalable Execution (Pagination & Projections)
+    skip = (page - 1) * page_size
+    total = await SalesOrder.find(query).count()
+    orders = await SalesOrder.find(query).sort("-date").skip(skip).limit(page_size).to_list()
+    
+    return {
+        "items": orders,
+        "total": total,
+        "page": page,
+        "pages": (total + page_size - 1) // page_size,
+        "size": len(orders)
     }
 
 @router.get("/predictive-order", response_model=List[ShopProductResponse])
@@ -640,6 +750,29 @@ async def get_predictive_order(current_user: User = Depends(get_current_user)):
         ))
         
     return response_items
+
+@router.delete("/orders/{order_number}")
+async def cancel_shop_order(order_number: str, current_user: User = Depends(get_current_user)):
+    """Allows a customer to cancel their own order (useful for releasing backorders)"""
+    from app.services import sales_service
+    
+    order = await SalesOrder.find_one(SalesOrder.order_number == order_number)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+        
+    # Security: Ensure the order belongs to the user
+    belongs_to_user = (order.customer_username == current_user.username) or \
+                      (order.customer_ruc == current_user.ruc_linked and current_user.ruc_linked is not None)
+                      
+    if not belongs_to_user:
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this order")
+        
+    # Logic: Only allow cancellation if not invoiced or dispatched
+    if order.status in [OrderStatus.INVOICED, OrderStatus.PARTIALLY_INVOICED]:
+        raise HTTPException(status_code=400, detail="No se puede cancelar una orden que ya tiene facturas generadas.")
+        
+    await sales_service.delete_order(order_number, user=current_user)
+    return {"status": "ok", "message": f"Orden {order_number} cancelada exitosamente."}
 
 @router.get("/notifications", response_model=List[Notification])
 async def get_notifications(current_user: User = Depends(get_current_user)):

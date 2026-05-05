@@ -2,7 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from enum import Enum
 from beanie import Document, Indexed
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, field_validator, Field, computed_field
 from .auth import UserTier
 import pymongo
 
@@ -278,9 +278,22 @@ class DigitalDocument(BaseModel):
     uploaded_at: datetime = datetime.utcnow()
     uploaded_by: str
 
+class DocumentType(str, Enum):
+    RUC = "RUC"
+    DNI = "DNI"
+    CE = "CE"
+    PASSPORT = "PASSPORT"
+    OTHERS = "OTHERS"
+
 class Customer(Document):
     name: str
-    ruc: str
+    document_type: DocumentType = DocumentType.RUC
+    document_number: Indexed(str, unique=True)
+    
+    @computed_field
+    @property
+    def ruc(self) -> str:
+        return self.document_number
     address: Optional[str] = None
     ubigeo: Optional[str] = None
     phone: Optional[str] = None
@@ -299,13 +312,29 @@ class Customer(Document):
     digital_dossier: List[DigitalDocument] = [] # Expediente de riesgo
     internal_notes: Optional[str] = None # Notas solo visibles en ERP
     
+    # --- Inteligencia Comercial (Clase Mundial) ---
+    price_list_id: Optional[str] = None   # Vínculo a estrategia de precios
+    currency_preference: Currency = Currency.PEN
+    seller_id: Optional[str] = None       # Vendedor asignado
+    payment_method_id: Optional[str] = None # Transferencia, Efectivo, etc.
+    company_id: Optional[str] = None      # Multi-company scope
+    
+    # --- Escudo de Protección Fiscal (SUNAT) ---
+    sunat_state: str = "ACTIVO"          # ACTIVO, BAJA DE OFICIO, etc.
+    sunat_condition: str = "HABIDO"      # HABIDO, NO HABIDO, no hallado
+    is_retention_agent: bool = False     # Agente de Retención
+    is_perception_agent: bool = False    # Agente de Percepción
+    last_sunat_check: Optional[datetime] = None
+    main_activity: Optional[str] = None  # CIIU o Descripción
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = True
 
     class Settings:
         name = "customers"
         indexes = [
-            pymongo.IndexModel([("ruc", pymongo.ASCENDING)], unique=True)
+            "document_number",
+            "company_id"
         ]
 
 class NoteType(str, Enum):

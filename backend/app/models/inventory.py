@@ -223,6 +223,12 @@ class Product(Document):
     is_new: bool = False # Manual flag for catalog "Novedades"
     is_active_in_shop: bool = False # Control visibility in frontend-shop
     
+    # Volume & Promo Discounts (Synchronized with SalesPolicy defaults if 0)
+    discount_3_pct: float = 0.0
+    discount_6_pct: float = 0.0
+    discount_12_pct: float = 0.0
+    promo_discount_pct: float = 0.0
+    
     # Adiciones para compatibilidad con scrapers
     category_name: Optional[str] = None
     status: ProductStatus = ProductStatus.AVAILABLE

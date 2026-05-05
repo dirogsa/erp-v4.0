@@ -11,9 +11,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+import { useCart } from '../context/CartContext';
+
 const SearchPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { addToCart } = useCart();
     const queryParams = new URLSearchParams(location.search);
     
     const [searchTerm, setSearchTerm] = useState(queryParams.get('q') || '');
@@ -29,8 +32,9 @@ const SearchPage = () => {
         make: queryParams.get('make') || '', 
         model: queryParams.get('model') || '' 
     });
-    const [showAdvanced, setShowAdvanced] = useState(false); // Toggle for filters
-
+    const [activeTab, setActiveTab] = useState('CODES'); // CODES, APPS, DIMENSIONS, NEW
+    const [specFilters, setSpecFilters] = useState({ h: '', d: '', t: '' });
+    
     const searchInput = useRef(null);
 
     // Initial Load: Categories and Brands
@@ -84,7 +88,8 @@ const SearchPage = () => {
     // Search Execution (Reactive)
     useEffect(() => {
         const fetchResults = async () => {
-            if (!searchTerm && !selectedCategory && !activeFilters.make) {
+            const hasSpecs = specFilters.h || specFilters.d || specFilters.t;
+            if (!searchTerm && !selectedCategory && !activeFilters.make && !hasSpecs) {
                 setResults([]);
                 setStats(null);
                 return;
@@ -96,7 +101,11 @@ const SearchPage = () => {
                     search: searchTerm,
                     category: selectedCategory,
                     vehicle_brand: activeFilters.make,
-                    vehicle_model: activeFilters.model
+                    vehicle_model: activeFilters.model,
+                    spec_h: specFilters.h,
+                    spec_d: specFilters.d,
+                    spec_t: specFilters.t,
+                    is_new: activeTab === 'NEW' ? true : undefined
                 });
                 setResults(res.data.items);
                 setStats({ total: res.data.total });
@@ -109,186 +118,245 @@ const SearchPage = () => {
 
         const timer = setTimeout(fetchResults, 400);
         return () => clearTimeout(timer);
-    }, [searchTerm, selectedCategory, activeFilters]);
+    }, [searchTerm, selectedCategory, activeFilters, specFilters, activeTab]);
 
     return (
         <div className="bg-brand-bg h-screen text-brand-text flex flex-col font-sans overflow-hidden">
-            {/* Header: Master Search */}
+            {/* Header: Master Search Console */}
             <header className="flex-shrink-0 glass-card border-b border-white/5 safe-top sticky top-0 z-50">
-                <div className="px-4 py-4 flex items-center gap-3">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="h-12 w-12 flex-shrink-0 bg-brand-surface rounded-xl border border-brand-border text-brand-text active:scale-95 transition-all flex items-center justify-center"
-                    >
-                        <ChevronLeftIcon className="h-6 w-6" />
-                    </button>
-                    
-                    <div className="flex-1 relative group">
-                        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-primary" />
-                        <input
-                            ref={searchInput}
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onFocus={() => setShowAdvanced(false)}
-                            placeholder="Buscar por código o descripción..."
-                            className="w-full pl-11 pr-4 py-3.5 bg-brand-surface border border-brand-border rounded-xl text-brand-sm font-bold focus:border-brand-primary focus:outline-none transition-all placeholder:text-brand-muted/40 shadow-xl"
-                        />
-                        {searchTerm && (
-                            <button 
-                                onClick={() => setSearchTerm('')}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-text-dim hover:text-white"
-                            >
-                                <XMarkIcon className="h-5 w-5" />
-                            </button>
-                        )}
-                    </div>
-
-                    <button
-                        onClick={() => setShowAdvanced(!showAdvanced)}
-                        className={`h-12 w-12 flex-shrink-0 rounded-xl border transition-all flex items-center justify-center relative ${
-                            showAdvanced || selectedCategory || activeFilters.make
-                            ? 'bg-brand-primary border-brand-primary text-brand-bg shadow-lg shadow-brand-primary/20' 
-                            : 'bg-brand-surface border-brand-border text-brand-text-dim'
-                        }`}
-                    >
-                        <AdjustmentsHorizontalIcon className="h-6 w-6" />
-                        {(selectedCategory || activeFilters.make) && (
-                            <span className="absolute -top-1 -right-1 h-4 w-4 bg-brand-danger rounded-full border-2 border-brand-bg"></span>
-                        )}
-                    </button>
-                </div>
-
-                {/* Category Quick-Select (NOW COLLAPSIBLE) */}
-                {showAdvanced && (
-                    <div className="flex overflow-x-auto gap-2 px-4 pb-4 no-scrollbar animate-in slide-in-from-top duration-300">
+                <div className="flex px-4 pt-4 pb-0 overflow-x-auto no-scrollbar gap-1">
+                    {[
+                        { id: 'CODES', label: 'CÓDIGOS' },
+                        { id: 'APPS', label: 'APLICACIONES' },
+                        { id: 'DIMENSIONS', label: 'DIMENSIONES' },
+                        { id: 'NEW', label: 'NUEVOS' }
+                    ].map(tab => (
                         <button
-                            onClick={() => setSelectedCategory(null)}
-                            className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
-                                !selectedCategory 
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`px-6 py-3 text-[9px] font-black tracking-[0.2em] uppercase transition-all rounded-t-xl border-b-4 ${
+                                activeTab === tab.id 
                                 ? 'bg-brand-primary text-brand-bg border-brand-primary' 
-                                : 'bg-brand-surface border-brand-border text-brand-text-dim'
+                                : 'text-brand-text-dim border-transparent hover:text-white'
                             }`}
                         >
-                            Todos
+                            {tab.label}
                         </button>
-                        {categories.map(cat => (
+                    ))}
+                </div>
+
+                <div className="bg-brand-primary p-4 space-y-4">
+                    {activeTab === 'CODES' && (
+                        <div className="flex items-center gap-3 animate-in fade-in zoom-in duration-300">
                             <button
-                                key={cat._id || cat.name}
-                                onClick={() => setSelectedCategory(cat.name)}
-                                className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border ${
-                                    selectedCategory === cat.name 
-                                    ? 'bg-brand-primary text-brand-bg border-brand-primary' 
-                                    : 'bg-brand-surface border-brand-border text-brand-text-dim'
-                                }`}
+                                onClick={() => navigate(-1)}
+                                className="h-12 w-12 flex-shrink-0 bg-brand-bg/20 rounded-xl text-brand-bg active:scale-95 transition-all flex items-center justify-center"
                             >
-                                {cat.name}
+                                <ChevronLeftIcon className="h-6 w-6" />
                             </button>
-                        ))}
-                    </div>
-                )}
+                            <div className="flex-1 relative">
+                                <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-brand-bg/60" />
+                                <input
+                                    ref={searchInput}
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Nro Wix / Reemplazo / Descripción..."
+                                    className="w-full pl-11 pr-4 py-3.5 bg-white border-none rounded-xl text-brand-sm font-black text-brand-bg focus:ring-4 focus:ring-black/10 outline-none transition-all placeholder:text-brand-bg/40 shadow-xl uppercase"
+                                />
+                                {searchTerm && (
+                                    <button 
+                                        onClick={() => setSearchTerm('')}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-bg/40 hover:text-brand-bg"
+                                    >
+                                        <XMarkIcon className="h-5 w-5" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'APPS' && (
+                        <div className="space-y-3 animate-in slide-in-from-right duration-300">
+                            <div className="grid grid-cols-2 gap-3">
+                                <select
+                                    value={activeFilters.make}
+                                    onChange={(e) => setActiveFilters({ ...activeFilters, make: e.target.value, model: '' })}
+                                    className="w-full bg-white rounded-xl p-3.5 text-[10px] font-black text-brand-bg outline-none uppercase shadow-lg"
+                                >
+                                    <option value="">SELECCIONAR MARCA</option>
+                                    {consolidatedBrands.map(b => (
+                                        <option key={b.name} value={b.name}>{b.name}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={activeFilters.model}
+                                    onChange={(e) => setActiveFilters({ ...activeFilters, model: e.target.value })}
+                                    disabled={!activeFilters.make}
+                                    className="w-full bg-white rounded-xl p-3.5 text-[10px] font-black text-brand-bg outline-none uppercase shadow-lg disabled:opacity-50"
+                                >
+                                    <option value="">SELECCIONAR MODELO</option>
+                                    {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'DIMENSIONS' && (
+                        <div className="grid grid-cols-3 gap-3 animate-in slide-in-from-left duration-300">
+                            <div className="relative">
+                                <span className="absolute top-2 left-3 text-[7px] font-black text-brand-bg/40">ALTO (H)</span>
+                                <input
+                                    type="text"
+                                    value={specFilters.h}
+                                    onChange={(e) => setSpecFilters({ ...specFilters, h: e.target.value })}
+                                    className="w-full pt-5 pb-2 px-3 bg-white rounded-xl text-xs font-black text-brand-bg outline-none shadow-lg"
+                                    placeholder="mm"
+                                />
+                            </div>
+                            <div className="relative">
+                                <span className="absolute top-2 left-3 text-[7px] font-black text-brand-bg/40">DIÁM (D)</span>
+                                <input
+                                    type="text"
+                                    value={specFilters.d}
+                                    onChange={(e) => setSpecFilters({ ...specFilters, d: e.target.value })}
+                                    className="w-full pt-5 pb-2 px-3 bg-white rounded-xl text-xs font-black text-brand-bg outline-none shadow-lg"
+                                    placeholder="mm"
+                                />
+                            </div>
+                            <div className="relative">
+                                <span className="absolute top-2 left-3 text-[7px] font-black text-brand-bg/40">ROSCA (T)</span>
+                                <input
+                                    type="text"
+                                    value={specFilters.t}
+                                    onChange={(e) => setSpecFilters({ ...specFilters, t: e.target.value })}
+                                    className="w-full pt-5 pb-2 px-3 bg-white rounded-xl text-xs font-black text-brand-bg outline-none shadow-lg"
+                                    placeholder="UNF/M"
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
             </header>
 
             <main className="flex-1 overflow-y-auto no-scrollbar pb-20">
-                {/* Vehicle Selection Wizard (NOW COLLAPSIBLE) */}
-                {showAdvanced && (
-                    <section className="p-4 space-y-4 animate-in fade-in duration-500">
-                        <div className="bg-brand-surface/30 border border-white/5 rounded-[2rem] p-6 space-y-4 shadow-2xl">
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="h-8 w-8 bg-brand-primary/10 rounded-lg flex items-center justify-center border border-brand-primary/20">
-                                    <TruckIcon className="h-5 w-5 text-brand-primary" />
-                                </div>
-                                <h3 className="text-brand-xs font-black text-white uppercase tracking-widest">Filtros por Aplicación Vehicular</h3>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-brand-text-dim uppercase px-2">Marca</label>
-                                    <select
-                                        value={activeFilters.make}
-                                        onChange={(e) => setActiveFilters({ ...activeFilters, make: e.target.value, model: '' })}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3.5 text-xs font-bold text-white focus:border-brand-primary outline-none appearance-none uppercase"
-                                    >
-                                        <option value="">CUALQUIER MARCA</option>
-                                        {consolidatedBrands.map(b => (
-                                            <option key={b.name} value={b.name}>
-                                                {b.is_popular ? `⭐ ${b.name}` : b.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-brand-text-dim uppercase px-2">Modelo</label>
-                                    <select
-                                        value={activeFilters.model}
-                                        onChange={(e) => setActiveFilters({ ...activeFilters, model: e.target.value })}
-                                        disabled={!activeFilters.make}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3.5 text-xs font-bold text-white focus:border-brand-primary outline-none appearance-none uppercase disabled:opacity-20"
-                                    >
-                                        <option value="">CUALQUIER MODELO</option>
-                                        {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <Button 
-                                onClick={() => setShowAdvanced(false)}
-                                className="w-full"
-                                variant="secondary"
-                            >
-                                Aplicar Filtros
-                            </Button>
-
-                            {activeFilters.make && (
-                                <button 
-                                    onClick={() => setActiveFilters({ make: '', model: '' })}
-                                    className="w-full py-2 text-[9px] font-black text-brand-danger uppercase tracking-tighter hover:opacity-70"
-                                >
-                                    Limpiar Filtros de Vehículo
-                                </button>
-                            )}
-                        </div>
-                    </section>
-                )}
-
                 {/* Results Area */}
-                <div className="px-4 pb-10">
-                    <div className="flex justify-between items-center mb-6 px-1">
-                        <h2 className="text-brand-heading !text-sm">Resultados</h2>
-                        {stats && (
-                            <span className="text-[10px] font-black text-brand-primary bg-brand-primary/10 px-3 py-1 rounded-lg border border-brand-primary/20">
-                                {stats.total} PRODUCTOS ENCONTRADOS
-                            </span>
-                        )}
-                    </div>
+                <div className="px-4 pb-32 space-y-6">
+                    {!searchTerm && !selectedCategory && !activeFilters.make && !specFilters.h && !specFilters.d && !specFilters.t ? (
+                        <div className="py-12 px-2 text-center space-y-12 animate-in fade-in zoom-in duration-700">
+                            {/* Empty State / Guided Discovery */}
+                            <div className="space-y-4">
+                                <div className="h-24 w-24 bg-brand-surface rounded-[2.5rem] border border-white/5 flex items-center justify-center mx-auto shadow-2xl relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-brand-primary/10 animate-pulse"></div>
+                                    <MagnifyingGlassIcon className="h-10 w-10 text-brand-primary relative z-10" />
+                                </div>
+                                <h3 className="text-white font-black text-lg uppercase tracking-tight">¿Qué filtro buscas hoy?</h3>
+                                <p className="text-brand-text-dim text-[11px] leading-relaxed max-w-[260px] mx-auto font-medium">
+                                    Encuentra el repuesto exacto buscando por código, tipo de filtro o aplicación vehicular.
+                                </p>
+                            </div>
 
-                    {loading ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            {[1, 2, 3, 4].map(i => (
-                                <div key={i} className="bg-brand-surface h-64 rounded-3xl border border-brand-border animate-pulse shadow-inner"></div>
-                            ))}
+                            {/* Quick Discovery: By Filter Type */}
+                            <div className="space-y-4">
+                                <p className="text-[9px] font-black text-brand-primary uppercase tracking-[0.3em] flex items-center justify-center gap-3">
+                                    <span className="h-px w-8 bg-brand-primary/30"></span>
+                                    Tipos de Filtro
+                                    <span className="h-px w-8 bg-brand-primary/30"></span>
+                                </p>
+                                <div className="flex flex-wrap justify-center gap-2">
+                                    {['ACEITE', 'AIRE', 'COMBUSTIBLE', 'CABINA', 'HIDRÁULICO'].map(cat => (
+                                        <button 
+                                            key={cat}
+                                            onClick={() => setSelectedCategory(cat)}
+                                            className="px-6 py-3 bg-brand-surface border border-white/10 rounded-2xl text-[10px] font-black text-white hover:bg-brand-primary hover:text-brand-bg transition-all active:scale-95 shadow-xl uppercase tracking-widest"
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Quick Discovery: By Brand/Code */}
+                            <div className="space-y-4">
+                                <p className="text-[9px] font-black text-brand-text-dim uppercase tracking-[0.3em] flex items-center justify-center gap-3">
+                                    Marcas y Códigos Top
+                                </p>
+                                <div className="flex flex-wrap justify-center gap-2">
+                                    {['WA6004', 'DONALDSON', 'FLEETGUARD', 'BALDWIN', 'TOYOTA', 'NISSAN'].map(chip => (
+                                        <button 
+                                            key={chip}
+                                            onClick={() => setSearchTerm(chip)}
+                                            className="px-4 py-2 bg-brand-surface/40 border border-white/5 rounded-xl text-[9px] font-black text-brand-text-dim hover:text-brand-primary transition-all active:scale-95"
+                                        >
+                                            {chip}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ) : loading ? (
+                        <div className="space-y-6 pt-4">
+                            {/* Wake-Up Info Card */}
+                            <div className="bg-brand-surface/50 border border-brand-primary/20 p-6 rounded-[2.5rem] text-center shadow-2xl animate-in fade-in zoom-in duration-700">
+                                <div className="h-12 w-12 border-2 border-brand-primary/20 border-t-brand-primary rounded-full animate-spin mx-auto mb-4"></div>
+                                <h4 className="text-white font-black text-xs uppercase tracking-widest mb-1">Enlazando con Central</h4>
+                                <p className="text-[10px] text-brand-text-dim leading-relaxed px-4">
+                                    Estableciendo conexión segura con nuestra base de datos. Por favor, espere un momento mientras validamos el inventario.
+                                </p>
+                            </div>
+
+                            <div className="space-y-4">
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="bg-brand-surface h-32 rounded-[2rem] border border-brand-border animate-pulse shadow-inner"></div>
+                                ))}
+                            </div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 pt-4">
+                            {results.length > 0 && (
+                                <div className="flex justify-between items-center mb-2 px-1">
+                                    <h2 className="text-brand-heading !text-sm">Resultados</h2>
+                                    <span className="text-[10px] font-black text-brand-primary bg-brand-primary/10 px-3 py-1 rounded-lg border border-brand-primary/20">
+                                        {stats?.total} PRODUCTOS
+                                    </span>
+                                </div>
+                            )}
+                            
                             {results.map(prod => (
                                 <MobileProductCard
                                     key={prod.sku}
                                     product={prod}
-                                    onAddToCart={(p) => console.log("Added:", p.sku)}
+                                    onAddToCart={(p) => {
+                                        addToCart(p);
+                                        navigate('/cart');
+                                    }}
                                 />
                             ))}
-                        </div>
-                    )}
 
-                    {!loading && results.length === 0 && (
-                        <div className="py-20 text-center space-y-6">
-                            <div className="h-20 w-20 bg-brand-surface border border-white/5 rounded-full flex items-center justify-center mx-auto shadow-2xl opacity-50">
-                                <MagnifyingGlassIcon className="h-10 w-10 text-brand-text-dim" />
-                            </div>
-                            <div className="space-y-2">
-                                <h3 className="text-brand-title uppercase tracking-tighter">Sin coincidencias</h3>
-                                <p className="text-brand-metadata px-10">Ajusta los filtros o intenta con un código diferente.</p>
-                            </div>
+                            {results.length === 0 && (
+                                <div className="py-20 text-center space-y-6 animate-in fade-in slide-in-from-bottom-10">
+                                    <div className="h-24 w-24 bg-brand-surface border border-white/5 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl opacity-50">
+                                        <XMarkIcon className="h-12 w-12 text-brand-danger" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <h3 className="text-white font-black text-lg uppercase tracking-tighter">Sin coincidencias</h3>
+                                        <p className="text-brand-text-dim text-[11px] px-10">
+                                            No encontramos resultados para "<span className="text-white">{searchTerm}</span>". 
+                                            Intenta con otro código o ajusta los filtros.
+                                        </p>
+                                        <button 
+                                            onClick={() => {
+                                                setSearchTerm('');
+                                                setSelectedCategory(null);
+                                                setActiveFilters({ make: '', model: '' });
+                                            }}
+                                            className="mt-4 text-brand-primary font-black text-[10px] uppercase border-b border-brand-primary/30 pb-1"
+                                        >
+                                            Limpiar todos los filtros
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

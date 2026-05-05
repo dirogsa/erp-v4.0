@@ -36,7 +36,9 @@ async def get_active_price(
     Realiza conversión automática si la moneda solicitada difiere de la base.
     """
     # 0. Determinar moneda objetivo
-    base_currency = await currency_service.get_base_currency()
+    # Si no se especifica, usamos la moneda de reporte global por ahora
+    # TODO: En el futuro pasar company_id para usar functional_currency
+    base_currency = await currency_service.get_reporting_currency()
     final_currency = target_currency or base_currency
     
     # 1. Resolución de la lista objetivo
@@ -361,8 +363,8 @@ async def bulk_update_prices(
     from app.models.pricing import PriceList, PriceEntry
     from pymongo import UpdateOne
     
-    # 0. Obtener moneda base del sistema
-    base_currency = await currency_service.get_base_currency()
+    # 0. Obtener moneda de reporte del sistema
+    base_currency = await currency_service.get_reporting_currency()
     needs_conversion = input_currency != base_currency
     
     # 1. Resolver metadatos de la lista (Contexto de Dominio)

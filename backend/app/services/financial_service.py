@@ -5,6 +5,83 @@ from app.models.inventory import DeliveryGuide, GuideType, GuideStatus, GuideIte
 from app.services import inventory_service
 from app.exceptions.business_exceptions import NotFoundException, ValidationException
 from app.schemas.common import PaginatedResponse
+from app.models.auth import User
+
+async def get_customer_statement(
+    document_number: str,
+    company_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Calcula el estado de cuenta integral del cliente.
+    Fuente de Verdad Única: Agregación dinámica de Facturas, Pagos y Notas.
+    """
+    now = datetime.now()
+    
+    # 1. Obtener facturas no pagadas
+    query = {
+        "customer_ruc": document_number, # Mantenemos compatibilidad con ruc por ahora
+        "payment_status": {"$ne": "PAID"}
+    }
+    if company_id:
+        query["company_id"] = company_id
+        
+    invoices = await SalesInvoice.find(query).to_list()
+    
+    total_debt = 0.0
+    overdue_debt = 0.0
+    statement_items = []
+    
+    for inv in invoices:
+        # Calcular impacto de notas vinculadas
+        credit_notes_total = sum(n.get("total_amount", 0) for n in inv.linked_notes if n.get("type") == "CREDIT")
+        debit_notes_total = sum(n.get("total_amount", 0) for n in inv.linked_notes if n.get("type") == "DEBIT")
+        
+        # Saldo Neto de la Factura
+        net_balance = (inv.total_amount + debit_notes_total) - (inv.amount_paid + credit_notes_total)
+        net_balance = round(net_balance, 3)
+        
+        if net_balance <= 0:
+            continue
+            
+        is_overdue = inv.due_date < now if inv.due_date else False
+        days_overdue = (now - inv.due_date).days if is_overdue else 0
+        
+        total_debt += net_balance
+        if is_overdue:
+            overdue_debt += net_balance
+            
+        statement_items.append({
+            "invoice_number": inv.invoice_number,
+            "sunat_number": inv.sunat_number,
+            "date": inv.invoice_date.isoformat(),
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "currency": inv.currency,
+            "total_amount": inv.total_amount,
+            "net_balance": net_balance,
+            "is_overdue": is_overdue,
+            "days_overdue": days_overdue
+        })
+
+    # 2. Obtener información de crédito del cliente para el Dashboard
+    from app.models.sales import Customer
+    customer = await Customer.find_one({"document_number": document_number})
+    
+    credit_limit = customer.credit_limit if customer else 0.0
+    available_credit = max(0, credit_limit - total_debt)
+    
+    return {
+        "customer_name": customer.name if customer else "N/A",
+        "document_number": document_number,
+        "summary": {
+            "total_debt": round(total_debt, 3),
+            "overdue_debt": round(overdue_debt, 3),
+            "credit_limit": credit_limit,
+            "available_credit": round(available_credit, 3),
+            "is_blocked": customer.credit_manual_block if customer else False,
+            "risk_score": customer.risk_score if customer else "C"
+        },
+        "items": sorted(statement_items, key=lambda x: x['date'], reverse=True)
+    }
 
 async def get_notes(
     skip: int = 0,

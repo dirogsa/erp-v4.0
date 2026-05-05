@@ -115,9 +115,9 @@ async def register_payment(
 async def get_customers():
     return await sales_service.get_customers()
 
-@router.get("/customers/by-ruc/{ruc}", response_model=Customer)
-async def get_customer_by_ruc(ruc: str):
-    return await sales_service.get_customer_by_ruc(ruc)
+@router.get("/customers/by-number/{number}", response_model=Customer)
+async def get_customer_by_number(number: str):
+    return await sales_service.get_customer_by_number(number)
 
 @router.post("/customers", response_model=Customer)
 async def create_customer(customer: Customer):

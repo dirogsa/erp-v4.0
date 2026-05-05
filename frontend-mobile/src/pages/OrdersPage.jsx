@@ -17,77 +17,97 @@ const OrdersPage = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { showNotification } = useNotifications();
+    const [orders, setOrders] = useState([]);
     const [quotes, setQuotes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [copiedId, setCopiedId] = useState(null);
-
-    const buildSummaryText = (quote) => {
-        const lines = (quote.items || []).map(
-            i => `  • ${i.quantity}x ${i.product_name || i.product_sku} → S/ ${((i.quantity || 0) * (i.unit_price || 0)).toFixed(2)}`
-        ).join('\n');
-        const total = (quote.total_amount || 0).toFixed(2);
-        return `🧾 COTIZACIÓN DIROGSA\n\nNro: ${quote.quote_number || 'S/N'}\nFecha: ${new Date(quote.date).toLocaleDateString()}\n\nDetalle:\n${lines}\n\n💰 TOTAL: S/ ${total}\n\n_Generado desde DIROGSA Mobile_`;
-    };
-
-    const handleCopy = async (quote) => {
-        try {
-            await navigator.clipboard.writeText(buildSummaryText(quote));
-            setCopiedId(quote.quote_number);
-            showNotification({
-                type: 'success',
-                title: 'Copiado',
-                message: 'El resumen ha sido copiado al portapapeles.'
-            });
-            setTimeout(() => setCopiedId(null), 2500);
-        } catch {
-            showNotification({
-                type: 'error',
-                title: 'Error',
-                message: 'No se pudo copiar el texto.'
-            });
-        }
-    };
+    const [activeTab, setActiveTab] = useState('orders');
 
     useEffect(() => {
         if (!user) {
             navigate('/login');
             return;
         }
-        loadQuotes();
+        loadData();
     }, [user, navigate]);
 
-    const loadQuotes = async () => {
+    const loadData = async () => {
         setLoading(true);
         try {
-            const res = await shopService.getQuotes();
-            setQuotes(res.data || []);
+            const [ordersRes, quotesRes] = await Promise.all([
+                shopService.getOrders(),
+                shopService.getQuotes()
+            ]);
+            setOrders(ordersRes.data || []);
+            setQuotes(quotesRes.data || []);
         } catch (error) {
-            console.error("Failed to load quotes", error);
+            console.error("Failed to load history", error);
+            showNotification({
+                type: 'error',
+                title: 'Error',
+                message: 'No se pudieron cargar tus pedidos.'
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    const getStatusColor = (status) => {
+    const handleCancelOrder = async (orderNumber) => {
+        if (!window.confirm(`¿Estás seguro de que deseas cancelar la reserva ${orderNumber}?`)) return;
+        
+        try {
+            await shopService.cancelOrder(orderNumber);
+            showNotification({
+                type: 'success',
+                title: 'Reserva Cancelada',
+                message: 'La reserva ha sido eliminada exitosamente.'
+            });
+            loadData(); // Reload
+        } catch (error) {
+            showNotification({
+                type: 'error',
+                title: 'Error',
+                message: error.response?.data?.detail || 'No se pudo cancelar la orden.'
+            });
+        }
+    };
+
+    const getStatusInfo = (status) => {
         switch (status) {
-            case 'PENDING': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-            case 'COMPLETED': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
-            case 'CANCELLED': return 'text-red-500 bg-red-500/10 border-red-500/20';
-            default: return 'text-brand-muted bg-brand-surface border-brand-border';
+            case 'PENDING': return { label: 'Pendiente', color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' };
+            case 'BACKORDER': return { label: 'Reserva (Backorder)', color: 'text-brand-orange bg-brand-orange/10 border-brand-orange/20' };
+            case 'COMPLETED': case 'INVOICED': return { label: 'Completado', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };
+            case 'CANCELLED': return { label: 'Cancelado', color: 'text-red-500 bg-red-500/10 border-red-500/20' };
+            default: return { label: status, color: 'text-brand-muted bg-brand-surface border-brand-border' };
         }
     };
 
     return (
         <div className="bg-brand-bg min-h-screen pb-32 text-brand-text">
-            <header className="glass-card px-6 pt-12 pb-6 border-b border-white/5 shadow-xl sticky top-0 z-50">
-                <div className="flex items-center gap-4">
+            <header className="glass-card px-6 pt-12 pb-2 border-b border-white/5 shadow-xl sticky top-0 z-50">
+                <div className="flex items-center gap-4 mb-6">
                     <div className="h-14 w-14 flex items-center justify-center bg-brand-surface rounded-2xl border border-brand-border shadow-lg">
                         <ClipboardDocumentListIcon className="h-7 w-7 text-brand-primary" />
                     </div>
                     <div>
-                        <h1 className="text-brand-xl font-black text-white leading-tight uppercase tracking-tighter">Mis Pedidos</h1>
-                        <p className="text-brand-metadata mt-1">Historial de cotizaciones</p>
+                        <h1 className="text-brand-xl font-black text-white leading-tight uppercase tracking-tighter">Mi Actividad</h1>
+                        <p className="text-brand-metadata mt-1">Gestión de pedidos y reservas</p>
                     </div>
+                </div>
+
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => setActiveTab('orders')}
+                        className={`flex-1 py-3 text-brand-xs font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'orders' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-brand-muted'}`}
+                    >
+                        Mis Pedidos
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('quotes')}
+                        className={`flex-1 py-3 text-brand-xs font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'quotes' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-brand-muted'}`}
+                    >
+                        Cotizaciones
+                    </button>
                 </div>
             </header>
 
@@ -95,114 +115,117 @@ const OrdersPage = () => {
                 {loading ? (
                     <div className="space-y-4">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="h-24 bg-brand-surface rounded-[2rem] border border-brand-border animate-pulse"></div>
+                            <div key={i} className="h-32 bg-brand-surface rounded-[2rem] border border-brand-border animate-pulse"></div>
                         ))}
-                    </div>
-                ) : quotes.length === 0 ? (
-                    <div className="text-center py-20 bg-brand-surface rounded-[3rem] border border-brand-border px-8 shadow-2xl">
-                        <div className="h-24 w-24 bg-brand-bg border border-brand-border text-brand-muted/30 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-                            <ClockIcon className="h-12 w-12" />
-                        </div>
-                        <h3 className="text-brand-lg font-black text-white">Aún no tienes pedidos</h3>
-                        <p className="text-brand-sm text-brand-text-muted mt-3 mb-10">Tus cotizaciones aparecerán aquí una vez que las generes en el carrito.</p>
-                        <button onClick={() => navigate('/')} className="w-full bg-brand-primary text-brand-bg px-10 py-5 rounded-2xl font-black text-brand-sm uppercase tracking-widest shadow-xl active:scale-95 transition-all">
-                            Empezar a comprar
-                        </button>
                     </div>
                 ) : (
                     <div className="space-y-5">
-                        {quotes.map((quote) => (
-                            <div 
-                                key={quote.quote_number || quote._id}
-                                className="bg-brand-surface border-2 border-brand-border/30 rounded-[2.5rem] p-6 shadow-xl transition-all active:scale-[0.97] relative overflow-hidden group"
-                            >
-                                {/* Decorative industrial accent */}
-                                <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-primary/40 group-hover:bg-brand-primary transition-colors"></div>
-
-                                <div className="flex justify-between items-start mb-8">
-                                    <div className="flex flex-col gap-3">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`px-4 py-1.5 rounded-xl border-2 ${getStatusColor(quote.status)} flex items-center gap-2 shadow-lg`}>
-                                                <div className="h-2 w-2 rounded-full bg-current animate-pulse"></div>
-                                                <span className="text-brand-xs font-black uppercase tracking-widest">
-                                                    {quote.status === 'PENDING' ? 'Pendiente' : quote.status === 'COMPLETED' ? 'Completado' : quote.status}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <h3 className="text-brand-sm font-black text-white uppercase tracking-tighter">COTIZACIÓN #{quote.quote_number || 'S/N'}</h3>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-brand-metadata block mb-2">Emitido</span>
-                                        <span className="text-brand-sm font-bold text-white bg-brand-bg px-3 py-1.5 rounded-xl border border-brand-border/50 shadow-inner">
-                                            {quote.date ? new Date(quote.date).toLocaleDateString() : '---'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="bg-brand-bg/60 backdrop-blur-md rounded-3xl p-6 mb-8 border border-white/5 shadow-inner">
-                                    <div className="flex justify-between items-end">
-                                        <div>
-                                            <p className="text-brand-metadata mb-2">Descripción de Carga</p>
-                                            <p className="text-brand-sm font-black text-brand-text uppercase leading-none">
-                                                {quote.items?.length || 0} {quote.items?.length === 1 ? 'Ítem Detectado' : 'Ítems Detectados'}
-                                            </p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-brand-label !text-brand-primary/80 mb-2">TOTAL PROYECTADO</p>
-                                            <div className="text-brand-2xl font-black text-white leading-none tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-                                                S/ {(quote.total_amount || 0).toLocaleString('en-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-4">
-                                    <button 
-                                        onClick={() => generateQuotationPDF(quote, quote.items || [])}
-                                        className="flex-1 bg-brand-primary text-brand-bg py-5 rounded-2xl text-brand-sm font-black uppercase tracking-widest flex items-center justify-center gap-3 active:scale-95 transition-all shadow-2xl shadow-brand-primary/20"
-                                    >
-                                        <DocumentArrowDownIcon className="h-6 w-6" /> PDF
-                                    </button>
-                                    <button 
-                                        onClick={() => quote.items?.[0] && navigate(`/product/${quote.items[0].product_sku}`)}
-                                        className="h-16 w-16 bg-brand-surface rounded-2xl border-2 border-brand-border flex items-center justify-center text-brand-muted active:border-brand-primary active:text-brand-primary transition-all shadow-xl"
-                                    >
-                                        <ChevronRightIcon className="h-7 w-7" />
-                                    </button>
-                                </div>
-
-                                {/* Share Actions: 2-col grid */}
-                                <div className="grid grid-cols-2 gap-3 mt-4">
-                                    {/* Enviar PDF por WhatsApp (native share) */}
-                                    <button
-                                        onClick={() => generateQuotationPDF(quote, quote.items || [], 'share')}
-                                        className="flex items-center justify-center gap-2 bg-[#25D366]/10 border-2 border-[#25D366]/20 text-[#25D366] py-4 rounded-2xl text-brand-xs font-black uppercase tracking-widest active:scale-95 transition-all shadow-lg"
-                                    >
-                                        <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                                        WhatsApp
-                                    </button>
-                                    {/* Copiar Resumen al portapapeles */}
-                                    <button
-                                        onClick={() => handleCopy(quote)}
-                                        className={`flex items-center justify-center gap-2 py-4 rounded-2xl text-brand-xs font-black uppercase tracking-widest active:scale-95 transition-all border-2 ${
-                                            copiedId === quote.quote_number
-                                                ? 'bg-brand-primary/10 border-brand-primary/40 text-brand-primary'
-                                                : 'bg-brand-surface border-brand-border text-brand-text-muted'
-                                        }`}
-                                    >
-                                        {copiedId === quote.quote_number
-                                            ? <><ClipboardDocumentCheckIcon className="h-5 w-5" /> Copiado</>
-                                            : <><ClipboardDocumentCheckIcon className="h-5 w-5" /> Copiar</>
-                                        }
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                        {activeTab === 'orders' ? (
+                            orders.length === 0 ? (
+                                <EmptyState message="No tienes pedidos registrados aún." onAction={() => navigate('/')} />
+                            ) : (
+                                orders.map((order) => (
+                                    <OrderCard 
+                                        key={order.order_number} 
+                                        order={order} 
+                                        statusInfo={getStatusInfo(order.status)} 
+                                        onCancel={handleCancelOrder}
+                                    />
+                                ))
+                            )
+                        ) : (
+                            quotes.length === 0 ? (
+                                <EmptyState message="No tienes cotizaciones guardadas." onAction={() => navigate('/')} />
+                            ) : (
+                                quotes.map((quote) => (
+                                    <QuoteCard 
+                                        key={quote.quote_number} 
+                                        quote={quote} 
+                                        statusInfo={getStatusInfo(quote.status)} 
+                                        onNavigate={(sku) => navigate(`/product/${sku}`)}
+                                    />
+                                ))
+                            )
+                        )}
                     </div>
                 )}
             </main>
         </div>
     );
 };
+
+const OrderCard = ({ order, statusInfo, onCancel }) => (
+    <div className="bg-brand-surface border-2 border-brand-border/30 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden group">
+        <div className={`absolute top-0 left-0 w-1.5 h-full bg-current transition-colors ${statusInfo.color.split(' ')[0]}`}></div>
+        
+        <div className="flex justify-between items-start mb-6">
+            <div className="flex flex-col gap-2">
+                <div className={`px-3 py-1 rounded-lg border ${statusInfo.color} inline-flex items-center gap-2`}>
+                    <span className="text-[10px] font-black uppercase tracking-tighter">{statusInfo.label}</span>
+                </div>
+                <h3 className="text-brand-sm font-black text-white uppercase tracking-tighter">ORDEN #{order.order_number}</h3>
+            </div>
+            <div className="text-right">
+                <span className="text-[10px] text-brand-metadata block mb-1 font-bold">FECHA</span>
+                <span className="text-brand-xs font-bold text-white">{new Date(order.date).toLocaleDateString()}</span>
+            </div>
+        </div>
+
+        <div className="bg-brand-bg/40 rounded-2xl p-4 mb-6 border border-white/5">
+            <div className="flex justify-between items-center">
+                <span className="text-brand-xs text-brand-text-dim uppercase font-black">{order.items?.length} Ítems</span>
+                <span className="text-brand-md font-black text-white">S/ {order.total_amount?.toFixed(2)}</span>
+            </div>
+        </div>
+
+        <div className="flex gap-3">
+            {order.status === 'BACKORDER' ? (
+                <button 
+                    onClick={() => onCancel(order.order_number)}
+                    className="flex-1 bg-brand-danger/10 border border-brand-danger/20 text-brand-danger py-4 rounded-xl text-brand-xs font-black uppercase tracking-widest active:scale-95 transition-all"
+                >
+                    ELIMINAR RESERVA
+                </button>
+            ) : (
+                <div className="flex-1 text-center py-4 text-brand-xs font-black text-brand-muted uppercase tracking-widest bg-brand-bg/20 rounded-xl">
+                    PROCESANDO DESPACHO...
+                </div>
+            )}
+        </div>
+    </div>
+);
+
+const QuoteCard = ({ quote, statusInfo, onNavigate }) => (
+    <div className="bg-brand-surface border border-brand-border/30 rounded-[2.5rem] p-6 shadow-lg">
+        <div className="flex justify-between items-start mb-6">
+            <h3 className="text-brand-xs font-black text-brand-text-muted uppercase tracking-widest">COTIZACIÓN #{quote.quote_number}</h3>
+            <span className="text-brand-xs font-bold text-white opacity-60">{new Date(quote.date).toLocaleDateString()}</span>
+        </div>
+        <div className="flex justify-between items-end">
+            <div>
+                <p className="text-[10px] text-brand-metadata mb-1 font-bold uppercase tracking-tighter">PRECIO ESTIMADO</p>
+                <p className="text-brand-lg font-black text-white">S/ {quote.total_amount?.toFixed(2)}</p>
+            </div>
+            <button 
+                onClick={() => quote.items?.[0] && onNavigate(quote.items[0].product_sku)}
+                className="h-12 w-12 bg-brand-bg rounded-xl border border-white/10 flex items-center justify-center text-brand-primary active:scale-90 transition-all shadow-inner"
+            >
+                <ChevronRightIcon className="h-6 w-6" />
+            </button>
+        </div>
+    </div>
+);
+
+const EmptyState = ({ message, onAction }) => (
+    <div className="text-center py-16 bg-brand-surface rounded-[3rem] border border-brand-border px-8 shadow-inner">
+        <div className="h-20 w-20 bg-brand-bg border border-brand-border text-brand-muted/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <ClockIcon className="h-10 w-10" />
+        </div>
+        <h3 className="text-brand-sm font-black text-white uppercase tracking-widest mb-8">{message}</h3>
+        <button onClick={onAction} className="w-full bg-brand-primary text-brand-bg py-4 rounded-xl font-black text-brand-xs uppercase tracking-widest active:scale-95 transition-all shadow-lg">
+            Ir a la Tienda
+        </button>
+    </div>
+);
 
 export default OrdersPage;

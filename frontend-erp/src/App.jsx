@@ -36,6 +36,7 @@ import BulkXMLImport from './pages/BulkXMLImport';
 import FinancialAudit from './pages/FinancialAudit';
 import StaffManagement from './pages/StaffManagement';
 import ExchangeRates from './pages/ExchangeRates';
+import SystemConfigPage from './pages/SystemConfigPage';
 
 
 
@@ -101,6 +102,7 @@ function App() {
                           <Route path="/audit/financial" element={<FinancialAudit />} />
                           <Route path="/staff" element={<StaffManagement />} />
                           <Route path="/exchange-rates" element={<ExchangeRates />} />
+                          <Route path="/system-config" element={<SystemConfigPage />} />
                         </Routes>
                       </Layout>
                     </ProtectedRoute>

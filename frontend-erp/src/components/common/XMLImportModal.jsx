@@ -7,6 +7,7 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
     const [batchData, setBatchData] = useState([]);
     const [isParsing, setIsParsing] = useState(false);
     const [error, setError] = useState('');
+    const [parsingErrors, setParsingErrors] = useState([]);
 
     if (!visible) return null;
 
@@ -16,25 +17,45 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
 
         setIsParsing(true);
         setError('');
+        setParsingErrors([]);
         const results = [];
+        const errors = [];
 
         for (const file of selectedFiles) {
             try {
                 const text = await file.text();
+                // Validar si es un XML real antes de parsear
+                if (!text.trim().startsWith('<')) {
+                    throw new Error("El archivo no parece ser un XML válido (¿está comprimido en ZIP?)");
+                }
+                
                 const parsed = parseUBLXml(text);
+                
+                // Validación básica de integridad
+                if (!parsed.document_number) {
+                    throw new Error("No se encontró el número de documento (Serie-Número)");
+                }
+
                 results.push({
                     ...parsed,
                     _fileName: file.name
                 });
             } catch (err) {
                 console.error(`Error parsing ${file.name}:`, err);
+                errors.push({ name: file.name, message: err.message });
             }
         }
 
         if (results.length > 0) {
             setBatchData(prev => [...prev, ...results]);
+            if (errors.length > 0) {
+                setParsingErrors(errors);
+            }
+        } else if (errors.length > 0) {
+            setParsingErrors(errors);
+            setError(`No se pudo procesar ninguno de los ${selectedFiles.length} archivos.`);
         } else {
-            setError('No se pudo procesar ningún archivo XML válido.');
+            setError('No se seleccionaron archivos procesables.');
         }
         setIsParsing(false);
     };
@@ -73,6 +94,55 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                 </div>
 
                 <div style={{ padding: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+                            {batchData.length} documento(s) en cola
+                        </span>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                                onClick={() => document.getElementById('xml-upload').click()}
+                                style={{ background: '#3b82f620', border: '1px solid #3b82f644', color: '#60a5fa', fontSize: '0.8rem', cursor: 'pointer', padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold' }}
+                            >
+                                + Añadir más archivos
+                            </button>
+                            {batchData.length > 0 && (
+                                <button
+                                    onClick={() => setBatchData([])}
+                                    style={{ background: 'none', border: 'none', color: '#f87171', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}
+                                >
+                                    Limpiar lista
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <input
+                        type="file"
+                        accept=".xml"
+                        multiple
+                        onChange={(e) => {
+                            handleFileUpload(e);
+                            e.target.value = ''; // Reset para permitir re-selección
+                        }}
+                        style={{ display: 'none' }}
+                        id="xml-upload"
+                    />
+
+                    {parsingErrors.length > 0 && (
+                        <div style={{ marginBottom: '1.5rem', background: '#450a0a', border: '1px solid #7f1d1d', borderRadius: '0.75rem', padding: '1rem' }}>
+                            <div style={{ color: '#f87171', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                ⚠️ {parsingErrors.length} archivo(s) con problemas:
+                            </div>
+                            <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.75rem', color: '#fca5a5' }}>
+                                {parsingErrors.map((err, i) => (
+                                    <li key={i} style={{ marginBottom: '2px' }}>
+                                        <strong>{err.name}</strong>: {err.message}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
                     {batchData.length === 0 ? (
                         <div style={{
                             border: '2px dashed #334155',
@@ -86,33 +156,14 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                             onMouseOver={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.backgroundColor = '#1e293b'; }}
                             onMouseOut={e => { e.currentTarget.style.borderColor = '#334155'; e.currentTarget.style.backgroundColor = '#0f172a'; }}
                             onClick={() => document.getElementById('xml-upload').click()}>
-                            <input
-                                type="file"
-                                accept=".xml"
-                                multiple
-                                onChange={handleFileUpload}
-                                style={{ display: 'none' }}
-                                id="xml-upload"
-                            />
                             <div style={{ fontSize: '3.5rem', marginBottom: '1.25rem' }}>🧾</div>
-                            <div style={{ fontWeight: '700', color: 'white', fontSize: '1.2rem' }}>Selecciona múltiples Facturas XML</div>
+                            <div style={{ fontWeight: '700', color: 'white', fontSize: '1.2rem' }}>Selecciona Facturas XML</div>
                             <div style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '0.6rem' }}>Arrastra archivos o haz clic para buscar</div>
                             {isParsing && <div style={{ color: '#3b82f6', marginTop: '1rem', fontWeight: 'bold' }}>Procesando...</div>}
                             {error && <div style={{ color: '#f87171', marginTop: '1.5rem', fontWeight: '600', background: '#450a0a', padding: '0.5rem', borderRadius: '0.5rem', fontSize: '0.85rem' }}>{error}</div>}
                         </div>
                     ) : (
                         <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-                                    {batchData.length} documento(s) listos para procesar
-                                </span>
-                                <button
-                                    onClick={() => setBatchData([])}
-                                    style={{ background: 'none', border: 'none', color: '#f87171', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}
-                                >
-                                    Limpiar todo
-                                </button>
-                            </div>
 
                             <div style={{
                                 background: '#0f172a',

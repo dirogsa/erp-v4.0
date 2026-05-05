@@ -31,68 +31,79 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
     }, [product]);
 
     return (
-        <div className="card-premium h-full flex flex-col group relative">
-            {/* Image Zone - ZOOM TRIGGER */}
+        <div className="card-premium h-auto flex flex-row items-center gap-4 group relative p-3">
+            {/* Image Zone (Left Side) */}
             <div 
                 onClick={() => setIsZoomed(true)}
-                className="aspect-square w-full bg-brand-surface-2 rounded-3xl mb-3 overflow-hidden flex items-center justify-center relative p-4 group-hover:bg-brand-surface-3 transition-colors shadow-inner active:scale-95 transition-transform"
+                className="h-24 w-24 bg-brand-surface-2 rounded-2xl overflow-hidden flex items-center justify-center relative flex-shrink-0 p-2 group-hover:bg-brand-surface-3 transition-colors shadow-inner active:scale-95 transition-transform"
             >
                 <img
-                    src={product.image_url || 'https://via.placeholder.com/200x200?text=No+Image'}
+                    src={product.image_url || 'https://via.placeholder.com/100x100?text=Filter'}
                     alt={product.name}
                     className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-700"
                 />
-                
-                {/* Visual Hint for Zoom */}
-                <div className="absolute top-4 right-4 h-10 w-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 shadow-lg group-hover:bg-brand-primary group-hover:text-black transition-all">
-                    <MagnifyingGlassPlusIcon className="h-5 w-5" />
-                </div>
-
                 {product.is_new && (
-                    <div className="absolute top-4 left-4 bg-brand-primary text-black text-[10px] font-black px-3 py-1 rounded-full shadow-lg">
-                        NUEVO
+                    <div className="absolute top-1 left-1 bg-brand-primary text-black text-[7px] font-black px-1.5 py-0.5 rounded-full shadow-lg">
+                        NEW
                     </div>
                 )}
             </div>
 
-            {/* Info Zone - DETAIL NAVIGATION */}
+            {/* Info Zone (Right Side) */}
             <div 
                 onClick={() => navigate(`/product/${product.sku}`)}
-                className="px-2 space-y-1.5 text-left flex-1 cursor-pointer active:opacity-60 transition-opacity flex flex-col"
+                className="flex-1 min-w-0 space-y-1 text-left cursor-pointer active:opacity-60 transition-opacity"
             >
                 <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-brand-text-dim uppercase tracking-widest">
+                    <span className="text-[10px] font-black text-brand-text-dim uppercase tracking-widest truncate">
                         {product.brand || 'DIROGSA'}
                     </span>
-                    <span className="text-[9px] font-black text-brand-primary uppercase tracking-widest flex items-center gap-0.5">
-                        FICHA <ChevronRightIcon className="h-3 w-3" />
-                    </span>
+                    {product.stock_current > 0 ? (
+                        <span className="text-[8px] font-black text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full">STOCK: {product.stock_current}</span>
+                    ) : (
+                        <span className="text-[8px] font-black text-brand-orange bg-brand-orange/10 px-2 py-0.5 rounded-full uppercase">Reserva</span>
+                    )}
                 </div>
                 
-                <h3 className="text-brand-title line-clamp-2 uppercase tracking-tighter text-sm leading-tight">
+                <h3 className="text-white font-bold uppercase tracking-tight text-xs leading-tight line-clamp-2">
                     {product.name}
                 </h3>
 
-                <span className="text-[11px] text-brand-orange font-black tracking-widest">{product.sku}</span>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-brand-orange font-black tracking-widest">{product.sku}</span>
+                    {product.promo_discount_pct > 0 && (
+                        <span className="bg-brand-danger text-white text-[8px] font-black px-1.5 py-0.5 rounded animate-pulse">PROMO</span>
+                    )}
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                    <span className="text-white font-black text-sm">
+                        S/ {(product.price || product.price_retail || 0).toFixed(2)}
+                    </span>
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onAddToCart?.(product);
+                        }}
+                        className="h-10 w-10 flex items-center justify-center rounded-xl bg-brand-primary text-black active:scale-90 shadow-lg shadow-brand-primary/20"
+                    >
+                        <ShoppingCartIcon className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
 
-            {/* FULL SCREEN IMAGE OVERLAY - ADAPTIVE VISUALS V3 (With Smart Hydration) */}
+            {/* FULL SCREEN IMAGE OVERLAY (Portal-like logic) */}
             {isZoomed && (
                 <div className="fixed inset-0 z-[999] flex flex-col bg-black/95 backdrop-blur-3xl animate-in fade-in duration-300 h-screen overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                    {/* Header Area */}
                     <header className="flex-shrink-0 h-20 flex items-center justify-end px-6 relative z-50">
                         <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setIsZoomed(false);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); setIsZoomed(false); }}
                             className="h-12 w-12 bg-brand-surface rounded-2xl flex items-center justify-center text-white border border-white/10 shadow-2xl active:scale-90 transition-all"
                         >
                             <XMarkIcon className="h-7 w-7" />
                         </button>
                     </header>
-                    
-                    {/* Main Image Area (Strict Constrain) */}
                     <main className="flex-1 flex items-center justify-center p-6 relative z-10 overflow-hidden" onClick={() => setIsZoomed(false)}>
                         <div className="w-full h-full flex items-center justify-center bg-white/[0.02] rounded-[3rem] border border-white/5 shadow-inner">
                             <img
@@ -102,16 +113,12 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
                             />
                         </div>
                     </main>
-
-                    {/* Floating Technical Control Bar (Hydrated Data) */}
                     <footer className="flex-shrink-0 p-6 pb-10 relative z-20" onClick={(e) => e.stopPropagation()}>
                         <div className="max-w-md mx-auto bg-brand-surface/60 backdrop-blur-3xl border border-white/10 p-6 rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] space-y-5 animate-in slide-in-from-bottom-10 duration-500">
                             <div className="text-center">
                                 <h2 className="text-white font-black text-lg uppercase tracking-tighter mb-1 leading-tight line-clamp-1">{fullProduct.name}</h2>
                                 <p className="text-brand-orange font-black tracking-[0.2em] text-[10px] uppercase">{fullProduct.sku}</p>
                             </div>
-
-                            {/* Technical Ribbon (Now consistent and dynamic) */}
                             <div className="flex justify-center gap-2 overflow-x-auto no-scrollbar">
                                 {fullProduct.specs?.length > 0 ? (
                                     fullProduct.specs.slice(0, 4).map((spec, i) => (
@@ -130,39 +137,6 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
                     </footer>
                 </div>
             )}
-
-            {/* Price & Action */}
-            <div className="mt-auto pt-4 flex items-center justify-between px-1">
-                <div className="flex flex-col">
-                    {isPrize ? (
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-brand-lg font-black text-brand-primary leading-none">{product.points_cost}</span>
-                            <span className="text-[10px] font-black text-brand-text-muted">PTS</span>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-start gap-1">
-                            <span className="text-brand-price leading-none text-xl">
-                                S/ {(product.price || product.price_retail || 0).toFixed(2)}
-                            </span>
-                            {(product.loyalty_points > 0 || true) && (
-                                <div className="flex items-center px-1.5 py-0.5 bg-brand-primary/10 rounded-md">
-                                    <span className="text-[9px] font-black text-brand-primary uppercase tracking-widest">+{product.loyalty_points || 0} PTS</span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                <button
-                    onClick={(e) => {
-                        e.preventDefault();
-                        onAddToCart?.(product);
-                    }}
-                    className={isPrize ? 'btn-icon' : 'h-11 w-11 flex items-center justify-center rounded-xl bg-brand-primary text-black transition-all active:scale-90 shadow-[0_0_15px_rgba(16,185,129,0.3)] shrink-0'}
-                >
-                    {isPrize ? <GiftIcon className="h-6 w-6" /> : <ShoppingCartIcon className="h-6 w-6" />}
-                </button>
-            </div>
         </div>
     );
 };

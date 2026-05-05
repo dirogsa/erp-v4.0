@@ -48,6 +48,16 @@ export const CompanyProvider = ({ children }) => {
         console.log(`[CONTEXT] Context switched to: ${company.name}`);
     };
 
+    const switchCompany = async (companyId, type) => {
+        try {
+            const payload = type === 'local' ? { is_active_local: true } : { is_active_web: true };
+            await companyService.updateCompany(companyId, payload);
+            await refreshCompanies();
+        } catch (err) {
+            console.error('[CONTEXT] Error switching company:', err);
+        }
+    };
+
     const refreshCompanies = async () => {
         await loadCompanies();
     };
@@ -57,6 +67,7 @@ export const CompanyProvider = ({ children }) => {
             companies,
             activeCompany,
             selectCompany,
+            switchCompany,
             loading,
             refreshCompanies
         }}>

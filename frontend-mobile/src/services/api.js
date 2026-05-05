@@ -30,7 +30,11 @@ export const shopService = {
     getPredictiveOrder: () => api.get('/shop/predictive-order'),
     getProfile: () => api.get('/shop/profile'),
     getOrders: () => api.get('/shop/orders'),
+    cancelOrder: (orderNumber) => api.delete(`/shop/orders/${orderNumber}`),
     getQuotes: () => api.get('/shop/quotes'),
+    // ADMIN DASHBOARD (SuperAdmin / Admin Only)
+    getAdminStats: (companyId = null) => api.get('/shop/admin/stats', { params: { company_id: companyId } }),
+    getAdminOrders: (params = {}) => api.get('/shop/admin/orders', { params }),
     // MARKETING products for prizes/redemption
     getPrizes: (params = {}) => api.get('/shop/prizes', { params: { ...params, type: 'MARKETING' } }),
     redeemPrize: (redemptionData) => api.post('/shop/redeem', redemptionData),

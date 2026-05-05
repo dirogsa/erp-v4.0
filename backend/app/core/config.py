@@ -11,6 +11,11 @@ class Settings:
     MONGODB_URI: str = os.getenv("MONGODB_URI")
     MONGO_DB_NAME: str = os.getenv("MONGO_DB_NAME", "erp_db")
     
+    # System Defaults (Governance)
+    DEFAULT_INSTANCE_NAME: str = os.getenv("DEFAULT_INSTANCE_NAME", "Dirogsa Cloud ERP")
+    DEFAULT_REPORTING_CURRENCY: str = os.getenv("DEFAULT_REPORTING_CURRENCY", "PEN")
+    DEFAULT_TAX_PERCENTAGE: float = float(os.getenv("DEFAULT_TAX_PERCENTAGE", "18.0"))
+    
     # CORS
     ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "")
     

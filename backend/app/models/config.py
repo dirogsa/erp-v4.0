@@ -3,14 +3,11 @@ from beanie import Document
 from pydantic import Field
 
 class SystemConfig(Document):
-    """Configuración Maestra del ERP"""
-    company_name: str = "Dirogsa"
-    base_currency: str = "PEN" # La moneda que 'reina' en el sistema
-    tax_id: str = "RUC"
-    tax_percentage: float = 18.0 # IGV
-    
-    # Configuración de Costos
-    cost_method: str = "PEPS" # PEPS, Promedio Ponderado
+    """Configuración Maestra del Software"""
+    instance_name: str = "Dirogsa Cloud ERP"
+    reporting_currency: str = "PEN" # Moneda para balances consolidados del grupo
+    decimal_precision: int = 2 # 2, 3 o 4 decimales en precios
+    timezone: str = "America/Lima" # Estándar de tiempo para reportes
     
     class Settings:
         name = "system_config"

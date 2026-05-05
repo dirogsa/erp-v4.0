@@ -853,7 +853,7 @@ async def get_customers() -> List[Dict[str, Any]]:
                     if isinstance(branch, dict) and "id" in branch:
                          branch["id"] = str(branch["id"])
             
-            linked_user = user_map.get(c.ruc)
+            linked_user = user_map.get(c.document_number)
             if linked_user:
                 data["loyalty_points"] = getattr(linked_user, 'loyalty_points', 0)
                 data["internal_points_local"] = getattr(linked_user, 'internal_points_local', 0)
@@ -869,16 +869,16 @@ async def get_customers() -> List[Dict[str, Any]]:
         
     return results
 
-async def get_customer_by_ruc(ruc: str) -> Customer:
-    customer = await Customer.find_one(Customer.ruc == ruc)
+async def get_customer_by_number(number: str) -> Customer:
+    customer = await Customer.find_one(Customer.document_number == number)
     if not customer:
-        raise NotFoundException("Customer", ruc)
+        raise NotFoundException("Customer", number)
     return customer
 
 async def create_customer(customer: Customer) -> Customer:
-    existing = await Customer.find_one(Customer.ruc == customer.ruc)
+    existing = await Customer.find_one(Customer.document_number == customer.document_number)
     if existing:
-        raise DuplicateEntityException("Customer", "ruc", customer.ruc)
+        raise DuplicateEntityException("Customer", "document_number", customer.document_number)
     await customer.insert()
     return customer
 
@@ -888,12 +888,19 @@ async def update_customer(id: PydanticObjectId, customer_data: Customer) -> Cust
         raise NotFoundException("Customer", str(id))
     
     customer.name = customer_data.name
-    customer.ruc = customer_data.ruc
+    customer.document_type = customer_data.document_type
+    customer.document_number = customer_data.document_number
     customer.address = customer_data.address
     customer.phone = customer_data.phone
     customer.email = customer_data.email
     customer.classification = customer_data.classification
     customer.custom_discount_percent = customer_data.custom_discount_percent
+    
+    # --- Campos de Inteligencia Comercial ---
+    customer.price_list_id = customer_data.price_list_id
+    customer.currency_preference = customer_data.currency_preference
+    customer.seller_id = customer_data.seller_id
+    customer.payment_method_id = customer_data.payment_method_id
     
     # Ensure lists are at least empty
     customer.branches = customer_data.branches if customer_data.branches is not None else []
@@ -903,7 +910,7 @@ async def update_customer(id: PydanticObjectId, customer_data: Customer) -> Cust
 
     # Sync with linked User (Shop) if exists
     from app.models.auth import User
-    linked_user = await User.find_one(User.ruc_linked == customer.ruc)
+    linked_user = await User.find_one(User.ruc_linked == customer.document_number)
     if linked_user:
         linked_user.custom_discount_percent = customer.custom_discount_percent
         await linked_user.save()
@@ -1234,15 +1241,15 @@ async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: 
         ))
     
     # 1.6 Vincular Cliente Existente (REQUISITO PROFESIONAL)
-    customer_ruc = data['customer']['ruc']
-    customer = await Customer.find_one(Customer.ruc == customer_ruc)
+    customer_number = data['customer'].get('ruc') or data['customer'].get('document_number')
+    customer = await Customer.find_one(Customer.document_number == customer_number)
     if not customer:
-        raise ValidationException(f"CLIENTE NO REGISTRADO: El RUC {customer_ruc} no existe en el maestro. Por favor, regístrelo manualmente antes de importar.")
+        raise ValidationException(f"CLIENTE NO REGISTRADO: El documento {customer_number} no existe en el maestro. Por favor, regístrelo manualmente antes de importar.")
         
     order = SalesOrder(
         order_number=order_number,
         customer_name=customer.name,
-        customer_ruc=customer.ruc,
+        customer_ruc=customer.document_number,
         delivery_address=customer.address or data['customer'].get('address') or "Dirección en XML",
         items=order_items,
         status=OrderStatus.INVOICED,

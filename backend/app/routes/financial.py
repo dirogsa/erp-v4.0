@@ -45,3 +45,13 @@ async def create_note(
         )
     except BusinessException as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/customers/{document_number}/statement")
+async def get_customer_statement(
+    document_number: str,
+    company_id: Optional[str] = Query(None)
+):
+    try:
+        return await financial_service.get_customer_statement(document_number, company_id)
+    except BusinessException as e:
+        raise HTTPException(status_code=400, detail=str(e))

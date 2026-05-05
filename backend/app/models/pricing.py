@@ -2,6 +2,7 @@ from typing import Optional, List
 from datetime import datetime
 from beanie import Document, Indexed, PydanticObjectId
 from pydantic import BaseModel, Field
+from .auth import UserTier
 
 class PriceList(Document):
     """Define una lista de precios (Ej: General, Mayorista, Cyber Wow)"""
@@ -41,11 +42,22 @@ class PriceEntry(Document):
         ]
 
 class PricingRule(Document):
-    """Reglas automatizadas (Ej: 'Subir 5% a todos los filtros de aire')"""
+    """Reglas automatizadas y de Segmentación (Tiers)"""
     name: str
+    tier: Optional[UserTier] = UserTier.STANDARD # Si es nulo, aplica a todos
+    
+    # Filtros de aplicación
     target_category_id: Optional[PydanticObjectId] = None
     target_brand: Optional[str] = None
-    percentage_change: float = 0.0 # Ej: 5.0 para subir, -5.0 para bajar
+    
+    # Compatibilidad con pricing_service (Legacy/Runtime)
+    brand: Optional[str] = None
+    category_id: Optional[str] = None
+    
+    discount_percentage: float = 0.0 # Usado para descuentos por Tier en tiempo real
+    percentage_change: float = 0.0 # Usado para actualizaciones masivas (Legacy)
+    
+    is_active: bool = True
     is_applied: bool = False
     applied_at: Optional[datetime] = None
     

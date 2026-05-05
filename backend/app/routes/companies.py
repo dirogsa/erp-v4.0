@@ -14,6 +14,9 @@ class CompanyCreate(BaseModel):
     email: Optional[str] = None
     website: Optional[str] = None
     logo_url: Optional[str] = None
+    functional_currency: str = "PEN"
+    tax_percentage: float = 18.0
+    cost_method: str = "PEPS"
     bank_name: Optional[str] = None
     account_soles: Optional[str] = None
     account_dollars: Optional[str] = None
@@ -29,6 +32,9 @@ class CompanyUpdate(BaseModel):
     email: Optional[str] = None
     website: Optional[str] = None
     logo_url: Optional[str] = None
+    functional_currency: Optional[str] = None
+    tax_percentage: Optional[float] = None
+    cost_method: Optional[str] = None
     bank_name: Optional[str] = None
     account_soles: Optional[str] = None
     account_dollars: Optional[str] = None

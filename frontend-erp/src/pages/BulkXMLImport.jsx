@@ -444,23 +444,71 @@ const BulkXMLImport = () => {
                     </div>
                 )}
 
-                {/* Success Modal */}
+                {/* Success Modal (World-Class Summary) */}
                 {showSuccessModal && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 6000 }}>
-                        <div style={{ background: '#1e293b', padding: '3rem', borderRadius: '2rem', textAlign: 'center', maxWidth: '500px', border: '1px solid #334155' }}>
-                            <CheckCircle size={80} color="#10b981" style={{ marginBottom: '1.5rem' }} />
-                            <h2 style={{ color: 'white', fontSize: '2rem', marginBottom: '1rem' }}>¡Éxito!</h2>
-                            <div style={{ background: '#0f172a', padding: '1.5rem', borderRadius: '1rem', color: '#94a3b8', textAlign: 'left', marginBottom: '2.5rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                    <span>✅ Importados:</span>
-                                    <span style={{ color: '#10b981', fontWeight: 'bold' }}>{lastProcessedCount.created}</span>
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 6000, backdropFilter: 'blur(8px)' }}>
+                        <div style={{ background: '#1e293b', padding: '2.5rem', borderRadius: '2rem', textAlign: 'center', maxWidth: '600px', width: '90%', border: '1px solid #334155', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+                            <div style={{ width: '80px', height: '80px', background: '#10b98122', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                                <CheckCircle size={48} color="#10b981" />
+                            </div>
+                            <h2 style={{ color: 'white', fontSize: '1.8rem', marginBottom: '0.5rem' }}>Proceso Finalizado</h2>
+                            <p style={{ color: '#94a3b8', marginBottom: '2rem' }}>Se ha completado la importación masiva de comprobantes.</p>
+                            
+                            <div style={{ background: '#0f172a', borderRadius: '1.25rem', overflow: 'hidden', border: '1px solid #334155', marginBottom: '2rem' }}>
+                                <div style={{ display: 'flex', borderBottom: '1px solid #334155' }}>
+                                    <div style={{ flex: 1, padding: '1rem', borderRight: '1px solid #334155' }}>
+                                        <div style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: 'bold' }}>{lastProcessedCount.created}</div>
+                                        <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase' }}>Importados</div>
+                                    </div>
+                                    <div style={{ flex: 1, padding: '1rem' }}>
+                                        <div style={{ color: '#ef4444', fontSize: '1.5rem', fontWeight: 'bold' }}>{lastProcessedCount.skipped}</div>
+                                        <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase' }}>Con Errores</div>
+                                    </div>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>❌ Errores/Omitidos:</span>
-                                    <span style={{ color: '#ef4444', fontWeight: 'bold' }}>{lastProcessedCount.skipped}</span>
+                                
+                                <div style={{ maxHeight: '200px', overflowY: 'auto', padding: '1rem', textAlign: 'left' }}>
+                                    {xmlBatch.filter(d => d.status === 'SUCCESS' || d.status === 'ERROR').slice(-10).map((d, i) => (
+                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: i === 9 ? 'none' : '1px solid #1e293b', fontSize: '0.85rem' }}>
+                                            <div style={{ color: '#e2e8f0' }}>
+                                                <span style={{ fontWeight: 'bold', marginRight: '8px' }}>{d.document_number}</span>
+                                                <span style={{ color: '#64748b', fontSize: '0.75rem' }}>{d.supplier?.name || d.customer?.name}</span>
+                                            </div>
+                                            <span style={{ 
+                                                color: d.status === 'SUCCESS' ? '#10b981' : '#ef4444',
+                                                fontWeight: 'bold',
+                                                fontSize: '0.75rem'
+                                            }}>
+                                                {d.status === 'SUCCESS' ? '✓ OK' : '✕ ERROR'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                    {xmlBatch.filter(d => d.status === 'SUCCESS' || d.status === 'ERROR').length > 10 && (
+                                        <div style={{ textAlign: 'center', color: '#475569', fontSize: '0.75rem', marginTop: '0.5rem' }}>... y otros documentos más</div>
+                                    )}
                                 </div>
                             </div>
-                            <Button variant="primary" size="large" onClick={() => setShowSuccessModal(false)} style={{ width: '100%' }}>Finalizar</Button>
+
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <Button 
+                                    variant="secondary" 
+                                    size="large" 
+                                    onClick={() => {
+                                        setXmlBatch(prev => prev.filter(d => d.status !== 'SUCCESS'));
+                                        setShowSuccessModal(false);
+                                    }} 
+                                    style={{ flex: 1 }}
+                                >
+                                    Limpiar Éxitos
+                                </Button>
+                                <Button 
+                                    variant="primary" 
+                                    size="large" 
+                                    onClick={() => setShowSuccessModal(false)} 
+                                    style={{ flex: 1, background: '#10b981' }}
+                                >
+                                    Cerrar
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 )}
