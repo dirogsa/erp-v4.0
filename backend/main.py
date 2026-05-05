@@ -36,11 +36,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         },
     )
 
-# CORS configuration will be added after diagnostic middleware to ensure it's the outermost one
-# Note: allow_origins cannot be ["*"] if allow_credentials is True
-origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()] if settings.ALLOWED_ORIGINS else ["*"]
-print(f"[DEBUG] CORS Allowed Origins: {origins}")
-
 # Middleware de diagnóstico rápido
 @app.middleware("http")
 async def diagnostic_middleware(request: Request, call_next):
@@ -49,14 +44,23 @@ async def diagnostic_middleware(request: Request, call_next):
     print(f"[DEBUG] << Saliendo respuesta: {request.method} {request.url.path} Status: {response.status_code}")
     return response
 
-# Add CORS Middleware LAST to make it the OUTERMOST middleware
+# --- CORS: Arquitectura Escalable Enterprise ---
+# 1. Recuperar orígenes de variables de entorno (Render Dashboard)
+raw_origins = settings.ALLOWED_ORIGINS.split(",") if settings.ALLOWED_ORIGINS else []
+origins = [o.strip() for o in raw_origins if o.strip()]
+
+# 2. Configuración de Middleware con Soporte para Subdominios Dinámicos
+# Permitimos cualquier subdominio de .onrender.com para máxima escalabilidad en Render
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins if origins else ["*"],
+    allow_origin_regex=r"https://.*\.onrender\.com", # Permite erp-mobile, erp-admin, etc.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+print(f"[DEBUG] CORS Initialized. Explicit: {origins} | Wildcard: *.onrender.com")
 
 # --- LAZY ROUTER LOADING ---
 # Importamos y registramos cada módulo solo cuando es necesario. 
