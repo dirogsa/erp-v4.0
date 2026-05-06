@@ -2,7 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from enum import Enum
 from beanie import Document, Indexed
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, Field
 import pymongo
 
 class OrderStatus(str, Enum):
@@ -153,12 +153,23 @@ class PurchaseInvoice(Document):
 
 class Supplier(Document):
     name: str
-    ruc: Optional[str] = None
+    ruc: Indexed(str, unique=True)
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
     ubigeo: Optional[str] = None
-    created_at: datetime = datetime.now()
+    contact_person: Optional[str] = None
+    
+    # --- Escudo de Protección Fiscal (SUNAT) ---
+    sunat_state: str = "ACTIVO"          # ACTIVO, BAJA DE OFICIO, etc.
+    sunat_condition: str = "HABIDO"      # HABIDO, NO HABIDO, no hallado
+    is_retention_agent: bool = False     # Agente de Retención
+    is_perception_agent: bool = False    # Agente de Percepción
+    last_sunat_check: Optional[datetime] = None
+    main_activity: Optional[str] = None  # CIIU o Descripción
+    
+    created_at: datetime = Field(default_factory=datetime.now)
+    is_active: bool = True
 
     class Settings:
         name = "suppliers"

@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatDate } from '../../../utils/formatters';
 import { COMPANY_INFO } from '../../../config/company';
+import { MapPin, Phone, CreditCard, Calendar, User, Building2, DollarSign, Wallet } from 'lucide-react';
 
 const ReceiptHeader = ({
     documentType,
@@ -30,34 +31,41 @@ const ReceiptHeader = ({
         return paymentTerms.type === 'CREDIT' ? 'CRÉDITO' : 'CONTADO';
     };
 
-    // Helper to format installments text
-    const getInstallmentsText = () => {
-        if (paymentTerms?.type === 'CREDIT' && paymentTerms.installments?.length > 0) {
-            const count = paymentTerms.installments.length;
-            const firstAmount = paymentTerms.installments[0]?.amount;
-            return `${count} cuotas - ${currency} ${firstAmount?.toFixed(2)}`;
-        }
-        return null;
-    };
     return (
-        <div className="receipt-header-container">
+        <div className="receipt-header-container" style={{ position: 'relative' }}>
+            {/* Status Badge - Modern Touch */}
+            <div className="receipt-status-badge">
+                {documentType?.includes("COTIZACION") || documentType?.includes("RFQ") ? "SOLICITUD OFICIAL" : "COMPROBANTE OFICIAL"}
+            </div>
+
             {/* Header con dos columnas: Empresa a la izquierda, Factura a la derecha */}
             <div className="receipt-top-section">
                 {/* Columna izquierda - Datos de la empresa */}
                 <div className="receipt-company-col">
                     <div className="company-name">{companyName}</div>
-                    <div className="company-details">{companyAddress}</div>
-                    <div className="company-details">Tel: {companyPhone}</div>
+                    <div className="company-details">
+                        <MapPin size={10} strokeWidth={2.5} style={{ marginRight: '4px', color: '#3b82f6' }} />
+                        {companyAddress}
+                    </div>
+                    <div className="company-details">
+                        <Phone size={10} strokeWidth={2.5} style={{ marginRight: '4px', color: '#3b82f6' }} />
+                        Tel: {companyPhone}
+                    </div>
                     {(companyAccountSoles || companyAccountDollars) && showBankAccounts && (
-                        <div className="company-details" style={{ marginTop: '4px', fontSize: '9px' }}>
-                            <div><strong>{companyBankName}:</strong></div>
-                            {companyAccountSoles && <div>S/: {companyAccountSoles}</div>}
-                            {companyAccountDollars && <div>$: {companyAccountDollars}</div>}
+                        <div className="company-bank-info">
+                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '3px', fontWeight: 'bold', color: '#1e293b' }}>
+                                <CreditCard size={11} style={{ marginRight: '5px' }} />
+                                CUENTAS BANCARIAS
+                            </div>
+                            <div style={{ paddingLeft: '16px' }}>
+                                {companyAccountSoles && <div>Soles: {companyAccountSoles}</div>}
+                                {companyAccountDollars && <div>Dólares: {companyAccountDollars}</div>}
+                            </div>
                         </div>
                     )}
                 </div>
 
-                {/* Columna derecha - Tipo de documento */}
+                {/* Columna derecha - Tipo de documento (Recuadro SUNAT) */}
                 <div className="receipt-invoice-col">
                     <div className="invoice-type">
                         {documentType === "FACTURA DE VENTA" ? "FACTURA ELECTRÓNICA" : documentType}
@@ -67,66 +75,87 @@ const ReceiptHeader = ({
                     </div>
                     {documentNumber && (
                         <div className="invoice-number">
-                           N° {documentNumber}
+                           {documentNumber}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Fila compacta: Fecha/Moneda y Cliente juntos */}
+            {/* Fila compacta: Datos del Cliente / Proveedor (Alineación SUNAT) */}
             <div className="receipt-details-grid">
-                {/* Columna Izquierda: Cliente (Priority) */}
                 <div className="receipt-customer-col">
                     <div className="customer-row">
-                        <span className="label">{partyType}:</span>
-                        <span className="value">{customerName || '-'}</span>
+                        <span className="label">
+                            <Calendar size={10} style={{ marginRight: '6px', color: '#64748b' }} />
+                            Fecha de Emisión
+                        </span>
+                        <span className="label-colon">:</span>
+                        <span className="value">{formatDate(documentDate)}</span>
                     </div>
-                    {/* RUC Row - No Bold */}
-                    <div className="customer-sub-row">
-                        <span className="label-normal">RUC:</span>
-                        <span className="value-normal">{customerRuc || '-'}</span>
+                    <div className="customer-row">
+                        <span className="label">
+                            <User size={10} style={{ marginRight: '6px', color: '#64748b' }} />
+                            {partyType}(es)
+                        </span>
+                        <span className="label-colon">:</span>
+                        <span className="value" style={{ fontWeight: '600' }}>{customerName || '-'}</span>
                     </div>
-                    {/* Address Row - No Bold, New Line */}
-                    <div className="customer-sub-row">
-                        <span className="label-normal">Dirección:</span>
-                        <span className="value-normal">{customerAddress || '-'}</span>
+                    <div className="customer-row">
+                        <span className="label">
+                            <Building2 size={10} style={{ marginRight: '6px', color: '#64748b' }} />
+                            RUC / DNI
+                        </span>
+                        <span className="label-colon">:</span>
+                        <span className="value">{customerRuc || '-'}</span>
                     </div>
-                    {/* Requested By - Contact Person */}
+                    <div className="customer-row">
+                        <span className="label">
+                            <MapPin size={10} style={{ marginRight: '6px', color: '#64748b' }} />
+                            Dirección
+                        </span>
+                        <span className="label-colon">:</span>
+                        <span className="value">{customerAddress || '-'}</span>
+                    </div>
                     {requestedBy?.name && (
-                        <div className="customer-sub-row" style={{ marginTop: '2px', borderTop: '0.5px dashed #ccc', paddingTop: '2px' }}>
-                            <span className="label-normal" style={{ fontSize: '9px' }}>Solicitado por:</span>
-                            <span className="value-normal" style={{ fontSize: '10px', fontWeight: '500' }}>
-                                {requestedBy.name} {requestedBy.phone ? `(${requestedBy.phone})` : ''}
+                        <div className="customer-row">
+                            <span className="label">
+                                <Phone size={10} style={{ marginRight: '6px', color: '#64748b' }} />
+                                Contacto / Ref.
+                            </span>
+                            <span className="label-colon">:</span>
+                            <span className="value emphasis" style={{ color: '#2563eb' }}>
+                                {requestedBy.name} {requestedBy.phone ? `| Tel: ${requestedBy.phone}` : ''}
                             </span>
                         </div>
                     )}
                 </div>
 
-                {/* Columna Derecha: Fecha */}
-                <div className="receipt-meta-col">
-                    <div className="meta-row">
-                        <span className="label">Fecha:</span>
-                        <span className="value">{formatDate(documentDate)}</span>
+                {/* Columna Derecha: Metadatos adicionales */}
+                <div className="receipt-meta-col" style={{ minWidth: '45mm' }}>
+                    <div className="customer-row">
+                        <span className="label">
+                            <DollarSign size={10} style={{ marginRight: '6px', color: '#64748b' }} />
+                            Moneda
+                        </span>
+                        <span className="label-colon">:</span>
+                        <span className="value">{currency}</span>
                     </div>
-                    {showPrices && (
-                        <>
-                            <div className="meta-row">
-                                <span className="label">Moneda:</span>
-                                <span className="value">{currency}</span>
-                            </div>
-                            <div className="meta-row">
-                                <span className="label">Pago:</span>
-                                <span className="value">{getPaymentType()}</span>
-                            </div>
-                        </>
-                    )}
+                    <div className="customer-row">
+                        <span className="label">
+                            <Wallet size={10} style={{ marginRight: '6px', color: '#64748b' }} />
+                            Pago
+                        </span>
+                        <span className="label-colon">:</span>
+                        <span className="value">{getPaymentType()}</span>
+                    </div>
                 </div>
             </div>
 
-            {/* Monto en letras - Ultra compacto */}
+            {/* Monto en letras - Solo si hay precios */}
             {amountInWords && showPrices && (
-                <div className="receipt-amount-words">
-                    <strong>SON:</strong> {amountInWords}
+                <div className="receipt-amount-words" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '3mm' }}>
+                    <span style={{ color: '#64748b', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', marginRight: '8px' }}>Importe en letras:</span>
+                    <span style={{ color: '#1e293b', fontWeight: '600' }}>{amountInWords}</span>
                 </div>
             )}
         </div>

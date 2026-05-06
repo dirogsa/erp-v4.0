@@ -14,13 +14,14 @@ const ReceiptBody = ({
             <table className="receipt-items-table">
                 <thead>
                     <tr>
-                        <th className="text-center">Cant.</th>
-                        <th>SKU / Código</th>
-                        <th style={{ textAlign: 'left' }}>Descripción del Producto</th>
+                        <th className="text-center" style={{ width: '15mm' }}>Cantidad</th>
+                        <th className="text-center" style={{ width: '20mm' }}>Unidad</th>
+                        <th className="text-center" style={{ width: '25mm' }}>Código</th>
+                        <th className="text-left">Descripción</th>
                         {showPrices && (
                             <>
-                                <th className="text-right">P. Unit.</th>
-                                <th className="text-right">Subtotal</th>
+                                <th className="text-right" style={{ width: '25mm' }}>Valor Unit.</th>
+                                <th className="text-right" style={{ width: '25mm' }}>Importe</th>
                             </>
                         )}
                     </tr>
@@ -28,30 +29,29 @@ const ReceiptBody = ({
                 <tbody>
                     {items.map((item, index) => (
                         <tr key={index}>
-                            <td className="text-center" style={{ padding: '0.25rem 0.5rem', fontWeight: 'bold' }}>
-                                {item.quantity}
+                            <td className="text-center item-quantity">
+                                {Number(item.quantity).toFixed(2)}
                             </td>
-                            <td style={{ padding: '0.25rem 0.5rem', fontSize: '8.5px', color: '#4b5563', textTransform: 'uppercase' }}>
+                            <td className="text-center">
+                                UNIDAD
+                            </td>
+                            <td className="text-center receipt-product-sku">
                                 {item.product_sku || '-'}
                             </td>
-                            <td style={{ padding: '0.25rem 0.5rem' }}>
-                                <div style={{ 
-                                    fontSize: '10.5px', 
-                                    fontWeight: '600', 
-                                    color: '#0f172a' 
-                                }}>
+                            <td className="item-description-cell">
+                                <div className="receipt-product-name">
                                     {item.product_name || 
                                      item.name || 
                                      item.product?.name || 
                                      item.description || 
                                      item.product?.description || 
-                                     'Producto sin nombre'}
+                                     'N/A'}
                                 </div>
                             </td>
                             {showPrices && (
                                 <>
-                                    <td className="text-right" style={{ padding: '0.25rem 0.5rem' }}>{formatCurrency(item.unit_price || item.unit_cost, currencySymbol)}</td>
-                                    <td className="text-right" style={{ padding: '0.25rem 0.5rem' }}>{formatCurrency(item.subtotal, currencySymbol)}</td>
+                                    <td className="text-right item-price">{formatCurrency(item.unit_price || item.unit_cost, currencySymbol)}</td>
+                                    <td className="text-right item-subtotal">{formatCurrency(item.subtotal, currencySymbol)}</td>
                                 </>
                             )}
                         </tr>

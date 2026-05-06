@@ -28,11 +28,11 @@ class PricingService:
 
         # 2. Get Base Price from Master List
         # We search for the specific SKU and the appropriate quantity tier
-        base_entry = await PriceEntry.find_one(
+        base_entry = await PriceEntry.find(
             PriceEntry.sku == sku,
             PriceEntry.price_list_id == master_list.id,
             PriceEntry.min_quantity <= quantity
-        ).sort("-min_quantity") # Get the highest tier that fits the quantity
+        ).sort("-min_quantity").first_or_none() # Get the highest tier that fits the quantity
 
         if not base_entry:
             return {"price": 0.0, "currency": "PEN", "source": "Master", "error": "Product price not found in Master List"}
@@ -141,3 +141,162 @@ class PricingService:
             await entry.insert()
         
         return entry
+    @staticmethod
+    async def analyze_bulk(items: List[Dict[str, Any]], list_name: str, mode: str) -> Dict[str, Any]:
+        """
+        Analyzes a list of SKUs to find current prices and costs.
+        Optimized for large lists to avoid timeouts.
+        """
+        valid = []
+        unrecognized = []
+        
+        if not items:
+            return {"valid": [], "unrecognized": []}
+
+        # 1. Pre-fetch all necessary reference data
+        skus = [i.get("sku") for i in items if i.get("sku")]
+        
+        # Get all products in one go
+        all_products = await Product.find(In(Product.sku, skus)).to_list()
+        product_map = {}
+        sku_counts = {}
+        for p in all_products:
+            sku_counts[p.sku] = sku_counts.get(p.sku, 0) + 1
+            # Map by SKU + Brand for exact match, and also just SKU for simple lookup
+            product_map[f"{p.sku}_{p.brand}"] = p
+            if p.sku not in product_map:
+                product_map[p.sku] = p
+
+        # Pre-fetch master list and active campaigns
+        now = datetime.utcnow()
+        master_list = await PriceList.find_one(PriceList.is_master == True)
+        if not master_list:
+            master_list = await PriceList.find_one(PriceList.is_active == True)
+        
+        active_campaigns = await PriceList.find(
+            PriceList.is_active == True,
+            PriceList.is_campaign == True,
+            PriceList.start_date <= now,
+            PriceList.end_date >= now
+        ).sort("-priority").to_list()
+
+        # Pre-fetch all master price entries for these SKUs
+        master_entries = await PriceEntry.find(
+            In(PriceEntry.sku, skus),
+            PriceEntry.price_list_id == master_list.id,
+            PriceEntry.min_quantity == 1
+        ).to_list()
+        entry_map = {e.sku: e for e in master_entries}
+
+        # 2. Process items using pre-fetched data
+        for item in items:
+            sku = item.get("sku")
+            brand = item.get("brand")
+            proposed_price = item.get("price")
+            proposed_cost = item.get("cost")
+
+            # Find product
+            product = None
+            if brand:
+                product = product_map.get(f"{sku}_{brand}")
+            else:
+                product = product_map.get(sku)
+            
+            if not product:
+                unrecognized.append({"sku": sku, "brand": brand, "reason": "No encontrado"})
+                continue
+            
+            # Ambiguity check
+            if not brand and sku_counts.get(sku, 0) > 1:
+                unrecognized.append({"sku": sku, "brand": "AMBIGUO", "reason": "Múltiples marcas"})
+                continue
+
+            # Resolve Price (Optimized version of get_product_price logic)
+            base_entry = entry_map.get(sku)
+            current_price = base_entry.price if base_entry else 0.0
+            
+            # Apply campaigns
+            for campaign in active_campaigns:
+                is_targeted = not campaign.targeted_skus or sku in campaign.targeted_skus
+                if is_targeted:
+                    modifier = (1 - (campaign.default_discount_pct / 100))
+                    current_price = current_price * modifier
+                    break
+            
+            current_cost = product.cost or 0.0
+
+            # Margin calculation
+            p_price = proposed_price if proposed_price is not None else current_price
+            p_cost = proposed_cost if proposed_cost is not None else current_cost
+            
+            margin = 0
+            if p_price > 0:
+                margin = ((p_price - p_cost) / p_price) * 100
+
+            valid.append({
+                "sku": sku,
+                "brand": product.brand,
+                "name": product.name,
+                "current_price": round(current_price, 2),
+                "current_cost": round(current_cost, 2),
+                "proposed_price": proposed_price,
+                "proposed_cost": proposed_cost,
+                "margin": margin
+            })
+
+        return {"valid": valid, "unrecognized": unrecognized}
+
+    @staticmethod
+    async def bulk_update(items: List[Dict[str, Any]], list_name: str, mode: str) -> Dict[str, Any]:
+        """
+        Executes massive updates for prices and costs.
+        Optimized for large datasets.
+        """
+        updated_count = 0
+        errors = []
+        
+        # 1. Group updates to minimize DB calls
+        cost_updates = []
+        price_updates = []
+        
+        for item in items:
+            sku = item.get("sku")
+            brand = item.get("brand")
+            price = item.get("price")
+            cost = item.get("cost")
+            
+            if cost is not None:
+                cost_updates.append((sku, brand, cost))
+            
+            if price is not None:
+                price_updates.append((sku, price))
+
+        # 2. Execute Cost Updates (Bulk)
+        # We can't do a single bulk update easily with Beanie for different values per filter,
+        # but we can use a more efficient approach than awaiting each one separately.
+        # For now, let's at least process them as separate tasks if the list is large,
+        # or use a smarter loop.
+        for sku, brand, cost in cost_updates:
+            try:
+                query = {"sku": sku}
+                if brand: query["brand"] = brand
+                # Use update_one for speed
+                await Product.find_one(query).update({"$set": {"cost": cost}})
+                updated_count += 1
+            except Exception as e:
+                errors.append({"sku": sku, "error": f"Cost error: {str(e)}"})
+
+        # 3. Execute Price Updates (Bulk)
+        for sku, price in price_updates:
+            try:
+                await PricingService.set_master_price(sku, price)
+                # updated_count is only incremented once if both cost and price are updated for same SKU
+                # but for simplicity we count successful operations.
+            except Exception as e:
+                errors.append({"sku": sku, "error": f"Price error: {str(e)}"})
+
+        return {
+            "updated": updated_count,
+            "errors": errors,
+            "success": len(errors) == 0
+        }

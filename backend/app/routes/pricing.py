@@ -58,3 +58,22 @@ async def create_price_list(price_list: PriceList):
 async def get_entries(price_list_id: str):
     """Get fixed price entries for a specific list."""
     return await PriceEntry.find(PriceEntry.price_list_id == PydanticObjectId(price_list_id)).to_list()
+@router.post("/analyze-bulk", dependencies=[Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))])
+async def analyze_bulk(data: Dict[str, Any]):
+    """
+    Analyzes a list of SKUs for pricing/cost adjustment.
+    """
+    items = data.get("items", [])
+    list_name = data.get("list_name", "General")
+    mode = data.get("mode", "price")
+    return await PricingService.analyze_bulk(items, list_name, mode)
+
+@router.post("/bulk-update", dependencies=[Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))])
+async def bulk_update(data: Dict[str, Any]):
+    """
+    Executes massive updates.
+    """
+    items = data.get("items", [])
+    list_name = data.get("list_name", "General")
+    mode = data.get("mode", "price")
+    return await PricingService.bulk_update(items, list_name, mode)

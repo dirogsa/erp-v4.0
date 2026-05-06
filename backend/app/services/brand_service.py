@@ -70,7 +70,7 @@ async def perform_full_brand_sync():
             }},
         ]
         
-        results = await Product.get_pymongo_collection().aggregate(pipeline).to_list(None)
+        results = await Product.get_pymongo_collection().aggregate(pipeline).to_list(length=None)
         sync_status["total"] = len(results)
         
         # 2. Cargar marcas actuales con normalización de claves para evitar duplicados

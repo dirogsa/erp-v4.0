@@ -4,13 +4,13 @@ import PricingBulk from './PricingBulk';
 import PricingPolicies from './PricingPolicies';
 
 const PricingStrategy = () => {
-    const [activeTab, setActiveTab] = useState('console'); // 'console', 'lists', 'bulk', 'policies'
+    // We make 'bulk' (The Master Console) the default tab as requested
+    const [activeTab, setActiveTab] = useState('bulk'); 
 
     const tabs = [
-        { id: 'console', label: '🎮 Consola Maestro', icon: '📊' },
+        { id: 'bulk', label: '⚡ Consola Maestra', icon: '🚀' },
         { id: 'lists', label: '📋 Listas y Campañas', icon: '✨' },
-        { id: 'policies', label: '🛡️ Reglas y Escudos', icon: '⚖️' },
-        { id: 'bulk', label: '⚡ Ajuste Masivo', icon: '🚀' }
+        { id: 'policies', label: '🛡️ Reglas y Escudos', icon: '⚖️' }
     ];
 
     return (
@@ -18,10 +18,10 @@ const PricingStrategy = () => {
             {/* Header Estratégico */}
             <header style={{ marginBottom: '2.5rem' }}>
                 <h1 style={{ color: 'white', fontSize: '2rem', fontWeight: '800', marginBottom: '0.5rem' }}>
-                    Estrategia de Precios Enterprise
+                    Estrategia de Precios Maestra
                 </h1>
                 <p style={{ color: '#94a3b8', fontSize: '1rem' }}>
-                    Control centralizado de márgenes, campañas y políticas comerciales.
+                    Sincronización centralizada de márgenes y competitividad industrial.
                 </p>
             </header>
 
@@ -66,31 +66,9 @@ const PricingStrategy = () => {
                 borderRadius: '1.5rem',
                 minHeight: '400px'
             }}>
-                {activeTab === 'console' && (
-                    <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📈</div>
-                        <h2 style={{ color: 'white' }}>Monitor de Rendimiento Comercial</h2>
-                        <p>Aquí verás el resumen de márgenes promedio y efectividad de listas en tiempo real.</p>
-                        <div style={{ marginTop: '2rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
-                            <div style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '1rem', border: '1px solid #334155' }}>
-                                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>MÁRGEN PROMEDIO</div>
-                                <div style={{ fontSize: '1.5rem', color: '#10b981', fontWeight: 'bold' }}>24.5%</div>
-                            </div>
-                            <div style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '1rem', border: '1px solid #334155' }}>
-                                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>LISTAS ACTIVAS</div>
-                                <div style={{ fontSize: '1.5rem', color: '#3b82f6', fontWeight: 'bold' }}>4</div>
-                            </div>
-                            <div style={{ padding: '1.5rem', background: '#1e293b', borderRadius: '1rem', border: '1px solid #334155' }}>
-                                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>SKU EN OFERTA</div>
-                                <div style={{ fontSize: '1.5rem', color: '#f59e0b', fontWeight: 'bold' }}>128</div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
+                {activeTab === 'bulk' && <PricingBulk />}
                 {activeTab === 'lists' && <PricingLists />}
                 {activeTab === 'policies' && <PricingPolicies />}
-                {activeTab === 'bulk' && <PricingBulk />}
             </main>
         </div>
     );

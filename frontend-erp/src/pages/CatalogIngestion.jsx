@@ -195,6 +195,14 @@ const CatalogIngestion = () => {
         setEditingProduct({ ...parsedProducts[index] });
     };
 
+    const isCategoryRecognized = (catName) => {
+        if (!catName) return false;
+        const upperName = catName.toUpperCase();
+        return dbCategories.some(c => 
+            c.import_aliases && c.import_aliases.some(a => a.toUpperCase() === upperName)
+        );
+    };
+
     const handleSaveProduct = () => {
         const newProducts = [...parsedProducts];
         newProducts[editingIndex] = editingProduct;
@@ -424,16 +432,19 @@ const CatalogIngestion = () => {
                                         <td style={{ padding: '1rem' }}>{p.name}</td>
                                         <td style={{ padding: '1rem' }}>
                                             <span style={{ 
-                                                background: dbCategories.some(c => c.name === p.category_name) ? '#334155' : '#7c2d12', 
-                                                color: dbCategories.some(c => c.name === p.category_name) ? '#eab308' : '#fb923c',
-                                                padding: '0.2rem 0.5rem', 
-                                                borderRadius: '0.4rem', 
+                                                background: isCategoryRecognized(p.category_name) ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', 
+                                                color: isCategoryRecognized(p.category_name) ? '#10b981' : '#f87171',
+                                                padding: '0.4rem 0.8rem', 
+                                                borderRadius: '0.75rem', 
                                                 fontSize: '0.75rem',
-                                                fontWeight: 'bold',
-                                                border: dbCategories.some(c => c.name === p.category_name) ? 'none' : '1px solid #991b1b'
+                                                fontWeight: '900',
+                                                border: `1px solid ${isCategoryRecognized(p.category_name) ? '#10b98133' : '#f8717133'}`,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
                                             }}>
                                                 {p.category_name || 'Sin Categoría'}
-                                                {!dbCategories.some(c => c.name === p.category_name) && ' ⚠️'}
+                                                {!isCategoryRecognized(p.category_name) ? <AlertCircle size={14} /> : <CheckCircle size={14} />}
                                             </span>
                                         </td>
                                         <td style={{ padding: '1rem' }}>
@@ -603,7 +614,7 @@ const CatalogIngestion = () => {
                                             style={{ 
                                                 width: '100%', 
                                                 background: '#0f172a', 
-                                                border: dbCategories.some(c => c.name === editingProduct.category_name) ? '1px solid #334155' : '1px solid #eab308', 
+                                                border: isCategoryRecognized(editingProduct.category_name) ? '1px solid #334155' : '2px solid #ef4444', 
                                                 borderRadius: '0.5rem', 
                                                 color: 'white', 
                                                 padding: '0.65rem' 
@@ -615,9 +626,9 @@ const CatalogIngestion = () => {
                                             {dbCategories.map(cat => (
                                                 <option key={cat._id} value={cat.name}>{cat.name}</option>
                                             ))}
-                                            {editingProduct.category_name && !dbCategories.some(c => c.name === editingProduct.category_name) && (
+                                            {editingProduct.category_name && !isCategoryRecognized(editingProduct.category_name) && (
                                                 <option value={editingProduct.category_name}>
-                                                    [NUEVO] {editingProduct.category_name}
+                                                    [HUÉRFANO] {editingProduct.category_name}
                                                 </option>
                                             )}
                                         </select>

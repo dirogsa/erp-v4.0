@@ -10,7 +10,13 @@ async def create_category(category_data: ProductCategory) -> ProductCategory:
     existing = await ProductCategory.find_one(ProductCategory.name == category_data.name)
     if existing:
         raise DuplicateEntityException("ProductCategory", "name", category_data.name)
+    # Self-Seeding: The official name is usually the first valid alias
+    if not category_data.import_aliases:
+        category_data.import_aliases = []
     
+    if category_data.name not in category_data.import_aliases:
+        category_data.import_aliases.append(category_data.name)
+        
     await category_data.insert()
     return category_data
 
@@ -41,22 +47,31 @@ async def delete_category(id: str) -> bool:
     await category.delete()
     return True
 
-async def get_orphan_category_names() -> List[str]:
+async def get_orphan_category_names() -> List[dict]:
     """
     World-Class Reconciliation: Finds messy category names in Products 
-    that have not been mapped to a canonical ID yet.
+    and provides context (count and samples) for the UI.
     """
     from app.models.inventory import Product
     
-    # Use aggregation for high-performance discovery
     pipeline = [
         {"$match": {"category_id": None}},
-        {"$group": {"_id": "$category_name"}},
+        {"$group": {
+            "_id": "$category_name", 
+            "count": {"$sum": 1},
+            "samples": {"$push": "$name"}
+        }},
         {"$match": {"_id": {"$ne": None, "$ne": ""}}},
-        {"$sort": {"_id": 1}}
+        {"$project": {
+            "_id": 1,
+            "count": 1,
+            "samples": {"$slice": ["$samples", 3]} # Only show first 3 products as examples
+        }},
+        {"$sort": {"count": -1}} # Show most critical ones first
     ]
-    results = await Product.aggregate(pipeline).to_list()
-    return [r["_id"] for r in results]
+    
+    results = await Product.get_pymongo_collection().aggregate(pipeline).to_list(length=None)
+    return results
 
 async def map_orphan_to_canonical(orphan_name: str, canonical_id: str) -> int:
     """

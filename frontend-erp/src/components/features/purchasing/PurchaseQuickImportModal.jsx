@@ -16,8 +16,37 @@ const PurchaseQuickImportModal = ({ visible, onClose, onImport }) => {
         const text = e.target.value;
         setPastedData(text);
 
-        // Basic parsing to show a preview
+        // Basic parsing
         const rows = text.trim().split('\n').map(row => row.split('\t'));
+        
+        if (rows.length > 0) {
+            const firstRow = rows[0].map(cell => cell.toLowerCase().trim());
+            const newMapping = { ...mapping };
+            let hasHeaders = false;
+
+            // Smart Detection logic
+            firstRow.forEach((cell, index) => {
+                if (cell.includes('cant') || cell.includes('qty')) {
+                    newMapping.quantity = index;
+                    hasHeaders = true;
+                } else if (cell.includes('cod') || cell.includes('sku')) {
+                    newMapping.sku = index;
+                    hasHeaders = true;
+                } else if (cell.includes('desc') || cell.includes('prod') || cell.includes('nom')) {
+                    newMapping.name = index;
+                    hasHeaders = true;
+                } else if (cell.includes('cost') || cell.includes('prec')) {
+                    newMapping.cost = index;
+                    hasHeaders = true;
+                }
+            });
+
+            if (hasHeaders) {
+                setMapping(newMapping);
+                // We keep the rows but we'll remember to skip the first one during validation
+            }
+        }
+        
         setRawRows(rows);
     };
 
@@ -32,51 +61,60 @@ const PurchaseQuickImportModal = ({ visible, onClose, onImport }) => {
 
     const validateItems = async () => {
         setValidationStatus({ loading: true, errors: [] });
-        const processedItems = [];
         const errors = [];
 
-        for (let i = 0; i < rawRows.length; i++) {
-            const row = rawRows[i];
-            const sku = row[mapping.sku]?.trim();
-            const rawName = row[mapping.name]?.trim();
-            const qty = parseFloat(row[mapping.quantity]) || 1;
-            const cost = parseFloat(row[mapping.cost]) || 0;
+        // Determine if we should skip the first row (header detection)
+        const firstRow = rawRows[0]?.map(c => c.toLowerCase().trim()) || [];
+        const isHeader = firstRow.some(cell => 
+            cell.includes('cant') || cell.includes('cod') || cell.includes('sku') || cell.includes('desc')
+        );
 
-            if (!sku) continue;
+        const startIndex = isHeader ? 1 : 0;
+        const rowsToProcess = rawRows.slice(startIndex).filter(row => row[mapping.sku]?.trim());
 
-            try {
-                // Try to find in db
-                const res = await inventoryService.getProducts(1, 1, sku);
-                const product = res.data.items.find(p => p.sku.toLowerCase() === sku.toLowerCase());
+        try {
+            const results = await Promise.all(rowsToProcess.map(async (row, i) => {
+                const sku = row[mapping.sku]?.trim();
+                const rawName = row[mapping.name]?.trim();
+                const qty = parseFloat(row[mapping.quantity]) || 1;
+                const cost = parseFloat(row[mapping.cost]) || 0;
 
-                if (product) {
-                    processedItems.push({
-                        product_sku: product.sku,
-                        product_name: product.name,
-                        quantity: qty,
-                        unit_cost: cost || product.cost || 0,
-                        subtotal: qty * (cost || product.cost || 0),
-                        is_custom: false
-                    });
-                } else {
-                    // Mark as CUSTOM
-                    processedItems.push({
-                        product_sku: sku.toUpperCase(),
-                        product_name: rawName || sku.toUpperCase(),
-                        quantity: qty,
-                        unit_cost: cost || 0,
-                        subtotal: qty * (cost || 0),
-                        is_custom: true
-                    });
+                try {
+                    const res = await inventoryService.getProducts(1, 1, sku);
+                    const product = res.data.items.find(p => p.sku.trim().toUpperCase() === sku.trim().toUpperCase());
+
+                    if (product) {
+                        return {
+                            product_sku: product.sku,
+                            product_name: product.name,
+                            quantity: qty,
+                            unit_cost: cost || product.cost || 0,
+                            subtotal: qty * (cost || product.cost || 0),
+                            is_custom: false
+                        };
+                    } else {
+                        return {
+                            product_sku: sku.toUpperCase(),
+                            product_name: rawName || '',
+                            quantity: qty,
+                            unit_cost: cost || 0,
+                            subtotal: qty * (cost || 0),
+                            is_custom: true
+                        };
+                    }
+                } catch (err) {
+                    errors.push(`Error en SKU "${sku}".`);
+                    return null;
                 }
-            } catch (err) {
-                errors.push(`Fila ${i + 1}: Error validando SKU "${sku}".`);
-            }
-        }
+            }));
 
-        setValidationStatus({ loading: false, errors });
-        setFinalItems(processedItems);
-        setStep(3);
+            const validItems = results.filter(item => item !== null);
+            setFinalItems(validItems);
+            setValidationStatus({ loading: false, errors });
+            setStep(3);
+        } catch (err) {
+            setValidationStatus({ loading: false, errors: ['Error crítico durante la validación masiva.'] });
+        }
     };
 
     const confirmImport = () => {
@@ -131,7 +169,7 @@ const PurchaseQuickImportModal = ({ visible, onClose, onImport }) => {
                             <p style={{ color: '#94a3b8', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: '1.5' }}>
                                 Copia el rango de celdas en tu <strong style={{ color: '#10b981' }}>Excel</strong> que contenga el <strong style={{ color: 'white' }}>SKU</strong>, 
                                 <strong style={{ color: 'white' }}>Nombre</strong>, <strong style={{ color: 'white' }}>Cantidad</strong> y <strong style={{ color: 'white' }}>Costo</strong>.
-                                <br/><span style={{ fontSize: '0.8rem' }}>* Los SKUs no encontrados se marcarán como productos nuevos.</span>
+                                <br/><span style={{ fontSize: '0.8rem', color: '#ef4444' }}>⚠️ Los SKUs no encontrados se añadirán como ítems temporales SOLO para esta orden. NO se grabarán en tu Maestro de Productos.</span>
                             </p>
                             <textarea
                                 value={pastedData}
@@ -217,7 +255,7 @@ const PurchaseQuickImportModal = ({ visible, onClose, onImport }) => {
                                             <tr key={i} style={{ borderTop: '1px solid #334155' }}>
                                                 <td style={{ padding: '0.75rem' }}>
                                                     {item.product_sku}
-                                                    {item.is_custom && <span style={{ marginLeft: '4px', fontSize: '0.65rem', backgroundColor: '#eab308', color: 'black', padding: '1px 3px', borderRadius: '2px' }}>NUEVO</span>}
+                                                    {item.is_custom && <span style={{ marginLeft: '4px', fontSize: '0.65rem', backgroundColor: '#334155', color: '#94a3b8', padding: '1px 3px', borderRadius: '2px', border: '1px solid #475569' }}>NO EN CATÁLOGO</span>}
                                                 </td>
                                                 <td style={{ padding: '0.75rem' }}>{item.product_name}</td>
                                                 <td style={{ padding: '0.75rem', textAlign: 'center' }}>{item.quantity}</td>
@@ -237,7 +275,7 @@ const PurchaseQuickImportModal = ({ visible, onClose, onImport }) => {
                         {step === 1 ? 'Cancelar' : 'Atrás'}
                     </Button>
                     <Button onClick={step < 3 ? nextStep : confirmImport}>
-                        {step === 3 ? 'Confirmar e Importar' : 'Continuar'}
+                        {step === 3 ? 'Cargar a la Solicitud' : 'Continuar'}
                     </Button>
                 </div>
             </div>

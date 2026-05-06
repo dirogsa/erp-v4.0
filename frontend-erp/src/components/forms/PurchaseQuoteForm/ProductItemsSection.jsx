@@ -196,7 +196,7 @@ const ProductItemsSection = ({
                                             placeholder="SKU..."
                                             style={{ width: '100%', padding: '0.5rem', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '0.25rem', color: 'white' }}
                                         />
-                                        {row.is_custom && <div style={{ fontSize: '0.6rem', color: '#eab308', marginTop: '2px' }}>⚠️ NUEVO</div>}
+                                        {row.is_custom && <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '2px', backgroundColor: '#334155', display: 'inline-block', padding: '1px 4px', borderRadius: '2px' }}>NO EN CATÁLOGO</div>}
                                         
                                         {activeSearchRow === index && searchResults.length > 0 && (
                                             <div style={{ position: 'absolute', top: '100%', left: 0, width: '200%', zIndex: 100, backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '0.375rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)', maxHeight: '200px', overflowY: 'auto' }}>

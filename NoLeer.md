@@ -2,6 +2,8 @@ d:\Projects > netstat -ano | findstr LISTENING
 d:\Projects > tasklist /FI "PID eq 7136" /FO TABLE
 d:\Projects > tasklist /FI "PID eq 14896" /FO TABLE
 
+matar procesos
+
 taskkill /F /IM python.exe
 
 

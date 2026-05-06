@@ -391,6 +391,14 @@ async def update_supplier(id: PydanticObjectId, supplier_data: Supplier) -> Supp
     supplier.email = supplier_data.email
     supplier.phone = supplier_data.phone
     supplier.address = supplier_data.address
+    supplier.contact_person = supplier_data.contact_person
+    
+    # Fiscal Fields
+    supplier.sunat_state = supplier_data.sunat_state
+    supplier.sunat_condition = supplier_data.sunat_condition
+    supplier.is_retention_agent = supplier_data.is_retention_agent
+    supplier.is_perception_agent = supplier_data.is_perception_agent
+    supplier.main_activity = supplier_data.main_activity
     
     await supplier.save()
     return supplier

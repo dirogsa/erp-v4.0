@@ -19,46 +19,64 @@ const ReceiptFooter = ({
 
     return (
         <div>
-            {/* Totals Section con desglose de IGV */}
+            {/* Totals Section - SUNAT Style Box */}
             <div className="receipt-totals">
-                <div className="receipt-total-row">
-                    <span className="receipt-total-label">Subtotal (sin IGV):</span>
-                    <span className="receipt-total-value">{formatCurrency(subtotal, currencySymbol)}</span>
+                <div style={{ flex: 1 }}>
+                    {/* Espacio para Monto en Letras si es necesario o códigos QR */}
                 </div>
-                <div className="receipt-total-row">
-                    <span className="receipt-total-label">IGV (18%):</span>
-                    <span className="receipt-total-value">{formatCurrency(igv, currencySymbol)}</span>
+                
+                <div className="receipt-totals-box">
+                    <div className="receipt-total-row">
+                        <span className="receipt-total-label">Sub Total Ventas:</span>
+                        <span className="receipt-total-value">{formatCurrency(subtotal, currencySymbol)}</span>
+                    </div>
+                    <div className="receipt-total-row">
+                        <span className="receipt-total-label">Anticipos:</span>
+                        <span className="receipt-total-value">{formatCurrency(0, currencySymbol)}</span>
+                    </div>
+                    <div className="receipt-total-row">
+                        <span className="receipt-total-label">Descuentos:</span>
+                        <span className="receipt-total-value">{formatCurrency(0, currencySymbol)}</span>
+                    </div>
+                    <div className="receipt-total-row">
+                        <span className="receipt-total-label">Valor Venta:</span>
+                        <span className="receipt-total-value">{formatCurrency(subtotal, currencySymbol)}</span>
+                    </div>
+                    <div className="receipt-total-row">
+                        <span className="receipt-total-label">ISC:</span>
+                        <span className="receipt-total-value">{formatCurrency(0, currencySymbol)}</span>
+                    </div>
+                    <div className="receipt-total-row">
+                        <span className="receipt-total-label">IGV:</span>
+                        <span className="receipt-total-value">{formatCurrency(igv, currencySymbol)}</span>
+                    </div>
+                    <div className="receipt-total-row">
+                        <span className="receipt-total-label">Otros Cargos:</span>
+                        <span className="receipt-total-value">{formatCurrency(0, currencySymbol)}</span>
+                    </div>
+                    <div className="receipt-total-row">
+                        <span className="receipt-total-label">Otros Tributos:</span>
+                        <span className="receipt-total-value">{formatCurrency(0, currencySymbol)}</span>
+                    </div>
+                    <div className="receipt-total-row">
+                        <span className="receipt-total-label">Monto de redondeo:</span>
+                        <span className="receipt-total-value">{formatCurrency(0, currencySymbol)}</span>
+                    </div>
+                    <div className="receipt-total-row grand-total">
+                        <span className="receipt-total-label">Importe Total:</span>
+                        <span className="receipt-total-value">{formatCurrency(totalAmount, currencySymbol)}</span>
+                    </div>
                 </div>
-                <div className="receipt-total-row grand-total" style={{
-                    borderTop: '2px solid #333',
-                    paddingTop: '8px',
-                    marginTop: '8px',
-                    fontWeight: 'bold',
-                    fontSize: '14px'
-                }}>
-                    <span className="receipt-total-label">TOTAL:</span>
-                    <span className="receipt-total-value">{formatCurrency(totalAmount, currencySymbol)}</span>
-                </div>
+            </div>
 
-                {showPaymentDetails && (
-                    <>
-                        <div className="receipt-total-row" style={{ marginTop: '10px' }}>
-                            <span className="receipt-total-label">Pagado:</span>
-                            <span className="receipt-total-value">{formatCurrency(amountPaid, currencySymbol)}</span>
-                        </div>
-                        <div className="receipt-total-row" style={{ color: pendingAmount > 0 ? '#dc2626' : '#059669' }}>
-                            <span className="receipt-total-label">
-                                {pendingAmount > 0 ? 'Pendiente:' : 'Cancelado'}
-                            </span>
-                            <span className="receipt-total-value">{formatCurrency(Math.abs(pendingAmount), currencySymbol)}</span>
-                        </div>
-                    </>
-                )}
+            {/* Disclaimer SUNAT */}
+            <div className="receipt-disclaimer-box">
+                Esta es una representación impresa de la factura electrónica, generada en el Sistema de SUNAT. Puede verificarla utilizando su clave SOL.
             </div>
 
             {/* Payment History */}
             {showPaymentDetails && payments && payments.length > 0 && (
-                <div className="receipt-payment-history">
+                <div className="receipt-payment-history" style={{ marginTop: '5mm' }}>
                     <h4>Historial de Pagos</h4>
                     <table className="receipt-payment-table">
                         <thead>
@@ -78,38 +96,13 @@ const ReceiptFooter = ({
                             ))}
                         </tbody>
                     </table>
-                </div>
-            )}
-
-            {/* Payment Terms (Crédito/Cuotas) */}
-            {paymentTerms && paymentTerms.type === 'CREDIT' && paymentTerms.installments && paymentTerms.installments.length > 0 && (
-                <div className="receipt-payment-history" style={{ marginTop: '15px' }}>
-                    <h4>Cronograma de Pagos (Crédito)</h4>
-                    <table className="receipt-payment-table">
-                        <thead>
-                            <tr>
-                                <th>Cuota</th>
-                                <th>Vencimiento</th>
-                                <th className="text-right">Monto</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {paymentTerms.installments.map((inst, index) => (
-                                <tr key={index}>
-                                    <td>#{inst.number || index + 1}</td>
-                                    <td>{formatDate(inst.date)}</td>
-                                    <td className="text-right">{formatCurrency(inst.amount, currencySymbol)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                    </div>
+                )}
 
             {/* Notes */}
             {notes && (
                 <div className="receipt-notes">
-                    <strong>Notas:</strong> {notes}
+                    <strong>Observaciones:</strong> {notes}
                 </div>
             )}
         </div>

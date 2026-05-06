@@ -31,12 +31,13 @@ export const MENU_CONFIG = [
     },
     {
         id: 'socios',
-        label: 'SOCIOS Y CLIENTES',
+        label: 'SOCIOS DE NEGOCIO',
         icon: '🤝',
         roles: [ROLES.ADMIN, ROLES.SELLER, ROLES.ACCOUNTANT],
         isGroup: true,
         children: [
             { id: 'customers', label: 'Cartera de Clientes', path: '/customers', icon: '👥' },
+            { id: 'suppliers', label: 'Maestro de Proveedores', path: '/suppliers', icon: '🏭' },
             { id: 'b2b-apps', label: 'Solicitudes B2B', path: '/b2b', icon: '📩' }
         ]
     },
@@ -107,8 +108,7 @@ export const MENU_CONFIG = [
         roles: [ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.STAFF],
         isGroup: true,
         children: [
-            { id: 'purchasing', label: 'Órdenes de Compra', path: '/purchasing', icon: '📋' },
-            { id: 'suppliers', label: 'Directorio de Proveedores', path: '/suppliers', icon: '🏭' }
+            { id: 'purchasing', label: 'Órdenes de Compra', path: '/purchasing', icon: '📋' }
         ]
     },
     {

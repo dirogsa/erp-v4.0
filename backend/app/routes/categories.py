@@ -24,9 +24,9 @@ async def delete_category(id: str):
     await category_service.delete_category(id)
     return {"message": "Category deleted successfully"}
 
-@router.get("/orphans", response_model=List[str])
+@router.get("/orphans", response_model=List[dict])
 async def get_orphans():
-    """Discover unmapped category names from imported products"""
+    """Discover unmapped category names from imported products (enriched with counts)"""
     return await category_service.get_orphan_category_names()
 
 @router.post("/map-orphan")

@@ -180,13 +180,9 @@ async def resolve_category_id(name_alias: str) -> Optional[str]:
     
     alias_normalized = name_alias.strip()
     
-    # 1. ATOMIC SEARCH: Check Name OR Aliases in a single indexed query
-    # We use $regex for case-insensitivity without requiring a manual find_all()
+    # ATOMIC SEARCH: Only check Aliases for strict explicit mapping
     category = await ProductCategory.find_one({
-        "$or": [
-            {"name": {"$regex": f"^{alias_normalized}$", "$options": "i"}},
-            {"import_aliases": {"$regex": f"^{alias_normalized}$", "$options": "i"}}
-        ]
+        "import_aliases": {"$regex": f"^{alias_normalized}$", "$options": "i"}
     })
     
     if category:
