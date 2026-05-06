@@ -3,7 +3,7 @@ import { Clock } from 'lucide-react';
 import Button from '../../common/Button';
 import ProductHistoryModal from '../../features/sales/ProductHistoryModal';
 import QuickImportModal from '../../features/sales/QuickImportModal';
-import { inventoryService } from '../../../services/api';
+import { inventoryService, salesPolicyService } from '../../../services/api';
 import { formatCurrency } from '../../../utils/formatters';
 import { useNotification } from '../../../hooks/useNotification';
 
@@ -29,6 +29,9 @@ const ProductItemsSection = ({
 
     // Import Modal State
     const [importModalVisible, setImportModalVisible] = useState(false);
+    
+    // Master Policies
+    const [policies, setPolicies] = useState(null);
 
     // Focus Management
     const gridRef = useRef([]);
@@ -36,6 +39,7 @@ const ProductItemsSection = ({
 
     // Initial load sync
     useEffect(() => {
+        loadPolicies();
         if (!items || items.length === 0) {
             setRows([{ _id: Date.now(), product_sku: '', product_name: '', quantity: 1, unit_price: 0, subtotal: 0, stock: 0 }]);
         } else {
@@ -48,6 +52,15 @@ const ProductItemsSection = ({
             })).concat(readOnly ? [] : [{ _id: Date.now() + 9999, product_sku: '', product_name: '', quantity: 1, unit_price: 0, subtotal: 0, stock: 0 }]));
         }
     }, [items.length, readOnly]);
+
+    const loadPolicies = async () => {
+        try {
+            const res = await salesPolicyService.getPolicies();
+            setPolicies(res.data);
+        } catch (err) {
+            console.error("Error loading policies for quote form", err);
+        }
+    };
 
     // Propagate changes to parent
     const updateParent = (currentRows) => {
@@ -110,9 +123,7 @@ const ProductItemsSection = ({
         row.product_name = product.name;
         row.unit_price = product.price_list || 0;
         row.price_list = product.price_list || 0;
-        row.discount_3_pct = product.discount_3_pct || 0;
-        row.discount_6_pct = product.discount_6_pct || 0;
-        row.discount_12_pct = product.discount_12_pct || 0;
+        row.promo_discount_pct = product.promo_discount_pct || 0;
         row.stock = product.stock_current || 0;
         row.quantity = 1;
         row.subtotal = product.price_list || 0;
@@ -430,14 +441,30 @@ const ProductItemsSection = ({
                                                         >
                                                             Lista: S/ {row.price_list}
                                                         </span>
-                                                        {row.discount_3_pct > 0 && (
-                                                            <span
-                                                                onClick={() => handleRowChange(index, 'unit_price', parseFloat((row.price_list * (1 - row.discount_3_pct / 100)).toFixed(3)))}
-                                                                style={{ cursor: 'pointer', color: '#10b981', backgroundColor: '#0f2a1e', padding: '2px 6px', borderRadius: '4px', border: '1px solid #10b98133', whiteSpace: 'nowrap' }}
-                                                                title="Aplicar precio Pack 3"
-                                                            >
-                                                                Pack3: S/ {(row.price_list * (1 - row.discount_3_pct / 100)).toFixed(2)}
-                                                            </span>
+                                                        {policies && (
+                                                            <>
+                                                                <span
+                                                                    onClick={() => handleRowChange(index, 'unit_price', parseFloat((row.price_list * (1 - (policies.vol_3_discount_pct + (row.promo_discount_pct || 0)) / 100)).toFixed(3)))}
+                                                                    style={{ cursor: 'pointer', color: '#10b981', backgroundColor: '#0f2a1e', padding: '2px 6px', borderRadius: '4px', border: '1px solid #10b98133', whiteSpace: 'nowrap' }}
+                                                                    title="Aplicar precio Pack 3"
+                                                                >
+                                                                    P3: -{(policies.vol_3_discount_pct + (row.promo_discount_pct || 0))}%
+                                                                </span>
+                                                                <span
+                                                                    onClick={() => handleRowChange(index, 'unit_price', parseFloat((row.price_list * (1 - (policies.vol_6_discount_pct + (row.promo_discount_pct || 0)) / 100)).toFixed(3)))}
+                                                                    style={{ cursor: 'pointer', color: '#10b981', backgroundColor: '#0f2a1e', padding: '2px 6px', borderRadius: '4px', border: '1px solid #10b98133', whiteSpace: 'nowrap' }}
+                                                                    title="Aplicar precio Pack 6"
+                                                                >
+                                                                    P6: -{(policies.vol_6_discount_pct + (row.promo_discount_pct || 0))}%
+                                                                </span>
+                                                                <span
+                                                                    onClick={() => handleRowChange(index, 'unit_price', parseFloat((row.price_list * (1 - (policies.vol_12_discount_pct + (row.promo_discount_pct || 0)) / 100)).toFixed(3)))}
+                                                                    style={{ cursor: 'pointer', color: '#10b981', backgroundColor: '#0f2a1e', padding: '2px 6px', borderRadius: '4px', border: '1px solid #10b98133', whiteSpace: 'nowrap' }}
+                                                                    title="Aplicar precio Pack 12"
+                                                                >
+                                                                    P12: -{(policies.vol_12_discount_pct + (row.promo_discount_pct || 0))}%
+                                                                </span>
+                                                            </>
                                                         )}
                                                     </>
                                                 ) : (

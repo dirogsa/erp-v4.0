@@ -2,7 +2,8 @@ d:\Projects > netstat -ano | findstr LISTENING
 d:\Projects > tasklist /FI "PID eq 7136" /FO TABLE
 d:\Projects > tasklist /FI "PID eq 14896" /FO TABLE
 
-taskkill /PID 7136 /F
+taskkill /F /IM python.exe
+
 
 D:\Projects\erp-v3.0\frontend\src\components\common\receipt\ReceiptHeader.jsx
 datos de la empresa

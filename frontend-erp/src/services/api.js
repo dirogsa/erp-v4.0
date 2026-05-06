@@ -280,6 +280,8 @@ export const categoryService = {
   createCategory: (category) => api.post('/categories', category),
   updateCategory: (id, category) => api.put(`/categories/${id}`, category),
   deleteCategory: (id) => api.delete(`/categories/${id}`),
+  getOrphans: () => api.get('/categories/orphans'),
+  mapOrphan: (orphanName, canonicalId) => api.post(`/categories/map-orphan?orphan_name=${encodeURIComponent(orphanName)}&canonical_id=${canonicalId}`),
 };
 
 export const brandService = {

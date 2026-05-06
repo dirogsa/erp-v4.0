@@ -9,6 +9,11 @@ class PriceListCreate(BaseModel):
     color: str = "#6366f1"
     is_active: bool = True
     is_campaign: bool = False
+    
+    # New World-Class Logic Fields
+    default_discount_pct: float = 0.0
+    targeted_skus: List[str] = []
+    
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     priority: int = 0
@@ -47,18 +52,3 @@ class BulkTextUpdate(BaseModel):
     list_name: str = "General"
     mode: str = "price" # "price", "cost", or "both"
     currency: str = "PEN"
-
-# --- PricingRule ---
-class PricingRuleCreate(BaseModel):
-    name: str
-    target_category_id: Optional[str] = None
-    target_brand: Optional[str] = None
-    percentage_change: float = 0.0
-
-class PricingRuleResponse(PricingRuleCreate):
-    id: str
-    is_applied: bool
-    applied_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True

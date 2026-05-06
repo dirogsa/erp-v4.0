@@ -84,43 +84,43 @@ async def register(user_in: UserCreate):
 
 @router.post("/login", response_model=Token)
 async def login(form_data: UserLogin, request: Request):
-    print(f"[AUTH] Intentando login para: {form_data.username or form_data.email}")
     user = None
-    if form_data.username:
-        user = await User.find_one(User.username == form_data.username)
-    elif form_data.email:
-        user = await User.find_one(User.email == form_data.email)
-    
-    print(f"[AUTH] Usuario encontrado: {user.username if user else 'No encontrado'}")
-    if not user:
-        raise HTTPException(status_code=400, detail="Incorrect identifier or password")
+    try:
+        if form_data.username:
+            user = await User.find_one(User.username == form_data.username)
+        elif form_data.email:
+            user = await User.find_one(User.email == form_data.email)
         
-    if not AuthService.verify_password(form_data.password, user.password_hash):
-        print("[AUTH] Password incorrecta")
-        raise HTTPException(status_code=400, detail="Incorrect identifier or password")
-    
-    print("[AUTH] Password verificada. Generando token...")
-    # Use whichever identifier is available
-    identifier = user.username if user.username else user.email
-    access_token = AuthService.create_access_token(data={"sub": identifier, "role": user.role})
-    
-    print("[AUTH] Actualizando last_login...")
-    # Update last login
-    user.last_login = datetime.utcnow()
-    await user.save()
+        if not user or not AuthService.verify_password(form_data.password, user.password_hash):
+            raise HTTPException(status_code=400, detail="Identificador o contraseña incorrectos")
+        
+        identifier = user.username if user.username else user.email
+        access_token = AuthService.create_access_token(data={"sub": identifier, "role": user.role})
+        
+        # Update last login
+        user.last_login = datetime.utcnow()
+        await user.save()
 
-    print("[AUTH] Registrando auditoría...")
-    # Log login action
-    await AuditService.log_action(
-        user=user,
-        action="LOGIN",
-        module="AUTH",
-        description=f"El usuario {user.username} inició sesión exitosamente",
-        ip_address=request.client.host
-    )
-    
-    print("[AUTH] Login completado exitosamente")
-    return {"access_token": access_token, "token_type": "bearer"}
+        # Log login action
+        try:
+            ip_addr = request.client.host if request.client else "unknown"
+            await AuditService.log_action(
+                user=user,
+                action="LOGIN",
+                module="AUTH",
+                description=f"Inicio de sesión exitoso: {identifier}",
+                ip_address=ip_addr
+            )
+        except Exception as audit_err:
+            logger.warning(f"Audit Log failed: {str(audit_err)}")
+
+        return {"access_token": access_token, "token_type": "bearer"}
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error fatal en proceso de login: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno durante el inicio de sesión")
 
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):

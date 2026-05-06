@@ -1,95 +1,123 @@
 import os
-from fastapi import FastAPI
+import time
+import logging
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
 from app.database import init_db
 from app.exceptions.business_exceptions import BusinessException
 from app.exceptions.handlers import business_exception_handler
 from app.core.config import settings
-from fastapi import Request, status
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-import time
 
-app = FastAPI(title="ERP System API", version="1.0.0")
+app = FastAPI(title="Dirogsa Cloud ERP API", version="4.0.0")
 
+# --- LOGGING CONFIGURATION ---
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("uvicorn.error")
+
+# --- EXCEPTION HANDLERS ---
 app.add_exception_handler(BusinessException, business_exception_handler)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    errors = exc.errors()
-    print("\n" + "="*50)
-    print(f"❌ ERROR DE VALIDACIÓN EN: {request.method} {request.url.path}")
-    for error in errors:
-        loc = " -> ".join([str(x) for x in error.get("loc", [])])
-        msg = error.get("msg")
-        tipo = error.get("type")
-        print(f"   - Campo: {loc}")
-        print(f"     Error: {msg}")
-        print(f"     Tipo:  {tipo}")
-    print("="*50 + "\n")
-    
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
-            "detail": errors,
-            "message": "Error de validación en los datos enviados. Revise los campos obligatorios y tipos de datos."
+            "detail": exc.errors(),
+            "message": "Error de validación en los datos. Por favor revise los campos."
         },
     )
 
-# Middleware de diagnóstico rápido
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"FATAL ERROR: {request.method} {request.url.path} - {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "message": "Ha ocurrido un error inesperado en el servidor."}
+    )
+
+# --- MIDDLEWARES ---
 @app.middleware("http")
-async def diagnostic_middleware(request: Request, call_next):
-    print(f"\n[DEBUG] >> Entrando petición: {request.method} {request.url.path}")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
     response = await call_next(request)
-    print(f"[DEBUG] << Saliendo respuesta: {request.method} {request.url.path} Status: {response.status_code}")
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
     return response
 
-# --- CORS: Arquitectura Escalable Enterprise ---
-# 1. Recuperar orígenes de variables de entorno (Render Dashboard)
-raw_origins = settings.ALLOWED_ORIGINS.split(",") if settings.ALLOWED_ORIGINS else []
-origins = [o.strip() for o in raw_origins if o.strip()]
+# --- CORS CONFIGURATION ---
+origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "https://erp-shop-umjn.onrender.com",
+    "https://erp-admin-bc49.onrender.com",
+]
 
-# 2. Configuración de Middleware con Soporte para Subdominios Dinámicos
-# Permitimos cualquier subdominio de .onrender.com para máxima escalabilidad en Render
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins else ["*"],
-    allow_origin_regex=r"https://.*\.onrender\.com", # Permite erp-mobile, erp-admin, etc.
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-print(f"[DEBUG] CORS Initialized. Explicit: {origins} | Wildcard: *.onrender.com")
-
-# --- LAZY ROUTER LOADING ---
-# Importamos y registramos cada módulo solo cuando es necesario. 
-# Esto acelera el arranque y ayuda a evitar importaciones circulares.
+# --- ROUTER REGISTRATION ---
+def get_python_process_count():
+    try:
+        import subprocess
+        output = subprocess.check_output('tasklist /FI "IMAGENAME eq python.exe" /NH', shell=True).decode(errors='ignore')
+        return output.count("python.exe")
+    except:
+        return 0
 
 def include_routers(app: FastAPI):
-    from app.routes import auth, companies, categories, brands, finance, analytics, inventory, delivery, io, purchasing, purchase_quotes, financial, sales, sales_quotes, sales_config, pricing, marketing, audit, staff, shop, intercompany, config
+    from app.routes import (
+        auth, companies, categories, brands, finance, analytics, 
+        inventory, delivery, io, purchasing, purchase_quotes, 
+        financial, sales, sales_quotes, sales_config, pricing, 
+        marketing, audit, staff, shop, intercompany, config
+    )
     
-    routes = [
+    modules = [
         auth, companies, categories, brands, finance, analytics, 
         inventory, delivery, io, purchasing, purchase_quotes, 
         financial, sales_quotes, sales, sales_config, pricing, 
         marketing, audit, staff, shop, intercompany, config
     ]
     
-    for route in routes:
-        app.include_router(route.router)
+    for module in modules:
+        app.include_router(module.router)
 
 include_routers(app)
 
+# --- LIFECYCLE & HEALTH ---
+@app.get("/health-check")
+async def health_check():
+    return {"status": "operational", "version": "4.0.0", "timestamp": time.time()}
 
 @app.on_event("startup")
-async def start_db():
+async def startup_event():
     from app.core.bootstrap import bootstrap_system
-    print("Backend: Initializing Infrastructure...")
+    
+    # Zombie Process Detection
+    count = get_python_process_count()
+    msg = f"🚀 INSTANCE STARTUP | Active Python Processes: {count}"
+    if count > 3:
+        msg += " ⚠️ WARNING: Multiple processes detected! You might have ZOMBIES."
+    
+    print("\n" + "="*len(msg))
+    print(msg)
+    print("="*len(msg) + "\n", flush=True)
+    
+    logger.info("Initializing ERP Infrastructure...")
     await init_db()
-    print("Backend: Running System Bootstrap...")
+    logger.info("Running System Bootstrap...")
     await bootstrap_system()
 
 @app.get("/")
 async def root():
-    return {"message": "ERP System API is running"}
+    return {"message": "Dirogsa Cloud ERP API v4.0.0"}

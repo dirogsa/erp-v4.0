@@ -3,6 +3,7 @@ from typing import Optional, List
 from pydantic import BaseModel, Field, EmailStr
 from enum import Enum
 
+import pymongo
 from beanie import Document, Indexed
 
 class UserRole(str, Enum):
@@ -23,19 +24,31 @@ class UserTier(str, Enum):
     DIAMANTE = "DIAMANTE"
 
 class ActivityLog(Document):
-    """Registro de auditoría para acciones críticas"""
+    """
+    World-Class Audit Trail.
+    Differentiates between 'Critical Mutations' (Stock, Sales) and 'Ephemeral Logs' (Logins).
+    """
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    user_id: str           # ID del usuario que realizó la acción
-    username: str          # Cache del nombre para visualización rápida
-    action: str            # CREATE, UPDATE, DELETE, LOGIN, DOWNLOAD, etc.
+    user_id: str
+    username: str
+    action: str            # CREATE, UPDATE, DELETE, LOGIN, etc.
     module: str            # SALES, INVENTORY, PURCHASING, FINANCE, AUTH
-    entity_id: Optional[str] = None # ID del documento afectado (Factura ID, Producto ID)
-    entity_name: Optional[str] = None # Número de factura, SKU del producto
-    description: str       # Detalle humano: "Modificó precio de S/10 a S/8"
+    entity_id: Optional[str] = None
+    entity_name: Optional[str] = None
+    description: str
     ip_address: Optional[str] = None
+    
+    # Intelligence Fields
+    is_critical: bool = True # Vital for stock/finance
+    expire_at: Optional[datetime] = None # For TTL Index (Automatic Cleanup)
     
     class Settings:
         name = "activity_logs"
+        indexes = [
+            # Automatic Cleanup: MongoDB will delete the document when 'expire_at' is reached.
+            # If 'expire_at' is null, it's kept forever.
+            pymongo.IndexModel([("expire_at", pymongo.ASCENDING)], expireAfterSeconds=0)
+        ]
 
 class User(Document):
     username: Optional[Indexed(str, unique=True)] = None

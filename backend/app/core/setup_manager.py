@@ -10,91 +10,54 @@ logger = logging.getLogger(__name__)
 
 async def setup_initial_data():
     """
-    Orquestador de Master Data Seeding.
-    Solo inyecta datos si las colecciones críticas están vacías.
+    World-Class Orchestrator for Structural Initialization.
+    Ensures ONLY basic organizational metadata exists. 
+    Strictly forbids seeding sensitive data (Users, Exchange Rates).
     """
     try:
-        # 0. CONFIGURACIÓN MAESTRA DEL SISTEMA (El Cerebro)
+        # 0. CONFIGURACIÓN MAESTRA DEL SISTEMA (Estructura Técnica)
         if await SystemConfig.count() == 0:
-            logger.info("SETUP: [SEEDING] Creando Configuración Maestra Global...")
-            default_config = SystemConfig(
-                instance_name="ERP v4.0 - Enterprise Edition",
+            logger.info("SETUP: [INIT] Inicializando estructura de configuración técnica...")
+            await SystemConfig(
+                instance_name="DIROGSA ERP v4.0",
                 reporting_currency="PEN",
                 decimal_precision=2,
                 timezone="America/Lima"
-            )
-            await default_config.insert()
+            ).insert()
 
-        # 1. EMPRESA MAESTRA (El Sujeto Legal)
+        # 1. EMPRESA (Estructura Base)
+        # Nota: Se requiere al menos una empresa para que el sistema no falle en referencias,
+        # pero los datos fiscales deben ser editados manualmente.
         if await Company.count() == 0:
-            logger.info("SETUP: [SEEDING] Creando Empresa Maestra inicial...")
-            main_company = Company(
-                name="Mi Empresa Principal S.A.C.",
-                ruc="20000000001",
-                address="Av. Principal 123, Lima",
+            logger.info("SETUP: [INIT] Creando estructura de empresa base...")
+            await Company(
+                name="EMPRESA POR CONFIGURAR",
+                ruc="00000000000",
+                address="---",
                 functional_currency="PEN",
-                tax_percentage=18.0,
-                cost_method="PEPS"
-            )
-            await main_company.insert()
-            
-            # 2. ALMACÉN BASE (El Espacio Físico)
-            if await Warehouse.count() == 0:
-                logger.info("SETUP: [SEEDING] Creando Almacén Central...")
-                default_warehouse = Warehouse(
-                    name="Almacén Central",
-                    location="Sede Principal",
-                    company_id=str(main_company.id),
-                    is_active=True
-                )
-                await default_warehouse.insert()
+                tax_percentage=18.0
+            ).insert()
 
-        # 3. ESTRUCTURA COMERCIAL (Las Reglas de Venta)
-        if await PriceList.count() == 0:
-            logger.info("SETUP: [SEEDING] Creando Lista de Precios Público General...")
-            default_price_list = PriceList(
-                name="Público General",
-                currency="PEN",
-                description="Lista de precios estándar para venta al público",
-                is_active=True,
-                is_default=True
-            )
-            await default_price_list.insert()
-
-        # 4. CATÁLOGO BASE (La Organización)
+        # 2. CATÁLOGO BASE (Evita errores de referencia en importación)
         if await ProductCategory.count() == 0:
-            logger.info("SETUP: [SEEDING] Creando Categoría 'Varios'...")
-            await ProductCategory(name="Varios", description="Categoría por defecto").insert()
+            logger.info("SETUP: [INIT] Creando categoría VARIOS...")
+            await ProductCategory(name="VARIOS", description="Categoría base").insert()
             
         if await ProductBrand.count() == 0:
-            logger.info("SETUP: [SEEDING] Creando Marca 'Genérico'...")
-            await ProductBrand(name="Genérico").insert()
+            logger.info("SETUP: [INIT] Creando marca GENERICO...")
+            await ProductBrand(name="GENERICO").insert()
 
-        # 5. INTEGRIDAD DE POLÍTICAS DE VENTA (Soberanía por Empresa)
-        companies = await Company.find_all().to_list()
-        for company in companies:
-            policy_exists = await SalesPolicy.find_one(SalesPolicy.company_id == str(company.id))
-            if not policy_exists:
-                logger.info(f"SETUP: [SEEDING] Creando Política de Ventas base para empresa: {company.name}")
-                new_policy = SalesPolicy(
-                    company_id=str(company.id),
-                    cash_discount=0.0,
-                    credit_30_days=3.0,
-                    credit_60_days=5.0,
-                    credit_90_days=8.0,
-                    credit_180_days=15.0,
-                    min_margin_guard_pct=12.0
-                )
-                await new_policy.insert()
+        # 3. ESTRUCTURA DE PRECIOS
+        if await PriceList.count() == 0:
+            logger.info("SETUP: [INIT] Creando Lista Maestra (Sin precios)...")
+            await PriceList(
+                name="General",
+                is_active=True,
+                is_master=True,
+                priority=0
+            ).insert()
 
-        # 6. GARANTÍA FISCAL (Asegurar Impuestos por Empresa)
-        for company in companies:
-            if not company.tax_percentage:
-                logger.info(f"SETUP: [FIX] Asignando IGV 18% por defecto a: {company.name}")
-                company.tax_percentage = 18.0
-                await company.save()
-
-        logger.info("SETUP: [SUCCESS] Esqueleto Vital inyectado correctamente.")
+        logger.info("SETUP: [SUCCESS] Estructura base inicializada. Requiere configuración manual de Usuarios y Finanzas.")
 
     except Exception as e:
-        logger.error(f"SETUP: [ERROR] Fallo en la inyección de datos iniciales: {str(e)}")
+        logger.error(f"SETUP: [CRITICAL] Fallo en la inicialización estructural: {str(e)}")

@@ -37,6 +37,7 @@ import FinancialAudit from './pages/FinancialAudit';
 import StaffManagement from './pages/StaffManagement';
 import ExchangeRates from './pages/ExchangeRates';
 import SystemConfigPage from './pages/SystemConfigPage';
+import ReconciliationPage from './pages/ReconciliationPage';
 
 
 
@@ -103,6 +104,7 @@ function App() {
                           <Route path="/staff" element={<StaffManagement />} />
                           <Route path="/exchange-rates" element={<ExchangeRates />} />
                           <Route path="/system-config" element={<SystemConfigPage />} />
+                          <Route path="/reconciliation" element={<ReconciliationPage />} />
                         </Routes>
                       </Layout>
                     </ProtectedRoute>

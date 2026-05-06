@@ -217,13 +217,13 @@ const CartPage = () => {
                                          {item.type !== 'MARKETING' && (
                                              <div className="space-y-2 mt-1">
                                                  <div className="flex gap-1.5 flex-wrap">
-                                                     {item.quantity >= 12 ? (
-                                                         <span className="bg-brand-primary text-brand-bg text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-lg shadow-brand-primary/20">Mayorista -{item.discount_12_pct}%</span>
-                                                     ) : item.quantity >= 6 ? (
-                                                         <span className="bg-brand-primary/20 text-brand-primary border border-brand-primary/20 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Semi-Mayorista -{item.discount_6_pct}%</span>
-                                                     ) : item.quantity >= 3 ? (
-                                                         <span className="bg-brand-primary/10 text-brand-primary/80 border border-brand-primary/10 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Volumen -{item.discount_3_pct}%</span>
-                                                     ) : null}
+                                                      {item.quantity >= 12 ? (
+                                                          <span className="bg-brand-primary text-brand-bg text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-lg shadow-brand-primary/20">Mayorista -{item.discount_12_pct || 0}%</span>
+                                                      ) : item.quantity >= 6 ? (
+                                                          <span className="bg-brand-primary/20 text-brand-primary border border-brand-primary/20 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Semi-Mayorista -{item.discount_6_pct || 0}%</span>
+                                                      ) : item.quantity >= 3 ? (
+                                                          <span className="bg-brand-primary/10 text-brand-primary/80 border border-brand-primary/10 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">Volumen -{item.discount_3_pct || 0}%</span>
+                                                      ) : null}
                                                      
                                                      {item.promo_discount_pct > 0 && (
                                                          <span className="bg-brand-danger text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter animate-pulse">PROMO -{item.promo_discount_pct}%</span>

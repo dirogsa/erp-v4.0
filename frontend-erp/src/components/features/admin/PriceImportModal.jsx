@@ -57,10 +57,7 @@ const PriceImportModal = ({ visible, onClose, onImported }) => {
                         name: product.name,
                         price_list: finalPrice,
                         old_price_list: product.price_list,
-                        cost: product.cost || 0,
-                        discount_3_pct: product.discount_3_pct || 0,
-                        discount_6_pct: product.discount_6_pct || 0,
-                        discount_12_pct: product.discount_12_pct || 0,
+                        cost: product.cost || 0
                     });
                 } else {
                     errors.push(`Fila ${i + 1}: SKU "${sku}" no encontrado.`);

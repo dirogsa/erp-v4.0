@@ -23,3 +23,14 @@ async def update_category(id: str, category: ProductCategory):
 async def delete_category(id: str):
     await category_service.delete_category(id)
     return {"message": "Category deleted successfully"}
+
+@router.get("/orphans", response_model=List[str])
+async def get_orphans():
+    """Discover unmapped category names from imported products"""
+    return await category_service.get_orphan_category_names()
+
+@router.post("/map-orphan")
+async def map_orphan(orphan_name: str, canonical_id: str):
+    """Binds an orphan name to a canonical category and updates products"""
+    count = await category_service.map_orphan_to_canonical(orphan_name, canonical_id)
+    return {"message": f"Successfully mapped {count} products to category.", "count": count}

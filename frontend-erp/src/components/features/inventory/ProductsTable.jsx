@@ -192,12 +192,12 @@ const ProductsTable = ({
                 render: (val, row) => {
                     const base = row.price_list || 0;
                     if (base === 0) return <span style={{ color: '#475569' }}>-</span>;
-                    const pct = val > 0 ? val : (policies?.vol_3_discount_pct || 0);
+                    const pct = policies?.vol_3_discount_pct || 0;
                     const total = pct + (row.promo_discount_pct || 0);
                     return (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                             <span style={{ color: '#10b981', fontWeight: 'bold' }}>{formatCurrency(base * (1 - total / 100))}</span>
-                            <span style={{ fontSize: '0.65rem', color: val > 0 ? '#94a3b8' : '#3b82f6' }}>-{total}% {val > 0 ? '' : '(global)'}</span>
+                            <span style={{ fontSize: '0.65rem', color: '#3b82f6' }}>-{total}% (política)</span>
                         </div>
                     );
                 }
@@ -209,12 +209,12 @@ const ProductsTable = ({
                 render: (val, row) => {
                     const base = row.price_list || 0;
                     if (base === 0) return <span style={{ color: '#475569' }}>-</span>;
-                    const pct = val > 0 ? val : (policies?.vol_6_discount_pct || 0);
+                    const pct = policies?.vol_6_discount_pct || 0;
                     const total = pct + (row.promo_discount_pct || 0);
                     return (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                             <span style={{ color: '#10b981', fontWeight: 'bold' }}>{formatCurrency(base * (1 - total / 100))}</span>
-                            <span style={{ fontSize: '0.65rem', color: val > 0 ? '#94a3b8' : '#3b82f6' }}>-{total}% {val > 0 ? '' : '(global)'}</span>
+                            <span style={{ fontSize: '0.65rem', color: '#3b82f6' }}>-{total}% (política)</span>
                         </div>
                     );
                 }
@@ -226,12 +226,12 @@ const ProductsTable = ({
                 render: (val, row) => {
                     const base = row.price_list || 0;
                     if (base === 0) return <span style={{ color: '#475569' }}>-</span>;
-                    const pct = val > 0 ? val : (policies?.vol_12_discount_pct || 0);
+                    const pct = policies?.vol_12_discount_pct || 0;
                     const total = pct + (row.promo_discount_pct || 0);
                     return (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                             <span style={{ color: '#10b981', fontWeight: 'bold' }}>{formatCurrency(base * (1 - total / 100))}</span>
-                            <span style={{ fontSize: '0.65rem', color: val > 0 ? '#94a3b8' : '#3b82f6' }}>-{total}% {val > 0 ? '' : '(global)'}</span>
+                            <span style={{ fontSize: '0.65rem', color: '#3b82f6' }}>-{total}% (política)</span>
                         </div>
                     );
                 }

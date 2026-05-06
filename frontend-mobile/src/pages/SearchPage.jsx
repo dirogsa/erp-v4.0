@@ -34,8 +34,16 @@ const SearchPage = () => {
         make: queryParams.get('make') || '', 
         model: queryParams.get('model') || '' 
     });
-    const [activeTab, setActiveTab] = useState('CODES'); // CODES, APPS, DIMENSIONS, NEW
-    const [specFilters, setSpecFilters] = useState({ h: '', d: '', t: '', id: '' });
+    const [activeTab, setActiveTab] = useState(
+        queryParams.get('type') === 'dimensions' ? 'DIMENSIONS' : 
+        queryParams.get('type') === 'vehicle' ? 'APPS' : 'CODES'
+    );
+    const [specFilters, setSpecFilters] = useState({ 
+        h: queryParams.get('h') || '', 
+        d: queryParams.get('d') || '', 
+        t: queryParams.get('t') || '', 
+        id: queryParams.get('id') || '' 
+    });
     
     const tabs = [
         { id: 'CODES',      label: 'Código',   icon: <TagIcon className="h-4 w-4" />,                color: '#6EE7B7', glow: 'rgba(110,231,183,0.08)' },
@@ -139,12 +147,13 @@ const SearchPage = () => {
         }
     };
 
-    // Efecto para la carga inicial si viene por URL (q=...) o pestaña NUEVOS
+    // Efecto para la carga inicial si viene por URL o pestaña NUEVOS
     useEffect(() => {
-        if (searchTerm || activeTab === 'NEW') {
+        const hasSearch = searchTerm || activeFilters.make || specFilters.h || specFilters.d || specFilters.t || specFilters.id;
+        if (hasSearch || activeTab === 'NEW') {
             handleSearch();
         }
-    }, [activeTab === 'NEW']);
+    }, []);
 
     return (
         <div className="bg-brand-bg h-screen text-brand-text flex flex-col font-sans overflow-hidden">
@@ -430,6 +439,7 @@ const SearchPage = () => {
                                 <MobileProductCard
                                     key={prod.sku}
                                     product={prod}
+                                    searchTerm={searchTerm}
                                     onAddToCart={(p) => {
                                         addToCart(p);
                                         navigate('/cart');

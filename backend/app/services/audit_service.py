@@ -3,6 +3,13 @@ from typing import Optional, List
 from ..models.auth import ActivityLog, User
 
 class AuditService:
+    # World-Class Governance: Filter noise to preserve space and focus.
+    VITAL_MODULES = ["INVENTORY", "SALES", "PURCHASING", "FINANCE", "PRICING", "LOGISTICS"]
+    VITAL_ACTIONS = ["CREATE", "UPDATE", "DELETE", "STOCK_ADJUST", "VOID", "MAP_ORPHAN"]
+    
+    # Toggle this to False if you want ZERO non-vital logs
+    ECONOMY_MODE = True 
+
     @staticmethod
     async def log_action(
         user: User,
@@ -12,22 +19,45 @@ class AuditService:
         entity_id: Optional[str] = None,
         entity_name: Optional[str] = None,
         ip_address: Optional[str] = None
-    ) -> ActivityLog:
+    ) -> Optional[ActivityLog]:
         """
-        Registra una acción en el log de auditoría.
+        Smart Logger: Decides what is vital and what is noise.
+        Defensive: NEVER blocks the main execution flow if logging fails.
         """
-        log = ActivityLog(
-            user_id=str(user.id),
-            username=user.username or user.email,
-            action=action,
-            module=module,
-            description=description,
-            entity_id=entity_id,
-            entity_name=entity_name,
-            ip_address=ip_address
-        )
-        await log.insert()
-        return log
+        try:
+            from datetime import timedelta
+            
+            # 1. Classification
+            is_vital = (module in AuditService.VITAL_MODULES) or (action in AuditService.VITAL_ACTIONS)
+            
+            # 2. Economy Policy
+            if AuditService.ECONOMY_MODE and not is_vital:
+                return None
+                
+            # 3. Retention Policy
+            expire_at = None
+            if not is_vital:
+                # Non-vital logs expire in 30 days to save space
+                expire_at = datetime.utcnow() + timedelta(days=30)
+                
+            log = ActivityLog(
+                user_id=str(user.id) if user and hasattr(user, 'id') else "SYSTEM",
+                username=user.username if user and hasattr(user, 'username') else (user.email if user and hasattr(user, 'email') else "system"),
+                action=action,
+                module=module,
+                description=description,
+                entity_id=entity_id,
+                entity_name=entity_name,
+                ip_address=ip_address,
+                is_critical=is_vital,
+                expire_at=expire_at
+            )
+            await log.insert()
+            return log
+        except Exception as e:
+            # World-Class Resilience: A log failure must NOT stop the business.
+            print(f"⚠️ [AUDIT_ERROR] Failed to record log: {str(e)}")
+            return None
 
     @staticmethod
     async def get_logs(

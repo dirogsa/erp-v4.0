@@ -205,7 +205,6 @@ class Product(Document):
     # Inyectados dinámicamente según la empresa que consulte
     stock_current: int = 0
     cost: float = 0.0 # ¡IMPORTANTE! Costo Unitario de compra siempre CON IGV incluido
-    price_list: float = 0.0 # ¡IMPORTANTE! Precio Base Sugerido siempre CON IGV incluido
     
     loyalty_points: int = 0
     points_cost: int = 0
@@ -223,10 +222,7 @@ class Product(Document):
     is_new: bool = False # Manual flag for catalog "Novedades"
     is_active_in_shop: bool = False # Control visibility in frontend-shop
     
-    # Volume & Promo Discounts (Synchronized with SalesPolicy defaults if 0)
-    discount_3_pct: float = 0.0
-    discount_6_pct: float = 0.0
-    discount_12_pct: float = 0.0
+    # Individual Promotion Override (Exceptions)
     promo_discount_pct: float = 0.0
     
     # Adiciones para compatibilidad con scrapers
@@ -293,113 +289,80 @@ class StockMovement(Document):
             pymongo.IndexModel([("legal_owner_id", pymongo.ASCENDING), ("sku", pymongo.ASCENDING)]),
         ]
 
+class PriceHistory(Document):
+    product_sku: str
+    price_type: str = "LIST"
+    old_price: float
+    new_price: float
+    company_id: str
+    reason: Optional[str] = None
+    date: datetime = Field(default_factory=datetime.utcnow)
+
+    class Settings:
+        name = "price_history"
+        indexes = [
+            pymongo.IndexModel([("product_sku", pymongo.ASCENDING)]),
+            pymongo.IndexModel([("date", pymongo.DESCENDING)])
+        ]
+
 class IntercompanyStatus(str, Enum):
     PENDING = "PENDING"      # Sale made, needs settlement
     REVIEW = "REVIEW"       # Grouped for billing
     COMPLETED = "COMPLETED" # SUNAT doc registered
 
 class IntercompanyTransaction(Document):
-    """Tracks stock sold by one company that belongs to another"""
-    from_company_id: str # The legal owner (Jeef)
-    to_company_id: str   # The seller (Dirogsa)
-    sku: str
-    quantity: int
-    unit_cost: float
-    sale_reference: str  # The original Sales Invoice ID
-    settlement_id: Optional[str] = None # Link to the consolidated settlement
+    from_company_id: str
+    to_company_id: str
+    order_number: Optional[str] = None
+    invoice_number: Optional[str] = None
+    amount: float = 0.0
     status: IntercompanyStatus = IntercompanyStatus.PENDING
     date: datetime = Field(default_factory=datetime.utcnow)
+    settlement_id: Optional[str] = None # Link to SUNAT invoice
 
     class Settings:
         name = "intercompany_transactions"
-        indexes = [
-            pymongo.IndexModel([("to_company_id", pymongo.ASCENDING), ("status", pymongo.ASCENDING)]),
-            pymongo.IndexModel([("settlement_id", pymongo.ASCENDING)]),
-        ]
 
-class PriceHistory(Document):
-    product_id: Optional[str] = None
-    product_sku: str
-    price_type: PriceListType
-    old_price: float
-    new_price: float
-    changed_at: datetime = Field(default_factory=datetime.utcnow)
-    changed_by: Optional[str] = None
-    reason: Optional[str] = None  # "Actualización mensual", etc.
-    company_id: Indexed(str)
-
-    class Settings:
-        name = "price_history"
-        indexes = [
-            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("product_sku", pymongo.ASCENDING)])
-        ]
-
-class GuideType(str, Enum):
-    RECEPTION = "RECEPTION"         # Recepción de compra
-    DISPATCH = "DISPATCH"           # Despacho de venta
-    TRANSFER = "TRANSFER"           # Transferencia a sucursal
-    RETURN = "RETURN"               # Devolución por Nota de Crédito
+# --- LOGÍSTICA Y DESPACHO (Guías de Remisión) ---
 
 class GuideStatus(str, Enum):
-    DRAFT = "DRAFT"                 # Creada, pendiente de despacho
-    DISPATCHED = "DISPATCHED"       # En camino (stock descontado)
-    DELIVERED = "DELIVERED"         # Entregado
-    CANCELLED = "CANCELLED"         # Anulada
+    DRAFT = "DRAFT"
+    DISPATCHED = "DISPATCHED"
+    DELIVERED = "DELIVERED"
+    CANCELLED = "CANCELLED"
+
+class GuideType(str, Enum):
+    DISPATCH = "DISPATCH"
+    RECEPTION = "RECEPTION"
+    RETURN = "RETURN"
 
 class GuideItem(BaseModel):
-    product_id: Optional[str] = None
     sku: str
     product_name: str
-    quantity: int
-    unit_cost: float = 0.0
-    weight_g: float = 0.0 # Peso unitario en gramos
+    quantity: float
+    unit_cost: Optional[float] = None
 
 class DeliveryGuide(Document):
-    # Números
-    guide_number: Indexed(str, unique=True)  # Interno: GUIA-0001
-    sunat_number: Optional[str] = None       # SUNAT opcional: T001-00000001
-    
+    guide_number: Indexed(str)
+    sunat_number: Optional[str] = None
     guide_type: GuideType = GuideType.DISPATCH
     status: GuideStatus = GuideStatus.DRAFT
-    
-    # Referencias
-    invoice_number: Optional[str] = None     # Factura asociada
-    order_number: Optional[str] = None       # Orden original
-    
-    # Cliente/Destino
-    customer_name: Optional[str] = None
-    customer_ruc: Optional[str] = None
+    invoice_number: Optional[str] = None
+    order_number: Optional[str] = None
+    customer_name: str
+    customer_ruc: str
     delivery_address: Optional[str] = None
-    
-    # Productos
-    items: list[GuideItem] = []
-    
-    # Transporte
-    vehicle_plate: Optional[str] = None      # Placa del vehículo
-    driver_name: Optional[str] = None        # Nombre del chofer
-    
-    # Fechas
+    items: List[GuideItem]
+    vehicle_plate: Optional[str] = None
+    driver_name: Optional[str] = None
+    notes: Optional[str] = None
+    created_by: Optional[str] = None
     issue_date: datetime = Field(default_factory=datetime.utcnow)
     dispatch_date: Optional[datetime] = None
     delivery_date: Optional[datetime] = None
-    
-    # Confirmación
-    received_by: Optional[str] = None        # Nombre de quien recibe
-    notes: Optional[str] = None
-    created_by: Optional[str] = None
-
-    # Datos de la empresa emisora (Snapshot)
-    issuer_info: Optional[IssuerInfo] = None
+    received_by: Optional[str] = None
     company_id: Optional[str] = None
-    
-    @field_validator('items', mode='before')
-    @classmethod
-    def validate_items(cls, v):
-        """Ensure items is a list"""
-        if v is None:
-            return []
-        return v
-    
+
     class Settings:
         name = "delivery_guides"
         indexes = [

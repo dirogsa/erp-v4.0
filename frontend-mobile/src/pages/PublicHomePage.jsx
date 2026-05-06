@@ -11,6 +11,7 @@ import {
     ShieldCheckIcon,
     CpuChipIcon,
     ChartBarIcon,
+    XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { shopService } from '../services/api';
 import MobileProductCard from '../components/MobileProductCard';
@@ -86,6 +87,7 @@ const PublicHomePage = () => {
     const [brands, setBrands] = useState([]);
     const [selectedMake, setSelectedMake] = useState('');
     const [selectedModel, setSelectedModel] = useState('');
+    const [specFilters, setSpecFilters] = useState({ h: '', d: '', t: '', id: '' });
 
     useEffect(() => {
         const load = async () => {
@@ -131,6 +133,17 @@ const PublicHomePage = () => {
         if (!selectedMake) return;
         let url = `/search?type=vehicle&make=${encodeURIComponent(selectedMake)}`;
         if (selectedModel) url += `&model=${encodeURIComponent(selectedModel)}`;
+        navigate(url);
+    };
+
+    const handleDimensionsSearch = () => {
+        const hasSpecs = specFilters.h || specFilters.d || specFilters.t || specFilters.id;
+        if (!hasSpecs) return;
+        let url = `/search?type=dimensions`;
+        if (specFilters.h) url += `&h=${encodeURIComponent(specFilters.h)}`;
+        if (specFilters.d) url += `&d=${encodeURIComponent(specFilters.d)}`;
+        if (specFilters.t) url += `&t=${encodeURIComponent(specFilters.t)}`;
+        if (specFilters.id) url += `&id=${encodeURIComponent(specFilters.id)}`;
         navigate(url);
     };
 
@@ -351,15 +364,50 @@ const PublicHomePage = () => {
 
                     {/* ── DIMENSIONS TAB ── */}
                     {activeTab === 'dimensions' && (
-                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col items-center justify-center py-8 gap-4">
-                            <div className="h-16 w-16 rounded-2xl flex items-center justify-center float-anim"
-                                style={{ background: 'rgba(251,146,60,0.08)', border: '1px solid rgba(251,146,60,0.2)' }}>
-                                <ArrowsPointingInIcon className="h-8 w-8" style={{ color: '#FB923C' }} />
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-4">
+                            <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#FB923C' }}>Búsqueda Técnica (Precisión)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { key: 'h', label: 'ALTURA', code: '(H)', placeholder: 'mm', icon: '📏' },
+                                    { key: 'd', label: 'DIÁM. EXT.', code: '(A)', placeholder: 'mm', icon: '⭕' },
+                                    { key: 't', label: 'ROSCA', code: '(G)', placeholder: 'TPI/M', icon: '⚙️' },
+                                    { key: 'id', label: 'DIÁM. INT.', code: '(B/C)', placeholder: 'mm', icon: '🔘' }
+                                ].map(dim => (
+                                    <div key={dim.key} className="bg-brand-surface-2 rounded-xl p-3 relative shadow-lg border border-brand-border-2 focus-within:border-[#FB923C]/50 transition-all">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="block text-[8px] font-black text-brand-text-muted uppercase tracking-tighter">
+                                                {dim.label} <span className="text-[#FB923C] font-bold">{dim.code}</span>
+                                            </span>
+                                            <span className="text-xs opacity-40">{dim.icon}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <input
+                                                type="text"
+                                                value={specFilters[dim.key]}
+                                                onChange={(e) => setSpecFilters({ ...specFilters, [dim.key]: e.target.value })}
+                                                className="w-full bg-transparent text-[13px] font-black text-white outline-none h-8 placeholder:text-white/10"
+                                                placeholder={dim.placeholder}
+                                            />
+                                            {specFilters[dim.key] && (
+                                                <button 
+                                                    onClick={() => setSpecFilters({ ...specFilters, [dim.key]: '' })}
+                                                    className="flex-shrink-0 text-white/20 p-1"
+                                                >
+                                                    <XMarkIcon className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="text-center">
-                                <p className="text-[11px] font-black uppercase tracking-widest mb-1" style={{ color: '#FB923C' }}>Editor de Medidas</p>
-                                <p className="text-[9px] text-brand-muted">Búsqueda por dimensiones — Próximamente</p>
-                            </div>
+                            <button
+                                onClick={handleDimensionsSearch}
+                                disabled={!(specFilters.h || specFilters.d || specFilters.t || specFilters.id)}
+                                className="w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30 shadow-lg flex items-center justify-center gap-2"
+                                style={{ background: 'linear-gradient(135deg, #FB923C, #f97316)', color: '#0D0E11' }}
+                            >
+                                <ArrowsPointingInIcon className="h-4 w-4" /> Buscar por Medidas →
+                            </button>
                         </div>
                     )}
                 </div>

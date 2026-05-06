@@ -79,6 +79,16 @@ export const MENU_CONFIG = [
         ]
     },
     {
+        id: 'reconciliation',
+        label: 'CENTRO DE CONCILIACIÓN',
+        icon: '⚖️',
+        roles: [ROLES.ADMIN, ROLES.STOCK_MANAGER],
+        isGroup: true,
+        children: [
+            { id: 'reconciliation-center', label: 'Mando y Sinceramiento', path: '/reconciliation', icon: '⚙️' }
+        ]
+    },
+    {
         id: 'operaciones-masivas',
         label: 'CARGA MASIVA (HUB)',
         icon: '⚡',

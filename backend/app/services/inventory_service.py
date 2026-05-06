@@ -7,11 +7,13 @@ from app.models.inventory import Product, MovementType, ProductType, StockMoveme
 from app.utils.norm_utils import normalize_sku
 from beanie import PydanticObjectId
 from pymongo.operations import ReplaceOne
-from app.models.auth import User
+from app.models.pricing import PriceList, PriceEntry
 from app.services.audit_service import AuditService
 from app.services.brand_service import ensure_brands_exist
 from app.services.catalog_service import perform_catalog_lookup
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, InsufficientStockException, DuplicateEntityException
+from app.services.pricing_service import PricingService
+from app.schemas.inventory_schemas import ProductWithPrice
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,7 @@ async def get_products(
     redeemable_only: Optional[bool] = None,
     product_type: Optional[str] = None,
     company_id: Optional[str] = None
-) -> PaginatedResponse[Product]:
+) -> PaginatedResponse[ProductWithPrice]:
     query = {}
     
     if search:
@@ -91,15 +93,25 @@ async def get_products(
     total = await Product.find(query).count()
     items = await Product.find(query).sort('sku').skip(skip).limit(limit).to_list()
     
-    # Inyectar datos específicos de la empresa
+    # Inyectar datos específicos de la empresa y PRECIO de la matriz
+    response_items = []
     for item in items:
         populate_company_data(item, company_id)
+        
+        # Obtener precio base de la matriz (Usando el nuevo motor dinámico)
+        price_info = await PricingService.get_product_price(item.sku, 1)
+        price = price_info.get("price", 0.0)
+        
+        # Convertir a DTO con precio
+        p_dict = item.dict()
+        p_dict['price_list'] = price
+        response_items.append(ProductWithPrice(**p_dict))
     
     return PaginatedResponse(
-        items=items,
+        items=response_items,
         total=total,
-        page=skip // limit + 1,
-        pages=(total + limit - 1) // limit,
+        page=(skip // limit) + 1,
+        pages=(total // limit) + (1 if total % limit > 0 else 0),
         size=limit
     )
 
@@ -161,29 +173,55 @@ async def get_product_by_sku(sku: str) -> Product:
 
 async def resolve_category_id(name_alias: str) -> Optional[str]:
     """
-    Solución Profesional: Mapeador Universal de Categorías.
-    Resuelve aliases de diferentes catálogos a una categoría única del ERP usando la Base de Datos en Tiempo Real.
+    World-Class Solution: High-Performance Universal Category Mapper.
+    Uses MongoDB query engine to resolve aliases to canonical categories.
     """
     if not name_alias: return None
     
-    alias = name_alias.upper().strip()
+    alias_normalized = name_alias.strip()
     
-    # 1. Búsqueda exacta por Nombre
-    category = await ProductCategory.find_one({"name": {"$regex": f"^{alias}$", "$options": "i"}})
+    # 1. ATOMIC SEARCH: Check Name OR Aliases in a single indexed query
+    # We use $regex for case-insensitivity without requiring a manual find_all()
+    category = await ProductCategory.find_one({
+        "$or": [
+            {"name": {"$regex": f"^{alias_normalized}$", "$options": "i"}},
+            {"import_aliases": {"$regex": f"^{alias_normalized}$", "$options": "i"}}
+        ]
+    })
+    
     if category:
         return str(category.id)
-        
-    # 2. Búsqueda dentro del nuevo arreglo de Aliases de Importación
-    # Como los usuarios pueden escribir mayúsculas/minúsculas, usamos una búsqueda regex sobre el array
-    categories = await ProductCategory.find_all().to_list()
-    for cat in categories:
-        if cat.import_aliases:
-            # Normalizamos los aliases de la DB para comparar
-            db_aliases = [a.strip().upper() for a in cat.import_aliases]
-            if alias in db_aliases:
-                return str(cat.id)
                 
     return None
+
+async def save_price_to_matrix(product_id: PydanticObjectId, sku: str, price: float):
+    """Garantiza que el precio base esté en la matriz (Lista Maestra)"""
+    if price is None: return
+    
+    master_list = await PriceList.find_one(PriceList.is_master == True)
+    if not master_list:
+        # Fallback de emergencia si no hay lista maestra
+        master_list = PriceList(name="General", is_master=True, is_active=True)
+        await master_list.insert()
+        
+    entry = await PriceEntry.find_one(
+        PriceEntry.product_id == product_id,
+        PriceEntry.price_list_id == master_list.id
+    )
+    
+    if entry:
+        entry.price = price
+        entry.sku = sku # Sincronizar SKU por si cambió
+        entry.last_updated = datetime.utcnow()
+        await entry.save()
+    else:
+        entry = PriceEntry(
+            product_id=product_id,
+            sku=sku,
+            price_list_id=master_list.id,
+            price=price
+        )
+        await entry.insert()
 
 async def create_product(product_data: Product, initial_stock: int = 0, user: Optional[User] = None, company_id: Optional[str] = None):
     # Normalizar SKU y Marca antes de operar
@@ -211,8 +249,14 @@ async def create_product(product_data: Product, initial_stock: int = 0, user: Op
     if product_data.type == ProductType.COMMERCIAL:
         product_data.points_cost = 0
 
-    # Guardar producto global
+    # Guardar producto global (sin precio_list en el modelo ya)
+    # Extraer precio si viene en el objeto (por compatibilidad con DTO)
+    incoming_price = getattr(product_data, 'price_list', 0.0)
+    
     await product_data.insert()
+
+    # Guardar precio en la matriz
+    await save_price_to_matrix(product_data.id, product_data.sku, incoming_price)
 
     # Si hay stock inicial, registrar movimiento en la bolsa de la empresa
     if initial_stock > 0 and company_id:
@@ -263,6 +307,9 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
     # 3. Preparar operaciones Bulk
     collection = Product.get_pymongo_collection()
     
+    auto_mapped_count = 0
+    orphans_count = 0
+    
     for p_data in products:
         # Normalización "Libro de Texto"
         p_data.sku = normalize_sku(p_data.sku)
@@ -272,9 +319,14 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
             for eq in p_data.equivalences:
                 eq.code = normalize_sku(eq.code)
         
-        # Resolver categoría (Podría optimizarse más con una caché, pero solve_category_id ya usa regex)
+        # Resolver categoría (Smart Mapping Analytics)
         if p_data.category_name and not p_data.category_id:
-            p_data.category_id = await resolve_category_id(p_data.category_name)
+            resolved_id = await resolve_category_id(p_data.category_name)
+            if resolved_id:
+                p_data.category_id = resolved_id
+                auto_mapped_count += 1
+            else:
+                orphans_count += 1
 
         if p_data.type == ProductType.COMMERCIAL:
             p_data.points_cost = 0
@@ -292,6 +344,10 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
                 upsert=update_existing
             )
         )
+        
+        # Para Bulk, lo ideal sería optimizar el guardado de precios también
+        # Por ahora lo haremos individual o recolectamos para bulk posterior
+        # Nota: p_data.id podría no estar disponible hasta el bulk_write
 
     # 4. Ejecución Masiva en un solo Round-trip
     if bulk_ops:
@@ -311,10 +367,47 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
             entity_name=f"{len(products)} productos"
         )
 
+    # 5. Sincronizar Precios en Matrix después del Bulk (Para asegurar que tenemos IDs)
+    # Esto es vital para un ERP de Clase Mundial
+    master_list = await PriceList.find_one(PriceList.is_master == True)
+    if master_list:
+        price_ops = []
+        # Volver a buscar los productos insertados/actualizados para tener sus IDs finales
+        all_skus = [p.sku for p in products]
+        db_products = await Product.find({"sku": {"$in": all_skus}}).to_list()
+        product_map = {p.sku: p for p in db_products}
+        
+        price_collection = PriceEntry.get_pymongo_collection()
+        for p_orig in products:
+            p_db = product_map.get(p_orig.sku)
+            if p_db:
+                incoming_price = getattr(p_orig, 'price_list', 0.0)
+                price_ops.append(
+                    ReplaceOne(
+                        {"product_id": p_db.id, "price_list_id": master_list.id},
+                        {
+                            "product_id": p_db.id,
+                            "sku": p_db.sku,
+                            "price_list_id": master_list.id,
+                            "price": incoming_price,
+                            "currency": "PEN",
+                            "min_quantity": 1,
+                            "last_updated": datetime.utcnow()
+                        },
+                        upsert=True
+                    )
+                )
+        if price_ops:
+            await price_collection.bulk_write(price_ops, ordered=False)
+
     return {
         "created": created_count,
         "updated": updated_count,
-        "total": len(products)
+        "skipped": skipped_count,
+        "total": len(products),
+        "auto_mapped_count": auto_mapped_count,
+        "orphans_count": orphans_count,
+        "errors": []
     }
 
 async def update_product(sku: str, update_data: Product, new_stock: int = None, user: Optional[User] = None) -> Product:
@@ -333,8 +426,10 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None, 
     product.custom_attributes = update_data.custom_attributes
     product.features = update_data.features
     
-    # Pricing
-    product.price_list = update_data.price_list
+    # Pricing (Matrix)
+    incoming_price = getattr(update_data, 'price_list', 0.0)
+    await save_price_to_matrix(product.id, product.sku, incoming_price)
+    
     product.cost = update_data.cost
     product.loyalty_points = update_data.loyalty_points
     product.points_cost = update_data.points_cost
@@ -668,7 +763,12 @@ async def register_movement(
     if movement_type == MovementType.IN:
         product.stock_current += quantity
     elif movement_type == MovementType.OUT:
-        if product.stock_current < quantity:
+        # Recuperar configuración maestra (Caching implícito por Beanie si se desea, aquí es directo)
+        from app.models.config import SystemConfig
+        config = await SystemConfig.find_one({})
+        allow_neg = config.allow_negative_stock if config else False
+
+        if not allow_neg and product.stock_current < quantity:
             raise InsufficientStockException(sku, product.stock_current, quantity)
         product.stock_current -= quantity
     
@@ -855,6 +955,97 @@ async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[
         "processed_count": len(results),
         "total_impact": round(total_impact, 3),
         "details": results
+    }
+
+async def process_physical_stocktake(adjustments: List[Dict[str, Any]], user: User) -> Dict[str, Any]:
+    """
+    MOTOR INDUSTRIAL DE SINCERAMIENTO:
+    Procesa una lista de conteo físico y genera los ajustes necesarios para llegar a la cifra real.
+    """
+    results = []
+    failed = []
+    warnings = []
+    total_impact = 0
+    ref_id = f"STOCKTAKE-{datetime.now().strftime('%Y%m%d%H%M')}"
+
+    for adj in adjustments:
+        sku = adj.get("sku")
+        brand = adj.get("brand")
+        physical_qty = float(adj.get("quantity", 0))
+        
+        # 1. Resolución Robusta de Producto
+        product = await find_product_robustly(sku, brand)
+        
+        if not product:
+            failed.append({"sku": sku, "brand": brand, "error": "Producto no encontrado en el catálogo"})
+            continue
+
+        system_qty = float(product.stock_current)
+        delta = physical_qty - system_qty
+
+        # Si no hay cambio, lo registramos como verificado pero sin movimiento
+        if delta == 0:
+            results.append({
+                "sku": product.sku,
+                "brand": product.brand,
+                "status": "EQUALS",
+                "system": system_qty,
+                "physical": physical_qty,
+                "delta": 0
+            })
+            continue
+
+        # 2. Registrar el movimiento de ajuste
+        movement = StockMovement(
+            product_id=product.id,
+            sku=product.sku,
+            quantity=abs(delta),
+            movement_type=MovementType.ADJUSTMENT_STOCKTAKE,
+            reference_id=ref_id,
+            unit_cost=product.cost,
+            notes=f"Sinceramiento inicial/periódico (Diferencia: {delta})",
+            responsible=user.username,
+            date=datetime.utcnow()
+        )
+        await movement.insert()
+
+        # 3. Actualizar el stock del producto
+        product.stock_current = physical_qty
+        await product.save()
+
+        impact = delta * product.cost
+        total_impact += impact
+
+        results.append({
+            "sku": product.sku,
+            "brand": product.brand,
+            "status": "ADJUSTED",
+            "system": system_qty,
+            "physical": physical_qty,
+            "delta": delta,
+            "impact": round(impact, 2)
+        })
+
+    # Log de auditoría global
+    await AuditService.log_action(
+        user=user,
+        action="PHYSICAL_STOCKTAKE",
+        module="INVENTORY",
+        description=f"Sinceramiento de stock masivo: {len(results)} procesados, {len(failed)} fallidos. Impacto financiero: {total_impact}",
+        entity_name=ref_id
+    )
+
+    return {
+        "reference": ref_id,
+        "summary": {
+            "total": len(adjustments),
+            "adjusted": len([r for r in results if r['status'] == 'ADJUSTED']),
+            "equals": len([r for r in results if r['status'] == 'EQUALS']),
+            "failed": len(failed),
+            "financial_impact": round(total_impact, 2)
+        },
+        "results": results,
+        "failed": failed
     }
 
 async def smart_search(query: str) -> Dict[str, Any]:

@@ -1,6 +1,6 @@
-from pydantic import BaseModel
 from typing import List, Optional
-from app.models.inventory import MovementType
+from pydantic import BaseModel
+from app.models.inventory import MovementType, Product
 
 class LossRegistration(BaseModel):
     sku: str
@@ -23,4 +23,9 @@ class BulkImportResponse(BaseModel):
     updated: int
     skipped: int = 0
     total: int
+    auto_mapped_count: int = 0
+    orphans_count: int = 0
     errors: List[str] = []
+
+class ProductWithPrice(Product):
+    price_list: float = 0.0 # Field restored at Schema level for UI compatibility

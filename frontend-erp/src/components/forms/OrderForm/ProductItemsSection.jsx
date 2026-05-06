@@ -6,6 +6,7 @@ import ProductSearchInput from '../../common/ProductSearchInput';
 import ProductHistoryModal from '../../features/sales/ProductHistoryModal';
 import { useProducts } from '../../../hooks/useProducts';
 import { formatCurrency } from '../../../utils/formatters';
+import { salesPolicyService } from '../../../services/api';
 
 const ProductItemsSection = ({
     items = [],
@@ -21,6 +22,22 @@ const ProductItemsSection = ({
     const [historyModalVisible, setHistoryModalVisible] = useState(false);
     const [historyProduct, setHistoryProduct] = useState(null);
     const [searchKey, setSearchKey] = useState(0);
+
+    // Master Policies
+    const [policies, setPolicies] = useState(null);
+
+    useEffect(() => {
+        loadPolicies();
+    }, []);
+
+    const loadPolicies = async () => {
+        try {
+            const res = await salesPolicyService.getPolicies();
+            setPolicies(res.data);
+        } catch (err) {
+            console.error("Error loading policies for order form", err);
+        }
+    };
 
     // Cuando se selecciona un producto, actualizar precio sugerido
     useEffect(() => {
@@ -185,25 +202,33 @@ const ProductItemsSection = ({
                                 >
                                     Lista: {formatCurrency(selectedProduct.price_list || 0)}
                                 </button>
-                                {(selectedProduct.discount_3_pct > 0) && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setPrice(parseFloat((selectedProduct.price_list * (1 - selectedProduct.discount_3_pct / 100)).toFixed(3)))}
-                                        style={{ fontSize: '0.7rem', padding: '0.25rem', background: '#0f2a1e', color: '#10b981', border: '1px solid #10b98133', borderRadius: '0.25rem', cursor: 'pointer', flex: 1 }}
-                                        title="Pack 3"
-                                    >
-                                        Pack3: {formatCurrency(selectedProduct.price_list * (1 - selectedProduct.discount_3_pct / 100))}
-                                    </button>
-                                )}
-                                {(selectedProduct.discount_6_pct > 0) && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setPrice(parseFloat((selectedProduct.price_list * (1 - selectedProduct.discount_6_pct / 100)).toFixed(3)))}
-                                        style={{ fontSize: '0.7rem', padding: '0.25rem', background: '#0f2a1e', color: '#10b981', border: '1px solid #10b98133', borderRadius: '0.25rem', cursor: 'pointer', flex: 1 }}
-                                        title="Pack 6"
-                                    >
-                                        Pack6: {formatCurrency(selectedProduct.price_list * (1 - selectedProduct.discount_6_pct / 100))}
-                                    </button>
+                                {policies && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPrice(parseFloat((selectedProduct.price_list * (1 - (policies.vol_3_discount_pct + (selectedProduct.promo_discount_pct || 0)) / 100)).toFixed(3)))}
+                                            style={{ fontSize: '0.7rem', padding: '0.25rem', background: '#0f2a1e', color: '#10b981', border: '1px solid #10b98133', borderRadius: '0.25rem', cursor: 'pointer', flex: 1 }}
+                                            title="Pack 3"
+                                        >
+                                            P3: -{(policies.vol_3_discount_pct + (selectedProduct.promo_discount_pct || 0))}%
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPrice(parseFloat((selectedProduct.price_list * (1 - (policies.vol_6_discount_pct + (selectedProduct.promo_discount_pct || 0)) / 100)).toFixed(3)))}
+                                            style={{ fontSize: '0.7rem', padding: '0.25rem', background: '#0f2a1e', color: '#10b981', border: '1px solid #10b98133', borderRadius: '0.25rem', cursor: 'pointer', flex: 1 }}
+                                            title="Pack 6"
+                                        >
+                                            P6: -{(policies.vol_6_discount_pct + (selectedProduct.promo_discount_pct || 0))}%
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPrice(parseFloat((selectedProduct.price_list * (1 - (policies.vol_12_discount_pct + (selectedProduct.promo_discount_pct || 0)) / 100)).toFixed(3)))}
+                                            style={{ fontSize: '0.7rem', padding: '0.25rem', background: '#0f2a1e', color: '#10b981', border: '1px solid #10b98133', borderRadius: '0.25rem', cursor: 'pointer', flex: 1 }}
+                                            title="Pack 12"
+                                        >
+                                            P12: -{(policies.vol_12_discount_pct + (selectedProduct.promo_discount_pct || 0))}%
+                                        </button>
+                                    </>
                                 )}
                             </div>
                         )}

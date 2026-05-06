@@ -424,14 +424,16 @@ const CatalogIngestion = () => {
                                         <td style={{ padding: '1rem' }}>{p.name}</td>
                                         <td style={{ padding: '1rem' }}>
                                             <span style={{ 
-                                                background: '#334155', 
-                                                color: '#eab308',
+                                                background: dbCategories.some(c => c.name === p.category_name) ? '#334155' : '#7c2d12', 
+                                                color: dbCategories.some(c => c.name === p.category_name) ? '#eab308' : '#fb923c',
                                                 padding: '0.2rem 0.5rem', 
                                                 borderRadius: '0.4rem', 
                                                 fontSize: '0.75rem',
-                                                fontWeight: 'bold'
+                                                fontWeight: 'bold',
+                                                border: dbCategories.some(c => c.name === p.category_name) ? 'none' : '1px solid #991b1b'
                                             }}>
                                                 {p.category_name || 'Sin Categoría'}
+                                                {!dbCategories.some(c => c.name === p.category_name) && ' ⚠️'}
                                             </span>
                                         </td>
                                         <td style={{ padding: '1rem' }}>
@@ -598,22 +600,26 @@ const CatalogIngestion = () => {
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                         <label style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Categoría Detectada</label>
                                         <select
-                                            style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: '0.5rem', color: 'white', padding: '0.65rem' }}
+                                            style={{ 
+                                                width: '100%', 
+                                                background: '#0f172a', 
+                                                border: dbCategories.some(c => c.name === editingProduct.category_name) ? '1px solid #334155' : '1px solid #eab308', 
+                                                borderRadius: '0.5rem', 
+                                                color: 'white', 
+                                                padding: '0.65rem' 
+                                            }}
                                             value={editingProduct.category_name}
                                             onChange={(e) => setEditingProduct({ ...editingProduct, category_name: e.target.value })}
                                         >
-                                            <option value="Filtro de Aire">Filtro de Aire</option>
-                                            <option value="Filtro de Aceite">Filtro de Aceite</option>
-                                            <option value="Filtro de Combustible">Filtro de Combustible</option>
-                                            <option value="Filtro de Cabina">Filtro de Cabina</option>
-                                            <option value="Filtro de Transmisión">Filtro de Transmisión</option>
-                                            <option value="Filtro Hidráulico">Filtro Hidráulico</option>
-                                            <option value="Filtro de Refrigerante">Filtro de Refrigerante</option>
-                                            <option value="Filtro de Dirección">Filtro de Dirección</option>
-                                            <option value="Filtro Separador">Filtro Separador / Trampa de Agua</option>
-                                            <option value="Filtro AdBlue">Filtro AdBlue / Urea</option>
-                                            <option value="Filtro Secador">Cartucho Secador de Aire</option>
-                                            <option value="Filtro (OEM)">Filtro (Otro/OEM)</option>
+                                            <option value="">-- Seleccionar Categoría --</option>
+                                            {dbCategories.map(cat => (
+                                                <option key={cat._id} value={cat.name}>{cat.name}</option>
+                                            ))}
+                                            {editingProduct.category_name && !dbCategories.some(c => c.name === editingProduct.category_name) && (
+                                                <option value={editingProduct.category_name}>
+                                                    [NUEVO] {editingProduct.category_name}
+                                                </option>
+                                            )}
                                         </select>
                                     </div>
                                     <Input

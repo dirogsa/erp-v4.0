@@ -2,7 +2,7 @@ import React from 'react';
 import { ShoppingCartIcon, StarIcon, GiftIcon, MagnifyingGlassPlusIcon, XMarkIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Link, useNavigate } from 'react-router-dom';
 
-const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
+const MobileProductCard = ({ product, onAddToCart, isPrize = false, searchTerm = "" }) => {
     const [isZoomed, setIsZoomed] = React.useState(false);
     const [fullProduct, setFullProduct] = React.useState(product);
     const navigate = useNavigate();
@@ -73,6 +73,11 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false }) => {
                     <span className="text-[10px] text-brand-orange font-black tracking-widest">{product.sku}</span>
                     {product.promo_discount_pct > 0 && (
                         <span className="bg-brand-danger text-white text-[8px] font-black px-1.5 py-0.5 rounded animate-pulse">PROMO</span>
+                    )}
+                    {searchTerm && product.equivalences?.some(eq => eq.code.toUpperCase().includes(searchTerm.toUpperCase())) && (
+                        <span className="bg-brand-accent/20 text-brand-accent text-[8px] font-black px-1.5 py-0.5 rounded border border-brand-accent/30 tracking-tighter">
+                            EQ: {searchTerm.toUpperCase()}
+                        </span>
                     )}
                 </div>
 

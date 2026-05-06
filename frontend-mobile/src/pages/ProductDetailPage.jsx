@@ -160,9 +160,9 @@ const ProductDetailPage = () => {
                     
                     <div className="grid grid-cols-2 gap-4">
                         {[
-                            { qty: 3, label: 'PACK 3', discount: (product.discount_3_pct || 5) + (product.promo_discount_pct || 0) },
-                            { qty: 6, label: 'PACK 6', discount: (product.discount_6_pct || 10) + (product.promo_discount_pct || 0) },
-                            { qty: 12, label: 'PACK 12', discount: (product.discount_12_pct || 15) + (product.promo_discount_pct || 0) }
+                            { qty: 3, label: 'PACK 3', discount: (product.discount_3_pct || 0) + (product.promo_discount_pct || 0) },
+                            { qty: 6, label: 'PACK 6', discount: (product.discount_6_pct || 0) + (product.promo_discount_pct || 0) },
+                            { qty: 12, label: 'PACK 12', discount: (product.discount_12_pct || 0) + (product.promo_discount_pct || 0) }
                         ].map((tier) => {
                             const basePrice = product.price_retail || product.price || 0;
                             const unitPrice = basePrice * (1 - tier.discount / 100);

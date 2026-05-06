@@ -9,7 +9,7 @@ from app.models.company import Company
 from datetime import datetime
 
 from pydantic import BaseModel
-from ..services.pricing_service import get_product_price_for_user
+from ..services.pricing_service import PricingService
 from ..services.risk_service import RiskService
 from ..models.sales import SalesInvoice
 
@@ -457,11 +457,17 @@ async def get_shop_products(
     # Obtener políticas globales para fallback
     from app.models.sales import SalesPolicy
     policy = await SalesPolicy.find_one({})
-    
+    # Get the designated active web company for currency context
+    shop_company = await Company.find_one(Company.is_active_web == True)
+    if not shop_company:
+        shop_company = await Company.find_one({})
+    shop_company_ruc = shop_company.ruc if shop_company else None
+
     response_items = []
     for p in products:
-        # For list, we show base price (quantity=1)
-        price = await get_product_price_for_user(p, 1, current_user)
+        # For list, we show base price (quantity=1) using the new Dynamic Engine
+        price_info = await PricingService.get_product_price(p.sku, 1)
+        price = price_info.get("price", 0.0)
         
         response_items.append(ShopProductResponse(
             sku=p.sku,
@@ -476,9 +482,9 @@ async def get_shop_products(
 
             category_id=p.category_id,
             is_new=p.is_new,
-            discount_3_pct=p.discount_3_pct if p.discount_3_pct > 0 else (policy.vol_3_discount_pct if policy else 0),
-            discount_6_pct=p.discount_6_pct if p.discount_6_pct > 0 else (policy.vol_6_discount_pct if policy else 0),
-            discount_12_pct=p.discount_12_pct if p.discount_12_pct > 0 else (policy.vol_12_discount_pct if policy else 0),
+            discount_3_pct=policy.vol_3_discount_pct if policy else 0.0,
+            discount_6_pct=policy.vol_6_discount_pct if policy else 0.0,
+            discount_12_pct=policy.vol_12_discount_pct if policy else 0.0,
             promo_discount_pct=p.promo_discount_pct
         ))
 
@@ -516,7 +522,8 @@ async def get_shop_product_detail(
     })
     if not p:
         raise HTTPException(status_code=404, detail="Product not found or not available in shop")
-    price = await get_product_price_for_user(p, 1, current_user)
+    price_info = await PricingService.get_product_price(p.sku, 1)
+    price = price_info.get("price", 0.0)
     
     from app.models.sales import SalesPolicy
     policy = await SalesPolicy.find_one({})
@@ -539,9 +546,9 @@ async def get_shop_product_detail(
         applications=p.applications,
         weight_g=p.weight_g,
         features=p.features,
-        discount_3_pct=p.discount_3_pct if p.discount_3_pct > 0 else (policy.vol_3_discount_pct if policy else 0),
-        discount_6_pct=p.discount_6_pct if p.discount_6_pct > 0 else (policy.vol_6_discount_pct if policy else 0),
-        discount_12_pct=p.discount_12_pct if p.discount_12_pct > 0 else (policy.vol_12_discount_pct if policy else 0),
+        discount_3_pct=policy.vol_3_discount_pct if policy else 0.0,
+        discount_6_pct=policy.vol_6_discount_pct if policy else 0.0,
+        discount_12_pct=policy.vol_12_discount_pct if policy else 0.0,
         promo_discount_pct=p.promo_discount_pct
     )
 
@@ -568,7 +575,14 @@ async def checkout(
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {item.sku} not found")
         
-        base_price = await get_product_price_for_user(product, item.quantity, current_user)
+        # Get the designated active web company for currency context
+        shop_company = await Company.find_one(Company.is_active_web == True)
+        if not shop_company:
+            shop_company = await Company.find_one({})
+        shop_company_ruc = shop_company.ruc if shop_company else None
+
+        price_info = await PricingService.get_product_price(product.sku, item.quantity)
+        base_price = price_info.get("price", 0.0)
         # Apply surcharge
         final_price = await PricingCalculator.get_adjusted_price(base_price, req.payment_term)
         

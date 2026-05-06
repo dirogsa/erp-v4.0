@@ -9,7 +9,7 @@ from app.models.marketing import LoyaltyConfig
 
 
 from app.models.inventory import Product, DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
-from app.services import inventory_service, audit_service, price_service
+from app.services import inventory_service, audit_service, pricing_service
 from app.services.audit_service import AuditService
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, DuplicateEntityException
 from app.schemas.common import PaginatedResponse
@@ -162,10 +162,9 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
 
         # WORLD-CLASS DYNAMIC PRICING ENGINE INJECTION
         # Validate or Fetch the price based on quantity and strategy
-        price_data = await price_service.get_active_price(
-            product_id=product.id, 
-            quantity=int(item.quantity),
-            price_list_name="General" # Default for now, can be expanded to customer-specific list
+        price_data = await pricing_service.PricingService.get_product_price(
+            sku=product.sku,
+            quantity=item.quantity
         )
         
         if price_data["price"] > 0:

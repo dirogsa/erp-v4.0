@@ -38,6 +38,8 @@ const Categories = () => {
     const [bulkModalVisible, setBulkModalVisible] = useState(false);
     const [bulkText, setBulkText] = useState('');
     const [editingCategory, setEditingCategory] = useState(null);
+    const [orphans, setOrphans] = useState([]);
+    const [isReconciling, setIsReconciling] = useState(false);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -54,8 +56,12 @@ const Categories = () => {
         try {
             const res = await categoryService.getCategories();
             setCategories(res.data);
+            
+            // Cargar huérfanos (nombres en productos sin ID de categoría)
+            const orphanRes = await categoryService.getOrphans();
+            setOrphans(orphanRes.data);
         } catch (error) {
-            showNotification('Error cargando catálogo', 'error');
+            showNotification('Error cargando catálogo o huérfanos', 'error');
         }
     };
 
@@ -180,6 +186,19 @@ const Categories = () => {
         }
         setFormData({ ...formData, attributes_schema: newAttrs });
     };
+    const handleMapOrphan = async (orphanName, canonicalId) => {
+        if (!canonicalId) return;
+        setIsReconciling(true);
+        try {
+            const res = await categoryService.mapOrphan(orphanName, canonicalId);
+            showNotification(res.data.message, 'success');
+            loadCategories(); // Recargar todo para ver cambios
+        } catch (error) {
+            showNotification('Error al mapear categoría', 'error');
+        } finally {
+            setIsReconciling(false);
+        }
+    };
 
     return (
         <Layout>
@@ -212,27 +231,82 @@ const Categories = () => {
                     </div>
                 </div>
 
-                <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
-                    gap: '1.5rem' 
-                }}>
-                    {categories.filter(c => !c.parent_id).map(cat => (
-                        <CategoryCard 
-                            key={cat._id} 
-                            category={cat} 
-                            allCategories={categories}
-                            onEdit={handleEdit}
-                            onDelete={async (id) => {
-                                if (window.confirm('¿Eliminar categoría y su estructura técnica?')) {
-                                    try {
-                                        await categoryService.deleteCategory(id);
-                                        loadCategories();
-                                    } catch (e) { showNotification('Error al eliminar', 'error'); }
-                                }
-                            }}
-                        />
-                    ))}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
+                    <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
+                        gap: '1.5rem' 
+                    }}>
+                        {categories.filter(c => !c.parent_id).map(cat => (
+                            <CategoryCard 
+                                key={cat._id} 
+                                category={cat} 
+                                allCategories={categories}
+                                onEdit={handleEdit}
+                                onDelete={async (id) => {
+                                    if (window.confirm('¿Eliminar categoría y su estructura técnica?')) {
+                                        try {
+                                            await categoryService.deleteCategory(id);
+                                            loadCategories();
+                                        } catch (e) { showNotification('Error al eliminar', 'error'); }
+                                    }
+                                }}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Sidebar de Reconciliación */}
+                    <div style={{ 
+                        background: '#1e293b', 
+                        borderRadius: '1rem', 
+                        border: '1px solid #334155',
+                        padding: '1.5rem',
+                        height: 'fit-content',
+                        position: 'sticky',
+                        top: '2rem'
+                    }}>
+                        <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#eab308' }}>
+                            <Sparkles size={18} /> Reconciliación Inteligente
+                        </h3>
+                        <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.5rem' }}>
+                            Nombres detectados en tus productos que no están estandarizados:
+                        </p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {orphans.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '1rem', color: '#475569', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                    ¡Felicidades! Todo tu catálogo está estandarizado.
+                                </div>
+                            ) : (
+                                orphans.map(orphan => (
+                                    <div key={orphan} style={{ 
+                                        background: '#0f172a', 
+                                        padding: '1rem', 
+                                        borderRadius: '0.75rem', 
+                                        border: '1px solid #334155' 
+                                    }}>
+                                        <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                                            "{orphan}"
+                                        </div>
+                                        <select 
+                                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', marginBottom: '0.5rem' }}
+                                            onChange={(e) => handleMapOrphan(orphan, e.target.value)}
+                                            defaultValue=""
+                                            disabled={isReconciling}
+                                        >
+                                            <option value="" disabled>Mapear a estándar...</option>
+                                            {categories.map(c => (
+                                                <option key={c._id} value={c._id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                        <div style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                                            Al mapear, el sistema actualizará los productos y aprenderá este alias.
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Modal de Importación Masiva */}
