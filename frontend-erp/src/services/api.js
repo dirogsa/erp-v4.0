@@ -319,6 +319,8 @@ export const pricingService = {
   // Operaciones Masivas
   analyzeBulk: (data) => api.post('/pricing/analyze-bulk', data, { timeout: 120000 }),
   bulkUpdateFromText: (data) => api.post('/pricing/bulk-update', data, { timeout: 120000 }),
+  purgeMasterPrices: () => api.post('/pricing/purge-master'),
+  resetAllCosts: () => api.post('/pricing/reset-costs'),
   importCsv: (file, listName) => {
     const formData = new FormData();
     formData.append('file', file);

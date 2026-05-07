@@ -77,3 +77,16 @@ async def bulk_update(data: Dict[str, Any]):
     list_name = data.get("list_name", "General")
     mode = data.get("mode", "price")
     return await PricingService.bulk_update(items, list_name, mode)
+@router.post("/purge-master", dependencies=[Depends(check_role([UserRole.SUPERADMIN]))])
+async def purge_master_prices():
+    """
+    Clears all prices from the master list.
+    """
+    return await PricingService.purge_master_prices()
+
+@router.post("/reset-costs", dependencies=[Depends(check_role([UserRole.SUPERADMIN]))])
+async def reset_all_costs():
+    """
+    Resets all product costs to zero.
+    """
+    return await PricingService.reset_all_costs()

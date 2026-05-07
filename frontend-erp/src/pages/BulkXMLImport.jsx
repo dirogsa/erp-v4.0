@@ -170,6 +170,18 @@ const BulkXMLImport = () => {
                 message="Importando Comprobantes..."
                 subMessage={`Procesando documento ${currentProcessing} de ${totalToProcess}. Por favor espere.`}
             />
+
+            <XMLImportModal 
+                visible={showXMLImportModal} 
+                onClose={() => setShowXMLImportModal(false)} 
+                type={importType === 'SALES' ? 'SALES' : 'PURCHASE'}
+                onConfirm={(batch) => {
+                    console.log("[XML] Adding to batch:", batch.length, "items");
+                    setXmlBatch(prev => [...prev, ...batch]);
+                    setShowXMLImportModal(false);
+                }}
+            />
+
             <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem' }}>
                 <div style={{ marginBottom: '2rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div>
@@ -292,20 +304,23 @@ const BulkXMLImport = () => {
                                 </button>
                             </div>
                             <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                {counts.success > 0 && (
-                                    <Button 
-                                        variant="secondary" 
-                                        size="small" 
-                                        onClick={() => {
-                                            if (window.confirm(`¿Deseas remover de la vista los ${counts.success} documentos ya procesados?`)) {
-                                                setXmlBatch(prev => prev.filter(d => d.status !== 'SUCCESS'));
-                                            }
-                                        }}
-                                        style={{ color: '#10b981', borderColor: '#10b98144' }}
-                                    >
-                                        🧹 Borrar Procesados ({counts.success})
-                                    </Button>
-                                )}
+                                <Button 
+                                    variant="secondary" 
+                                    size="small" 
+                                    onClick={() => {
+                                        if (window.confirm(`¿Deseas remover de la vista los ${counts.success} documentos ya procesados?`)) {
+                                            setXmlBatch(prev => prev.filter(d => d.status !== 'SUCCESS'));
+                                        }
+                                    }}
+                                    disabled={counts.success === 0}
+                                    style={{ 
+                                        color: counts.success > 0 ? '#10b981' : '#475569', 
+                                        borderColor: counts.success > 0 ? '#10b98144' : '#1e293b',
+                                        opacity: counts.success > 0 ? 1 : 0.5
+                                    }}
+                                >
+                                    🧹 Borrar Procesados ({counts.success})
+                                </Button>
                                 <Button 
                                     variant="secondary" 
                                     size="small" 
@@ -411,16 +426,6 @@ const BulkXMLImport = () => {
                         </div>
                     </div>
                 )}
-
-                <XMLImportModal 
-                    visible={showXMLImportModal} 
-                    onClose={() => setShowXMLImportModal(false)} 
-                    type={importType === 'SALES' ? 'SALES' : 'PURCHASE'}
-                    onConfirm={(batch) => {
-                        setXmlBatch(prev => [...prev, ...batch]);
-                        setShowXMLImportModal(false);
-                    }}
-                />
 
                 {selectedXmlForReview && (
                     <XMLReviewModal 

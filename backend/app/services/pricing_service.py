@@ -249,54 +249,121 @@ class PricingService:
     @staticmethod
     async def bulk_update(items: List[Dict[str, Any]], list_name: str, mode: str) -> Dict[str, Any]:
         """
-        Executes massive updates for prices and costs.
-        Optimized for large datasets.
+        Executes massive updates for prices and costs using optimized bulk operations.
         """
+        if not items:
+            return {"updated": 0, "errors": [], "success": True}
+
         updated_count = 0
         errors = []
         
-        # 1. Group updates to minimize DB calls
-        cost_updates = []
-        price_updates = []
+        # 1. Prepare Data & Context
+        skus = [i.get("sku") for i in items if i.get("sku")]
+        master_list = await PriceList.find_one(PriceList.is_master == True)
+        if not master_list:
+            master_list = await PriceList.find_one(PriceList.is_active == True)
         
-        for item in items:
+        if not master_list:
+            return {"updated": 0, "errors": [{"error": "No se encontró lista maestra"}], "success": False}
+
+        # Pre-fetch existing price entries and products
+        existing_entries = await PriceEntry.find(
+            In(PriceEntry.sku, skus),
+            PriceEntry.price_list_id == master_list.id,
+            PriceEntry.min_quantity == 1
+        ).to_list()
+        entry_map = {e.sku: e for e in existing_entries}
+        
+        all_products = await Product.find(In(Product.sku, skus)).to_list()
+        # Map by SKU + Brand for exact match, and also just SKU for simple lookup
+        product_map = {}
+        for p in all_products:
+            product_map[f"{p.sku}_{p.brand}"] = p
+            if p.sku not in product_map:
+                product_map[p.sku] = p
+
+        # 2. Build tasks for parallel execution
+        tasks = []
+        now = datetime.utcnow()
+        
+        async def update_item_task(item):
+            nonlocal updated_count
             sku = item.get("sku")
             brand = item.get("brand")
             price = item.get("price")
             cost = item.get("cost")
             
-            if cost is not None:
-                cost_updates.append((sku, brand, cost))
-            
-            if price is not None:
-                price_updates.append((sku, price))
-
-        # 2. Execute Cost Updates (Bulk)
-        # We can't do a single bulk update easily with Beanie for different values per filter,
-        # but we can use a more efficient approach than awaiting each one separately.
-        # For now, let's at least process them as separate tasks if the list is large,
-        # or use a smarter loop.
-        for sku, brand, cost in cost_updates:
             try:
-                query = {"sku": sku}
-                if brand: query["brand"] = brand
-                # Use update_one for speed
-                await Product.find_one(query).update({"$set": {"cost": cost}})
+                # A. Update Product Cost
+                if cost is not None:
+                    product = product_map.get(f"{sku}_{brand}") if brand else product_map.get(sku)
+                    if product:
+                        await Product.find_one({"_id": product.id}).update({"$set": {"cost": cost}})
+                    else:
+                        return {"sku": sku, "error": "Producto no encontrado (Costo)"}
+
+                # B. Update/Create Master Price
+                if price is not None:
+                    entry = entry_map.get(sku)
+                    if entry:
+                        await PriceEntry.find_one({"_id": entry.id}).update({
+                            "$set": {"price": price, "last_updated": now}
+                        })
+                    else:
+                        product = product_map.get(f"{sku}_{brand}") if brand else product_map.get(sku)
+                        if product:
+                            new_entry = PriceEntry(
+                                product_id=product.id,
+                                sku=sku,
+                                price_list_id=master_list.id,
+                                price=price,
+                                currency="PEN"
+                            )
+                            await new_entry.insert()
+                        else:
+                            return {"sku": sku, "error": "Producto no encontrado (Precio)"}
+                
+                return None # Success
+            except Exception as e:
+                return {"sku": sku, "error": str(e)}
+
+        # Run everything in parallel
+        import asyncio
+        results = await asyncio.gather(*(update_item_task(i) for i in items))
+        
+        # Aggregate results
+        for res in results:
+            if res:
+                errors.append(res)
+            else:
                 updated_count += 1
-            except Exception as e:
-                errors.append({"sku": sku, "error": f"Cost error: {str(e)}"})
-
-        # 3. Execute Price Updates (Bulk)
-        for sku, price in price_updates:
-            try:
-                await PricingService.set_master_price(sku, price)
-                # updated_count is only incremented once if both cost and price are updated for same SKU
-                # but for simplicity we count successful operations.
-            except Exception as e:
-                errors.append({"sku": sku, "error": f"Price error: {str(e)}"})
 
         return {
             "updated": updated_count,
             "errors": errors,
             "success": len(errors) == 0
         }
+
+    @staticmethod
+    async def purge_master_prices():
+        """
+        DANGER: Deletes all entries from the Master Price List.
+        """
+        master_list = await PriceList.find_one(PriceList.is_master == True)
+        if not master_list:
+            master_list = await PriceList.find_one(PriceList.is_active == True)
+        
+        if master_list:
+            # Delete all entries for this list
+            await PriceEntry.find(PriceEntry.price_list_id == master_list.id).delete()
+            return {"message": f"Todos los precios de la lista {master_list.name} han sido eliminados."}
+        return {"error": "No se encontró lista maestra para purgar."}
+
+    @staticmethod
+    async def reset_all_costs():
+        """
+        DANGER: Resets cost to 0.0 for ALL products in the catalog.
+        """
+        # We use direct MongoDB update for performance on large catalogs
+        await Product.get_pymongo_collection().update_many({}, {"$set": {"cost": 0.0}})
+        return {"message": "Todos los costos del catálogo han sido reseteados a 0.00."}

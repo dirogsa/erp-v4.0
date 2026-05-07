@@ -74,7 +74,7 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
             backgroundColor: 'rgba(0, 0, 0, 0.8)',
             backdropFilter: 'blur(4px)',
             display: 'flex', justifyContent: 'center', alignItems: 'center',
-            zIndex: 1100, padding: '2rem'
+            zIndex: 20000, padding: '2rem'
         }}>
             <div style={{
                 backgroundColor: '#1e293b',
