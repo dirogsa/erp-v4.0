@@ -269,7 +269,7 @@ class StockMovement(Document):
     movement_type: MovementType
     reference_id: Optional[str] = None # Invoice ID, Order ID, etc.
     reference_type: Optional[str] = None # "SALES_INVOICE", "PURCHASE_INVOICE", etc.
-    company_id: str # The company that performed the movement
+    company_id: Optional[str] = None # The company that performed the movement
     legal_owner_id: Optional[str] = None # The actual legal owner of the stock
     unit_cost: Optional[float] = None
     date: datetime = Field(default_factory=datetime.utcnow)

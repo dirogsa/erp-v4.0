@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional, List
 from datetime import datetime
 from app.models.inventory import (
@@ -167,7 +168,7 @@ async def dispatch_guide(guide_number: str, company_id: Optional[str] = None) ->
     for item in guide.items:
         product = await inventory_service.find_product_robustly(item.sku, company_id=company_id)
         if not product:
-            raise NotFoundException("Product", item.sku)
+            raise ValidationException(f"No se puede despachar: El producto con SKU '{item.sku}' no existe en el catálogo maestro. Verifique que el producto no haya sido eliminado.")
         
         # Determinar dirección del movimiento
         m_type = MovementType.OUT if guide.guide_type == GuideType.DISPATCH else MovementType.IN
@@ -292,9 +293,12 @@ async def cancel_guide(guide_number: str, company_id: Optional[str] = None, reve
     if guide.invoice_number:
         from app.models.sales import SalesInvoice
         # Actualización masiva de seguridad por número y por ID
-        await SalesInvoice.find(
-            (SalesInvoice.invoice_number == guide.invoice_number) | (SalesInvoice.guide_id == guide.guide_number)
-        ).update({"$set": {"dispatch_status": "NOT_DISPATCHED", "guide_id": None}})
+        await SalesInvoice.find({
+            "$or": [
+                {"invoice_number": guide.invoice_number},
+                {"guide_id": guide.guide_number}
+            ]
+        }).update({"$set": {"dispatch_status": "NOT_DISPATCHED", "guide_id": None}})
     
     # 3. Gestión de Estado (Audit-Safe)
     if revert_to_draft:
@@ -319,16 +323,22 @@ async def bulk_dispatch_guides(guide_numbers: List[str], company_id: Optional[st
     success_count = 0
     errors = []
     
-    print(f"DEBUG [BULK_DISPATCH]: Iniciando despacho masivo para {len(guide_numbers)} guías: {guide_numbers}")
+    print(f"DEBUG [BULK_DISPATCH]: Iniciando despacho masivo CONCURRENTE para {len(guide_numbers)} guías")
     
-    for num in guide_numbers:
+    async def task(num):
         try:
             await dispatch_guide(num, company_id)
-            success_count += 1
-            print(f"DEBUG [BULK_DISPATCH]: Guía {num} despachada con éxito.")
+            return True, None
         except Exception as e:
-            print(f"ERROR [BULK_DISPATCH]: Falló despacho de guía {num}: {str(e)}")
-            errors.append({"guide": num, "error": str(e)})
+            return False, {"guide": num, "error": str(e)}
+
+    results = await asyncio.gather(*(task(num) for num in guide_numbers))
+    
+    for success, err in results:
+        if success:
+            success_count += 1
+        else:
+            errors.append(err)
             
     message = f"Se despacharon {success_count} guías correctamente."
     if errors:
@@ -347,15 +357,27 @@ async def bulk_deliver_guides(guide_numbers: List[str], received_by: Optional[st
     success_count = 0
     errors = []
     
-    for num in guide_numbers:
+    async def task(num):
         try:
             await deliver_guide(num, received_by, company_id=company_id)
-            success_count += 1
+            return True, None
         except Exception as e:
-            errors.append({"guide": num, "error": str(e)})
+            return False, {"guide": num, "error": str(e)}
+
+    results = await asyncio.gather(*(task(num) for num in guide_numbers))
+
+    for success, err in results:
+        if success:
+            success_count += 1
+        else:
+            errors.append(err)
             
+    message = f"Se confirmaron {success_count} entregas correctamente."
+    if errors:
+        message += f" ({len(errors)} errores detectados)"
+        
     return {
-        "message": f"Se confirmaron {success_count} entregas correctamente.",
+        "message": message,
         "success_count": success_count,
         "error_count": len(errors),
         "errors": errors
@@ -367,15 +389,27 @@ async def bulk_prepare_guides(guide_numbers: List[str], company_id: Optional[str
     success_count = 0
     errors = []
     
-    for num in guide_numbers:
+    async def task(num):
         try:
             await prepare_guide(num, company_id=company_id)
-            success_count += 1
+            return True, None
         except Exception as e:
-            errors.append({"guide": num, "error": str(e)})
+            return False, {"guide": num, "error": str(e)}
+
+    results = await asyncio.gather(*(task(num) for num in guide_numbers))
+
+    for success, err in results:
+        if success:
+            success_count += 1
+        else:
+            errors.append(err)
             
+    message = f"Se prepararon {success_count} guías correctamente."
+    if errors:
+        message += f" ({len(errors)} errores detectados)"
+        
     return {
-        "message": f"Se prepararon {success_count} guías correctamente.",
+        "message": message,
         "success_count": success_count,
         "error_count": len(errors),
         "errors": errors
@@ -387,16 +421,30 @@ async def bulk_delete_guides(guide_numbers: List[str], company_id: Optional[str]
     success_count = 0
     errors = []
     
-    for num in guide_numbers:
+    async def task(num):
         try:
             await cancel_guide(num, company_id=company_id, revert_to_draft=revert_to_draft)
-            success_count += 1
+            return True, None
         except Exception as e:
-            errors.append({"guide": num, "error": str(e)})
+            return False, {"guide": num, "error": str(e)}
+
+    print(f"DEBUG [BULK_DELETE]: Iniciando anulación masiva para {len(guide_numbers)} guías")
+    
+    results = await asyncio.gather(*(task(num) for num in guide_numbers))
+
+    for success, err in results:
+        if success:
+            success_count += 1
+        else:
+            errors.append(err)
             
     verb = "revirtieron (a borrador)" if revert_to_draft else "anularon"
+    message = f"Se {verb} {success_count} guías correctamente."
+    if errors:
+        message += f" ({len(errors)} errores detectados)"
+        
     return {
-        "message": f"Se {verb} {success_count} guías correctamente.",
+        "message": message,
         "success_count": success_count,
         "error_count": len(errors),
         "errors": errors

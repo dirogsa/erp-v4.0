@@ -260,10 +260,12 @@ export const deliveryService = {
   createGuide: (guideData) => api.post('/delivery/guides', guideData),
   dispatchGuide: (guideNumber) => api.put(`/delivery/guides/${guideNumber}/dispatch`),
   deliverGuide: (guideNumber, receivedBy = '') => api.put(`/delivery/guides/${guideNumber}/deliver`, { received_by: receivedBy || null }),
+  prepareGuide: (guideNumber) => api.put(`/delivery/guides/${guideNumber}/prepare`),
   cancelGuide: (guideNumber) => api.delete(`/delivery/guides/${guideNumber}`),
   
   // Bulk Actions (High performance with extended timeout for heavy processing)
   bulkDispatchGuides: (guideNumbers) => api.post('/delivery/guides/bulk-dispatch', { guide_numbers: guideNumbers }, { timeout: 60000 }),
+  bulkPrepareGuides: (guideNumbers) => api.post('/delivery/guides/bulk-prepare', { guide_numbers: guideNumbers }, { timeout: 60000 }),
   bulkDeliverGuides: (guideNumbers, receivedBy = '') => api.post('/delivery/guides/bulk-deliver', { guide_numbers: guideNumbers, received_by: receivedBy || null }, { timeout: 60000 }),
   bulkDeleteGuides: (guideNumbers) => api.post('/delivery/guides/bulk-delete', { guide_numbers: guideNumbers }, { timeout: 60000 }),
 };

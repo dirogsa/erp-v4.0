@@ -140,7 +140,9 @@ const Sales = () => {
         dispatchGuide,
         deliverGuide,
         cancelGuide,
+        prepareGuide,
         bulkDispatchGuides,
+        bulkPrepareGuides,
         bulkDeliverGuides,
         bulkDeleteGuides
     } = useDeliveryGuides({ page, limit, search });
@@ -872,129 +874,133 @@ const Sales = () => {
                             setShowGuideReceipt(true);
                         }}
                     />
-
+         
                     {/* Barra de Acciones Masivas para Guías (Ingeniería de Clase Mundial) */}
-                    {selectedGuideIds.length > 0 && (() => {
-                        const selectedGuides = guides.filter(g => selectedGuideIds.includes(g.guide_number));
-                        const allDraft = selectedGuides.length > 0 && selectedGuides.every(g => g.status === 'DRAFT');
-                        const allReady = selectedGuides.length > 0 && selectedGuides.every(g => g.status === 'READY');
-                        const allDispatched = selectedGuides.length > 0 && selectedGuides.every(g => g.status === 'DISPATCHED');
-                        const anyCancelled = selectedGuides.some(g => g.status === 'CANCELLED');
-                        const isMixed = !allDraft && !allReady && !allDispatched;
-
-                        return (
-                            <div style={{
-                                position: 'fixed',
-                                bottom: '2rem',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                backgroundColor: '#1e293b',
-                                padding: '1rem 2rem',
-                                borderRadius: '1rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '2rem',
-                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
-                                border: '1px solid #334155',
-                                zIndex: 1000,
-                                animation: 'slideUp 0.3s ease-out'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <div style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '0.5rem', fontWeight: 'bold' }}>
-                                        {selectedGuideIds.length}
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ color: 'white', fontWeight: '500', fontSize: '0.9rem' }}>Guías Seleccionadas</span>
-                                        {isMixed && (
-                                            <span style={{ color: '#ef4444', fontSize: '0.7rem', fontWeight: 'bold' }}>⚠️ Mezcla de estados detectada</span>
-                                        )}
-                                    </div>
+                    {selectedGuideIds.length > 0 && (
+                        <div style={{
+                            position: 'fixed',
+                            bottom: '2rem',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            backgroundColor: '#1e293b',
+                            padding: '1rem 2rem',
+                            borderRadius: '1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '2rem',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+                            border: '1px solid #334155',
+                            zIndex: 1000,
+                            animation: 'slideUp 0.3s ease-out'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '0.5rem', fontWeight: 'bold' }}>
+                                    {selectedGuideIds.length}
                                 </div>
-
-                                <div style={{ width: '1px', height: '32px', backgroundColor: '#334155' }}></div>
-
-                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                    {isProcessingBulk ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#94a3b8' }}>
-                                            <Loading size="small" />
-                                            <span style={{ fontSize: '0.85rem' }}>Procesando volumen masivo...</span>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {allDraft && (
-                                                <>
-                                                    <Button 
-                                                        variant="secondary" 
-                                                        size="small"
-                                                        onClick={handleBulkGuidePrepare}
-                                                        disabled={isProcessingBulk}
-                                                        style={{ backgroundColor: '#8b5cf6', color: 'white' }}
-                                                    >
-                                                        📦 Marcar Listos
-                                                    </Button>
-                                                    <Button 
-                                                        variant="primary" 
-                                                        size="small"
-                                                        onClick={handleBulkGuideDispatch}
-                                                        disabled={isProcessingBulk}
-                                                    >
-                                                        🚀 Despachar Todo
-                                                    </Button>
-                                                </>
-                                            )}
-                                            
-                                            {allReady && (
-                                                <Button 
-                                                    variant="primary" 
-                                                    size="small"
-                                                    onClick={handleBulkGuideDispatch}
-                                                    disabled={isProcessingBulk}
-                                                >
-                                                    🚀 Despachar Todo
-                                                </Button>
-                                            )}
-
-                                            {allDispatched && (
-                                                <Button 
-                                                    variant="success" 
-                                                    size="small"
-                                                    onClick={handleBulkGuideDeliver}
-                                                    disabled={isProcessingBulk}
-                                                >
-                                                    ✅ Entregar Todo
-                                                </Button>
-                                            )}
-
-                                            {!anyCancelled && (
-                                                <Button 
-                                                    variant="danger" 
-                                                    size="small"
-                                                    onClick={handleBulkGuideCancel}
-                                                    disabled={isProcessingBulk}
-                                                >
-                                                    ✕ Anular Selección
-                                                </Button>
-                                            )}
-                                        </>
-                                    )}
-
-                                    {isMixed && (
-                                        <span style={{ color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic' }}>
-                                            Seleccione guías con el mismo estado para procesar
-                                        </span>
-                                    )}
-
-                                    <Button 
-                                        variant="secondary" 
-                                        size="small"
-                                        onClick={() => setSelectedGuideIds([])}
-                                    >
-                                        Cancelar
-                                    </Button>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ color: 'white', fontWeight: '500', fontSize: '0.9rem' }}>Guías Seleccionadas</span>
+                                    {(() => {
+                                        const selectedGuides = guides.filter(g => selectedGuideIds.includes(g.guide_number));
+                                        const allDraft = selectedGuides.length > 0 && selectedGuides.every(g => g.status === 'DRAFT');
+                                        const allReady = selectedGuides.length > 0 && selectedGuides.every(g => g.status === 'READY');
+                                        const allDispatched = selectedGuides.length > 0 && selectedGuides.every(g => g.status === 'DISPATCHED');
+                                        if (!allDraft && !allReady && !allDispatched) {
+                                            return <span style={{ color: '#ef4444', fontSize: '0.7rem', fontWeight: 'bold' }}>⚠️ Mezcla de estados detectada</span>;
+                                        }
+                                        return null;
+                                    })()}
                                 </div>
                             </div>
-                        );
-                    })()}
+
+                            <div style={{ width: '1px', height: '32px', backgroundColor: '#334155' }}></div>
+
+                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                {isProcessingBulk ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#94a3b8' }}>
+                                        <Loading size="small" />
+                                        <span style={{ fontSize: '0.85rem' }}>Procesando volumen masivo...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {(() => {
+                                            const selectedGuides = guides.filter(g => selectedGuideIds.includes(g.guide_number));
+                                            const allDraft = selectedGuides.length > 0 && selectedGuides.every(g => g.status === 'DRAFT');
+                                            const allReady = selectedGuides.length > 0 && selectedGuides.every(g => g.status === 'READY');
+                                            const allDispatched = selectedGuides.length > 0 && selectedGuides.every(g => g.status === 'DISPATCHED');
+                                            const anyCancelled = selectedGuides.some(g => g.status === 'CANCELLED');
+
+                                            return (
+                                                <>
+                                                    {allDraft && (
+                                                        <>
+                                                            <Button 
+                                                                variant="secondary" 
+                                                                size="small"
+                                                                onClick={handleBulkGuidePrepare}
+                                                                disabled={isProcessingBulk}
+                                                                style={{ backgroundColor: '#8b5cf6', color: 'white' }}
+                                                            >
+                                                                📦 Marcar Listos
+                                                            </Button>
+                                                            <Button 
+                                                                variant="primary" 
+                                                                size="small"
+                                                                onClick={handleBulkGuideDispatch}
+                                                                disabled={isProcessingBulk}
+                                                            >
+                                                                🚀 Despachar Todo
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                    
+                                                    {allReady && (
+                                                        <Button 
+                                                            variant="primary" 
+                                                            size="small"
+                                                            onClick={handleBulkGuideDispatch}
+                                                            disabled={isProcessingBulk}
+                                                        >
+                                                            🚀 Despachar Todo
+                                                        </Button>
+                                                    )}
+
+                                                    {allDispatched && (
+                                                        <Button 
+                                                            variant="success" 
+                                                            size="small"
+                                                            onClick={handleBulkGuideDeliver}
+                                                            disabled={isProcessingBulk}
+                                                        >
+                                                            ✅ Entregar Todo
+                                                        </Button>
+                                                    )}
+
+                                                    {!anyCancelled && (
+                                                        <Button 
+                                                            variant="danger" 
+                                                            size="small"
+                                                            onClick={handleBulkGuideCancel}
+                                                            disabled={isProcessingBulk}
+                                                        >
+                                                            ✕ Anular Selección
+                                                        </Button>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
+                                    </>
+                                )}
+
+                                <Button 
+                                    variant="secondary" 
+                                    size="small"
+                                    onClick={() => setSelectedGuideIds([])}
+                                >
+                                    Cancelar
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                     <Pagination
                         current={guidesPagination.page || guidesPagination.current}
                         total={guidesPagination.pages || guidesPagination.total}
