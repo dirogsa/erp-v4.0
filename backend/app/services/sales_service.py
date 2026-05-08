@@ -1,6 +1,6 @@
 import asyncio
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from beanie import PydanticObjectId
 from app.models.auth import User
 from app.models.staff import Staff
@@ -143,6 +143,11 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
         new_num = 1
     
     order.order_number = f"{prefix}-{new_num:04d}"
+    # World-Class Stock Validation
+    items_to_check = [{"product_sku": i.product_sku, "quantity": i.quantity} for i in order.items]
+    stock_res = await inventory_service.check_stock_availability(items_to_check)
+    if order.status == OrderStatus.PENDING and not stock_res["can_fulfill_full"] and not stock_res["allow_negative_stock"]:
+        order.status = OrderStatus.BACKORDER
     order.total_amount = round(sum(item.quantity * item.unit_price for item in order.items), 3)
     
     # Calculate Points Spent (Redemption)
@@ -294,31 +299,36 @@ async def convert_backorder(order_number: str) -> Dict[str, Any]:
     available_items = []
     pending_items = []
     
-    for item in original_order.items:
-        product = await inventory_service.get_product_by_sku(item.product_sku)
-        
-        if product.stock_current >= item.quantity:
-            # Full quantity available
-            available_items.append(item)
-        elif product.stock_current > 0:
-            # Partial quantity available - split the item
-            from app.models.sales import OrderItem
-            available_items.append(OrderItem(
-                product_sku=item.product_sku,
-                quantity=product.stock_current,
-                unit_price=item.unit_price,
-                loyalty_points=item.loyalty_points
-            ))
-            pending_items.append(OrderItem(
-                product_sku=item.product_sku,
-                quantity=item.quantity - product.stock_current,
-                unit_price=item.unit_price,
-                loyalty_points=item.loyalty_points
-            ))
-        else:
-            # No stock available
-            pending_items.append(item)
-    
+    # Stock Orchestration Engine
+    items_to_check = [{"product_sku": i.product_sku, "quantity": i.quantity} for i in original_order.items]
+    stock_res = await inventory_service.check_stock_availability(items_to_check)
+    if stock_res.get("allow_negative_stock"):
+        available_items = original_order.items
+        pending_items = []
+        # Skip loop
+    else:
+        available_skus = {a["product_sku"]: a["quantity"] for a in stock_res.get("available_items", [])}
+        for item in original_order.items:
+            avail_qty = available_skus.get(item.product_sku, 0)
+            if avail_qty >= item.quantity:
+                available_items.append(item)
+            elif avail_qty > 0:
+                from app.models.sales import OrderItem
+                available_items.append(OrderItem(
+                    product_sku=item.product_sku,
+                    quantity=avail_qty,
+                    unit_price=item.unit_price,
+                    loyalty_points=item.loyalty_points
+                ))
+                pending_items.append(OrderItem(
+                    product_sku=item.product_sku,
+                    quantity=item.quantity - avail_qty,
+                    unit_price=item.unit_price,
+                    loyalty_points=item.loyalty_points
+                ))
+            else:
+                pending_items.append(item)
+    # End of classification
     result = {
         "original_order": order_number,
         "orders_created": [],
@@ -1285,6 +1295,18 @@ async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: 
     
     payment_status = PaymentStatus.PENDING if is_credit else PaymentStatus.PAID
     amount_paid = 0 if is_credit else order.total_amount
+    
+    # Calcular fecha de vencimiento real para créditos
+    due_date = order.date
+    if is_credit:
+        installments = data.get('installments', [])
+        if installments:
+            try:
+                dates = [datetime.fromisoformat(inst['dueDate']) for inst in installments if inst.get('dueDate')]
+                if dates: due_date = max(dates)
+            except: pass
+        else:
+            due_date = order.date + timedelta(days=30)
 
     invoice = SalesInvoice(
         invoice_number=invoice_number,
@@ -1294,17 +1316,28 @@ async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: 
         customer_ruc=order.customer_ruc,
         delivery_address=order.delivery_address,
         invoice_date=order.date,
-        due_date=order.date, # Simplificado para importación historial
+        due_date=due_date,
         items=order.items,
         total_amount=order.total_amount,
         currency=order.currency,
         exchange_rate=order.exchange_rate,
+        payment_condition="CREDITO" if is_credit else "CONTADO",
         payment_status=payment_status,
         amount_paid=amount_paid,
         issuer_info=order.issuer_info,
         payment_terms={"mode": payment_mode, "installments": data.get('installments', [])},
         dispatch_status="PENDING"
     )
+    
+    # Si es contado, registrar el ingreso de dinero automático (Integridad Financiera)
+    if not is_credit:
+        payment = Payment(
+            amount=order.total_amount,
+            date=order.date,
+            notes="Ingreso automático (Contado) desde importación XML"
+        )
+        invoice.payments.append(payment)
+        
     await invoice.insert()
     
     # 3. Auto-Guía (Descuento de stock)
@@ -1375,3 +1408,60 @@ async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: 
         )
         
     return invoice
+
+async def bulk_update_payment_condition(invoice_numbers: List[str], condition: str, days: Optional[int] = 30, payment_terms: Optional[dict] = None) -> Dict[str, Any]:
+    """Actualización masiva de condición de pago (Sinceramiento Financiero)"""
+    count = 0
+    for num in invoice_numbers:
+        invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == num)
+        if not invoice: continue
+        
+        if condition == "CREDITO" and invoice.payment_condition == "CONTADO":
+            # REVERSIÓN: De Contado a Crédito (Eliminar pagos automáticos)
+            invoice.payment_condition = "CREDITO"
+            invoice.payment_status = PaymentStatus.PENDING
+            invoice.amount_paid = 0.0
+            
+            # Limpiar pagos automáticos (los que no tienen notas o dicen "automático")
+            invoice.payments = [p for p in invoice.payments if p.notes and "automático" not in p.notes.lower()]
+            
+            # Aplicar términos personalizados
+            if payment_terms:
+                invoice.payment_terms = payment_terms
+                # Si hay cuotas, la fecha de vencimiento es la de la última cuota
+                installments = payment_terms.get('installments', [])
+                if installments:
+                    try:
+                        dates = [datetime.fromisoformat(inst['date']) for inst in installments if inst.get('date')]
+                        if dates: invoice.due_date = max(dates)
+                    except: pass
+            
+            # Fallback a días si no se definió por cuotas
+            if not payment_terms or not payment_terms.get('installments'):
+                invoice.due_date = invoice.invoice_date + timedelta(days=days or 30)
+                invoice.payment_terms = {"type": "CREDIT", "days": days or 30}
+
+            await invoice.save()
+            count += 1
+            
+        elif condition == "CONTADO" and invoice.payment_condition == "CREDITO":
+            # REGULARIZACIÓN: De Crédito a Contado (Pagar todo)
+            invoice.payment_condition = "CONTADO"
+            invoice.payment_status = PaymentStatus.PAID
+            invoice.amount_paid = invoice.total_amount
+            invoice.payment_terms = {"type": "CASH"}
+            
+            # Registrar el pago total si no existe
+            has_full_payment = any(p.amount >= invoice.total_amount for p in invoice.payments)
+            if not has_full_payment:
+                payment = Payment(
+                    amount=invoice.total_amount,
+                    date=datetime.now(),
+                    notes="Regularización manual: Cambio de Crédito a Contado"
+                )
+                invoice.payments.append(payment)
+            
+            await invoice.save()
+            count += 1
+            
+    return {"message": f"Se regularizaron {count} facturas correctamente", "count": count}

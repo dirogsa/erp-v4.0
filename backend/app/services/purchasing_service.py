@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from beanie import PydanticObjectId
 from app.models.purchasing import PurchaseOrder, PurchaseInvoice, Supplier, PaymentStatus, OrderStatus, Payment, PurchaseQuote, QuoteStatus
 from app.models.inventory import DeliveryGuide, GuideType, GuideStatus, GuideItem, MovementType, Product
@@ -624,6 +624,27 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
     
     invoice_number = f"{prefix_inv}-{new_num_inv:04d}"
     
+    # 2. Determinar Condición de Pago y Vencimiento
+    payment_terms = data.get('payment_terms', 'Contado')
+    installments = data.get('installments', [])
+    
+    payment_condition = "CREDITO" if (payment_terms.upper() == 'CRÉDITO' or payment_terms.upper() == 'CREDITO' or len(installments) > 0) else "CONTADO"
+    
+    # Calcular fecha de vencimiento
+    due_date = None
+    if payment_condition == "CREDITO":
+        if installments:
+            # Usar la fecha de la última cuota
+            try:
+                dates = [datetime.fromisoformat(inst['dueDate']) for inst in installments if inst.get('dueDate')]
+                if dates: due_date = max(dates)
+            except: pass
+        
+        # Fallback: 30 días después de la fecha de factura
+        if not due_date:
+            from datetime import timedelta
+            due_date = order.date + timedelta(days=30)
+
     invoice = PurchaseInvoice(
         invoice_number=invoice_number,
         sunat_number=data.get('sunat_number') or data.get('document_number'),
@@ -636,9 +657,23 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
         total_amount=order.total_amount,
         currency=order.currency,
         exchange_rate=current_exchange_rate,
+        payment_condition=payment_condition,
+        payment_status=PaymentStatus.PAID if payment_condition == "CONTADO" else PaymentStatus.PENDING,
+        due_date=due_date,
+        amount_paid=order.total_amount if payment_condition == "CONTADO" else 0.0,
         reception_status="PENDING",
         company_id=company_id
     )
+    
+    # Si es contado, registrar el pago automático (ADN del ERP)
+    if payment_condition == "CONTADO":
+        payment = Payment(
+            amount=order.total_amount,
+            date=order.date,
+            notes="Pago automático (Contado) desde importación XML"
+        )
+        invoice.payments.append(payment)
+        
     await invoice.insert()
     
     # 3. Auto-Recepción (Aumento de stock)
@@ -686,3 +721,64 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
         await invoice.save()
 
     return invoice
+
+from datetime import datetime, timedelta
+
+# ... existing imports ...
+
+async def bulk_update_payment_condition(invoice_numbers: List[str], condition: str, days: Optional[int] = 30, payment_terms: Optional[dict] = None) -> Dict[str, Any]:
+    """Actualización masiva de condición de pago (Sinceramiento Financiero)"""
+    count = 0
+    for num in invoice_numbers:
+        invoice = await PurchaseInvoice.find_one(PurchaseInvoice.invoice_number == num)
+        if not invoice: continue
+        
+        if condition == "CREDITO" and invoice.payment_condition == "CONTADO":
+            # REVERSIÓN: De Contado a Crédito (Anular pagos automáticos)
+            invoice.payment_condition = "CREDITO"
+            invoice.payment_status = PaymentStatus.PENDING
+            invoice.amount_paid = 0.0
+            
+            # Limpiar pagos automáticos (los que no tienen notas o dicen "automático")
+            invoice.payments = [p for p in invoice.payments if p.notes and "automático" not in p.notes.lower()]
+            
+            # Aplicar términos personalizados
+            if payment_terms:
+                invoice.payment_terms = payment_terms
+                # Si hay cuotas, la fecha de vencimiento es la de la última cuota
+                installments = payment_terms.get('installments', [])
+                if installments:
+                    try:
+                        dates = [datetime.fromisoformat(inst['date']) for inst in installments if inst.get('date')]
+                        if dates: invoice.due_date = max(dates)
+                    except: pass
+            
+            # Fallback a días si no se definió por cuotas
+            if not payment_terms or not payment_terms.get('installments'):
+                invoice.due_date = invoice.invoice_date + timedelta(days=days or 30)
+                invoice.payment_terms = {"type": "CREDIT", "days": days or 30}
+            
+            await invoice.save()
+            count += 1
+            
+        elif condition == "CONTADO" and invoice.payment_condition == "CREDITO":
+            # REGULARIZACIÓN: De Crédito a Contado (Pagar todo)
+            invoice.payment_condition = "CONTADO"
+            invoice.payment_status = PaymentStatus.PAID
+            invoice.amount_paid = invoice.total_amount
+            invoice.payment_terms = {"type": "CASH"}
+            
+            # Agregar registro de pago si no hay uno por el total
+            has_full_payment = any(p.amount >= invoice.total_amount for p in invoice.payments)
+            if not has_full_payment:
+                payment = Payment(
+                    amount=invoice.total_amount,
+                    date=datetime.now(),
+                    notes="Regularización manual: Cambio de Crédito a Contado"
+                )
+                invoice.payments.append(payment)
+            
+            await invoice.save()
+            count += 1
+            
+    return {"message": f"Se regularizaron {count} facturas correctamente", "count": count}

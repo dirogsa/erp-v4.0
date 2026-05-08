@@ -5,7 +5,7 @@ from beanie import PydanticObjectId
 from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, CustomerBranch
 from app.models.auth import User, UserRole
 from app.services import sales_service
-from app.schemas.sales_schemas import InvoiceCreation, PaymentRegistration, DispatchRequest, InvoiceXmlImport
+from app.schemas.sales_schemas import InvoiceCreation, PaymentRegistration, DispatchRequest, InvoiceXmlImport, BulkPaymentConditionUpdate
 from app.schemas.common import PaginatedResponse
 from .auth import get_current_user, check_role
 
@@ -107,6 +107,18 @@ async def register_payment(
         payment_data.payment_date,
         payment_data.notes,
         user=current_user
+    )
+
+@router.post("/invoices/bulk-payment-condition")
+async def bulk_update_payment_condition(
+    request: BulkPaymentConditionUpdate,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    return await sales_service.bulk_update_payment_condition(
+        request.invoice_numbers,
+        request.condition,
+        request.days,
+        request.payment_terms
     )
 
 # ==================== CUSTOMERS ====================

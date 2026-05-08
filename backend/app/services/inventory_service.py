@@ -771,31 +771,29 @@ async def register_movement(
     await product.save()
     return movement
 
-async def check_stock_availability(items: List[Dict[str, Any]]) -> Dict[str, Any]:
+async def check_stock_availability(items: List[Dict[str, Any]], company_id: Optional[str] = None) -> Dict[str, Any]:
     """
-    Verifica la disponibilidad de stock para una lista de ítems.
-    Considera el stock reservado en órdenes PENDIENTES.
-    Retorna un reporte con ítems disponibles y faltantes.
+    World-Class availability check.
+    Calculates physical stock minus committed stock (Pending Orders).
     """
-    # Import locally to avoid circular dependency
     from app.models.sales import SalesOrder, OrderStatus
+    from app.models.config import SystemConfig
+    
+    config = await SystemConfig.find_one({})
+    allow_neg = config.allow_negative_stock if config else False
     
     available_items = []
     missing_items = []
     
-    # 1. Calculate Committed Stock (Pending Orders)
-    # This is expensive if many orders, but necessary for accuracy.
-    # aggregate might be better but finding all pending is simplest start.
+    # Calculate Committed Stock (Pending Orders)
     pending_orders = await SalesOrder.find(SalesOrder.status == OrderStatus.PENDING).to_list()
     committed_stock = {} # SKU -> Qty
     
     for order in pending_orders:
         for item in order.items:
-            committed_stock[item.product_sku] = committed_stock.get(item.product_sku, 0) + item.quantity
+            sku = item.product_sku
+            committed_stock[sku] = committed_stock.get(sku, 0) + item.quantity
             
-    print(f"DEBUG CHECK STOCK ITEMS: {items}")
-    print(f"DEBUG COMMITTED STOCK: {committed_stock}")
-
     for item in items:
         sku = item.get("product_sku")
         product_id = item.get("product_id")
@@ -879,10 +877,20 @@ async def check_stock_availability(items: List[Dict[str, Any]]) -> Dict[str, Any
                     "unit_price": item.get("unit_price")
                 })
                 
+    # Suggested status logic:
+    # If allow_neg is True -> Suggested status is always PENDING.
+    # If allow_neg is False -> Suggested status is PENDING only if everything is available.
+    if allow_neg:
+        suggested_status = "PENDING"
+    else:
+        suggested_status = "PENDING" if len(missing_items) == 0 else "BACKORDER"
+
     return {
         "available_items": available_items,
         "missing_items": missing_items,
-        "can_fulfill_full": len(missing_items) == 0
+        "can_fulfill_full": len(missing_items) == 0,
+        "suggested_status": suggested_status,
+        "allow_negative_stock": allow_neg
     }
 
 async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[str, Any]:
@@ -1137,3 +1145,33 @@ async def delete_brand(brand_id: str):
     # Sincronizar motor
     from app.utils.norm_utils import _refresh_brands_cache
     await _refresh_brands_cache()
+
+async def check_products_existence(items: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+    """
+    Check multiple products existence in the master catalog.
+    Returns a list of results with status and found data.
+    """
+    results = []
+    for item in items:
+        sku = item.get("sku")
+        brand = item.get("brand")
+        
+        product = await find_product_robustly(sku, brand)
+        
+        if product:
+            results.append({
+                "sku": sku,
+                "brand": brand,
+                "exists": True,
+                "product_id": str(product.id),
+                "matched_sku": product.sku,
+                "matched_brand": product.brand,
+                "name": product.name
+            })
+        else:
+            results.append({
+                "sku": sku,
+                "brand": brand,
+                "exists": False
+            })
+    return results

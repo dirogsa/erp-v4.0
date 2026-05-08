@@ -230,6 +230,7 @@ class SalesInvoice(Document):
     delivery_address: Optional[str] = "No especificada"
     buyer_identity: Optional[str] = None
     
+    payment_condition: str = "CONTADO"  # CONTADO | CREDITO
     payment_status: PaymentStatus = PaymentStatus.PENDING
     amount_paid: float = 0.0
     payments: List[Payment] = []

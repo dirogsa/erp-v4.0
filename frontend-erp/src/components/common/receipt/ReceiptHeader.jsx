@@ -151,13 +151,6 @@ const ReceiptHeader = ({
                 </div>
             </div>
 
-            {/* Monto en letras - Solo si hay precios */}
-            {amountInWords && showPrices && (
-                <div className="receipt-amount-words" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '3mm' }}>
-                    <span style={{ color: '#64748b', fontWeight: '700', fontSize: '8px', textTransform: 'uppercase', marginRight: '8px' }}>Importe en letras:</span>
-                    <span style={{ color: '#1e293b', fontWeight: '600' }}>{amountInWords}</span>
-                </div>
-            )}
         </div>
     );
 };

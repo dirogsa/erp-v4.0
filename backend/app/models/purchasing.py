@@ -126,7 +126,9 @@ class PurchaseInvoice(Document):
     exchange_rate: Optional[float] = None
     
     # Control de pagos
+    payment_condition: str = "CONTADO"  # CONTADO | CREDITO
     payment_status: PaymentStatus = PaymentStatus.PENDING
+    due_date: Optional[datetime] = None  # Fecha de vencimiento para Crédito
     amount_paid: float = 0.0
     payments: List[Payment] = []  # Historial de pagos
     

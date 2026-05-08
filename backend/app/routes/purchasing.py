@@ -1,12 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from beanie import PydanticObjectId
-from app.models.auth import User, UserRole
 from app.models.purchasing import PurchaseOrder, PurchaseInvoice, Supplier
 from app.services import purchasing_service
-from app.schemas.purchasing_schemas import InvoiceCreation, PaymentRegistration, ReceptionRequest, InvoiceXmlImport
+from app.schemas.purchasing_schemas import InvoiceCreation, PaymentRegistration, ReceptionRequest, InvoiceXmlImport, BulkPaymentConditionUpdate
 from app.schemas.common import PaginatedResponse
-from .auth import get_current_user, check_role
 from app.dependencies.company import get_current_company_id
 
 router = APIRouter(prefix="/purchasing", tags=["Purchasing"])
@@ -77,6 +75,15 @@ async def register_payment(invoice_number: str, payment_data: PaymentRegistratio
         payment_data.amount,
         payment_data.payment_date,
         payment_data.notes
+    )
+
+@router.post("/invoices/bulk-payment-condition")
+async def bulk_update_payment_condition(request: BulkPaymentConditionUpdate):
+    return await purchasing_service.bulk_update_payment_condition(
+        request.invoice_numbers,
+        request.condition,
+        request.days,
+        request.payment_terms
     )
 
 # ==================== SUPPLIERS ====================

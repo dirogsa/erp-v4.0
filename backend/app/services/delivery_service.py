@@ -124,6 +124,7 @@ async def create_guide_from_invoice(
         driver_name=driver_name,
         notes=notes,
         created_by=created_by,
+        company_id=invoice.company_id,
         issue_date=datetime.now()
     )
     
@@ -136,27 +137,43 @@ async def create_guide_from_invoice(
     return guide
 
 
+async def prepare_guide(guide_number: str, company_id: Optional[str] = None) -> DeliveryGuide:
+    """Marcar guía como LISTA (Empaquetada) - Sin movimiento de stock todavía"""
+    guide = await get_guide(guide_number)
+    
+    if guide.status != GuideStatus.DRAFT:
+        raise ValidationException(f"La guía debe estar en BORRADOR para marcarla como LISTA (actual: {guide.status})")
+    
+    guide.status = GuideStatus.READY
+    await guide.save()
+    
+    # Actualizar factura si existe
+    if guide.invoice_number and guide.guide_type == GuideType.DISPATCH:
+        from app.models.sales import SalesInvoice
+        await SalesInvoice.find(SalesInvoice.invoice_number == guide.invoice_number).update({"$set": {"dispatch_status": "READY"}})
+        
+    return guide
+
+
 async def dispatch_guide(guide_number: str, company_id: Optional[str] = None) -> DeliveryGuide:
-    """Marcar guía como despachada y descontar stock"""
+    """Marcar guía como DESPACHADA (Salió del almacén) y descontar stock"""
     guide = await get_guide(guide_number)
     from app.services import inventory_service
     
-    if guide.status != GuideStatus.DRAFT:
-        raise ValidationException(f"Guide must be in DRAFT status to dispatch (current: {guide.status})")
+    if guide.status not in [GuideStatus.DRAFT, GuideStatus.READY]:
+        raise ValidationException(f"La guía debe estar en BORRADOR o LISTA para despachar (actual: {guide.status})")
     
     # Descontar stock de cada item
     for item in guide.items:
-        product = await Product.find_one(Product.sku == item.sku)
+        product = await inventory_service.find_product_robustly(item.sku, company_id=company_id)
         if not product:
             raise NotFoundException("Product", item.sku)
         
         # Determinar dirección del movimiento
         m_type = MovementType.OUT if guide.guide_type == GuideType.DISPATCH else MovementType.IN
         
-        if m_type == MovementType.OUT and product.stock_current < item.quantity:
-            raise ValidationException(f"Stock insuficiente para {item.sku}: disponible {product.stock_current}, requerido {item.quantity}")
-        
         # Registrar movimiento usando el servicio centralizado
+        # (El servicio ya maneja la validación de stock según la configuración allow_negative_stock)
         await inventory_service.register_movement(
             sku=item.sku,
             quantity=item.quantity,
@@ -192,9 +209,13 @@ async def dispatch_guide(guide_number: str, company_id: Optional[str] = None) ->
     return guide
 
 
-async def deliver_guide(guide_number: str, received_by: Optional[str] = None) -> DeliveryGuide:
+async def deliver_guide(guide_number: str, received_by: Optional[str] = None, company_id: Optional[str] = None) -> DeliveryGuide:
     """Confirmar entrega de la guía"""
     guide = await get_guide(guide_number)
+    
+    # Context fallback
+    effective_company_id = company_id or getattr(guide, 'company_id', None)
+
     
     # REQUISITO PREMIUM: Si es RECEPTION y se marca como DELIVERED, 
     # y NO se había despachado antes (stock no movido), lo movemos ahora.
@@ -224,7 +245,8 @@ async def deliver_guide(guide_number: str, received_by: Optional[str] = None) ->
                 if old_status != GuideStatus.DISPATCHED:
                     from app.services import inventory_service
                     for item in guide.items:
-                        product = await Product.find_one(Product.sku == item.sku)
+                        # Use robust finding to ensure we get the right product context
+                        product = await inventory_service.find_product_robustly(item.sku, company_id=effective_company_id)
                         if product:
                             await inventory_service.register_movement(
                                 sku=item.sku,
@@ -232,59 +254,150 @@ async def deliver_guide(guide_number: str, received_by: Optional[str] = None) ->
                                 movement_type=MovementType.IN,
                                 reference=guide.guide_number,
                                 unit_cost=item.unit_cost,
+                                company_id=effective_company_id,
                                 product_id=product.id
                             )
     
     return guide
 
 
-async def cancel_guide(guide_number: str) -> DeliveryGuide:
-    """Anular guía y devolver stock si fue despachada"""
+async def cancel_guide(guide_number: str, company_id: Optional[str] = None, revert_to_draft: bool = False) -> DeliveryGuide:
+    """
+    Anular o Revertir guía (Ingeniería de Clase Mundial)
+    - Si revert_to_draft=True: La guía vuelve a DRAFT para edición.
+    - Si revert_to_draft=False: La guía queda como CANCELLED (Auditoría).
+    """
     guide = await get_guide(guide_number)
+    from app.services import inventory_service
     
-    if guide.status == GuideStatus.CANCELLED:
-        # If already cancelled, we just want to ensure it is deleted (cleanup)
-        pass
+    # Context fallback
+    effective_company_id = company_id or getattr(guide, 'company_id', None)
     
-    # Si fue despachada, devolver stock
+    # 1. Devolución de Stock (Solo si estaba movido)
     if guide.status in [GuideStatus.DISPATCHED, GuideStatus.DELIVERED]:
         for item in guide.items:
-            product = await Product.find_one(Product.sku == item.sku)
+            product = await inventory_service.find_product_robustly(item.sku, company_id=effective_company_id)
             if product:
-                # Registrar movimiento de entrada (devolución)
-                from app.services import inventory_service
                 await inventory_service.register_movement(
                     sku=item.sku,
                     quantity=item.quantity,
                     movement_type=MovementType.IN,
-                    reference=f"CANCEL-{guide.guide_number}",
+                    reference=f"REVERT-{guide.guide_number}",
                     unit_cost=item.unit_cost,
-                    company_id=getattr(guide, 'company_id', None),
+                    company_id=effective_company_id,
                     product_id=product.id
                 )
     
-    # Actualizar factura asociada (Restauración Robusta)
-    # 1. Intentar por el número de factura guardado en la guía
+    # 2. Restauración de Facturas vinculadas
     if guide.invoice_number:
         from app.models.sales import SalesInvoice
-        invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == guide.invoice_number)
-        if invoice:
-            invoice.dispatch_status = "NOT_DISPATCHED"
-            invoice.guide_id = None
-            await invoice.save()
-
-    # 2. BARRIDO DE SEGURIDAD: Buscar cualquier factura que apunte a esta guía (Back-link check)
-    # Esto corrige casos donde invoice_number no coincida pero el link guide_id sí exista.
-    from app.models.sales import SalesInvoice
-    linked_invoices = await SalesInvoice.find(SalesInvoice.guide_id == guide.guide_number).to_list()
-    for linked_inv in linked_invoices:
-        # Solo actualizar si no es la misma que ya actualizamos (aunque guardarla 2 veces no hace daño)
-        if linked_inv.dispatch_status != "NOT_DISPATCHED":
-            linked_inv.dispatch_status = "NOT_DISPATCHED"
-            linked_inv.guide_id = None
-            await linked_inv.save()
-
-    # User Request: Delete the guide instead of keeping it as CANCELLED
-    await guide.delete()
+        # Actualización masiva de seguridad por número y por ID
+        await SalesInvoice.find(
+            (SalesInvoice.invoice_number == guide.invoice_number) | (SalesInvoice.guide_id == guide.guide_number)
+        ).update({"$set": {"dispatch_status": "NOT_DISPATCHED", "guide_id": None}})
+    
+    # 3. Gestión de Estado (Audit-Safe)
+    if revert_to_draft:
+        guide.status = GuideStatus.DRAFT
+        # Limpiamos fechas de proceso para permitir re-despacho
+        guide.delivery_date = None
+        await guide.save()
+    else:
+        # Si ya es DRAFT y se anula, sí podríamos borrarla o marcarla
+        if guide.status == GuideStatus.DRAFT:
+             await guide.delete() # Borrado físico solo si nunca salió de borrador
+             return None
+        else:
+            guide.status = GuideStatus.CANCELLED
+            await guide.save()
     
     return guide
+
+
+async def bulk_dispatch_guides(guide_numbers: List[str], company_id: Optional[str] = None) -> dict:
+    """Procesar despacho masivo de guías"""
+    success_count = 0
+    errors = []
+    
+    print(f"DEBUG [BULK_DISPATCH]: Iniciando despacho masivo para {len(guide_numbers)} guías: {guide_numbers}")
+    
+    for num in guide_numbers:
+        try:
+            await dispatch_guide(num, company_id)
+            success_count += 1
+            print(f"DEBUG [BULK_DISPATCH]: Guía {num} despachada con éxito.")
+        except Exception as e:
+            print(f"ERROR [BULK_DISPATCH]: Falló despacho de guía {num}: {str(e)}")
+            errors.append({"guide": num, "error": str(e)})
+            
+    message = f"Se despacharon {success_count} guías correctamente."
+    if errors:
+        message += f" ({len(errors)} errores detectados)"
+        
+    return {
+        "message": message,
+        "success_count": success_count,
+        "error_count": len(errors),
+        "errors": errors
+    }
+
+
+async def bulk_deliver_guides(guide_numbers: List[str], received_by: Optional[str] = None, company_id: Optional[str] = None) -> dict:
+    """Confirmar entrega masiva de guías"""
+    success_count = 0
+    errors = []
+    
+    for num in guide_numbers:
+        try:
+            await deliver_guide(num, received_by, company_id=company_id)
+            success_count += 1
+        except Exception as e:
+            errors.append({"guide": num, "error": str(e)})
+            
+    return {
+        "message": f"Se confirmaron {success_count} entregas correctamente.",
+        "success_count": success_count,
+        "error_count": len(errors),
+        "errors": errors
+    }
+
+
+async def bulk_prepare_guides(guide_numbers: List[str], company_id: Optional[str] = None) -> dict:
+    """Preparar masivamente guías (DRAFT -> READY)"""
+    success_count = 0
+    errors = []
+    
+    for num in guide_numbers:
+        try:
+            await prepare_guide(num, company_id=company_id)
+            success_count += 1
+        except Exception as e:
+            errors.append({"guide": num, "error": str(e)})
+            
+    return {
+        "message": f"Se prepararon {success_count} guías correctamente.",
+        "success_count": success_count,
+        "error_count": len(errors),
+        "errors": errors
+    }
+
+
+async def bulk_delete_guides(guide_numbers: List[str], company_id: Optional[str] = None, revert_to_draft: bool = False) -> dict:
+    """Anular o Revertir masivamente guías"""
+    success_count = 0
+    errors = []
+    
+    for num in guide_numbers:
+        try:
+            await cancel_guide(num, company_id=company_id, revert_to_draft=revert_to_draft)
+            success_count += 1
+        except Exception as e:
+            errors.append({"guide": num, "error": str(e)})
+            
+    verb = "revirtieron (a borrador)" if revert_to_draft else "anularon"
+    return {
+        "message": f"Se {verb} {success_count} guías correctamente.",
+        "success_count": success_count,
+        "error_count": len(errors),
+        "errors": errors
+    }

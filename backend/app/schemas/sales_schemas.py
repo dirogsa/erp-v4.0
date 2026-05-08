@@ -59,3 +59,8 @@ class InvoiceXmlImport(BaseModel):
             return float(v)
         except (ValueError, TypeError):
             return None
+class BulkPaymentConditionUpdate(BaseModel):
+    invoice_numbers: List[str]
+    condition: str  # CONTADO | CREDITO
+    days: Optional[int] = 30
+    payment_terms: Optional[dict] = None

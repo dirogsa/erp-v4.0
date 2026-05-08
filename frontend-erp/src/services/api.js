@@ -129,6 +129,7 @@ export const inventoryService = {
     api.patch(`/inventory/products/${productId}/visibility`, payload),
   bulkSetVisibility: (payload) =>
     api.post('/inventory/products/bulk-visibility', payload),
+  checkExistence: (items) => api.post('/inventory/check-existence', items),
 };
 
 export const priceService = {
@@ -162,6 +163,7 @@ export const purchasingService = {
   deleteInvoice: (invoiceNumber) => api.delete(`/purchasing/invoices/${invoiceNumber}`),
   registerPayment: (invoiceNumber, paymentData) => api.post(`/purchasing/invoices/${invoiceNumber}/payments`, paymentData),
   registerReception: (invoiceNumber, receptionData) => api.post(`/purchasing/invoices/${invoiceNumber}/receive`, receptionData),
+  bulkUpdatePaymentCondition: (payload) => api.post('/purchasing/invoices/bulk-payment-condition', payload),
 
   // Guides (NUEVO)
   createReceptionGuide: (invoiceNumber, guideData) => api.post(`/purchasing/invoices/${invoiceNumber}/receive`, guideData),
@@ -229,6 +231,7 @@ export const salesService = {
     api.get('/sales/invoices', { params: { skip: (page - 1) * limit, limit, search, payment_status, date_from, date_to } }),
   deleteInvoice: (invoiceNumber) => api.delete(`/sales/invoices/${invoiceNumber}`),
   registerPayment: (invoiceNumber, paymentData) => api.post(`/sales/invoices/${invoiceNumber}/payments`, paymentData),
+  bulkUpdatePaymentCondition: (payload) => api.post('/sales/invoices/bulk-payment-condition', payload),
 
   // Guides (NUEVO)
   createDispatchGuide: (invoiceNumber, guideData) => api.post(`/sales/invoices/${invoiceNumber}/dispatch`, guideData),
@@ -258,6 +261,11 @@ export const deliveryService = {
   dispatchGuide: (guideNumber) => api.put(`/delivery/guides/${guideNumber}/dispatch`),
   deliverGuide: (guideNumber, receivedBy = '') => api.put(`/delivery/guides/${guideNumber}/deliver`, { received_by: receivedBy || null }),
   cancelGuide: (guideNumber) => api.delete(`/delivery/guides/${guideNumber}`),
+  
+  // Bulk Actions (High performance with extended timeout for heavy processing)
+  bulkDispatchGuides: (guideNumbers) => api.post('/delivery/guides/bulk-dispatch', { guide_numbers: guideNumbers }, { timeout: 60000 }),
+  bulkDeliverGuides: (guideNumbers, receivedBy = '') => api.post('/delivery/guides/bulk-deliver', { guide_numbers: guideNumbers, received_by: receivedBy || null }, { timeout: 60000 }),
+  bulkDeleteGuides: (guideNumbers) => api.post('/delivery/guides/bulk-delete', { guide_numbers: guideNumbers }, { timeout: 60000 }),
 };
 
 export const analyticsService = {

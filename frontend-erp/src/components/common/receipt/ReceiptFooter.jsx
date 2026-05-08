@@ -8,7 +8,8 @@ const ReceiptFooter = ({
     notes,
     showPaymentDetails = false,
     paymentTerms = null,
-    currencySymbol = 'S/'
+    currencySymbol = 'S/',
+    amountInWords = ""
 }) => {
     const pendingAmount = totalAmount - amountPaid;
 
@@ -20,11 +21,7 @@ const ReceiptFooter = ({
     return (
         <div>
             {/* Totals Section - SUNAT Style Box */}
-            <div className="receipt-totals">
-                <div style={{ flex: 1 }}>
-                    {/* Espacio para Monto en Letras si es necesario o códigos QR */}
-                </div>
-                
+            <div className="receipt-totals" style={{ marginTop: '4mm', display: 'flex', justifyContent: 'flex-end' }}>
                 <div className="receipt-totals-box">
                     <div className="receipt-total-row">
                         <span className="receipt-total-label">Sub Total Ventas:</span>
@@ -69,9 +66,10 @@ const ReceiptFooter = ({
                 </div>
             </div>
 
-            {/* Disclaimer SUNAT */}
-            <div className="receipt-disclaimer-box">
-                Esta es una representación impresa de la factura electrónica, generada en el Sistema de SUNAT. Puede verificarla utilizando su clave SOL.
+            {/* Importe en Letras Section - Full Width */}
+            <div className="receipt-amount-words-footer" style={{ marginTop: '2mm', padding: '1.5mm 3mm' }}>
+                <span className="amount-words-label">IMPORTE EN LETRAS:</span>
+                <span className="amount-words-value">{amountInWords || '-'}</span>
             </div>
 
             {/* Payment History */}

@@ -295,3 +295,10 @@ async def bulk_set_visibility(
         "fields_set": update_fields,
         "filter_applied": mongo_filter
     }
+
+@router.post("/check-existence")
+async def check_existence(items: List[Dict[str, str]]):
+    """
+    Verifica existencia de SKUs y Marcas de forma masiva.
+    """
+    return await inventory_service.check_products_existence(items)

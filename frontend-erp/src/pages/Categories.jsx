@@ -116,16 +116,26 @@ const Categories = () => {
         if (e) e.preventDefault();
         if (!formData.name) return showNotification('Nombre obligatorio', 'error');
         
+        // Ingeniería de Clase Mundial: Saneamiento de datos antes de persistencia
+        // MongoDB/Beanie esperan null para campos opcionales, no strings vacíos.
+        const cleanData = {
+            ...formData,
+            parent_id: formData.parent_id === '' ? null : formData.parent_id
+        };
+
         try {
             if (selectedCategoryId === 'NEW') {
-                await categoryService.createCategory(formData);
+                await categoryService.createCategory(cleanData);
             } else {
-                await categoryService.updateCategory(selectedCategoryId, formData);
+                await categoryService.updateCategory(selectedCategoryId, cleanData);
             }
             showNotification(selectedCategoryId === 'NEW' ? 'Categoría creada' : 'Maestro actualizado', 'success');
             setSelectedCategoryId(null);
             loadCategories();
-        } catch (error) { showNotification('Error al procesar', 'error'); }
+        } catch (error) { 
+            console.error("Save Error:", error);
+            showNotification('Error al procesar: ' + (error.response?.data?.detail || 'Fallo de servidor'), 'error'); 
+        }
     };
 
     const handleMapOrphan = async (orphanName, canonicalId) => {
@@ -145,7 +155,7 @@ const Categories = () => {
 
     const renderTree = (parentId = null, level = 0) => {
         return categories
-            .filter(c => c.parent_id === parentId)
+            .filter(c => (c.parent_id || null) === (parentId || null))
             .filter(c => !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase()))
             .map(cat => {
                 const hasChildren = categories.some(c => c.parent_id === cat._id);

@@ -24,6 +24,12 @@ class DeliveryConfirmation(BaseModel):
     received_by: Optional[str] = None
 
 
+class BulkGuideAction(BaseModel):
+    guide_numbers: list[str]
+    received_by: Optional[str] = None
+    revert: bool = False
+
+
 # ==================== GUIDES ====================
 
 @router.get("/guides", response_model=PaginatedResponse[DeliveryGuide])
@@ -54,12 +60,21 @@ async def create_guide(data: GuideCreation):
     )
 
 
-@router.put("/guides/{guide_number}/dispatch", response_model=DeliveryGuide)
+@router.put("/guides/{guide_number}/prepare")
+async def prepare_guide(
+    guide_number: str,
+    company_id: str = Depends(get_current_company_id)
+):
+    """Marcar guía como LISTA para despacho"""
+    return await delivery_service.prepare_guide(guide_number, company_id=company_id)
+
+
+@router.put("/guides/{guide_number}/dispatch")
 async def dispatch_guide(
     guide_number: str,
     company_id: str = Depends(get_current_company_id)
 ):
-    """Marcar guía como despachada - DESCUENTA STOCK"""
+    """Confirmar despacho de la guía (Salida de stock)"""
     return await delivery_service.dispatch_guide(guide_number, company_id=company_id)
 
 
@@ -70,6 +85,47 @@ async def deliver_guide(guide_number: str, data: DeliveryConfirmation):
 
 
 @router.delete("/guides/{guide_number}", response_model=DeliveryGuide)
-async def cancel_guide(guide_number: str):
+async def cancel_guide(
+    guide_number: str,
+    company_id: str = Depends(get_current_company_id)
+):
     """Anular guía - DEVUELVE STOCK si fue despachada"""
-    return await delivery_service.cancel_guide(guide_number)
+    return await delivery_service.cancel_guide(guide_number, company_id=company_id)
+
+
+# ==================== BULK ACTIONS ====================
+
+@router.post("/guides/bulk-prepare")
+async def bulk_prepare_guides(
+    data: BulkGuideAction,
+    company_id: str = Depends(get_current_company_id)
+):
+    """Preparar masivamente guías"""
+    return await delivery_service.bulk_prepare_guides(data.guide_numbers, company_id=company_id)
+
+
+@router.post("/guides/bulk-dispatch")
+async def bulk_dispatch_guides(
+    data: BulkGuideAction,
+    company_id: str = Depends(get_current_company_id)
+):
+    """Despachar masivamente guías"""
+    return await delivery_service.bulk_dispatch_guides(data.guide_numbers, company_id=company_id)
+
+
+@router.post("/guides/bulk-deliver")
+async def bulk_deliver_guides(
+    data: BulkGuideAction,
+    company_id: str = Depends(get_current_company_id)
+):
+    """Confirmar entrega masiva de guías"""
+    return await delivery_service.bulk_deliver_guides(data.guide_numbers, data.received_by, company_id=company_id)
+
+
+@router.post("/guides/bulk-delete")
+async def bulk_delete_guides(
+    data: BulkGuideAction,
+    company_id: str = Depends(get_current_company_id)
+):
+    """Anular o Revertir masivamente guías"""
+    return await delivery_service.bulk_delete_guides(data.guide_numbers, company_id=company_id, revert_to_draft=data.revert)

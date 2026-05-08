@@ -2,13 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Button from './Button';
 import Input from './Input';
 import { formatCurrency } from '../../utils/formatters';
-import { financeService, categoryService } from '../../services/api';
-import { Loader2, Zap, FileText, Tag } from 'lucide-react';
-
-const EMITTER_MAP = {
-    '20606277432': { name: 'DIROGSA S.R.L.', logo: '🏢', businessName: 'DIROGSA', color: '#10b981' },
-    '10434346318': { name: 'JEEF GELDER ROJAS GARCIA', logo: '👤', businessName: 'JEEF ROJAS', color: '#3b82f6' }
-};
+import { financeService, categoryService, inventoryService } from '../../services/api';
+import { useCompany } from '../../context/CompanyContext';
+import { Loader2, Zap, FileText, Tag, AlertTriangle, CheckCircle2, XCircle, Link as LinkIcon } from 'lucide-react';
 
 const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
     const [exchangeRate, setExchangeRate] = useState(1);
@@ -17,9 +13,14 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
     const [emitter, setEmitter] = useState(null);
     const [isFetchingTc, setIsFetchingTc] = useState(false);
     const [categories, setCategories] = useState([]);
+    const [existenceData, setExistenceData] = useState({}); // { 'SKU|BRAND': boolean }
+    const [isCheckingExistence, setIsCheckingExistence] = useState(false);
+    
+    // Accedemos al contexto de empresas para no tener RUCs hardcodeados
+    const { companies } = useCompany();
 
     useEffect(() => {
-        // Cargar categorías del maestro para el dropdown dinámico
+        // Cargar categorías del maestro para el dropdown dinámico (Soberanía de Datos)
         categoryService.getCategories()
             .then(res => setCategories(res.data))
             .catch(err => console.error("Error loading categories for XML review", err));
@@ -27,21 +28,61 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
 
     useEffect(() => {
         if (doc) {
-            // Detetar emisor
-            const emitterInfo = EMITTER_MAP[doc.supplier.ruc] || {
+            // Detectar emisor basándonos en la base de datos de empresas, no en strings hardcodeados
+            const knownCompany = companies?.find(c => c.ruc === doc.supplier.ruc);
+            
+            const emitterInfo = knownCompany ? {
+                name: knownCompany.name,
+                logo: '🏢',
+                businessName: knownCompany.name.split(' ')[0],
+                color: '#10b981'
+            } : {
                 name: doc.supplier.name,
                 logo: '❓',
                 businessName: 'Desconocido',
                 color: '#64748b'
             };
+            
             setEmitter(emitterInfo);
 
-            // Inicializar items con lógica de Valor y Precio
-            setLocalItems(doc.items.map(item => ({
-                ...item,
-                manual_value: item.unit_value, // Sin IGV
-                manual_price: item.unit_price  // Con IGV
-            })));
+            // Inicializar items con lógica de Valor y Precio + Detección de Marca y Categoría
+            const commonBrands = ['WIX', 'FILTRON', 'MANN', 'FRAM', 'BOSCH', 'MOBIL', 'CASTROL', 'TOYOTA', 'HYUNDAI', 'KIA', 'NISSAN', 'MITSUBISHI', 'SOLITE', 'VARTA', 'ACDELCO', 'OEM'];
+            
+            setLocalItems(doc.items.map(item => {
+                let detectedBrand = 'N/A';
+                let detectedCategory = item.classification || '';
+                const upperDesc = (item.product_name || '').toUpperCase();
+                
+                // 1. Detección de Marca
+                for (const b of commonBrands) {
+                    if (upperDesc.includes(b)) {
+                        detectedBrand = b;
+                        break;
+                    }
+                }
+
+                // 2. Detección Inteligente de Categoría (Senior Feature)
+                if (!detectedCategory) {
+                    if (upperDesc.includes('BATERIA')) detectedCategory = 'BATERIAS';
+                    else if (upperDesc.includes('FILTRO') || upperDesc.includes('F DE')) {
+                        if (upperDesc.includes('ACEITE')) detectedCategory = 'FILTROS_DE_ACEITE';
+                        else if (upperDesc.includes('AIRE')) detectedCategory = 'FILTROS_DE_AIRE';
+                        else if (upperDesc.includes('COMBUSTIBLE') || upperDesc.includes('PETROLEO')) detectedCategory = 'FILTROS_DE_COMBUSTIBLE';
+                        else detectedCategory = 'FILTROS';
+                    }
+                    else if (upperDesc.includes('ACEITE') || upperDesc.includes('LUBRICANTE')) detectedCategory = 'LUBRICANTES';
+                }
+
+                return {
+                    ...item,
+                    brand: item.brand || detectedBrand,
+                    manual_value: item.unit_value, // Sin IGV
+                    manual_price: item.unit_price, // Con IGV
+                    classification: detectedCategory
+                };
+            }));
+            
+            // ... resto de la lógica de T.C. permanece igual por ser robusta ...
 
             // Buscar tipo de cambio en BD
             if (doc.currency === 'DOLARES' || doc.currency === 'USD') {
@@ -67,6 +108,30 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
             }
         }
     }, [doc]);
+
+    useEffect(() => {
+        if (localItems.length > 0) {
+            const checkSkus = async () => {
+                setIsCheckingExistence(true);
+                try {
+                    const payload = localItems.map(item => ({ sku: item.product_sku, brand: item.brand || 'OEM' }));
+                    const res = await inventoryService.checkExistence(payload);
+                    const mapping = {};
+                    res.data.forEach(r => {
+                        mapping[`${r.sku}|${r.brand}`] = r.exists;
+                    });
+                    setExistenceData(mapping);
+                } catch (err) {
+                    console.error("Error checking SKU existence", err);
+                } finally {
+                    setIsCheckingExistence(false);
+                }
+            };
+
+            const timer = setTimeout(checkSkus, 800); // Debounce to avoid too many requests while typing
+            return () => clearTimeout(timer);
+        }
+    }, [localItems]);
 
     if (!visible || !doc) return null;
 
@@ -95,6 +160,7 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
             exchange_rate: exchangeRate,
             items: localItems.map(item => ({
                 ...item,
+                brand: item.brand || 'OEM',
                 unit_value: Math.round((item.manual_value * exchangeRate) * 10000) / 10000,
                 unit_price: Math.round((item.manual_price * exchangeRate) * 10000) / 10000,
                 unit_cost: Math.round((item.manual_price * exchangeRate) * 10000) / 10000, // Legacy support
@@ -222,6 +288,7 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                             <thead style={{ backgroundColor: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155' }}>
                                 <tr>
                                     <th style={{ textAlign: 'left', padding: '1.25rem' }}>PRODUCTO / SKU</th>
+                                    <th style={{ textAlign: 'center', padding: '1.25rem' }}>MARCA</th>
                                     <th style={{ textAlign: 'center', padding: '1.25rem' }}>CATEGORÍA</th>
                                     <th style={{ textAlign: 'center', padding: '1.25rem' }}>CANT.</th>
                                     <th style={{ textAlign: 'right', padding: '1.25rem' }}>BASE (VALOR S/ IGV)</th>
@@ -234,96 +301,140 @@ const XMLReviewModal = ({ visible, doc, onClose, onConfirm, loading }) => {
                                     <tr key={idx} style={{ borderBottom: '1px solid #1e293b', transition: 'background-color 0.2s', backgroundColor: item.is_misc ? '#1e293b44' : 'transparent' }}>
                                         <td style={{ padding: '1rem 1.25rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <input
-                                                    type="text"
-                                                    value={item.product_sku}
-                                                    onChange={(e) => {
-                                                        const val = e.target.value.toUpperCase();
-                                                        const newItems = [...localItems];
-                                                        newItems[idx].product_sku = val;
-                                                        setLocalItems(newItems);
-                                                    }}
-                                                    title="Haga clic para corregir el SKU si es necesario"
-                                                    style={{
-                                                        background: '#0f172a', border: '1px solid #1e293b',
-                                                        color: item.is_misc ? '#94a3b8' : '#10b981', padding: '0.3rem 0.5rem', borderRadius: '0.4rem',
-                                                        fontWeight: '900', fontSize: '0.85rem', width: '130px',
-                                                        outline: 'none'
-                                                    }}
-                                                />
+                                                <div style={{ position: 'relative' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={item.product_sku}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value.toUpperCase();
+                                                            const newItems = [...localItems];
+                                                            newItems[idx].product_sku = val;
+                                                            setLocalItems(newItems);
+                                                        }}
+                                                        title="Haga clic para corregir el SKU si es necesario"
+                                                        style={{
+                                                            background: '#0f172a', border: '1px solid #1e293b',
+                                                            color: item.is_misc ? '#94a3b8' : '#10b981', padding: '0.3rem 0.5rem', borderRadius: '0.4rem',
+                                                            fontWeight: '900', fontSize: '0.85rem', width: '130px',
+                                                            outline: 'none'
+                                                        }}
+                                                    />
+                                                    <div style={{
+                                                        position: 'absolute', right: '-12px', top: '-10px',
+                                                        zIndex: 10
+                                                    }}>
+                                                        {isCheckingExistence ? (
+                                                            <Loader2 className="animate-spin" size={12} color="#64748b" />
+                                                        ) : (
+                                                            existenceData[`${item.product_sku}|${item.brand || 'OEM'}`] ? (
+                                                                <div title="Producto Encontrado en Maestro" style={{ color: '#10b981', backgroundColor: '#0f172a', borderRadius: '50%' }}><CheckCircle2 size={16} /></div>
+                                                            ) : (
+                                                                <div title="Producto NO EXISTE en Maestro - Debe registrarlo" style={{ color: '#ef4444', backgroundColor: '#0f172a', borderRadius: '50%' }}><AlertTriangle size={16} /></div>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                </div>
                                                 {item.is_misc && <span style={{ fontSize: '0.65rem', backgroundColor: '#334155', color: '#94a3b8', padding: '2px 6px', borderRadius: '4px' }}>GENÉRICO</span>}
                                             </div>
                                             <div style={{ fontSize: '0.7rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', marginTop: '4px' }}>{item.product_name}</div>
                                         </td>
                                         <td style={{ textAlign: 'center', padding: '1rem' }}>
+                                            <input
+                                                type="text"
+                                                value={item.brand || ''}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.toUpperCase();
+                                                    const newItems = [...localItems];
+                                                    newItems[idx].brand = val;
+                                                    setLocalItems(newItems);
+                                                }}
+                                                placeholder="Ej: WIX"
+                                                style={{
+                                                    background: '#1e293b', border: '1px solid #334155',
+                                                    color: item.brand === 'N/A' ? '#fbbf24' : '#60a5fa', padding: '0.4rem', borderRadius: '0.5rem',
+                                                    fontWeight: 'bold', fontSize: '0.75rem', width: '80px',
+                                                    textAlign: 'center', outline: 'none',
+                                                    borderBottom: item.brand === 'N/A' ? '2px solid #fbbf24' : '1px solid #334155'
+                                                }}
+                                            />
+                                        </td>
+                                        <td style={{ textAlign: 'center', padding: '1rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-                                                    <select
-                                                        value={item.classification || 'FILTER'}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            const newItems = [...localItems];
-                                                            newItems[idx].classification = val;
-                                                            newItems[idx].is_misc = val !== 'FILTER';
-                                                            setLocalItems(newItems);
-                                                        }}
-                                                        style={{
-                                                            background: '#1e293b', border: '1px solid #334155', color: 'white',
-                                                            fontSize: '0.75rem', padding: '0.4rem', borderRadius: '0.5rem', outline: 'none',
-                                                            minWidth: '140px'
-                                                        }}
-                                                    >
-                                                        {/* Opción por defecto siempre presente */}
-                                                        <option value="FILTER">📑 Filtro</option>
-                                                        
-                                                        {/* Categorías dinámicas del Maestro */}
-                                                        {categories.map(cat => {
-                                                            const emojiMap = {
-                                                                'Package': '📦', 'Droplet': '🛢️', 'Zap': '⚡', 
-                                                                'Filter': '📑', 'Battery': '🔋', 'Truck': '🚚', 'Layers': '🗂️'
-                                                            };
-                                                            const emoji = emojiMap[cat.icon] || '🏷️';
-                                                            return (
-                                                                <option key={cat._id} value={cat.name.toUpperCase().replace(/\s+/g, '_')}>
-                                                                    {emoji} {cat.name}
-                                                                </option>
-                                                            );
-                                                        })}
+                                                     <select
+                                                         value={item.classification || ''}
+                                                         onChange={(e) => {
+                                                             const val = e.target.value;
+                                                             const newItems = [...localItems];
+                                                             newItems[idx].classification = val;
+                                                             newItems[idx].is_misc = val !== '';
+                                                             setLocalItems(newItems);
+                                                         }}
+                                                         style={{
+                                                             background: '#1e293b', border: '1px solid #334155', color: 'white',
+                                                             fontSize: '0.75rem', padding: '0.4rem', borderRadius: '0.5rem', outline: 'none',
+                                                             minWidth: '140px'
+                                                         }}
+                                                     >
+                                                         <option value="">Seleccione Categoría...</option>
+                                                         
+                                                         {/* Categorías Agrupadas por Jerarquía (Senior UI con optgroup) */}
+                                                         {categories
+                                                            .filter(c => !c.parent_id) // Primero las raíces
+                                                            .sort((a, b) => a.name.localeCompare(b.name))
+                                                            .map(parent => {
+                                                                const children = categories.filter(c => c.parent_id === parent._id);
+                                                                
+                                                                return (
+                                                                    <optgroup key={parent._id} label={`📂 ${parent.name.toUpperCase()}`}>
+                                                                        {/* La categoría raíz también es elegible */}
+                                                                        <option value={parent.name.toUpperCase().replace(/\s+/g, '_')}>
+                                                                            ⭐ {parent.name} (General)
+                                                                        </option>
+                                                                        
+                                                                        {children.sort((a,b) => a.name.localeCompare(b.name)).map(child => {
+                                                                            const emojiMap = {
+                                                                                'Package': '📦', 'Droplet': '🛢️', 'Zap': '⚡', 
+                                                                                'Filter': '📑', 'Battery': '🔋', 'Truck': '🚚', 'Layers': '🗂️'
+                                                                            };
+                                                                            const emoji = emojiMap[child.icon] || '🏷️';
+                                                                            const value = child.name.toUpperCase().replace(/\s+/g, '_');
+                                                                            
+                                                                            return (
+                                                                                <option key={child._id} value={value}>
+                                                                                    {emoji} {child.name}
+                                                                                </option>
+                                                                            );
+                                                                        })}
+                                                                    </optgroup>
+                                                                );
+                                                            })
+                                                         }
+                                                     </select>
 
-                                                        {/* Fallback si no hay categorías */}
-                                                        {categories.length === 0 && (
-                                                            <>
-                                                                <option value="LUBRICANT">🛢️ Aceite</option>
-                                                                <option value="SPARK_PLUG">🛠️ Bujía</option>
-                                                                <option value="BATTERY">🔋 Batería</option>
-                                                            </>
-                                                        )}
-                                                        <option value="MISC">📦 Otros</option>
-                                                    </select>
-
-                                                {item.classification && item.classification !== 'FILTER' && (
-                                                    <button
-                                                        onClick={() => {
-                                                            const newItems = [...localItems];
-                                                            const map = {
-                                                                'LUBRICANT': 'VARIOS-ACEITES',
-                                                                'SPARK_PLUG': 'VARIOS-BUJIAS',
-                                                                'BATTERY': 'VARIOS-BATERIAS',
-                                                                'COOLANT': 'VARIOS-REFRIGERANTES',
-                                                                'MISC': 'VARIOS-GENERICO'
-                                                            };
-                                                            newItems[idx].product_sku = map[item.classification] || 'VARIOS-GENERICO';
-                                                            setLocalItems(newItems);
-                                                        }}
-                                                        title="Mapear a SKU Genérico"
-                                                        style={{
-                                                            background: '#334155', border: 'none', color: '#60a5fa', 
-                                                            padding: '4px', borderRadius: '4px', cursor: 'pointer', display: 'flex'
-                                                        }}
-                                                    >
-                                                        <Zap size={14} />
-                                                    </button>
-                                                )}
+                                                 {item.classification && (
+                                                     <button
+                                                         onClick={() => {
+                                                             const newItems = [...localItems];
+                                                             // Mapeo dinámico: Si el usuario selecciona una categoría, 
+                                                             // podemos sugerir un SKU genérico basado en el nombre de la categoría
+                                                             newItems[idx].product_sku = `VARIOS-${item.classification}`;
+                                                             setLocalItems(newItems);
+                                                         }}
+                                                         title="Mapear a SKU Genérico de Categoría"
+                                                         style={{
+                                                             background: '#334155', border: 'none', color: '#60a5fa', 
+                                                             padding: '4px', borderRadius: '4px', cursor: 'pointer', display: 'flex'
+                                                         }}
+                                                     >
+                                                         <Zap size={14} />
+                                                     </button>
+                                                 )}
                                             </div>
+                                            {categories.length === 0 && (
+                                                <div style={{ fontSize: '0.6rem', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                    <AlertTriangle size={8} /> No hay categorías en maestros
+                                                </div>
+                                            )}
                                         </td>
                                         <td style={{ textAlign: 'center', padding: '1rem', color: '#cbd5e1', fontWeight: '700' }}>{item.quantity}</td>
                                         <td style={{ textAlign: 'right', padding: '1rem' }}>

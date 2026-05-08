@@ -187,7 +187,7 @@ class ProductBrand(Document):
 class Product(Document):
     sku: Indexed(str)
     name: str 
-    brand: str = "OEM"
+    brand: str = "N/A"
     description: Optional[str] = None
     image_url: Optional[str] = None
     weight_g: float = 0.0
@@ -326,9 +326,10 @@ class IntercompanyTransaction(Document):
 # --- LOGÍSTICA Y DESPACHO (Guías de Remisión) ---
 
 class GuideStatus(str, Enum):
-    DRAFT = "DRAFT"
-    DISPATCHED = "DISPATCHED"
-    DELIVERED = "DELIVERED"
+    DRAFT = "DRAFT"        # Pendiente de Envío
+    READY = "READY"        # Listo (Empaquetado/Muelle)
+    DISPATCHED = "DISPATCHED" # Despachado (Salió del Almacén - Stock descontado)
+    DELIVERED = "DELIVERED" # Entregado (Confirmación Cliente)
     CANCELLED = "CANCELLED"
 
 class GuideType(str, Enum):

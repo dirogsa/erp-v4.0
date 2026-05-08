@@ -14,14 +14,14 @@ const ReceiptBody = ({
             <table className="receipt-items-table">
                 <thead>
                     <tr>
-                        <th className="text-center" style={{ width: '15mm' }}>Cantidad</th>
-                        <th className="text-center" style={{ width: '20mm' }}>Unidad</th>
-                        <th className="text-center" style={{ width: '25mm' }}>Código</th>
-                        <th className="text-left">Descripción</th>
+                        <th className="text-center" style={{ width: '10mm' }}>CANT</th>
+                        <th className="text-center" style={{ width: '6mm' }}>UM</th>
+                        <th className="text-center" style={{ width: '16mm' }}>CÓDIGO</th>
+                        <th className="text-left">DESCRIPCIÓN</th>
                         {showPrices && (
                             <>
-                                <th className="text-right" style={{ width: '25mm' }}>Valor Unit.</th>
-                                <th className="text-right" style={{ width: '25mm' }}>Importe</th>
+                                <th className="text-right" style={{ width: '18mm' }}>P. UNIT.</th>
+                                <th className="text-right" style={{ width: '18mm' }}>TOTAL</th>
                             </>
                         )}
                     </tr>
@@ -29,15 +29,15 @@ const ReceiptBody = ({
                 <tbody>
                     {items.map((item, index) => (
                         <tr key={index}>
-                            <td className="text-center item-quantity">
-                                {Number(item.quantity).toFixed(2)}
-                            </td>
-                            <td className="text-center">
-                                UNIDAD
-                            </td>
-                            <td className="text-center receipt-product-sku">
-                                {item.product_sku || '-'}
-                            </td>
+                        <td className="text-center item-quantity" style={{ width: '10mm' }}>
+                            {Number(item.quantity).toFixed(2)}
+                        </td>
+                        <td className="text-center" style={{ width: '6mm' }}>
+                            U
+                        </td>
+                        <td className="text-center receipt-product-sku" style={{ width: '16mm' }}>
+                            {item.product_sku || '-'}
+                        </td>
                             <td className="item-description-cell">
                                 <div className="receipt-product-name">
                                     {item.product_name || 
@@ -50,8 +50,8 @@ const ReceiptBody = ({
                             </td>
                             {showPrices && (
                                 <>
-                                    <td className="text-right item-price">{formatCurrency(item.unit_price || item.unit_cost, currencySymbol)}</td>
-                                    <td className="text-right item-subtotal">{formatCurrency(item.subtotal, currencySymbol)}</td>
+                                    <td className="text-right item-price" style={{ width: '18mm' }}>{formatCurrency(item.unit_price || item.unit_cost, currencySymbol)}</td>
+                                    <td className="text-right item-subtotal" style={{ width: '18mm' }}>{formatCurrency(item.subtotal, currencySymbol)}</td>
                                 </>
                             )}
                         </tr>

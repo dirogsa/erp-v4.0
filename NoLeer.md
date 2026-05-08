@@ -1,18 +1,12 @@
-d:\Projects > netstat -ano | findstr LISTENING
-d:\Projects > tasklist /FI "PID eq 7136" /FO TABLE
-d:\Projects > tasklist /FI "PID eq 14896" /FO TABLE
 
 matar procesos
 
 taskkill /F /IM python.exe
 
+frontend-erp\src\config\menuConfig.js
 
 D:\Projects\erp-v3.0\frontend\src\components\common\receipt\ReceiptHeader.jsx
 datos de la empresa
-
-
-PS D:\Projects> taskkill /PID 7136 /F
-SUCCESS: The process with PID 7136 has been terminated.
 
 
 Actúa como mi Arquitecto Senior. Antes de responder, lee la CONSTITUTION.md de mi proyecto y asegúrate de que tu solución no sea un parche, sino una pieza de ingeniería de clase mundial.

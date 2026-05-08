@@ -6,16 +6,20 @@ import { formatDate } from '../../../utils/formatters';
 const GuidesTable = ({
     guides = [],
     loading = false,
+    selectedIds = [],
+    onSelectionChange,
     onView,
     onDispatch,
     onDeliver,
     onCancel,
-    onPrint
+    onPrint,
+    onPrepare
 }) => {
     const getStatusBadge = (status) => {
         const statusConfig = {
             DRAFT: { color: '#fbbf24', bg: '#451a03', label: 'Pendiente' },
-            DISPATCHED: { color: '#3b82f6', bg: '#1e3a5f', label: 'Despachado' },
+            READY: { color: '#8b5cf6', bg: '#2e1065', label: 'Lista para despacho' },
+            DISPATCHED: { color: '#3b82f6', bg: '#1e3a5f', label: 'En camino' },
             DELIVERED: { color: '#10b981', bg: '#064e3b', label: 'Entregado' },
             CANCELLED: { color: '#ef4444', bg: '#450a0a', label: 'Anulada' }
         };
@@ -93,6 +97,24 @@ const GuidesTable = ({
             render: (_, row) => (
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {row.status === 'DRAFT' && (
+                        <>
+                            <Button
+                                size="small"
+                                onClick={() => onPrepare(row.guide_number)}
+                                style={{ backgroundColor: '#8b5cf6', fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}
+                            >
+                                Marcar Listo
+                            </Button>
+                            <Button
+                                size="small"
+                                onClick={() => onDispatch(row.guide_number)}
+                                style={{ backgroundColor: '#3b82f6', fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}
+                            >
+                                Despachar
+                            </Button>
+                        </>
+                    )}
+                    {row.status === 'READY' && (
                         <Button
                             size="small"
                             onClick={() => onDispatch(row.guide_number)}
@@ -118,14 +140,6 @@ const GuidesTable = ({
                     >
                         🖨️
                     </Button>
-                    <Button
-                        size="small"
-                        variant="danger"
-                        onClick={() => onCancel(row.guide_number)}
-                        style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}
-                    >
-                        ✕
-                    </Button>
                 </div>
             )
         }
@@ -136,7 +150,12 @@ const GuidesTable = ({
             columns={columns}
             data={guides}
             loading={loading}
+            enableSelection={true}
+            selectedKeys={selectedIds}
+            onSelectionChange={onSelectionChange}
+            keyField="guide_number"
             emptyMessage="No hay guías de remisión"
+            onRowClick={onView}
         />
     );
 };

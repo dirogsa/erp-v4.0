@@ -11,7 +11,9 @@ const InvoicesTable = ({
     onRegisterPayment,
     onDispatch,
     onEmitNote,
-    onDelete
+    onDelete,
+    selectedIds = [],
+    onSelectionChange
 }) => {
     const columns = [
         {
@@ -31,6 +33,58 @@ const InvoicesTable = ({
             label: 'Fecha',
             key: 'invoice_date',
             render: (val) => formatDate(val)
+        },
+        {
+            label: 'Condición',
+            key: 'payment_condition',
+            align: 'center',
+            render: (val) => (
+                <span style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: 'bold',
+                    color: val === 'CREDITO' ? '#fbbf24' : '#10b981',
+                    backgroundColor: val === 'CREDITO' ? '#451a03' : '#064e3b',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '0.5rem',
+                    border: '1px solid currentColor'
+                }}>
+                    {val || 'CONTADO'}
+                </span>
+            )
+        },
+        {
+            label: 'Vencimiento',
+            key: 'due_date',
+            align: 'center',
+            render: (val, row) => {
+                if (row.payment_status === 'PAID') return <span style={{ color: '#64748b' }}>-</span>;
+                if (!val) return <span style={{ color: '#64748b' }}>-</span>;
+                
+                const dueDate = new Date(val);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const diffTime = dueDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let color = '#10b981'; // Green
+                let label = formatDate(val);
+                
+                if (diffDays < 0) {
+                    color = '#ef4444'; // Red (Vencida)
+                    label = `VENCIDA (${Math.abs(diffDays)}d)`;
+                } else if (diffDays <= 3) {
+                    color = '#fbbf24'; // Yellow (Por vencer)
+                    label = `Vence en ${diffDays}d`;
+                }
+                
+                return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color, boxShadow: `0 0 10px ${color}` }}></div>
+                        <span style={{ color, fontWeight: 'bold', fontSize: '0.8rem' }}>{label}</span>
+                    </div>
+                );
+            }
         },
         {
             label: 'Total',
@@ -67,37 +121,6 @@ const InvoicesTable = ({
             render: (val) => <Badge status={val}>{formatStatus(val)}</Badge>
         },
         {
-            label: 'Despacho',
-            key: 'dispatch_status',
-            align: 'center',
-            render: (val) => <Badge status={val}>{formatStatus(val)}</Badge>
-        },
-        {
-            label: 'Notas Rel.',
-            key: 'linked_notes',
-            render: (val, invoice) => (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                    {invoice.linked_notes?.map(note => (
-                        <div
-                            key={note.note_number}
-                            title={`${note.type}: ${note.note_number} - ${formatCurrency(note.total_amount)}`}
-                            style={{
-                                fontSize: '0.7rem',
-                                padding: '0.1rem 0.3rem',
-                                borderRadius: '0.2rem',
-                                color: 'white',
-                                backgroundColor: note.type === 'CREDIT' ? '#ef4444' : '#3b82f6', // Rojo para NC, Azul para ND
-                                cursor: 'help'
-                            }}
-                        >
-                            {note.type === 'CREDIT' ? 'NC' : 'ND'}
-                        </div>
-                    ))}
-                    {(!invoice.linked_notes || invoice.linked_notes.length === 0) && '-'}
-                </div>
-            )
-        },
-        {
             label: 'Acciones',
             key: 'actions',
             align: 'center',
@@ -116,25 +139,9 @@ const InvoicesTable = ({
                             variant="success"
                             onClick={(e) => { e.stopPropagation(); onRegisterPayment(invoice); }}
                         >
-                            Pagar
+                            Cobrar
                         </Button>
                     )}
-                    {invoice.dispatch_status === 'NOT_DISPATCHED' && !invoice.guide_id && (
-                        <Button
-                            size="small"
-                            variant="warning"
-                            onClick={(e) => { e.stopPropagation(); onDispatch(invoice); }}
-                        >
-                            📦 Guía
-                        </Button>
-                    )}
-                    <Button
-                        size="small"
-                        variant="info"
-                        onClick={(e) => { e.stopPropagation(); onEmitNote(invoice); }}
-                    >
-                        Nota C/D
-                    </Button>
                     <Button
                         size="small"
                         variant="danger"
@@ -153,6 +160,10 @@ const InvoicesTable = ({
             data={invoices}
             loading={loading}
             onRowClick={onView}
+            enableSelection={true}
+            selectedKeys={selectedIds}
+            onSelectionChange={onSelectionChange}
+            keyField="invoice_number"
             emptyMessage="No hay facturas registradas"
         />
     );

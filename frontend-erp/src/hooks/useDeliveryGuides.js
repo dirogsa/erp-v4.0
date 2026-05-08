@@ -67,6 +67,18 @@ export const useDeliveryGuides = ({ page = 1, limit = 50, search = '', status = 
         }
     });
 
+    // Prepare guide mutation
+    const prepareGuideMutation = useMutation({
+        mutationFn: deliveryService.prepareGuide,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['deliveryGuides'] });
+            showNotification('Guía marcada como LISTA para despacho', 'success');
+        },
+        onError: (error) => {
+            showNotification(error.response?.data?.detail || 'Error al preparar guía', 'error');
+        }
+    });
+
     return {
         guides: data?.items || [],
         pagination: {
@@ -80,6 +92,58 @@ export const useDeliveryGuides = ({ page = 1, limit = 50, search = '', status = 
         createGuide: createGuideMutation.mutateAsync,
         dispatchGuide: dispatchGuideMutation.mutateAsync,
         deliverGuide: (guideNumber, receivedBy) => deliverGuideMutation.mutateAsync({ guideNumber, receivedBy }),
-        cancelGuide: cancelGuideMutation.mutateAsync
+        cancelGuide: cancelGuideMutation.mutateAsync,
+        prepareGuide: prepareGuideMutation.mutateAsync,
+        
+        // Bulk Mutations
+        bulkDispatchGuides: async (guideNumbers) => {
+            console.log('[HOOK] bulkDispatchGuides called with:', guideNumbers);
+            try {
+                const res = await deliveryService.bulkDispatchGuides(guideNumbers);
+                console.log('[HOOK] API Response:', res.data);
+                queryClient.invalidateQueries({ queryKey: ['deliveryGuides'] });
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+                showNotification(res.data.message, res.data.error_count > 0 ? 'warning' : 'success');
+                return res.data;
+            } catch (error) {
+                console.error('[HOOK] API Error:', error);
+                showNotification(error.response?.data?.detail || 'Error en despacho masivo', 'error');
+                throw error;
+            }
+        },
+        bulkDeliverGuides: async (guideNumbers, receivedBy = '') => {
+            try {
+                const res = await deliveryService.bulkDeliverGuides(guideNumbers, receivedBy);
+                queryClient.invalidateQueries({ queryKey: ['deliveryGuides'] });
+                showNotification(res.data.message, 'success');
+                return res.data;
+            } catch (error) {
+                showNotification(error.response?.data?.detail || 'Error en confirmación masiva', 'error');
+                throw error;
+            }
+        },
+        bulkDeleteGuides: async (guideNumbers) => {
+            try {
+                const res = await deliveryService.bulkDeleteGuides(guideNumbers);
+                queryClient.invalidateQueries({ queryKey: ['deliveryGuides'] });
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+                showNotification(res.data.message, res.data.error_count > 0 ? 'warning' : 'success');
+                return res.data;
+            } catch (error) {
+                showNotification(error.response?.data?.detail || 'Error en anulación masiva', 'error');
+                throw error;
+            }
+        },
+        bulkPrepareGuides: async (guideNumbers) => {
+            try {
+                const res = await deliveryService.bulkPrepareGuides(guideNumbers);
+                queryClient.invalidateQueries({ queryKey: ['deliveryGuides'] });
+                showNotification(res.data.message, res.data.error_count > 0 ? 'warning' : 'success');
+                return res.data;
+            } catch (error) {
+                showNotification(error.response?.data?.detail || 'Error en preparación masiva', 'error');
+                throw error;
+            }
+        }
     };
 };

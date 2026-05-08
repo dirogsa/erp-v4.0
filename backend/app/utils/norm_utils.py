@@ -32,7 +32,7 @@ async def _refresh_brands_cache():
         print(f"Error actualizando caché de marcas: {e}")
         return False
 
-async def detect_brand_from_text(description: str, default: str = "OEM") -> str:
+async def detect_brand_from_text(description: str, default: str = "N/A") -> str:
     """
     Motor semántico Enterprise para detección de marcas.
     Consulta el Catálogo Maestro Dinámico (MDM).
@@ -52,6 +52,13 @@ async def detect_brand_from_text(description: str, default: str = "OEM") -> str:
             if re.search(pattern, text):
                 return brand
                 
+    # 3. Fallback Inteligente: Marcas Globales Frecuentes (Hardcoded para evitar desierto de datos)
+    # Esto garantiza que si el usuario tiene 'WIX' en la descripción, se detecte aunque no esté en BD.
+    common_global_brands = ['WIX', 'FILTRON', 'MANN', 'FRAM', 'BOSCH', 'MOBIL', 'CASTROL', 'TOYOTA', 'HYUNDAI', 'KIA', 'NISSAN', 'MITSUBISHI', 'SOLITE', 'VARTA', 'ACDELCO']
+    for b in common_global_brands:
+        if b in text:
+            return b
+
     return default
 
 async def smart_parse_item(sku_raw: str, description_raw: str) -> Tuple[str, str]:

@@ -47,6 +47,18 @@ const BulkXMLImport = () => {
         return msg.includes('ya existe') || msg.includes('duplicado') || msg.includes('already exists');
     };
 
+    const getDocTotal = (doc) => {
+        return doc.items.reduce((sum, item) => {
+            const price = item.unit_price || item.unit_cost || 0;
+            return sum + (item.quantity * price);
+        }, 0);
+    };
+
+    const isDocBalanced = (doc) => {
+        const systemTotal = getDocTotal(doc);
+        return Math.abs(systemTotal - doc.total_amount) < 0.1; // Slightly more tolerant for rounding
+    };
+
     const counts = {
         all: xmlBatch.length,
         success: xmlBatch.filter(d => d.status === 'SUCCESS').length,
@@ -57,9 +69,7 @@ const BulkXMLImport = () => {
             if (d.status === 'SUCCESS' || isDuplicate(d)) return false;
             const isSoles = (d.currency === 'SOLES' || d.currency === 'PEN');
             const isDollars = (d.currency === 'USD' || d.currency === 'DOLARES');
-            const systemTotal = d.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-            const isBalanced = Math.abs(systemTotal - d.total_amount) < 0.05;
-            return (isSoles || isDollars) && isBalanced;
+            return (isSoles || isDollars) && isDocBalanced(d);
         }).length
     };
 
@@ -101,15 +111,12 @@ const BulkXMLImport = () => {
 
     const runBulkProcess = async () => {
         const processable = xmlBatch.filter(doc => {
-            if (doc.status === 'SUCCESS') return false; // Ya procesado
-            if (isDuplicate(doc)) return false; // Omitir duplicados definidos por el sistema
+            if (doc.status === 'SUCCESS') return false;
+            if (isDuplicate(doc)) return false;
             
             const isSoles = (doc.currency === 'SOLES' || doc.currency === 'PEN');
             const isDollars = (doc.currency === 'USD' || doc.currency === 'DOLARES');
-            const systemTotal = doc.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-            const isBalanced = Math.abs(systemTotal - doc.total_amount) < 0.05;
-            
-            return (isSoles || isDollars) && isBalanced;
+            return (isSoles || isDollars) && isDocBalanced(doc);
         });
 
         if (processable.length === 0) {
@@ -125,36 +132,35 @@ const BulkXMLImport = () => {
             let createdCount = 0;
             let skipCount = 0;
 
-            const updatedBatch = [...xmlBatch];
-
-            for (let i = 0; i < updatedBatch.length; i++) {
-                const doc = updatedBatch[i];
-                if (!processable.find(p => p.document_number === doc.document_number)) continue;
-
+            // We work on the current state but update it document by document
+            for (const targetDoc of processable) {
                 setCurrentProcessing(prev => prev + 1);
                 
                 try {
-                    if (importType === 'SALES') {
-                        await salesService.importInvoiceXml(doc, true, doc.exchange_rate);
-                    } else {
-                        await purchasingService.importInvoiceXml(doc, true, doc.exchange_rate);
-                    }
-                    updatedBatch[i].status = 'SUCCESS';
-                    updatedBatch[i].errorMsg = null;
+                    const service = importType === 'SALES' ? salesService : purchasingService;
+                    await service.importInvoiceXml(targetDoc, true, targetDoc.exchange_rate);
+                    
+                    setXmlBatch(prev => prev.map(item => 
+                        item.document_number === targetDoc.document_number 
+                            ? { ...item, status: 'SUCCESS', errorMsg: null } 
+                            : item
+                    ));
                     createdCount++;
                 } catch (err) {
+                    const errorMsg = err.response?.data?.detail || err.response?.data?.message || err.message;
+                    setXmlBatch(prev => prev.map(item => 
+                        item.document_number === targetDoc.document_number 
+                            ? { ...item, status: 'ERROR', errorMsg } 
+                            : item
+                    ));
                     skipCount++;
-                    updatedBatch[i].status = 'ERROR';
-                    // Extraer mensaje detallado del servidor (FastAPI usa 'detail')
-                    updatedBatch[i].errorMsg = err.response?.data?.detail || err.response?.data?.message || err.message;
                 }
-                setXmlBatch([...updatedBatch]);
             }
             
             setLastProcessedCount({ 
                 created: createdCount, 
                 skipped: skipCount, 
-                pending: updatedBatch.filter(d => !d.status).length 
+                pending: xmlBatch.length - (createdCount + skipCount)
             });
             setIsBulkProcessing(false);
             if (createdCount > 0 || skipCount > 0) {
@@ -308,18 +314,19 @@ const BulkXMLImport = () => {
                                     variant="secondary" 
                                     size="small" 
                                     onClick={() => {
-                                        if (window.confirm(`¿Deseas remover de la vista los ${counts.success} documentos ya procesados?`)) {
-                                            setXmlBatch(prev => prev.filter(d => d.status !== 'SUCCESS'));
+                                        const toRemove = counts.success + counts.duplicate;
+                                        if (window.confirm(`¿Deseas remover de la vista los ${toRemove} documentos ya resueltos (procesados y duplicados)?`)) {
+                                            setXmlBatch(prev => prev.filter(d => d.status !== 'SUCCESS' && !isDuplicate(d)));
                                         }
                                     }}
-                                    disabled={counts.success === 0}
+                                    disabled={(counts.success + counts.duplicate) === 0}
                                     style={{ 
-                                        color: counts.success > 0 ? '#10b981' : '#475569', 
-                                        borderColor: counts.success > 0 ? '#10b98144' : '#1e293b',
-                                        opacity: counts.success > 0 ? 1 : 0.5
+                                        color: (counts.success + counts.duplicate) > 0 ? '#10b981' : '#475569', 
+                                        borderColor: (counts.success + counts.duplicate) > 0 ? '#10b98144' : '#1e293b',
+                                        opacity: (counts.success + counts.duplicate) > 0 ? 1 : 0.5
                                     }}
                                 >
-                                    🧹 Borrar Procesados ({counts.success})
+                                    🧹 Limpiar Procesados ({counts.success + counts.duplicate})
                                 </Button>
                                 <Button 
                                     variant="secondary" 

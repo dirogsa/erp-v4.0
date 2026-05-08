@@ -75,14 +75,12 @@ const ReceiptTemplate = ({
     }
 
     // 5. Recalculate Amount in Words & Currency Label
-    const displayCurrency = isConverting ? 'USD' : (currency === 'SOLES' || currency === "PEN" ? 'PEN' : currency);
-    const displayCurrencyText = isConverting ? 'DÓLARES' : (currency === "USD" || currency === "DOLARES" ? "DOLARES" : "SOLES");
-    const currencySymbol = isConverting ? '$' : (currency === 'USD' || currency === 'DOLARES' ? '$' : 'S/');
-
-    // Si estamos convirtiendo, regeneramos el texto "SON: ...", sino usamos el que viene
-    const displayAmountInWords = isConverting
-        ? numberToWords(displayTotalAmount, 'USD')
-        : amountInWords;
+    const displayCurrency = isConverting ? 'USD' : (currency === 'USD' || currency === 'DOLARES' ? 'USD' : 'PEN');
+    const currencySymbol = displayCurrency === 'USD' ? '$' : 'S/';
+    const displayCurrencyText = displayCurrency === 'USD' ? 'DOLARES' : 'SOLES';
+    
+    // Si no viene monto en letras, lo generamos dinámicamente (útil para Cotizaciones o si el XML no lo traía)
+    const displayAmountInWords = amountInWords || numberToWords(displayTotalAmount, displayCurrency);
 
     const containerClass = `receipt-container ${format === 'A4_FULL' ? 'format-a4-full' : ''} ${!showPrices ? 'format-rfq' : ''}`;
 
@@ -130,6 +128,7 @@ const ReceiptTemplate = ({
                     showPaymentDetails={showPaymentDetails}
                     paymentTerms={displayPaymentTerms}
                     currencySymbol={currencySymbol}
+                    amountInWords={displayAmountInWords}
                 />
             )}
 

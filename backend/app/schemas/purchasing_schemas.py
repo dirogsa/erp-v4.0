@@ -23,3 +23,7 @@ class InvoiceXmlImport(BaseModel):
     xml_data: Any
     auto_reception: bool = True
     exchange_rate: Optional[float] = None
+
+class BulkPaymentConditionUpdate(BaseModel):
+    invoice_numbers: List[str]
+    condition: str  # CONTADO | CREDITO

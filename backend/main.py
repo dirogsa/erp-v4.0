@@ -105,9 +105,9 @@ async def startup_event():
     
     # Zombie Process Detection
     count = get_python_process_count()
-    msg = f"🚀 INSTANCE STARTUP | Active Python Processes: {count}"
+    msg = f"INSTANCE STARTUP | Active Python Processes: {count}"
     if count > 3:
-        msg += " ⚠️ WARNING: Multiple processes detected! You might have ZOMBIES."
+        msg += " WARNING: Multiple processes detected! You might have ZOMBIES."
     
     print("\n" + "="*len(msg))
     print(msg)

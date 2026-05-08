@@ -108,18 +108,28 @@ const Table = ({
                             }}
                             onMouseEnter={(e) => {
                                 if (!isSelected) e.currentTarget.style.backgroundColor = '#1e293b';
+                                const checkbox = e.currentTarget.querySelector('.row-checkbox');
+                                if (checkbox) checkbox.style.opacity = '1';
                             }}
                             onMouseLeave={(e) => {
                                 if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                                const checkbox = e.currentTarget.querySelector('.row-checkbox');
+                                if (checkbox && !isSelected) checkbox.style.opacity = '0';
                             }}
                         >
                             {enableSelection && (
-                                <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>
+                                <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155', width: '40px' }}>
                                     <input 
                                         type="checkbox" 
+                                        className="row-checkbox"
                                         checked={isSelected}
                                         onChange={(e) => handleSelectRow(e, row)}
                                         onClick={(e) => e.stopPropagation()}
+                                        style={{ 
+                                            cursor: 'pointer',
+                                            opacity: isSelected ? '1' : '0',
+                                            transition: 'opacity 0.2s ease-in-out'
+                                        }}
                                     />
                                 </td>
                             )}
