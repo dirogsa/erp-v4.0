@@ -13,6 +13,7 @@ from app.services.brand_service import ensure_brands_exist
 from app.services.catalog_service import perform_catalog_lookup
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, InsufficientStockException, DuplicateEntityException
 from app.services.pricing_service import PricingService
+from app.models.auth import User
 from app.schemas.inventory_schemas import ProductWithPrice
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ async def generate_marketing_sku() -> str:
     # Find products that start with this prefix, sorted by SKU descending
     # We use regex to find matching SKUs
     pattern = re.compile(f"^{prefix}\\d{{4}}$")
-    products = await Product.find({"sku": {"$regex": f"^{prefix}"}, "company_id": company_id}).to_list()
+    products = await Product.find({"sku": {"$regex": f"^{prefix}"}}).to_list()
     
     max_num = 0
     for p in products:
@@ -84,8 +85,6 @@ async def get_products(
     if category:
         query["category_id"] = category
 
-        if payload.only_with_price:
-            mongo_filter["price_list"] = {"$gt": 0}
 
     if product_type:
         query["type"] = product_type

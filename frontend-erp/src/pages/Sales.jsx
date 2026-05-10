@@ -141,6 +141,7 @@ const Sales = () => {
         deliverGuide,
         cancelGuide,
         prepareGuide,
+        restoreGuide,
         bulkDispatchGuides,
         bulkPrepareGuides,
         bulkDeliverGuides,
@@ -869,6 +870,7 @@ const Sales = () => {
                                 await cancelGuide(guideNumber);
                             }
                         }}
+                        onRestore={(guideNumber) => restoreGuide(guideNumber)}
                         onPrint={(guide) => {
                             setSelectedGuide(guide);
                             setShowGuideReceipt(true);

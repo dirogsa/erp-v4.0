@@ -77,6 +77,14 @@ async def dispatch_guide(
     """Confirmar despacho de la guía (Salida de stock)"""
     return await delivery_service.dispatch_guide(guide_number, company_id=company_id)
 
+@router.put("/guides/{guide_number}/restore")
+async def restore_guide(
+    guide_number: str,
+    company_id: str = Depends(get_current_company_id)
+):
+    """Restaurar una guía anulada a estado BORRADOR"""
+    return await delivery_service.cancel_guide(guide_number, company_id=company_id, revert_to_draft=True)
+
 
 @router.put("/guides/{guide_number}/deliver", response_model=DeliveryGuide)
 async def deliver_guide(guide_number: str, data: DeliveryConfirmation):

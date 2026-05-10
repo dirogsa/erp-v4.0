@@ -79,6 +79,18 @@ export const useDeliveryGuides = ({ page = 1, limit = 50, search = '', status = 
         }
     });
 
+    // Restore guide mutation
+    const restoreGuideMutation = useMutation({
+        mutationFn: deliveryService.restoreGuide,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['deliveryGuides'] });
+            showNotification('Guía restaurada a Borrador', 'success');
+        },
+        onError: (error) => {
+            showNotification(error.response?.data?.detail || 'Error al restaurar guía', 'error');
+        }
+    });
+
     return {
         guides: data?.items || [],
         pagination: {
@@ -94,6 +106,7 @@ export const useDeliveryGuides = ({ page = 1, limit = 50, search = '', status = 
         deliverGuide: (guideNumber, receivedBy) => deliverGuideMutation.mutateAsync({ guideNumber, receivedBy }),
         cancelGuide: cancelGuideMutation.mutateAsync,
         prepareGuide: prepareGuideMutation.mutateAsync,
+        restoreGuide: restoreGuideMutation.mutateAsync,
         
         // Bulk Mutations
         bulkDispatchGuides: async (guideNumbers) => {

@@ -261,6 +261,7 @@ export const deliveryService = {
   dispatchGuide: (guideNumber) => api.put(`/delivery/guides/${guideNumber}/dispatch`),
   deliverGuide: (guideNumber, receivedBy = '') => api.put(`/delivery/guides/${guideNumber}/deliver`, { received_by: receivedBy || null }),
   prepareGuide: (guideNumber) => api.put(`/delivery/guides/${guideNumber}/prepare`),
+  restoreGuide: (guideNumber) => api.put(`/delivery/guides/${guideNumber}/restore`),
   cancelGuide: (guideNumber) => api.delete(`/delivery/guides/${guideNumber}`),
   
   // Bulk Actions (High performance with extended timeout for heavy processing)

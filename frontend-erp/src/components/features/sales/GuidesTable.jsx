@@ -13,7 +13,8 @@ const GuidesTable = ({
     onDeliver,
     onCancel,
     onPrint,
-    onPrepare
+    onPrepare,
+    onRestore
 }) => {
     const getStatusBadge = (status) => {
         const statusConfig = {
@@ -130,6 +131,15 @@ const GuidesTable = ({
                             style={{ backgroundColor: '#10b981', fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}
                         >
                             Confirmar
+                        </Button>
+                    )}
+                    {row.status === 'CANCELLED' && (
+                        <Button
+                            size="small"
+                            onClick={() => onRestore(row.guide_number)}
+                            style={{ backgroundColor: '#6366f1', fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}
+                        >
+                            🔄 Restaurar
                         </Button>
                     )}
                     <Button
