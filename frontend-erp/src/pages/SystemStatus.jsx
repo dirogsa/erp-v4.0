@@ -74,10 +74,19 @@ const SystemStatus = () => {
                     </h1>
                     <p style={{ color: '#64748b', marginTop: '0.5rem' }}>Monitoreo en tiempo real de la infraestructura en la nube.</p>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                    <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Último Pulso</div>
-                    <div style={{ color: 'white', fontSize: '1.2rem', fontWeight: '700' }}>
-                        {lastSync ? lastSync.toLocaleTimeString() : '--:--:--'}
+                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+                    <button 
+                        onClick={() => fetchStatus()}
+                        className="group flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl border border-white/5 transition-all active:scale-95"
+                    >
+                        <ArrowPathIcon className="w-5 h-5 text-blue-400 group-hover:rotate-180 transition-transform duration-500" />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Sincronizar Ahora</span>
+                    </button>
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Último Pulso</div>
+                        <div style={{ color: 'white', fontSize: '1.2rem', fontWeight: '700' }}>
+                            {lastSync ? lastSync.toLocaleTimeString() : '--:--:--'}
+                        </div>
                     </div>
                 </div>
             </header>
