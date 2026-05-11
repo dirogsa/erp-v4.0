@@ -16,6 +16,7 @@ import OrdersPage from './pages/OrdersPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import { NotificationProvider } from './context/NotificationContext';
 import SystemLoader from './components/SystemLoader';
+import ReloadPrompt from './components/ReloadPrompt';
 
 function App() {
     const { isAuthenticated, loading, user } = useAuth();
@@ -31,6 +32,7 @@ function App() {
 
     return (
         <NotificationProvider>
+            <ReloadPrompt />
             <CartProvider>
                 <div className="min-h-screen bg-brand-bg pb-24">
                     <Routes>
