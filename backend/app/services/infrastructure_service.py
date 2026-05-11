@@ -51,16 +51,18 @@ class InfrastructureService:
                     
                     if name in target_services:
                         # Obtener el último despliegue para saber si falló
-                        deploy_status = await self._get_latest_deploy_status(client, svc.get("id"))
+                        deploy_info = await self._get_latest_deploy_info(client, svc.get("id"))
                         
                         results.append({
                             "id": svc.get("id"),
                             "name": name,
                             "type": svc.get("type"),
-                            "status": deploy_status.get("status", "unknown"),
+                            "status": deploy_info.get("status", "unknown"),
                             "updated_at": svc.get("updatedAt"),
                             "url": svc.get("serviceDetails", {}).get("url", ""),
-                            "last_error": deploy_status.get("error")
+                            "last_error": deploy_info.get("error"),
+                            "commit_msg": deploy_info.get("commit_msg"),
+                            "commit_id": deploy_info.get("commit_id")
                         })
                 
                 return results
@@ -69,8 +71,8 @@ class InfrastructureService:
             logger.error(f"Error connecting to Infrastructure API: {str(e)}")
             return []
 
-    async def _get_latest_deploy_status(self, client: httpx.AsyncClient, service_id: str) -> Dict[str, Any]:
-        """Consulta el estado del último build/deploy del servicio"""
+    async def _get_latest_deploy_info(self, client: httpx.AsyncClient, service_id: str) -> Dict[str, Any]:
+        """Consulta detalles profundos del último build/deploy"""
         try:
             response = await client.get(
                 f"{self.base_url}/services/{service_id}/deploys",
@@ -80,10 +82,13 @@ class InfrastructureService:
             if response.status_code == 200:
                 deploys = response.json()
                 if deploys:
-                    last_deploy = deploys[0].get("deploy", {})
+                    d = deploys[0].get("deploy", {})
+                    commit = d.get("commit", {})
                     return {
-                        "status": last_deploy.get("status"), # live, build_failed, canceled
-                        "error": last_deploy.get("errorMessage")
+                        "status": d.get("status"), 
+                        "error": d.get("errorMessage") or d.get("lastError"),
+                        "commit_msg": commit.get("message"),
+                        "commit_id": commit.get("id")[:7] if commit.get("id") else None
                     }
             return {"status": "unknown"}
         except:

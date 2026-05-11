@@ -115,22 +115,35 @@ const SystemStatus = () => {
                         <h3 style={{ color: 'white', fontSize: '1.25rem', fontWeight: '900', marginBottom: '0.25rem' }}>{svc.name}</h3>
                         <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.5rem' }}>{svc.url || 'Internal Service'}</p>
 
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                             {svc.status === 'live' || svc.status === 'operational' ? (
-                                <CheckCircleIcon className="w-5 h-5" style={{ color: COLORS.live }} />
-                             ) : svc.status === 'building' ? (
-                                <ArrowPathIcon className="w-5 h-5 animate-spin" style={{ color: COLORS.building }} />
-                             ) : (
-                                <XCircleIcon className="w-5 h-5" style={{ color: COLORS.build_failed }} />
-                             )}
-                             <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-                                {svc.status === 'live' ? 'Servicio Operativo' : svc.status === 'building' ? 'Construyendo Nueva Versión...' : 'Fallo en Despliegue'}
-                             </span>
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                {svc.status === 'live' || svc.status === 'operational' ? (
+                                    <CheckCircleIcon className="w-5 h-5" style={{ color: COLORS.live }} />
+                                ) : svc.status === 'building' ? (
+                                    <ArrowPathIcon className="w-5 h-5 animate-spin" style={{ color: COLORS.building }} />
+                                ) : (
+                                    <XCircleIcon className="w-5 h-5" style={{ color: COLORS.build_failed }} />
+                                )}
+                                <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                                    {svc.status === 'live' ? 'Servicio Operativo' : svc.status === 'building' ? 'Construyendo...' : 'Fallo en Despliegue'}
+                                </span>
+                            </div>
+                            
+                            {svc.commit_id && (
+                                <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#475569', display: 'flex', gap: '0.5rem' }}>
+                                    <span style={{ backgroundColor: '#1e293b', padding: '0.1rem 0.4rem', borderRadius: '0.25rem', color: '#94a3b8' }}>
+                                        #{svc.commit_id}
+                                    </span>
+                                    <span className="truncate" title={svc.commit_msg}>
+                                        {svc.commit_msg || 'Sin mensaje de commit'}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         {svc.last_error && (
                             <div style={{ 
-                                marginTop: '1.5rem', 
+                                marginTop: '0.5rem', 
                                 padding: '1rem', 
                                 backgroundColor: 'rgba(239, 68, 68, 0.1)', 
                                 borderRadius: '1rem',
@@ -138,9 +151,9 @@ const SystemStatus = () => {
                             }}>
                                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
                                     <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
-                                    <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 'bold' }}>DETALLE DEL ERROR</span>
+                                    <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 'bold' }}>ERROR DE RENDER</span>
                                 </div>
-                                <p style={{ color: '#f87171', fontSize: '0.75rem', fontFamily: 'monospace', margin: 0 }}>
+                                <p style={{ color: '#f87171', fontSize: '0.75rem', fontFamily: 'monospace', margin: 0, overflowWrap: 'break-word' }}>
                                     {svc.last_error}
                                 </p>
                             </div>

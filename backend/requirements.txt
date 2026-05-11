@@ -12,3 +12,4 @@ python-jose[cryptography]
 email-validator
 requests
 beautifulsoup4
+httpx
