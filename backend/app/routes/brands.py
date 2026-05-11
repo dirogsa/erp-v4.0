@@ -50,7 +50,7 @@ async def bulk_update_brands(
     if not filtered_update:
         return {"message": "No valid fields to update"}
 
-    await VehicleBrand.get_pymongo_collection().update_many(
+    await VehicleBrand.get_motor_collection().update_many(
         {"name": {"$in": brand_names}},
         {"$set": filtered_update}
     )

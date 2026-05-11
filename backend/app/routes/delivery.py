@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from typing import Optional
 from pydantic import BaseModel
 from app.models.inventory import DeliveryGuide
@@ -7,6 +7,12 @@ from app.schemas.common import PaginatedResponse
 
 from .auth import get_current_user, check_role
 from app.dependencies.company import get_current_company_id
+
+
+async def get_optional_company_id(request: Request) -> Optional[str]:
+    """Extrae X-Company-ID del header de forma opcional, sin lanzar error si no existe.
+    Permite procesar guías legacy que no tienen contexto de empresa."""
+    return request.headers.get("x-company-id") or request.headers.get("X-Company-ID")
 
 router = APIRouter(prefix="/delivery", tags=["Delivery Guides"])
 
@@ -63,7 +69,7 @@ async def create_guide(data: GuideCreation):
 @router.put("/guides/{guide_number}/prepare")
 async def prepare_guide(
     guide_number: str,
-    company_id: str = Depends(get_current_company_id)
+    company_id: Optional[str] = Depends(get_optional_company_id)
 ):
     """Marcar guía como LISTA para despacho"""
     return await delivery_service.prepare_guide(guide_number, company_id=company_id)
@@ -72,15 +78,16 @@ async def prepare_guide(
 @router.put("/guides/{guide_number}/dispatch")
 async def dispatch_guide(
     guide_number: str,
-    company_id: str = Depends(get_current_company_id)
+    company_id: Optional[str] = Depends(get_optional_company_id)
 ):
     """Confirmar despacho de la guía (Salida de stock)"""
     return await delivery_service.dispatch_guide(guide_number, company_id=company_id)
 
+
 @router.put("/guides/{guide_number}/restore")
 async def restore_guide(
     guide_number: str,
-    company_id: str = Depends(get_current_company_id)
+    company_id: Optional[str] = Depends(get_optional_company_id)
 ):
     """Restaurar una guía anulada a estado BORRADOR"""
     return await delivery_service.cancel_guide(guide_number, company_id=company_id, revert_to_draft=True)
@@ -95,7 +102,7 @@ async def deliver_guide(guide_number: str, data: DeliveryConfirmation):
 @router.delete("/guides/{guide_number}", response_model=DeliveryGuide)
 async def cancel_guide(
     guide_number: str,
-    company_id: str = Depends(get_current_company_id)
+    company_id: Optional[str] = Depends(get_optional_company_id)
 ):
     """Anular guía - DEVUELVE STOCK si fue despachada"""
     return await delivery_service.cancel_guide(guide_number, company_id=company_id)

@@ -221,6 +221,7 @@ class Product(Document):
     
     is_new: bool = False # Manual flag for catalog "Novedades"
     is_active_in_shop: bool = False # Control visibility in frontend-shop
+    is_temporary: bool = Field(default=False, description="Flag for reconciliation ghost products")
     
     # Individual Promotion Override (Exceptions)
     promo_discount_pct: float = 0.0

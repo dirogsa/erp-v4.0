@@ -37,7 +37,7 @@ async def get_synchronized_vehicles():
         {"$sort": {"_id": 1}}
     ]
     
-    results = await Product.get_pymongo_collection().aggregate(pipeline).to_list(length=None)
+    results = await Product.get_motor_collection().aggregate(pipeline).to_list(length=None)
     
     # Format: [{"make": "TOYOTA", "models": ["YARIS", "HILUX", ...]}, ...]
     return [
@@ -684,7 +684,7 @@ async def get_admin_dashboard_stats(
         {"$match": {**query, "status": {"$ne": OrderStatus.CANCELLED}}},
         {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
     ]
-    revenue_res = await SalesOrder.get_pymongo_collection().aggregate(pipeline).to_list(1)
+    revenue_res = await SalesOrder.get_motor_collection().aggregate(pipeline).to_list(1)
     total_revenue = revenue_res[0]["total"] if revenue_res else 0.0
     
     return {

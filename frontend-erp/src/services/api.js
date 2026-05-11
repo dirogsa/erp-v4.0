@@ -55,12 +55,18 @@ api.interceptors.response.use(
     if (status === 401) {
        // Normal token expiration
     } else {
+       const backendMessage = error.response?.data?.message || error.response?.data?.detail;
        console.error(`[API] ${status || 'DEBUG'} ERROR:`, {
-         message: error.message,
+         message: backendMessage || error.message,
          code: error.code,
          config: error.config,
          data: error.response?.data
        });
+       
+       // Overwrite the error message to be more user-friendly if backend provided one
+       if (backendMessage) {
+         error.message = backendMessage;
+       }
     }
     return Promise.reject(error);
   }

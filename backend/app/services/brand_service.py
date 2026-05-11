@@ -70,7 +70,7 @@ async def perform_full_brand_sync():
             }},
         ]
         
-        results = await Product.get_pymongo_collection().aggregate(pipeline).to_list(length=None)
+        results = await Product.get_motor_collection().aggregate(pipeline).to_list(length=None)
         sync_status["total"] = len(results)
         
         # 2. Cargar marcas actuales con normalización de claves para evitar duplicados
@@ -89,13 +89,13 @@ async def perform_full_brand_sync():
                 if brand:
                     # Actualizar existente
                     if set(brand.models) != set(model_list):
-                        await VehicleBrand.get_pymongo_collection().update_one(
+                        await VehicleBrand.get_motor_collection().update_one(
                             {"_id": brand.id},
                             {"$set": {"models": model_list}}
                         )
                 else:
                     # Crear nuevo usando update_one con upsert para evitar errores de llave duplicada
-                    await VehicleBrand.get_pymongo_collection().update_one(
+                    await VehicleBrand.get_motor_collection().update_one(
                         {"name": raw_name},
                         {"$setOnInsert": {
                             "name": raw_name,
@@ -145,7 +145,7 @@ async def perform_full_brand_sync():
             if best_parent_name:
                 brand = brand_map[child_norm]
                 if brand.parent_name != best_parent_name:
-                    await VehicleBrand.get_pymongo_collection().update_one(
+                    await VehicleBrand.get_motor_collection().update_one(
                         {"_id": brand.id},
                         {"$set": {"parent_name": best_parent_name}}
                     )
@@ -161,7 +161,7 @@ async def perform_full_brand_sync():
 async def ensure_brands_exist(makes: List[str]):
     for m in makes:
         if m and m.strip():
-            await VehicleBrand.get_pymongo_collection().update_one(
+            await VehicleBrand.get_motor_collection().update_one(
                 {"name": m.strip().upper()},
                 {"$setOnInsert": {"name": m.strip().upper(), "origin": BrandOrigin.OTHER, "models": []}},
                 upsert=True

@@ -53,7 +53,7 @@ async def create_company(data: CompanyCreate):
     if existing:
         raise HTTPException(status_code=400, detail="Company with this RUC already exists")
     
-    company = Company(**data.dict())
+    company = Company(**data.model_dump())
     await company.insert()
     return company
 

@@ -365,5 +365,5 @@ class PricingService:
         DANGER: Resets cost to 0.0 for ALL products in the catalog.
         """
         # We use direct MongoDB update for performance on large catalogs
-        await Product.get_pymongo_collection().update_many({}, {"$set": {"cost": 0.0}})
+        await Product.get_motor_collection().update_many({}, {"$set": {"cost": 0.0}})
         return {"message": "Todos los costos del catálogo han sido reseteados a 0.00."}

@@ -136,7 +136,7 @@ async def apply_b2b(app_in: B2BApplicationCreate):
     if existing:
         raise HTTPException(status_code=400, detail="A pending application already exists")
     
-    application = B2BApplication(**app_in.dict())
+    application = B2BApplication(**app_in.model_dump())
     await application.insert()
     return {"message": "Application submitted successfully"}
 

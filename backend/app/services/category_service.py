@@ -70,7 +70,7 @@ async def get_orphan_category_names() -> List[dict]:
         {"$sort": {"count": -1}} # Show most critical ones first
     ]
     
-    results = await Product.get_pymongo_collection().aggregate(pipeline).to_list(length=None)
+    results = await Product.get_motor_collection().aggregate(pipeline).to_list(length=None)
     return results
 
 async def map_orphan_to_canonical(orphan_name: str, canonical_id: str) -> int:

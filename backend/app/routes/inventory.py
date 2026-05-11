@@ -268,7 +268,28 @@ async def bulk_set_visibility(
             "status": {"$ne": ProductStatus.DISCONTINUED.value}
         }
         if payload.only_with_price:
-            mongo_filter["price_list"] = {"$gt": 0}
+            from app.models.pricing import PriceList, PriceEntry
+            # 1. Encontrar la Lista Maestra (Source of Truth)
+            master_list = await PriceList.find_one({"is_master": True})
+            if not master_list:
+                master_list = await PriceList.find_one({"is_active": True})
+            
+            if master_list:
+                # 2. Obtener IDs de productos con precio cargado en la lista maestra
+                # Usamos el motor directamente para evitar problemas de proyección con Pydantic v2
+                price_coll = PriceEntry.get_motor_collection()
+                cursor = price_coll.find(
+                    {"price_list_id": master_list.id, "price": {"$gt": 0}},
+                    {"product_id": 1}
+                )
+                priced_entries = await cursor.to_list(length=None)
+                
+                valid_ids = [e["product_id"] for e in priced_entries]
+                mongo_filter["_id"] = {"$in": valid_ids}
+            else:
+                # Si no hay lista maestra, no podemos filtrar por precio de forma confiable
+                # Por seguridad cerramos el filtro para que no active todo por error
+                mongo_filter["_id"] = {"$in": []}
 
     # Construir campos a actualizar
     update_fields: dict = {}
@@ -277,7 +298,7 @@ async def bulk_set_visibility(
     if payload.is_new is not None:
         update_fields["is_new"] = bool(payload.is_new)
 
-    collection = Product.get_pymongo_collection()
+    collection = Product.get_motor_collection()
     result = await collection.update_many(mongo_filter, {"$set": update_fields})
 
     summary = ", ".join(f"{k}={v}" for k, v in update_fields.items())
@@ -289,11 +310,16 @@ async def bulk_set_visibility(
         entity_name=f"{result.modified_count} productos"
     )
 
+    # Para la respuesta, limpiamos el filtro de IDs masivos para evitar errores de serialización y bloat
+    serializable_filter = {k: v for k, v in mongo_filter.items() if k != "_id"}
+    if "_id" in mongo_filter:
+        serializable_filter["ids_count"] = len(mongo_filter["_id"].get("$in", []))
+
     return {
         "matched": result.matched_count,
         "modified": result.modified_count,
         "fields_set": update_fields,
-        "filter_applied": mongo_filter
+        "filter_applied": serializable_filter
     }
 
 @router.post("/check-existence")

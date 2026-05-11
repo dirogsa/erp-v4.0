@@ -161,20 +161,34 @@ async def dispatch_guide(guide_number: str, company_id: Optional[str] = None) ->
     guide = await get_guide(guide_number)
     from app.services import inventory_service
     
+    print(f"DEBUG [DISPATCH]: Procesando guía {guide_number} | status={guide.status} | items={len(guide.items)} | company_id={company_id}")
+    
     if guide.status not in [GuideStatus.DRAFT, GuideStatus.READY]:
         raise ValidationException(f"La guía debe estar en BORRADOR o LISTA para despachar (actual: {guide.status})")
     
+    # Cargar configuración para ver si estamos en modo Conciliación
+    from app.models.config import SystemConfig
+    config = await SystemConfig.find_one({})
+    is_conciliating = config.allow_negative_stock if config else False
+
     # Descontar stock de cada item
     for item in guide.items:
-        product = await inventory_service.find_product_robustly(item.sku, company_id=company_id)
+        print(f"DEBUG [DISPATCH]: Buscando producto SKU='{item.sku}' qty={item.quantity} unit_cost={item.unit_cost}")
+        product = await inventory_service.find_product_robustly(
+            item.sku, 
+            company_id=company_id,
+            auto_create=is_conciliating # Solo auto-crear si estamos en modo conciliación
+        )
         if not product:
-            raise ValidationException(f"No se puede despachar: El producto con SKU '{item.sku}' no existe en el catálogo maestro. Verifique que el producto no haya sido eliminado.")
+            print(f"ERROR [DISPATCH]: SKU '{item.sku}' NO EXISTE y Modo Conciliación está APAGADO.")
+            raise ValidationException(f"No se puede despachar: El producto con SKU '{item.sku}' no existe en el catálogo. Active el 'Modo Conciliación' si desea procesar esta guía histórica.")
+        
+        print(f"DEBUG [DISPATCH]: Producto encontrado: {product.sku} | stock_actual={product.stock_current}")
         
         # Determinar dirección del movimiento
         m_type = MovementType.OUT if guide.guide_type == GuideType.DISPATCH else MovementType.IN
         
         # Registrar movimiento usando el servicio centralizado
-        # (El servicio ya maneja la validación de stock según la configuración allow_negative_stock)
         await inventory_service.register_movement(
             sku=item.sku,
             quantity=item.quantity,
@@ -182,7 +196,7 @@ async def dispatch_guide(guide_number: str, company_id: Optional[str] = None) ->
             reference=guide.guide_number,
             unit_cost=item.unit_cost,
             company_id=company_id or getattr(guide, 'company_id', None),
-            product_id=product.id
+            product_id=str(product.id)
         )
     
     # Actualizar estado de la guía

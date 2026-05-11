@@ -145,7 +145,7 @@ class DataExchangeService:
         use_bulk = items_field is None
         
         if use_bulk:
-            collection = model.get_pymongo_collection()
+            collection = model.get_motor_collection()
             bulk_ops = []
             
             for group_key, group in grouped_data.items():

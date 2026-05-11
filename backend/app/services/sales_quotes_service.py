@@ -61,7 +61,7 @@ async def get_quote(quote_number: str) -> SalesQuote:
 async def create_quote(quote: SalesQuote) -> SalesQuote:
     # Resolve Staff IDs for the snapshot
     if quote.issuer_info:
-        quote.issuer_info = await resolve_issuer_info(quote.issuer_info if isinstance(quote.issuer_info, dict) else quote.issuer_info.dict())
+        quote.issuer_info = await resolve_issuer_info(quote.issuer_info if isinstance(quote.issuer_info, dict) else quote.issuer_info.model_dump())
 
     # Generate Sequential Quote Number: CV-YY-####
     year_prefix = datetime.now().strftime('%y')

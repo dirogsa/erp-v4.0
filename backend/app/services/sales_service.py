@@ -90,6 +90,7 @@ async def get_orders(
         size=limit
     )
 
+
 async def get_product_sales_history(sku: str, limit: int = 10, customer_ruc: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Obtiene el historial de ventas de un producto específico.
@@ -119,7 +120,7 @@ async def get_product_sales_history(sku: str, limit: int = 10, customer_ruc: Opt
 async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesOrder:
     # Resolve Staff IDs into actual names for the snapshot
     if order.issuer_info:
-        order.issuer_info = await resolve_issuer_info(order.issuer_info if isinstance(order.issuer_info, dict) else order.issuer_info.dict())
+        order.issuer_info = await resolve_issuer_info(order.issuer_info if isinstance(order.issuer_info, dict) else order.issuer_info.model_dump())
 
     # Generate sequential order number: OV-YY-####
     year_prefix = datetime.now().strftime('%y')

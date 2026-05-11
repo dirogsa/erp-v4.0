@@ -80,7 +80,8 @@ export const MENU_CONFIG = [
             { id: 'transfers', label: 'Logística Interna', path: '/transfers', icon: '🚚' },
             { id: 'warehouses', label: 'Sedes y Almacenes', path: '/warehouses', icon: '🏢' },
             { id: 'losses', label: 'Auditoría de Stock (Mermas)', path: '/losses', icon: '⚠️' },
-            { id: 'reconciliation', label: 'Sinceramiento de Inventario', path: '/reconciliation', icon: '⚙️' }
+            { id: 'reconciliation', label: 'Sinceramiento de Inventario', path: '/reconciliation', icon: '⚙️' },
+            { id: 'import-intelligence', label: 'Planeamiento de Importación', path: '/import-planning', icon: '🧠' }
         ]
     },
     {

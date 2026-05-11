@@ -66,9 +66,14 @@ async def get_products(
     category: Optional[str] = None,
     redeemable_only: Optional[bool] = None,
     product_type: Optional[str] = None,
-    company_id: Optional[str] = None
+    company_id: Optional[str] = None,
+    show_temporary: bool = False
 ) -> PaginatedResponse[ProductWithPrice]:
     query = {}
+    
+    # Por defecto ocultamos los productos temporales de conciliación
+    if not show_temporary:
+        query["is_temporary"] = {"$ne": True}
     
     if search:
         # Búsqueda multi-campo usando los índices de texto y Regex seguro
@@ -84,7 +89,8 @@ async def get_products(
         
     if category:
         query["category_id"] = category
-
+    if redeemable_only:
+        query["points_cost"] = {"$gt": 0}
 
     if product_type:
         query["type"] = product_type
@@ -102,7 +108,7 @@ async def get_products(
         price = price_info.get("price", 0.0)
         
         # Convertir a DTO con precio
-        p_dict = item.dict()
+        p_dict = item.model_dump()
         p_dict['price_list'] = price
         response_items.append(ProductWithPrice(**p_dict))
     
@@ -114,21 +120,24 @@ async def get_products(
         size=limit
     )
 
-async def find_product_robustly(sku: str, brand: Optional[str] = None, company_id: Optional[str] = None) -> Optional[Product]:
+async def find_product_robustly(
+    sku: str, 
+    brand: Optional[str] = None, 
+    company_id: Optional[str] = None,
+    auto_create: bool = False
+) -> Optional[Product]:
     """
     Buscador de grado industrial con inteligencia de marca y normalización.
-    Ahora opera sobre el catálogo global e inyecta datos de la empresa solicitante.
+    auto_create: Si es True, crea un registro básico si el SKU no existe (Modo Conciliación).
     """
     if not sku: return None
     
     sku_clean = normalize_sku(sku)
-    brand_upper = brand.upper().strip() if brand else None
+    brand_upper = brand.upper().strip() if brand else "GENERIC"
 
-    # 1. Búsqueda Directa (SKU + Marca) - MÁXIMA PRIORIDAD
-    if brand_upper:
-        query = {"sku": sku_clean, "brand": brand_upper}
-        product = await Product.find_one(query)
-        if product: return populate_company_data(product, company_id)
+    # 1. Búsqueda Directa (SKU + Marca)
+    product = await Product.find_one({"sku": sku_clean, "brand": brand_upper})
+    if product: return populate_company_data(product, company_id)
 
     # 2. Búsqueda por SKU (Cualquier Marca)
     product = await Product.find_one({"sku": sku_clean})
@@ -138,10 +147,7 @@ async def find_product_robustly(sku: str, brand: Optional[str] = None, company_i
     product = await Product.find_one({"equivalences.code": sku_clean})
     if product: return populate_company_data(product, company_id)
 
-    # 4. Caso SUNAT (DESACTIVADO): Se eliminó para evitar que el sistema ignore sufijos importantes (Ej: 'WA9432 F' ya no coincidirá con 'WA9432')
-    # Si el usuario quiere buscar por palabra, debe usar el buscador inteligente de la UI, no la carga de stock/precios.
-
-    # 5. AUTO-CREACIÓN DE GENÉRICOS (Ahora Globales)
+    # 4. Búsqueda de Genéricos
     generic_skus = ['VARIOS-GENERICO', 'VARIOS-ACEITES', 'VARIOS-BUJIAS', 'VARIOS-BATERIAS', 'VARIOS-REFRIGERANTES', 'GENERICO']
     sku_upper = sku.upper()
     if any(g in sku_upper for g in generic_skus):
@@ -161,6 +167,24 @@ async def find_product_robustly(sku: str, brand: Optional[str] = None, company_i
         )
         await generic.insert()
         return populate_company_data(generic, company_id)
+
+    # 5. Auto-creación de emergencia (Modo Conciliación)
+    if auto_create:
+        from app.models.inventory import ProductStatus
+        print(f"AUTO-CREATE [CONCILIACION]: Creando contenedor para SKU '{sku_clean}' ({brand_upper})")
+        new_product = Product(
+            sku=sku_clean,
+            name=f"PRODUCTO AUTO-GENERADO ({sku_clean})",
+            brand=brand_upper,
+            type=ProductType.COMMERCIAL,
+            status=ProductStatus.PENDING_REVIEW,
+            stock_current=0,
+            unit="UND",
+            is_temporary=True, # No aparecerá en el maestro por defecto
+            company_id=None
+        )
+        await new_product.insert()
+        return populate_company_data(new_product, company_id)
 
     return None
 
@@ -300,7 +324,7 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
     # Pero para un ERP de alto nivel, el Upsert (ReplaceOne) es el estándar de oro.
     
     # 3. Preparar operaciones Bulk
-    collection = Product.get_pymongo_collection()
+    collection = Product.get_motor_collection()
     
     auto_mapped_count = 0
     orphans_count = 0
@@ -372,7 +396,7 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
         db_products = await Product.find({"sku": {"$in": all_skus}}).to_list()
         product_map = {p.sku: p for p in db_products}
         
-        price_collection = PriceEntry.get_pymongo_collection()
+        price_collection = PriceEntry.get_motor_collection()
         for p_orig in products:
             p_db = product_map.get(p_orig.sku)
             if p_db:
@@ -714,14 +738,17 @@ async def register_movement(
     # a menos que sea una venta cruzada (Inter-company)
     actual_owner_id = legal_owner_id or company_id
 
-    # Asegurar que existan los buckets de stock
-    if company_id not in product.company_data:
-        product.company_data[company_id] = CompanyProductData()
-    if actual_owner_id not in product.company_data:
-        product.company_data[actual_owner_id] = CompanyProductData()
+    # Guard: solo operar company_data si hay un company_id válido.
+    # Guías legacy (sin company_id) ejecutan el movimiento de stock global
+    # sin crear un bucket de empresa para no corromper la estructura Pydantic.
+    if company_id is not None:
+        if company_id not in product.company_data:
+            product.company_data[company_id] = CompanyProductData()
+        if actual_owner_id and actual_owner_id not in product.company_data:
+            product.company_data[actual_owner_id] = CompanyProductData()
 
-    comp_data = product.company_data[company_id]
-    owner_data = product.company_data[actual_owner_id]
+    comp_data = product.company_data.get(company_id) if company_id else None
+    owner_data = product.company_data.get(actual_owner_id) if actual_owner_id else None
 
     # 1. Si es entrada con costo, recalcular costo promedio GLOBAL
     if movement_type == MovementType.IN and unit_cost is not None:
@@ -744,15 +771,15 @@ async def register_movement(
     )
     await movement.insert()
 
-    # 3. Actualizar metadatos de auditoría por empresa
-    if company_id not in product.company_data:
-        product.company_data[company_id] = CompanyProductData()
-    
-    comp_metadata = product.company_data[company_id]
-    if movement_type == MovementType.IN:
-        comp_metadata.last_purchase_date = date or datetime.utcnow()
-    elif movement_type == MovementType.OUT:
-        comp_metadata.last_sale_date = date or datetime.utcnow()
+    # 3. Actualizar metadatos de auditoría por empresa (solo si hay company_id)
+    if company_id is not None:
+        if company_id not in product.company_data:
+            product.company_data[company_id] = CompanyProductData()
+        comp_metadata = product.company_data[company_id]
+        if movement_type == MovementType.IN:
+            comp_metadata.last_purchase_date = date or datetime.utcnow()
+        elif movement_type == MovementType.OUT:
+            comp_metadata.last_sale_date = date or datetime.utcnow()
 
     # 4. Actualizar stock GLOBAL
     if movement_type == MovementType.IN:

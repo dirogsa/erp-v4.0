@@ -48,14 +48,19 @@ async def add_process_time_header(request: Request, call_next):
     return response
 
 # --- CORS CONFIGURATION ---
+# Base origins for local development
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:5175",
-    "https://erp-shop-umjn.onrender.com",
-    "https://erp-admin-bc49.onrender.com",
 ]
+
+# Dynamic origins from infrastructure (Render)
+if settings.ALLOWED_ORIGINS:
+    # Handle both comma-separated strings and extra whitespace
+    render_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
+    origins.extend(render_origins)
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,8 +74,13 @@ app.add_middleware(
 def get_python_process_count():
     try:
         import subprocess
-        output = subprocess.check_output('tasklist /FI "IMAGENAME eq python.exe" /NH', shell=True).decode(errors='ignore')
-        return output.count("python.exe")
+        import os
+        if os.name == 'nt': # Windows
+            output = subprocess.check_output('tasklist /FI "IMAGENAME eq python.exe" /NH', shell=True).decode(errors='ignore')
+            return output.count("python.exe")
+        else: # Linux/Render
+            output = subprocess.check_output('pgrep -c python', shell=True).decode(errors='ignore')
+            return int(output.strip())
     except:
         return 0
 
@@ -79,14 +89,14 @@ def include_routers(app: FastAPI):
         auth, companies, categories, brands, finance, analytics, 
         inventory, delivery, io, purchasing, purchase_quotes, 
         financial, sales, sales_quotes, sales_config, pricing, 
-        marketing, audit, staff, shop, intercompany, config
+        marketing, audit, staff, shop, intercompany, config, intelligence
     )
     
     modules = [
         auth, companies, categories, brands, finance, analytics, 
         inventory, delivery, io, purchasing, purchase_quotes, 
         financial, sales_quotes, sales, sales_config, pricing, 
-        marketing, audit, staff, shop, intercompany, config
+        marketing, audit, staff, shop, intercompany, config, intelligence
     ]
     
     for module in modules:

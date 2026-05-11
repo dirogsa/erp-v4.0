@@ -38,6 +38,7 @@ import StaffManagement from './pages/StaffManagement';
 import ExchangeRates from './pages/ExchangeRates';
 import SystemConfigPage from './pages/SystemConfigPage';
 import ReconciliationPage from './pages/ReconciliationPage';
+import ImportPlanning from './pages/ImportPlanning';
 
 
 
@@ -105,6 +106,7 @@ function App() {
                           <Route path="/exchange-rates" element={<ExchangeRates />} />
                           <Route path="/system-config" element={<SystemConfigPage />} />
                           <Route path="/reconciliation" element={<ReconciliationPage />} />
+                          <Route path="/import-planning" element={<ImportPlanning />} />
                         </Routes>
                       </Layout>
                     </ProtectedRoute>

@@ -22,7 +22,7 @@ async def create_staff_member(
     staff_in: StaffCreate,
     current_user = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
 ):
-    return await StaffService.create_staff(staff_in.dict())
+    return await StaffService.create_staff(staff_in.model_dump())
 
 @router.get("/{staff_id}", response_model=Staff)
 async def get_staff_member(staff_id: str):
@@ -37,7 +37,7 @@ async def update_staff_member(
     staff_update: StaffUpdate,
     current_user = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
 ):
-    staff = await StaffService.update_staff(staff_id, staff_update.dict())
+    staff = await StaffService.update_staff(staff_id, staff_update.model_dump())
     if not staff:
         raise HTTPException(status_code=404, detail="Staff member not found")
     return staff
