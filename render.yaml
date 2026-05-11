@@ -22,8 +22,9 @@ services:
         sync: false
 
   # Frontend ERP Static Site
-  - type: static
+  - type: web
     name: erp-admin
+    runtime: static
     rootDir: frontend-erp
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -36,8 +37,9 @@ services:
         sync: false
 
   # Frontend Shop Static Site
-  - type: static
+  - type: web
     name: erp-shop
+    runtime: static
     rootDir: frontend-shop
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -50,8 +52,9 @@ services:
         sync: false
 
   # Frontend Mobile Static Site
-  - type: static
+  - type: web
     name: erp-mobile
+    runtime: static
     rootDir: frontend-mobile
     buildCommand: npm install && npm run build
     staticPublishPath: dist
