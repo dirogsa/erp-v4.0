@@ -192,6 +192,7 @@ class ShopProductResponse(BaseModel):
     discount_12_pct: float = 0.0
     promo_discount_pct: float = 0.0
     type: Optional[str] = "COMMERCIAL"
+    matched_equivalence: Optional[str] = None
 
 class ShopProductDetailResponse(ShopProductResponse):
     specs: List[TechnicalSpec] = []
@@ -485,7 +486,8 @@ async def get_shop_products(
             discount_3_pct=policy.vol_3_discount_pct if policy else 0.0,
             discount_6_pct=policy.vol_6_discount_pct if policy else 0.0,
             discount_12_pct=policy.vol_12_discount_pct if policy else 0.0,
-            promo_discount_pct=p.promo_discount_pct
+            promo_discount_pct=p.promo_discount_pct,
+            matched_equivalence=next((eq.code for eq in p.equivalences if search and search.strip().upper() in eq.code.upper()), None) if search else None
         ))
 
     print(f"[SHOP] Returning {len(response_items)} items to frontend")

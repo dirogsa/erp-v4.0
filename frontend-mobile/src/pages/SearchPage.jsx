@@ -435,26 +435,73 @@ const SearchPage = () => {
                                 </div>
                             )}
                             
-                            {results.map(prod => (
-                                <MobileProductCard
-                                    key={prod.sku}
-                                    product={prod}
-                                    searchTerm={searchTerm}
-                                    onAddToCart={(p) => {
-                                        addToCart(p);
-                                        navigate('/cart');
-                                    }}
-                                />
-                            ))}
+                            {results.length > 0 ? (() => {
+                                const exactMatches = results.filter(p => p.sku === searchTerm.trim().toUpperCase());
+                                const equivalentMatches = results.filter(p => p.sku !== searchTerm.trim().toUpperCase());
+                                
+                                return (
+                                    <div className="space-y-10 pt-4">
+                                        {/* SECTION: EXACT MATCHES */}
+                                        <div className="space-y-4">
+                                            <h2 className="text-white font-black text-[11px] uppercase tracking-[0.2em] px-1 border-l-2 border-brand-primary pl-3">
+                                                Código Exacto <span className="opacity-40 ml-1">({exactMatches.length})</span>
+                                            </h2>
+                                            {exactMatches.length > 0 ? (
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    {exactMatches.map(prod => (
+                                                        <MobileProductCard
+                                                            key={prod.sku}
+                                                            product={prod}
+                                                            searchTerm={searchTerm}
+                                                            onAddToCart={(p) => {
+                                                                addToCart(p);
+                                                                navigate('/cart');
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="py-6 text-center border border-white/5 bg-white/5 rounded-3xl">
+                                                    <p className="text-[9px] font-black text-brand-text-dim uppercase tracking-widest">Sin coincidencias directas</p>
+                                                </div>
+                                            )}
+                                        </div>
 
-                            {results.length === 0 && (
+                                        {/* SECTION: EQUIVALENCES */}
+                                        <div className="space-y-4">
+                                            <h2 className="text-white font-black text-[11px] uppercase tracking-[0.2em] px-1 border-l-2 border-amber-400 pl-3">
+                                                Equivalentes <span className="opacity-40 ml-1">({equivalentMatches.length})</span>
+                                            </h2>
+                                            {equivalentMatches.length > 0 ? (
+                                                <div className="grid grid-cols-1 gap-4">
+                                                    {equivalentMatches.map(prod => (
+                                                        <MobileProductCard
+                                                            key={prod.sku}
+                                                            product={prod}
+                                                            searchTerm={searchTerm}
+                                                            onAddToCart={(p) => {
+                                                                addToCart(p);
+                                                                navigate('/cart');
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="py-6 text-center border border-white/5 bg-white/5 rounded-3xl">
+                                                    <p className="text-[9px] font-black text-brand-text-dim uppercase tracking-widest">No se encontraron cruces</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })() : (
                                 <div className="py-20 text-center space-y-6 animate-in fade-in slide-in-from-bottom-10">
                                     <div className="h-24 w-24 bg-brand-surface border border-white/5 rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl opacity-50">
                                         <XMarkIcon className="h-12 w-12 text-brand-danger" />
                                     </div>
                                     <div className="space-y-2">
                                         <h3 className="text-white font-black text-lg uppercase tracking-tighter">Sin coincidencias</h3>
-                                        <p className="text-brand-text-dim text-[11px] px-10">
+                                        <p className="text-brand-text-dim text-[11px] px-10 leading-relaxed font-medium">
                                             {activeTab === 'NEW' ? (
                                                 "No hay novedades o ingresos recientes disponibles en este momento."
                                             ) : activeTab === 'APPS' ? (
@@ -464,7 +511,7 @@ const SearchPage = () => {
                                             ) : (
                                                 <>No encontramos resultados para "<span className="text-white">{searchTerm}</span>".</>
                                             )}
-                                            <br />Intenta con otro criterio o ajusta los filtros.
+                                            <br /><span className="opacity-50">Intenta con otro criterio o ajusta los filtros.</span>
                                         </p>
                                         <button 
                                             onClick={() => {
@@ -472,7 +519,7 @@ const SearchPage = () => {
                                                 setSelectedCategory(null);
                                                 setActiveFilters({ make: '', model: '' });
                                             }}
-                                            className="mt-4 text-brand-primary font-black text-[10px] uppercase border-b border-brand-primary/30 pb-1"
+                                            className="mt-6 text-brand-primary font-black text-[10px] uppercase border-b border-brand-primary/30 pb-1"
                                         >
                                             Limpiar todos los filtros
                                         </button>

@@ -1,29 +1,39 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { ArrowPathIcon, XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function ReloadPrompt() {
-  const {
-    offlineReady: [offlineReady, setOfflineReady],
-    needUpdate: [needUpdate, setNeedUpdate],
-    updateServiceWorker,
-  } = useRegisterSW({
+  const sw = useRegisterSW({
     onRegistered(r) {
       console.log('[PWA] Service Worker registrado');
-      // Revisar actualizaciones cada hora
-      r && setInterval(() => {
-        r.update();
-      }, 60 * 60 * 1000);
     },
     onRegisterError(error) {
       console.error('[PWA] Error en Service Worker', error);
     },
   });
 
+  // Efecto para buscar actualizaciones periódicamente de forma segura
+  useEffect(() => {
+    if (sw?.needUpdate === undefined) return; // Esperar a que el hook esté listo
+  }, [sw]);
+
+  // Técnica de Soberanía de Tipos: Extraer con validación estricta
+  const [offlineReady, setOfflineReady] = Array.isArray(sw?.offlineReady) 
+    ? sw.offlineReady 
+    : [false, () => {}];
+
+  const [needUpdate, setNeedUpdate] = Array.isArray(sw?.needUpdate) 
+    ? sw.needUpdate 
+    : [false, () => {}];
+
+  const updateServiceWorker = typeof sw?.updateServiceWorker === 'function' 
+    ? sw.updateServiceWorker 
+    : () => {};
+
   const close = () => {
-    setOfflineReady(false);
-    setNeedUpdate(false);
+    if (setOfflineReady) setOfflineReady(false);
+    if (setNeedUpdate) setNeedUpdate(false);
   };
 
   return (

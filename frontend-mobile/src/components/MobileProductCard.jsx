@@ -65,7 +65,7 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false, searchTerm =
                     )}
                 </div>
                 
-                <h3 className="text-white font-bold uppercase tracking-tight text-xs leading-tight line-clamp-2">
+                <h3 className="text-white font-black uppercase tracking-tight text-xs leading-tight line-clamp-2">
                     {product.name}
                 </h3>
 
@@ -73,11 +73,6 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false, searchTerm =
                     <span className="text-[10px] text-brand-orange font-black tracking-widest">{product.sku}</span>
                     {product.promo_discount_pct > 0 && (
                         <span className="bg-brand-danger text-white text-[8px] font-black px-1.5 py-0.5 rounded animate-pulse">PROMO</span>
-                    )}
-                    {searchTerm && product.equivalences?.some(eq => eq.code.toUpperCase().includes(searchTerm.toUpperCase())) && (
-                        <span className="bg-brand-accent/20 text-brand-accent text-[8px] font-black px-1.5 py-0.5 rounded border border-brand-accent/30 tracking-tighter">
-                            EQ: {searchTerm.toUpperCase()}
-                        </span>
                     )}
                 </div>
 
