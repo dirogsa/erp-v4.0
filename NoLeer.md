@@ -69,3 +69,6 @@ Finalmente, arranca el backend:
 
 cmd
 python -m uvicorn main:app --reload
+
+ERP_Control_Tower
+rnd_U7LZ3qpIgMXqm4KR2zojFbpxI8DQ

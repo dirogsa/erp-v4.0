@@ -91,6 +91,7 @@ export const MENU_CONFIG = [
         roles: [ROLES.ADMIN],
         isGroup: true,
         children: [
+            { id: 'system-status', label: 'Salud del Ecosistema', path: '/system-status', icon: '📡' },
             { id: 'system-config', label: 'Configuración de la Suite', path: '/system-config', icon: '⚙️' },
             { id: 'data-center', label: 'Central de Datos (Datahub)', path: '/import-export', icon: '📤' },
             { id: 'catalog-ingestion', label: 'Ingesta masiva Catálogo', path: '/catalog-ingestion', icon: '🌐' },

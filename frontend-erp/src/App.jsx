@@ -39,6 +39,7 @@ import ExchangeRates from './pages/ExchangeRates';
 import SystemConfigPage from './pages/SystemConfigPage';
 import ReconciliationPage from './pages/ReconciliationPage';
 import ImportPlanning from './pages/ImportPlanning';
+import SystemStatus from './pages/SystemStatus';
 
 
 
@@ -105,6 +106,7 @@ function App() {
                           <Route path="/staff" element={<StaffManagement />} />
                           <Route path="/exchange-rates" element={<ExchangeRates />} />
                           <Route path="/system-config" element={<SystemConfigPage />} />
+                          <Route path="/system-status" element={<SystemStatus />} />
                           <Route path="/reconciliation" element={<ReconciliationPage />} />
                           <Route path="/import-planning" element={<ImportPlanning />} />
                         </Routes>

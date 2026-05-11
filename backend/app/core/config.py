@@ -16,8 +16,9 @@ class Settings:
     DEFAULT_REPORTING_CURRENCY: str = os.getenv("DEFAULT_REPORTING_CURRENCY", "PEN")
     DEFAULT_TAX_PERCENTAGE: float = float(os.getenv("DEFAULT_TAX_PERCENTAGE", "18.0"))
     
-    # CORS
+    # CORS & Infrastructure
     ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "")
+    RENDER_API_KEY: Optional[str] = os.getenv("RENDER_API_KEY")
     
     # JWT Security
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY")

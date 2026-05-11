@@ -37,3 +37,12 @@ async def update_config(
             
     await config.save()
     return config
+
+@router.get("/infrastructure/status")
+async def get_infra_status(current_user: User = Depends(get_current_user)):
+    """Consulta el estado de salud de los servicios en la infraestructura de Render"""
+    if current_user.role not in ["ADMIN", "SUPERADMIN"]:
+        raise HTTPException(status_code=403, detail="No tiene permisos para ver la infraestructura")
+    
+    from app.services.infrastructure_service import infrastructure_service
+    return await infrastructure_service.get_services_status()
