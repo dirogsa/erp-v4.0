@@ -9,7 +9,15 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       devOptions: {
-        enabled: true
+        enabled: true,
+        type: 'module'
+      },
+      workbox: {
+        // Silenciamos el warning en dev ya que Vite sirve desde memoria
+        globPatterns: process.env.NODE_ENV === 'production' ? ['**/*.{js,css,html,ico,png,svg}'] : [],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
