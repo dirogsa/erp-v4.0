@@ -78,9 +78,7 @@ async def delete_brand(name: str, current_user: User = Depends(get_current_user)
     if current_user.role not in [UserRole.ADMIN, UserRole.SUPERADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
         
-    brand = await VehicleBrand.find_one(VehicleBrand.name == name)
-    if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
-        
-    await brand.delete()
-    return {"message": "Brand deleted"}
+    raise HTTPException(
+        status_code=405, 
+        detail="La eliminación de marcas está deshabilitada por seguridad de datos. Por favor, use la opción de 'Desactivar' (Ojo) para ocultarla de la tienda."
+    )

@@ -126,16 +126,6 @@ const BrandManagement = () => {
         setModalVisible(true);
     };
 
-    const handleDelete = async (name) => {
-        if (!window.confirm(`¿Seguro que deseas eliminar la marca ${name}?`)) return;
-        try {
-            await brandService.deleteBrand(name);
-            showNotification('Marca eliminada', 'success');
-            loadBrands();
-        } catch (error) {
-            showNotification('Error al eliminar', 'error');
-        }
-    };
 
     const handleSave = async (e) => {
         e.preventDefault();
@@ -288,12 +278,6 @@ const BrandManagement = () => {
                             <Settings style={{ height: '1rem' }} /> ACTIVAR
                         </button>
                         <button 
-                            onClick={() => handleBulkAction('is_active', false)}
-                            style={{ background: 'rgba(0,0,0,0.2)', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '50px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                        >
-                            <Trash2 style={{ height: '1rem' }} /> OCULTAR
-                        </button>
-                        <button 
                             onClick={() => handleBulkAction('is_popular', true)}
                             style={{ background: '#fbbf24', color: 'black', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '50px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                         >
@@ -314,7 +298,7 @@ const BrandManagement = () => {
                 {[
                     { id: 'all', label: 'Total Marcas', count: rootsCount, color: '#6366f1', icon: Tag, desc: 'Catálogo completo sincronizado' },
                     { id: 'active', label: 'Visibles en Tienda', count: activeCount, color: '#10b981', icon: Settings, desc: 'Disponibles para el cliente' },
-                    { id: 'hidden', label: 'Marcas Ocultas', count: hiddenCount, color: '#ef4444', icon: Trash2, desc: 'Restringidas del buscador' }
+                    { id: 'hidden', label: 'Marcas Inactivas', count: hiddenCount, color: '#94a3b8', icon: EyeOff, desc: 'Restringidas del buscador' }
                 ].map(stat => (
                     <div 
                         key={stat.id}
@@ -585,13 +569,6 @@ const BrandManagement = () => {
                                     className="hover-bright"
                                 >
                                     <Settings style={{ height: '1.2rem' }} /> CONFIGURAR MARCA
-                                </button>
-                                <button 
-                                    onClick={() => handleDelete(brand.name)}
-                                    style={{ background: '#ef444422', color: '#ef4444', border: 'none', padding: '0.8rem', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }}
-                                    className="hover-danger"
-                                >
-                                    <Trash2 style={{ height: '1.2rem' }} />
                                 </button>
                             </div>
                         </div>
