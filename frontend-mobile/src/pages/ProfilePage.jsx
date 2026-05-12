@@ -12,6 +12,7 @@ import {
     WalletIcon,
     CreditCardIcon
 } from '@heroicons/react/24/outline';
+import VersionInfo from '../components/VersionInfo';
 
 const ProfilePage = () => {
     const { user, logout } = useAuth();
@@ -58,9 +59,12 @@ const ProfilePage = () => {
                     </div>
                     <div>
                         <h1 className="text-xl font-black text-slate-900 leading-tight">Mi Perfil</h1>
-                        <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em] mt-0.5">
-                            RUC: {user?.ruc_linked || 'Sin RUC'}
-                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-[10px] font-black text-primary-600 uppercase tracking-[0.2em]">
+                                RUC: {user?.ruc_linked || 'Sin RUC'}
+                            </p>
+                            <VersionInfo />
+                        </div>
                     </div>
                 </div>
                 <button

@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
 import { Link } from 'react-router-dom';
+import VersionInfo from '../components/VersionInfo';
 
 const HomePage = () => {
     const { user } = useAuth();
@@ -60,9 +61,12 @@ const HomePage = () => {
             <div className="glass-card px-6 pt-12 pb-6 sticky top-0 z-50 border-b border-white/5 flex justify-between items-center transition-all shadow-xl">
                 <div>
                     <h1 className="text-brand-xl font-black text-white leading-tight">Hola, {user?.full_name?.split(' ')[0]} 👋</h1>
-                    <p className="text-brand-label mt-1">
-                        Socio {user?.classification || 'Standard'}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-brand-label">
+                            Socio {user?.classification || 'Standard'}
+                        </p>
+                        <VersionInfo />
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <Link to="/notifications" className="relative p-2.5 bg-slate-50 rounded-2xl text-slate-400 active:scale-95 transition-all">

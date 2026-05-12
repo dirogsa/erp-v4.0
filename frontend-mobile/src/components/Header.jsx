@@ -1,13 +1,16 @@
-import React from 'react';
+import VersionInfo from './VersionInfo';
 import { MagnifyingGlassIcon, QrCodeIcon } from '@heroicons/react/24/outline';
 
 const Header = ({ onSearch }) => {
     return (
         <header className="glass-card px-4 pt-10 pb-4 sticky top-0 z-40 border-b border-white/5 shadow-xl">
             <div className="flex items-center justify-between mb-6 px-2">
-                <h1 className="text-brand-xl font-black text-brand-primary tracking-tighter">
-                    DIROGSA <span className="text-brand-text-dim font-medium">ERP</span>
-                </h1>
+                <div className="flex items-center gap-3">
+                    <h1 className="text-brand-xl font-black text-brand-primary tracking-tighter">
+                        DIROGSA <span className="text-brand-text-dim font-medium">ERP</span>
+                    </h1>
+                    <VersionInfo className="mt-1" />
+                </div>
                 <button className="h-12 w-12 flex items-center justify-center bg-brand-surface-2 rounded-2xl border border-brand-border-2 text-brand-primary active:scale-90 transition-all shadow-lg">
                     <QrCodeIcon className="h-6 w-6" />
                 </button>
