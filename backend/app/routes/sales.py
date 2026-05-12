@@ -72,9 +72,10 @@ async def get_invoices(
     search: Optional[str] = None,
     payment_status: Optional[str] = None,
     date_from: Optional[str] = None,
-    date_to: Optional[str] = None
+    date_to: Optional[str] = None,
+    is_confirmed: Optional[bool] = None
 ):
-    return await sales_service.get_invoices(skip, limit, search, payment_status, date_from, date_to)
+    return await sales_service.get_invoices(skip, limit, search, payment_status, date_from, date_to, is_confirmed)
 
 @router.get("/invoices/{invoice_number}", response_model=SalesInvoice)
 async def get_invoice(invoice_number: str):

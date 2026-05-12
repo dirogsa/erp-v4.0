@@ -11,6 +11,8 @@ datos de la empresa
 
 Actúa como mi Arquitecto Senior. Antes de responder, lee la CONSTITUTION.md de mi proyecto y asegúrate de que tu solución no sea un parche, sino una pieza de ingeniería de clase mundial.
 
+Espera confirmacion del plan para ejecutar y modificar el codigo
+
 ### 1. Iniciar el Backend
 
 ```bash

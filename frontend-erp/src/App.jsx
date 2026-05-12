@@ -40,6 +40,7 @@ import SystemConfigPage from './pages/SystemConfigPage';
 import ReconciliationPage from './pages/ReconciliationPage';
 import ImportPlanning from './pages/ImportPlanning';
 import SystemStatus from './pages/SystemStatus';
+import FinancialSincerityInbox from './pages/FinancialSincerityInbox';
 
 
 
@@ -109,6 +110,7 @@ function App() {
                           <Route path="/system-status" element={<SystemStatus />} />
                           <Route path="/reconciliation" element={<ReconciliationPage />} />
                           <Route path="/import-planning" element={<ImportPlanning />} />
+                          <Route path="/financial-sincerity" element={<FinancialSincerityInbox />} />
                         </Routes>
                       </Layout>
                     </ProtectedRoute>

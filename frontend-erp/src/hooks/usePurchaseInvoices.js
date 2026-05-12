@@ -3,8 +3,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { purchasingService } from '../services/api';
 import { useNotification } from './useNotification';
 
-export const usePurchaseInvoices = () => {
+export const usePurchaseInvoices = ({ page = 1, limit = 50, search = '', payment_status = '', date_from = '', date_to = '', is_confirmed = null } = {}) => {
     const [invoices, setInvoices] = useState([]);
+    const [pagination, setPagination] = useState({ current: 1, total: 1, totalItems: 0 });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const queryClient = useQueryClient();
@@ -14,9 +15,14 @@ export const usePurchaseInvoices = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await purchasingService.getInvoices();
+            const response = await purchasingService.getInvoices(page, limit, search, payment_status, date_from, date_to, is_confirmed);
             // Extract items from paginated response
             setInvoices(response.data.items || []);
+            setPagination({
+                current: response.data.page || 1,
+                total: response.data.pages || 1,
+                totalItems: response.data.total || 0
+            });
         } catch (err) {
             setError(err);
             showNotification('Error al cargar facturas de compra', 'error');
@@ -24,7 +30,7 @@ export const usePurchaseInvoices = () => {
         } finally {
             setLoading(false);
         }
-    }, [showNotification]);
+    }, [showNotification, page, limit, search, payment_status, date_from, date_to, is_confirmed]);
 
     const createInvoice = useCallback(async (invoiceData) => {
         setLoading(true);
@@ -97,6 +103,7 @@ export const usePurchaseInvoices = () => {
 
     return {
         invoices,
+        pagination,
         loading,
         error,
         fetchInvoices,

@@ -3,6 +3,7 @@ import Table from '../../common/Table';
 import Badge from '../../common/Badge';
 import Button from '../../common/Button';
 import { formatCurrency, formatDate, formatStatus } from '../../../utils/formatters';
+import { AlertCircle } from 'lucide-react';
 
 const PurchaseInvoicesTable = ({
     invoices = [],
@@ -19,10 +20,17 @@ const PurchaseInvoicesTable = ({
             label: 'N° Factura',
             key: 'sunat_number',
             render: (val, invoice) => (
-                <div>
-                    <div style={{ fontWeight: 'bold', color: 'white' }}>{invoice.sunat_number || 'S/N'}</div>
-                    <div style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', marginTop: '0.1rem' }}>
-                        ID Int: {invoice.invoice_number}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {!invoice.is_financial_confirmed && (
+                        <div title="Pendiente de Sinceramiento" style={{ color: '#ef4444' }}>
+                            <AlertCircle size={16} />
+                        </div>
+                    )}
+                    <div>
+                        <div style={{ fontWeight: 'bold', color: 'white' }}>{invoice.sunat_number || 'S/N'}</div>
+                        <div style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', marginTop: '0.1rem' }}>
+                            ID Int: {invoice.invoice_number}
+                        </div>
                     </div>
                 </div>
             )

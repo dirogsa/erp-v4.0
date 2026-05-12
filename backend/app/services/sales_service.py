@@ -426,7 +426,8 @@ async def get_invoices(
     search: Optional[str] = None,
     payment_status: Optional[str] = None,
     date_from: Optional[str] = None,
-    date_to: Optional[str] = None
+    date_to: Optional[str] = None,
+    is_confirmed: Optional[bool] = None
 ) -> PaginatedResponse[SalesInvoice]:
     query = {}
     
@@ -440,6 +441,9 @@ async def get_invoices(
     
     if payment_status:
         query["payment_status"] = payment_status
+        
+    if is_confirmed is not None:
+        query["is_financial_confirmed"] = is_confirmed
         
     if date_from or date_to:
         query["invoice_date"] = {}
@@ -1294,8 +1298,8 @@ async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: 
     payment_mode = data.get('payment_terms', 'Contado')
     is_credit = payment_mode.lower() == 'crédito' or len(data.get('installments', [])) > 0
     
-    payment_status = PaymentStatus.PENDING if is_credit else PaymentStatus.PAID
-    amount_paid = 0 if is_credit else order.total_amount
+    payment_status = PaymentStatus.PENDING # Siempre nace pendiente en importación XML hasta el sinceramiento
+    amount_paid = 0.0
     
     # Calcular fecha de vencimiento real para créditos
     due_date = order.date
@@ -1327,17 +1331,12 @@ async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: 
         amount_paid=amount_paid,
         issuer_info=order.issuer_info,
         payment_terms={"mode": payment_mode, "installments": data.get('installments', [])},
-        dispatch_status="PENDING"
+        dispatch_status="PENDING",
+        is_financial_confirmed=False # Requiere doble confirmación (Buzón de Sinceramiento)
     )
     
-    # Si es contado, registrar el ingreso de dinero automático (Integridad Financiera)
-    if not is_credit:
-        payment = Payment(
-            amount=order.total_amount,
-            date=order.date,
-            notes="Ingreso automático (Contado) desde importación XML"
-        )
-        invoice.payments.append(payment)
+    # El registro de pago automático se ha ELIMINADO de aquí.
+    # Ahora se realiza exclusivamente en el "Buzón de Sinceramiento Financiero" (bulk_confirm_payment).
         
     await invoice.insert()
     
@@ -1417,52 +1416,57 @@ async def bulk_update_payment_condition(invoice_numbers: List[str], condition: s
         invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == num)
         if not invoice: continue
         
-        if condition == "CREDITO" and invoice.payment_condition == "CONTADO":
-            # REVERSIÓN: De Contado a Crédito (Eliminar pagos automáticos)
-            invoice.payment_condition = "CREDITO"
-            invoice.payment_status = PaymentStatus.PENDING
-            invoice.amount_paid = 0.0
+        changed = False
+        if condition == "CREDITO":
+            # Si era contado o no estaba confirmado, actualizamos a crédito
+            if invoice.payment_condition != "CREDITO" or not invoice.is_financial_confirmed:
+                invoice.payment_condition = "CREDITO"
+                invoice.payment_status = PaymentStatus.PENDING
+                invoice.amount_paid = 0.0
+                # Limpiar pagos automáticos previos
+                invoice.payments = [p for p in invoice.payments if p.notes and "automático" not in p.notes.lower()]
+                changed = True
             
-            # Limpiar pagos automáticos (los que no tienen notas o dicen "automático")
-            invoice.payments = [p for p in invoice.payments if p.notes and "automático" not in p.notes.lower()]
-            
-            # Aplicar términos personalizados
+            # Siempre aplicar términos si se envían
             if payment_terms:
                 invoice.payment_terms = payment_terms
-                # Si hay cuotas, la fecha de vencimiento es la de la última cuota
                 installments = payment_terms.get('installments', [])
                 if installments:
                     try:
                         dates = [datetime.fromisoformat(inst['date']) for inst in installments if inst.get('date')]
                         if dates: invoice.due_date = max(dates)
                     except: pass
-            
-            # Fallback a días si no se definió por cuotas
-            if not payment_terms or not payment_terms.get('installments'):
+                changed = True
+            elif not payment_terms and (not invoice.payment_terms or "days" not in str(invoice.payment_terms)):
                 invoice.due_date = invoice.invoice_date + timedelta(days=days or 30)
                 invoice.payment_terms = {"type": "CREDIT", "days": days or 30}
+                changed = True
 
+        elif condition == "CONTADO":
+            if invoice.payment_condition != "CONTADO" or not invoice.is_financial_confirmed:
+                invoice.payment_condition = "CONTADO"
+                invoice.payment_status = PaymentStatus.PAID
+                invoice.amount_paid = invoice.total_amount
+                invoice.payment_terms = {"type": "CASH"}
+                
+                # Registrar el pago total si no existe
+                has_full_payment = any(p.amount >= invoice.total_amount for p in invoice.payments)
+                if not has_full_payment:
+                    payment = Payment(
+                        amount=invoice.total_amount,
+                        date=datetime.now(),
+                        notes="Confirmación manual: Liquidación Contado (Sinceramiento)"
+                    )
+                    invoice.payments.append(payment)
+                changed = True
+        
+        # Sellar como Sincerado
+        if not invoice.is_financial_confirmed:
+            invoice.is_financial_confirmed = True
+            changed = True
+            
+        if changed:
             await invoice.save()
             count += 1
             
-        elif condition == "CONTADO" and invoice.payment_condition == "CREDITO":
-            # REGULARIZACIÓN: De Crédito a Contado (Pagar todo)
-            invoice.payment_condition = "CONTADO"
-            invoice.payment_status = PaymentStatus.PAID
-            invoice.amount_paid = invoice.total_amount
-            invoice.payment_terms = {"type": "CASH"}
-            
-            # Registrar el pago total si no existe
-            has_full_payment = any(p.amount >= invoice.total_amount for p in invoice.payments)
-            if not has_full_payment:
-                payment = Payment(
-                    amount=invoice.total_amount,
-                    date=datetime.now(),
-                    notes="Regularización manual: Cambio de Crédito a Contado"
-                )
-                invoice.payments.append(payment)
-            
-            await invoice.save()
-            count += 1
-            
-    return {"message": f"Se regularizaron {count} facturas correctamente", "count": count}
+    return {"message": f"Se sinceraron {count} facturas correctamente", "count": count}

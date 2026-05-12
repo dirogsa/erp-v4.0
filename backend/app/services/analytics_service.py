@@ -10,9 +10,10 @@ async def get_dashboard_summary() -> Dict[str, Any]:
     now = datetime.now()
     month_start = datetime(now.year, now.month, 1)
     
-    # 1. Sales of the Month (Facturas)
+    # 1. Sales of the Month (Facturas Sinceradas)
     sales_month_invoices = await SalesInvoice.find({
-        "invoice_date": {"$gte": month_start}
+        "invoice_date": {"$gte": month_start},
+        "is_financial_confirmed": True
     }).to_list()
     sales_month_amount = sum(inv.total_amount or 0 for inv in sales_month_invoices)
     
@@ -57,8 +58,8 @@ async def get_debtors_report(customer_id: Optional[str] = None, status_filter: s
     status_filter: 'pending' (default), 'paid', 'all'
     """
     
-    # Base query
-    query = {}
+    # Base query: Solo facturas sinceradas
+    query = {"is_financial_confirmed": True}
     
     # Apply filter
     if status_filter == 'pending':
@@ -121,8 +122,9 @@ async def get_sales_report(start_date: str, end_date: str) -> Dict[str, Any]:
         return {"items": [], "total_sales": 0}
 
     invoices = await SalesInvoice.find({
-        "invoice_date": {"$gte": start, "$lt": end}
-        # "status": {"$ne": "CANCELLED"} # Optional depending on if we want to see cancelled invs
+        "invoice_date": {"$gte": start, "$lt": end},
+        "is_financial_confirmed": True
+        # "status": {"$ne": "CANCELLED"}
     }).sort("invoice_date").to_list()
     
     items = []

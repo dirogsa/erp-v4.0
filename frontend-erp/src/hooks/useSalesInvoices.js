@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { salesService } from '../services/api';
 import { useNotification } from './useNotification';
 
-export const useSalesInvoices = ({ page = 1, limit = 50, search = '', payment_status = '', date_from = '', date_to = '' } = {}) => {
+export const useSalesInvoices = ({ page = 1, limit = 50, search = '', payment_status = '', date_from = '', date_to = '', is_confirmed = null } = {}) => {
     const [invoices, setInvoices] = useState([]);
     const [pagination, setPagination] = useState({ current: 1, total: 1, totalItems: 0 });
     const [loading, setLoading] = useState(false);
@@ -15,7 +15,7 @@ export const useSalesInvoices = ({ page = 1, limit = 50, search = '', payment_st
         setLoading(true);
         setError(null);
         try {
-            const response = await salesService.getInvoices(page, limit, search, payment_status, date_from, date_to);
+            const response = await salesService.getInvoices(page, limit, search, payment_status, date_from, date_to, is_confirmed);
             // Extract items from paginated response
             setInvoices(response.data.items || []);
             setPagination({
@@ -30,7 +30,7 @@ export const useSalesInvoices = ({ page = 1, limit = 50, search = '', payment_st
         } finally {
             setLoading(false);
         }
-    }, [showNotification, page, limit, search, payment_status, date_from, date_to]);
+    }, [showNotification, page, limit, search, payment_status, date_from, date_to, is_confirmed]);
 
     const createInvoice = useCallback(async (invoiceData) => {
         setLoading(true);

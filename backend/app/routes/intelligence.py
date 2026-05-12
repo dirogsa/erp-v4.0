@@ -10,6 +10,7 @@ router = APIRouter(prefix="/intelligence", tags=["Intelligence & Analytics"])
 async def get_import_planning(
     company_id: Optional[str] = None,
     lead_time_days: int = Query(60, ge=1, le=180),
+    supply_days: int = Query(90, ge=0, le=365),
     service_level: float = Query(0.95, ge=0.90, le=0.99),
     analysis_days: int = Query(180, ge=30, le=730),
     recent_days: int = Query(30, ge=7, le=90),
@@ -17,11 +18,12 @@ async def get_import_planning(
 ):
     """
     Retorna el plan de importación sugerido basado en algoritmos predictivos.
-    Permite ajustar parámetros de suministro y ventanas de tendencia dinámicamente.
+    Permite ajustar parámetros de suministro, ventanas de tendencia y periodos de abastecimiento.
     """
     return await IntelligenceService.get_import_planning(
         company_id=company_id,
         lead_time_days=lead_time_days,
+        supply_days=supply_days,
         service_level=service_level,
         analysis_days=analysis_days,
         recent_days=recent_days

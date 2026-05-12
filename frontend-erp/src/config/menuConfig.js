@@ -54,6 +54,7 @@ export const MENU_CONFIG = [
         children: [
             { id: 'exchange-rates', label: 'Tesorería y Monedas', path: '/exchange-rates', icon: '💱' },
             { id: 'financial-audit', label: 'Gestión de Cobranzas', path: '/audit/financial', icon: '🛡️' },
+            { id: 'financial-sincerity', label: 'Buzón de Sinceramiento', path: '/financial-sincerity', icon: '⚖️' },
             { id: 'reports', label: 'Reportes Financieros', path: '/reports', icon: '📉' },
             { id: 'bulk-xml', label: 'Monitor Tributario (XML)', path: '/bulk/xml', icon: '📄' }
         ]

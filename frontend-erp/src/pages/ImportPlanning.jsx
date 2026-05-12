@@ -15,19 +15,37 @@ import {
   Settings,
   RefreshCw,
   Clock,
-  Play
+  Play,
+  X,
+  Zap,
+  Activity,
+  Box
 } from 'lucide-react';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  AreaChart,
+  Area
+} from 'recharts';
 import { useNotification } from '../hooks/useNotification';
 
 const ImportPlanning = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState('ALL');
+  const [filterBrand, setFilterBrand] = useState('ALL');
   const [budgetLimit, setBudgetLimit] = useState(60000); 
   const [selectedItems, setSelectedItems] = useState([]);
-  const [groupByBrand, setGroupByBrand] = useState(false);
+  const [groupBy, setGroupBy] = useState('none');
+  const [selectedItem, setSelectedItem] = useState(null);
   
   // Parametros en "Borrador" (Draft)
   const [leadTime, setLeadTime] = useState(60);
+  const [supplyDays, setSupplyDays] = useState(90); // Ventana de Abastecimiento por defecto 3 meses
   const [serviceLevel, setServiceLevel] = useState(0.95);
   const [analysisDays, setAnalysisDays] = useState(180);
   const [recentDays, setRecentDays] = useState(30);
@@ -58,6 +76,7 @@ const ImportPlanning = () => {
     hasExecuted.current = true; // Activar la barrera explícitamente
     setAppliedParams({
       lead_time_days: leadTime,
+      supply_days: supplyDays,
       service_level: serviceLevel,
       analysis_days: analysisDays,
       recent_days: recentDays
@@ -86,14 +105,21 @@ const ImportPlanning = () => {
     const skuMatch = item.sku?.toLowerCase().includes(searchLower) || false;
     const brandMatch = item.brand?.toLowerCase().includes(searchLower) || false;
     const matchesPriority = filterPriority === 'ALL' || item.priority === filterPriority;
-    return (nameMatch || skuMatch || brandMatch) && matchesPriority;
+    const matchesBrand = filterBrand === 'ALL' || item.brand === filterBrand;
+    return (nameMatch || skuMatch || brandMatch) && matchesPriority && matchesBrand;
   });
 
-  const groupedData = groupByBrand ? 
+  const availableBrands = Array.from(new Set(planningData?.map(i => i.brand) || [])).filter(Boolean).sort();
+
+  const groupedData = groupBy !== 'none' ? 
     filteredData?.reduce((acc, item) => {
-      const brand = item.brand || 'SIN MARCA';
-      if (!acc[brand]) acc[brand] = [];
-      acc[brand].push(item);
+      let key = 'SIN ESPECIFICAR';
+      if (groupBy === 'brand') key = item.brand || 'SIN MARCA';
+      if (groupBy === 'category') key = item.category_name || 'SIN CATEGORÍA';
+      if (groupBy === 'priority') key = `CLASE ${item.priority}`;
+      
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
       return acc;
     }, {}) : null;
 
@@ -446,6 +472,112 @@ const ImportPlanning = () => {
         }
         .spin-icon { animation: spin 4s linear infinite; color: var(--primary-color); margin-bottom: 2rem; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* Detail Panel Styles */
+        .detail-panel-overlay {
+          position: fixed;
+          top: 0;
+          right: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(8px);
+          z-index: 2000;
+          display: flex;
+          justify-content: flex-end;
+          animation: fadeIn 0.3s ease;
+        }
+
+        .detail-panel-content {
+          width: 500px;
+          height: 100%;
+          background: #0f172a;
+          border-left: 1px solid var(--primary-color);
+          box-shadow: -20px 0 50px rgba(0,0,0,0.8);
+          padding: 2.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+          animation: slideFromRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          overflow-y: auto;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideFromRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        .panel-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+        }
+
+        .panel-sku-title { font-size: 2rem; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+        .panel-brand-tag { 
+          display: inline-block; 
+          background: var(--primary-color); 
+          color: white; 
+          padding: 0.2rem 0.6rem; 
+          border-radius: 0.4rem; 
+          font-size: 0.6rem; 
+          font-weight: 900; 
+          text-transform: uppercase;
+          margin-top: 0.5rem;
+        }
+
+        .metric-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.2rem;
+        }
+
+        .metric-card {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.05);
+          padding: 1.2rem;
+          border-radius: 1.2rem;
+        }
+
+        .metric-label { font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.4rem; }
+        .metric-value { font-size: 1.4rem; font-weight: 900; }
+        .metric-unit { font-size: 0.7rem; opacity: 0.5; margin-left: 0.3rem; }
+
+        .explanation-box {
+          background: rgba(59, 130, 246, 0.05);
+          border-left: 4px solid var(--primary-color);
+          padding: 1.5rem;
+          border-radius: 0.8rem;
+        }
+
+        .formula-text {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 0.8rem;
+          background: rgba(0,0,0,0.3);
+          padding: 1rem;
+          border-radius: 0.5rem;
+          margin-top: 1rem;
+          color: #94a3b8;
+        }
+
+        .chart-container {
+          height: 180px;
+          margin: 1rem 0;
+        }
+
+        .close-circle {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.05);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .close-circle:hover { background: #f43f5e; color: white; transform: rotate(90deg); }
+
+        .clickable-row { cursor: pointer; transition: background 0.2s; }
+        .clickable-row:hover { background: rgba(255,255,255,0.02) !important; }
       `}</style>
 
       {/* Header Section */}
@@ -478,10 +610,21 @@ const ImportPlanning = () => {
               </div>
             </div>
             <div style={{ height: '30px', width: '1px', background: 'var(--border-color)' }}></div>
-            <div className="budget-input-group">
+            <div className="budget-input-group" style={{ minWidth: '150px' }}>
               <label>Capacidad Uso</label>
-              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: (runningBudget > budgetLimit) ? '#f43f5e' : '#10b981' }}>
-                {((runningBudget / budgetLimit) * 100).toFixed(0)}%
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                <div style={{ flex: 1, height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ 
+                    width: `${Math.min(100, (runningBudget / budgetLimit) * 100)}%`, 
+                    height: '100%', 
+                    background: (runningBudget > budgetLimit) ? '#f43f5e' : '#10b981',
+                    boxShadow: (runningBudget > budgetLimit) ? '0 0 10px rgba(244, 63, 94, 0.5)' : '0 0 10px rgba(16, 185, 129, 0.5)',
+                    transition: 'width 0.5s ease-out'
+                  }}></div>
+                </div>
+                <div style={{ fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums', fontWeight: 900, color: (runningBudget > budgetLimit) ? '#f43f5e' : '#10b981' }}>
+                  {((runningBudget / budgetLimit) * 100).toFixed(0)}%
+                </div>
               </div>
             </div>
           </div>
@@ -500,6 +643,11 @@ const ImportPlanning = () => {
             <label><Clock size={14} /> Ventana Tendencia</label>
             <input type="range" min="7" max="90" value={recentDays} onChange={e => setRecentDays(Number(e.target.value))} className="range-slider" style={{ accentColor: '#f59e0b' }} />
             <div style={{ textAlign: 'right', fontWeight: 900, marginTop: '0.5rem', color: '#f59e0b' }}>{recentDays} días</div>
+          </div>
+          <div className="setting-item">
+            <label><ShoppingBag size={14} /> Ventana de Abastecimiento (Días)</label>
+            <input type="range" min="0" max="365" value={supplyDays} onChange={e => setSupplyDays(Number(e.target.value))} className="range-slider" style={{ accentColor: '#10b981' }} />
+            <div style={{ textAlign: 'right', fontWeight: 900, marginTop: '0.5rem', color: '#10b981' }}>{supplyDays} días</div>
           </div>
           <div className="setting-item">
             <label><TrendingUp size={14} /> Confianza</label>
@@ -548,20 +696,38 @@ const ImportPlanning = () => {
           <div className="search-wrapper">
             <Search className="search-icon" size={20} />
             <input 
-              type="text" placeholder="Filtrar resultados..." 
+              type="text" placeholder="Filtrar resultados por SKU, Marca o Nombre..." 
               className="styled-input" value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <button onClick={() => setGroupByBrand(!groupByBrand)} className={`btn-toggle ${groupByBrand ? 'active' : ''}`}>
-            {groupByBrand ? 'Desagrupar' : 'Agrupar Marcas'}
-          </button>
-          <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="styled-select">
-            <option value="ALL">Todo ABC</option>
-            <option value="A">Clase A</option>
-            <option value="B">Clase B</option>
-            <option value="C">Clase C</option>
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--text-secondary)' }}>MARCA:</span>
+            <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)} className="styled-select">
+              <option value="ALL">Todas las Marcas</option>
+              {availableBrands.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--text-secondary)' }}>AGRUPAR:</span>
+            <select value={groupBy} onChange={e => setGroupBy(e.target.value)} className="styled-select">
+              <option value="none">Sin Agrupar</option>
+              <option value="brand">Marca</option>
+              <option value="category">Categoría</option>
+              <option value="priority">Segmentación</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--text-secondary)' }}>SEGMENTACIÓN:</span>
+            <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className="styled-select">
+              <option value="ALL">Todos los Niveles (ABC)</option>
+              <option value="A">Clase A - Alta Rotación</option>
+              <option value="B">Clase B - Rotación Media</option>
+              <option value="C">Clase C - Baja Rotación</option>
+            </select>
+          </div>
         </div>
       )}
 
@@ -601,12 +767,15 @@ const ImportPlanning = () => {
               </tr>
             </thead>
             <tbody>
-              {groupByBrand ? (
-                Object.entries(groupedData || {}).map(([brand, items]) => (
-                  <React.Fragment key={brand}>
+              {groupBy !== 'none' ? (
+                Object.entries(groupedData || {}).map(([groupKey, items]) => (
+                  <React.Fragment key={groupKey}>
                     <tr>
                       <td colSpan={7} className="brand-header">
-                        <span><Package size={14} /> MARCA: {brand}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Package size={14} /> {groupKey} 
+                          <span style={{ opacity: 0.4, fontSize: '0.6rem' }}>({items.length} items)</span>
+                        </span>
                         <span>SUBTOTAL: S/ {items.reduce((a, b) => a + b.estimated_investment, 0).toLocaleString()}</span>
                       </td>
                     </tr>
@@ -614,7 +783,8 @@ const ImportPlanning = () => {
                       <PlanningRow 
                         key={item.sku} item={item} 
                         isSelected={selectedItems.includes(item.sku)}
-                        onToggle={() => toggleSelection(item.sku)}
+                        onToggle={(e) => { e.stopPropagation(); toggleSelection(item.sku); }}
+                        onClick={() => setSelectedItem(item)}
                       />
                     ))}
                   </React.Fragment>
@@ -624,7 +794,8 @@ const ImportPlanning = () => {
                   <PlanningRow 
                     key={item.sku} item={item} 
                     isSelected={selectedItems.includes(item.sku)}
-                    onToggle={() => toggleSelection(item.sku)}
+                    onToggle={(e) => { e.stopPropagation(); toggleSelection(item.sku); }}
+                    onClick={() => setSelectedItem(item)}
                   />
                 ))
               )}
@@ -632,6 +803,14 @@ const ImportPlanning = () => {
           </table>
         </div>
       )}
+
+      {/* Detail Panel */}
+      <DetailPanel 
+        item={selectedItem} 
+        onClose={() => setSelectedItem(null)} 
+        leadTime={leadTime}
+        supplyDays={supplyDays}
+      />
 
       {/* Floating Bar */}
       {selectedItems.length > 0 && (
@@ -656,8 +835,11 @@ const ImportPlanning = () => {
   );
 };
 
-const PlanningRow = ({ item, isSelected, onToggle }) => (
-  <tr className={`${!item.inBudget ? 'row-dimmed' : ''} ${isSelected ? 'row-selected' : ''}`}>
+const PlanningRow = ({ item, isSelected, onToggle, onClick }) => (
+  <tr 
+    className={`${!item.inBudget ? 'row-dimmed' : ''} ${isSelected ? 'row-selected' : ''} clickable-row`}
+    onClick={onClick}
+  >
     <td>
       <input type="checkbox" checked={isSelected} onChange={onToggle} />
     </td>
@@ -700,6 +882,110 @@ const TrendIndicator = ({ label, factor }) => {
         <span>x{factor}</span>
       </div>
       <span style={{ fontSize: '0.5rem', textTransform: 'uppercase' }}>{label}</span>
+    </div>
+  );
+};
+
+const DetailPanel = ({ item, onClose, leadTime, supplyDays }) => {
+  if (!item) return null;
+
+  const chartData = item.monthly_series?.map((qty, index) => ({
+    month: `M-${item.monthly_series.length - index}`,
+    ventas: qty
+  })) || [];
+
+  return (
+    <div className="detail-panel-overlay" onClick={onClose}>
+      <div className="detail-panel-content" onClick={e => e.stopPropagation()}>
+        <div className="panel-header">
+          <div>
+            <div className="panel-sku-title">{item.sku}</div>
+            <div className="panel-brand-tag">{item.brand}</div>
+            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.8rem', fontWeight: 600 }}>
+              {item.name}
+            </div>
+            <div style={{ fontSize: '0.65rem', opacity: 0.5, marginTop: '0.2rem', textTransform: 'uppercase', fontWeight: 800 }}>
+              {item.category_name}
+            </div>
+          </div>
+          <div className="close-circle" onClick={onClose}>
+            <X size={20} />
+          </div>
+        </div>
+
+        <div className="metric-grid">
+          <div className="metric-card">
+            <div className="metric-label">Velocidad Proyectada</div>
+            <div className="metric-value" style={{ color: 'var(--primary-color)' }}>
+              {item.vos_projected} <span className="metric-unit">unid/día</span>
+            </div>
+          </div>
+          <div className="metric-card">
+            <div className="metric-label">Tendencia Reciente</div>
+            <div className="metric-value" style={{ color: item.trend === 'GROWING' ? '#10b981' : item.trend === 'DECLINING' ? '#f43f5e' : 'white' }}>
+              x{item.trend_factor} <span className="metric-unit">{item.trend}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="explanation-box">
+          <h4 style={{ margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Activity size={16} /> Diagnóstico Predictivo
+          </h4>
+          <p style={{ fontSize: '0.8rem', opacity: 0.8, margin: 0, lineHeight: 1.5 }}>
+            Este ítem muestra una demanda {item.trend === 'GROWING' ? 'en crecimiento' : item.trend === 'DECLINING' ? 'en declive' : 'estable'}. 
+            Para cubrir {leadTime} días de espera y {supplyDays} días de abastecimiento con un {((item.safety_stock / item.target_stock) * 100).toFixed(0)}% de seguridad, 
+            el stock objetivo se establece en {item.target_stock} unidades.
+          </p>
+          <div className="formula-text">
+            Sugerido = (Velocidad: {item.vos_projected} * Horizonte: {leadTime + supplyDays}) + Safety: {item.safety_stock} + Backorders: {item.backorder_qty} - Stock: {item.stock_current}
+          </div>
+        </div>
+
+        <div>
+          <div className="metric-label" style={{ marginBottom: '1rem' }}>Historial de Ventas (Últimos Meses)</div>
+          <div className="chart-container">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--primary-color)" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="var(--primary-color)" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="month" stroke="rgba(255,255,255,0.3)" fontSize={10} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                  itemStyle={{ color: 'var(--primary-color)', fontWeight: 'bold' }}
+                />
+                <Area type="monotone" dataKey="ventas" stroke="var(--primary-color)" fillOpacity={1} fill="url(#colorVentas)" strokeWidth={3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="metric-grid">
+          <div className="metric-card" style={{ background: 'rgba(244, 63, 94, 0.05)' }}>
+            <div className="metric-label">Riesgo Stockout</div>
+            <div className="metric-value" style={{ color: item.stockout_risk === 'CRITICAL' ? '#f43f5e' : '#f59e0b', fontSize: '1rem' }}>
+              NIVEL {item.stockout_risk}
+            </div>
+          </div>
+          <div className="metric-card" style={{ background: 'rgba(16, 185, 129, 0.05)' }}>
+            <div className="metric-label">Inversión Estimada</div>
+            <div className="metric-value" style={{ fontSize: '1.1rem' }}>
+              S/ {item.estimated_investment.toLocaleString()}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 'auto', display: 'flex', gap: '1rem' }}>
+           <button className="btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={onClose}>
+             <Zap size={18} /> ACEPTAR SUGERENCIA
+           </button>
+        </div>
+      </div>
     </div>
   );
 };

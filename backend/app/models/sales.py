@@ -243,6 +243,9 @@ class SalesInvoice(Document):
     amount_in_words: Optional[str] = None
     payment_terms: Optional[dict] = None
     linked_notes: List[dict] = [] # [{note_number, type, total_amount}]
+    
+    # --- Sinceramiento Financiero (Doble Confirmación XML) ---
+    is_financial_confirmed: bool = True  # True por defecto para facturas manuales/legacy
 
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None

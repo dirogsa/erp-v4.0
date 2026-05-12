@@ -164,8 +164,8 @@ export const purchasingService = {
 
   // Invoices
   createInvoice: (invoiceData) => api.post('/purchasing/invoices', invoiceData),
-  getInvoices: (page = 1, limit = 50, search = '', payment_status = '', date_from = '', date_to = '') =>
-    api.get('/purchasing/invoices', { params: { skip: (page - 1) * limit, limit, search, payment_status, date_from, date_to } }),
+  getInvoices: (page = 1, limit = 50, search = '', payment_status = '', date_from = '', date_to = '', is_confirmed = null) =>
+    api.get('/purchasing/invoices', { params: { skip: (page - 1) * limit, limit, search, payment_status, date_from, date_to, is_confirmed } }),
   deleteInvoice: (invoiceNumber) => api.delete(`/purchasing/invoices/${invoiceNumber}`),
   registerPayment: (invoiceNumber, paymentData) => api.post(`/purchasing/invoices/${invoiceNumber}/payments`, paymentData),
   registerReception: (invoiceNumber, receptionData) => api.post(`/purchasing/invoices/${invoiceNumber}/receive`, receptionData),
@@ -233,8 +233,8 @@ export const salesService = {
 
   // Invoices
   createInvoice: (invoiceData) => api.post('/sales/invoices', invoiceData),
-  getInvoices: (page = 1, limit = 50, search = '', payment_status = '', date_from = '', date_to = '') =>
-    api.get('/sales/invoices', { params: { skip: (page - 1) * limit, limit, search, payment_status, date_from, date_to } }),
+  getInvoices: (page = 1, limit = 50, search = '', payment_status = '', date_from = '', date_to = '', is_confirmed = null) =>
+    api.get('/sales/invoices', { params: { skip: (page - 1) * limit, limit, search, payment_status, date_from, date_to, is_confirmed } }),
   deleteInvoice: (invoiceNumber) => api.delete(`/sales/invoices/${invoiceNumber}`),
   registerPayment: (invoiceNumber, paymentData) => api.post(`/sales/invoices/${invoiceNumber}/payments`, paymentData),
   bulkUpdatePaymentCondition: (payload) => api.post('/sales/invoices/bulk-payment-condition', payload),

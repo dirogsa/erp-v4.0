@@ -138,6 +138,9 @@ class PurchaseInvoice(Document):
 
     # Referencia Legal (SUNAT)
     sunat_number: Optional[str] = None       # F001-00000001 (Proveedor)
+    
+    # --- Sinceramiento Financiero (Doble Confirmación XML) ---
+    is_financial_confirmed: bool = True  # True por defecto para facturas manuales/legacy
 
     @field_validator('total_amount', 'amount_paid')
     @classmethod
