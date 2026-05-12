@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import VersionInfo from '../components/VersionInfo';
 
 const LoginPage = () => {
     const [username, setUsername] = useState('');
@@ -87,6 +88,10 @@ const LoginPage = () => {
                 <div className="mt-8 text-center text-slate-500 text-sm">
                     ¿No tienes una cuenta? <br />
                     <span className="text-primary-400 font-bold">Contacta con tu asesor comercial</span>
+                </div>
+
+                <div className="mt-12 flex justify-center">
+                    <VersionInfo />
                 </div>
             </div>
         </div>

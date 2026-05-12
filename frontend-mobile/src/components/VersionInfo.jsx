@@ -3,11 +3,17 @@ import { ArrowPathIcon, CheckBadgeIcon, SparklesIcon } from '@heroicons/react/24
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const VersionInfo = ({ className = "" }) => {
-    const version = "0.1.0"; // Sincronizado con package.json
-    const {
-        needUpdate: [needUpdate, setNeedUpdate],
-        updateServiceWorker,
-    } = useRegisterSW();
+    const version = "0.1.1"; // Versión de despliegue actual
+    const sw = useRegisterSW();
+    
+    // Extracción soberana y segura
+    const [needUpdate, setNeedUpdate] = Array.isArray(sw?.needUpdate) 
+        ? sw.needUpdate 
+        : [false, () => {}];
+        
+    const updateServiceWorker = typeof sw?.updateServiceWorker === 'function' 
+        ? sw.updateServiceWorker 
+        : () => {};
 
     const [isChecking, setIsChecking] = useState(false);
 
@@ -26,10 +32,10 @@ const VersionInfo = ({ className = "" }) => {
     return (
         <div 
             onClick={handleUpdate}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all cursor-pointer active:scale-95 ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer active:scale-95 ${
                 needUpdate 
-                ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.3)]' 
-                : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'
+                ? 'bg-blue-600/20 border-blue-500/50 text-blue-400 animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.4)]' 
+                : 'bg-white/10 border-white/20 text-white/70 hover:bg-white/20'
             } ${className}`}
         >
             {isChecking ? (

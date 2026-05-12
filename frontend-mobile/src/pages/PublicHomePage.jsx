@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { shopService } from '../services/api';
 import MobileProductCard from '../components/MobileProductCard';
+import VersionInfo from '../components/VersionInfo';
 
 /* ─── Micro-component: Animated status dot ─── */
 const LiveDot = () => (
@@ -171,7 +172,10 @@ const PublicHomePage = () => {
                         <CpuChipIcon className="h-5 w-5 text-brand-primary relative z-10" />
                     </div>
                     <div>
+                        <div className="flex items-center">
                         <span className="text-lg font-black tracking-tight text-white leading-none">DIROGSA</span>
+                        <VersionInfo className="ml-2" />
+                    </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <LiveDot />
                             <span className="text-[9px] font-bold uppercase tracking-wider text-brand-primary leading-none whitespace-nowrap">
