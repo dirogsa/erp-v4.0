@@ -122,7 +122,8 @@ class IntelligenceService:
         
         products = await Product.find(
             Product.type == ProductType.COMMERCIAL,
-            Product.status != ProductStatus.DISCONTINUED
+            Product.status != ProductStatus.DISCONTINUED,
+            Product.is_temporary != True
         ).to_list()
         
         results = []

@@ -176,8 +176,7 @@ async def dispatch_guide(guide_number: str, company_id: Optional[str] = None) ->
         print(f"DEBUG [DISPATCH]: Buscando producto SKU='{item.sku}' qty={item.quantity} unit_cost={item.unit_cost}")
         product = await inventory_service.find_product_robustly(
             item.sku, 
-            company_id=company_id,
-            auto_create=is_conciliating # Solo auto-crear si estamos en modo conciliación
+            company_id=company_id
         )
         if not product:
             print(f"ERROR [DISPATCH]: SKU '{item.sku}' NO EXISTE y Modo Conciliación está APAGADO.")
