@@ -76,13 +76,57 @@ class PricingService:
         }
 
     @staticmethod
-    async def get_bulk_prices(skus: List[str]) -> List[Dict[str, Any]]:
-        """Optimized bulk price resolution."""
-        results = []
+    async def get_bulk_prices(skus: List[str]) -> Dict[str, float]:
+        """
+        World-Class Optimized Bulk Price Resolution.
+        Returns a mapping of {sku: final_price}.
+        """
+        if not skus: return {}
+        
+        # 1. Context Acquisition
+        now = datetime.utcnow()
+        master_list = await PriceList.find_one(PriceList.is_master == True)
+        if not master_list:
+            master_list = await PriceList.find_one(PriceList.is_active == True)
+        
+        if not master_list:
+            return {sku: 0.0 for sku in skus}
+
+        # 2. Bulk Fetch Master Entries
+        # We only care about base quantity (min_quantity=1) for general list view
+        entries = await PriceEntry.find(
+            In(PriceEntry.sku, skus),
+            PriceEntry.price_list_id == master_list.id,
+            PriceEntry.min_quantity == 1
+        ).to_list()
+        
+        price_map = {e.sku: e.price for e in entries}
+        
+        # 3. Bulk Fetch Active Campaigns
+        active_campaigns = await PriceList.find(
+            PriceList.is_active == True,
+            PriceList.is_campaign == True,
+            PriceList.start_date <= now,
+            PriceList.end_date >= now
+        ).sort("-priority").to_list()
+
+        # 4. In-Memory Resolution
+        final_map = {}
         for sku in skus:
-            price_info = await PricingService.get_product_price(sku)
-            results.append(price_info)
-        return results
+            base_price = price_map.get(sku, 0.0)
+            final_price = base_price
+            
+            # Apply first matching campaign (highest priority)
+            for campaign in active_campaigns:
+                is_targeted = not campaign.targeted_skus or sku in campaign.targeted_skus
+                if is_targeted:
+                    modifier = (1 - (campaign.default_discount_pct / 100))
+                    final_price = base_price * modifier
+                    break
+            
+            final_map[sku] = round(final_price, 2)
+            
+        return final_map
 
     @staticmethod
     async def add_skus_to_campaign(campaign_id: PydanticObjectId, skus: List[str]):

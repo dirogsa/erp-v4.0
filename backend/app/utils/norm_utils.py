@@ -13,58 +13,51 @@ def normalize_sku(sku: str) -> str:
     clean_sku = str(sku).replace(' ', '')
     return re.sub(r'[^a-zA-Z0-9\-\/]', '', clean_sku).upper().strip()
 
-# Caché global para evitar hits constantes a DB durante importaciones masivas
-_BRANDS_CACHE = {}
+# Caché global (Simulado post-aplanamiento)
+# En una arquitectura de soberanía, las marcas son strings dinámicos.
+_BRANDS_CACHE = {
+    'WIX': ['WIX'],
+    'FILTRON': ['FILTRON', 'FILTROW'],
+    'MANN': ['MANN', 'MANN-FILTER'],
+    'FRAM': ['FRAM'],
+    'BOSCH': ['BOSCH'],
+    'MOBIL': ['MOBIL'],
+    'CASTROL': ['CASTROL'],
+    'TOYOTA': ['TOYOTA'],
+    'HYUNDAI': ['HYUNDAI'],
+    'KIA': ['KIA'],
+    'NISSAN': ['NISSAN'],
+    'MITSUBISHI': ['MITSUBISHI'],
+    'SOLITE': ['SOLITE'],
+    'VARTA': ['VARTA'],
+    'ACDELCO': ['ACDELCO']
+}
 
 async def _refresh_brands_cache():
-    """Actualiza la caché de marcas desde la base de datos"""
-    global _BRANDS_CACHE
-    from app.models.inventory import ProductBrand
-    try:
-        # Traemos todas las marcas activas
-        brands = await ProductBrand.find(ProductBrand.is_active == True).to_list()
-        new_cache = {}
-        for b in brands:
-            new_cache[b.name] = b.aliases
-        _BRANDS_CACHE = new_cache
-        return True
-    except Exception as e:
-        print(f"Error actualizando caché de marcas: {e}")
-        return False
+    """No-op: El sistema ahora usa marcas aplanadas (Strings)."""
+    return True
 
 async def detect_brand_from_text(description: str, default: str = "N/A") -> str:
     """
     Motor semántico Enterprise para detección de marcas.
-    Consulta el Catálogo Maestro Dinámico (MDM).
+    Ahora utiliza un mapa estático de alta frecuencia para evitar latencia de DB.
     """
     if not description: return default
     
-    # 1. Asegurar que la caché tenga datos
-    if not _BRANDS_CACHE:
-        await _refresh_brands_cache()
-    
     text = description.upper()
     
-    # 2. Búsqueda semántica usando la caché
+    # Búsqueda semántica usando el mapa de alta frecuencia
     for brand, aliases in _BRANDS_CACHE.items():
         for alias in aliases:
             pattern = rf'\b{re.escape(alias.upper())}\b'
             if re.search(pattern, text):
                 return brand
                 
-    # 3. Fallback Inteligente: Marcas Globales Frecuentes (Hardcoded para evitar desierto de datos)
-    # Esto garantiza que si el usuario tiene 'WIX' en la descripción, se detecte aunque no esté en BD.
-    common_global_brands = ['WIX', 'FILTRON', 'MANN', 'FRAM', 'BOSCH', 'MOBIL', 'CASTROL', 'TOYOTA', 'HYUNDAI', 'KIA', 'NISSAN', 'MITSUBISHI', 'SOLITE', 'VARTA', 'ACDELCO']
-    for b in common_global_brands:
-        if b in text:
-            return b
-
     return default
 
 async def smart_parse_item(sku_raw: str, description_raw: str) -> Tuple[str, str]:
     """
     Procesador unificado de items nivel Enterprise.
-    Ahora es asíncrono para permitir consultas dinámicas a DB.
     """
     sku = normalize_sku(sku_raw)
     brand = await detect_brand_from_text(description_raw)

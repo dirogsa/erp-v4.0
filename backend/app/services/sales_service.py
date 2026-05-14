@@ -5,7 +5,7 @@ from beanie import PydanticObjectId
 from app.models.auth import User
 from app.models.staff import Staff
 from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, OrderStatus, Payment, CustomerBranch, SalesQuote, QuoteStatus, IssuerInfo, IssuerInfoDepartment
-from app.models.marketing import LoyaltyConfig
+from app.models.config import SystemConfig
 
 
 from app.models.inventory import Product, DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
@@ -51,6 +51,36 @@ async def resolve_issuer_info(issuer_data: dict) -> IssuerInfo:
     clean_data = {k: v for k, v in issuer_data.items() if k != "departments"}
     return IssuerInfo(**clean_data, departments=resolved_depts)
 
+async def validate_transaction_margins(items: List[Any], user: Optional[User] = None):
+    """
+    World-Class Profitability Guardrail (Stop-Loss).
+    Ensures no sale is made below the minimum margin configured in SystemConfig.
+    """
+    config = await SystemConfig.find_one({})
+    if not config or not config.sales_policy.min_margin_guard_pct:
+        return
+        
+    min_margin = config.sales_policy.min_margin_guard_pct / 100
+    
+    # Bypass for high-level admins if needed, but we keep audit logs
+    is_admin = user and user.role in ["ADMIN", "SUPERADMIN"]
+    
+    for item in items:
+        product = await Product.find_one(Product.sku == item.product_sku)
+        if not product:
+            continue
+            
+        # Calculation: (Price - Cost) / Price
+        if item.unit_price > 0:
+            margin = (item.unit_price - product.cost) / item.unit_price
+            
+            if margin < min_margin:
+                msg = f"Margen insuficiente para {item.product_sku} ({product.name}). Margen: {margin*100:.2f}%, Mínimo Requerido: {min_margin*100:.2f}%"
+                if not is_admin:
+                    raise ValidationException(msg)
+                else:
+                    print(f"[GUARDRAIL WARNING] Venta bajo margen autorizada por Admin: {item.product_sku}")
+
 # ==================== ORDERS ====================
 
 async def get_orders(
@@ -59,9 +89,12 @@ async def get_orders(
     search: Optional[str] = None,
     status: Optional[str] = None,
     date_from: Optional[str] = None,
-    date_to: Optional[str] = None
+    date_to: Optional[str] = None,
+    company_id: Optional[str] = None
 ) -> PaginatedResponse[SalesOrder]:
     query = {}
+    if company_id:
+        query["company_id"] = company_id
     
     if search:
         query["$or"] = [
@@ -144,6 +177,10 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
         new_num = 1
     
     order.order_number = f"{prefix}-{new_num:04d}"
+    
+    # WORLD-CLASS PROFITABILITY GUARDRAIL (STOP-LOSS)
+    await validate_transaction_margins(order.items, user)
+
     # World-Class Stock Validation
     items_to_check = [{"product_sku": i.product_sku, "quantity": i.quantity} for i in order.items]
     stock_res = await inventory_service.check_stock_availability(items_to_check)
@@ -202,12 +239,12 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
                  raise ValidationException(f"Insufficient points. Required: {points_spent}, Available: {user.loyalty_points}")
 
     # Loyalty Points Logic (Gaining Points)
-    loyalty_config = await LoyaltyConfig.find_one({})
-    if not loyalty_config:
-        loyalty_config = LoyaltyConfig()
+    system_config = await SystemConfig.find_one({})
+    if not system_config:
+        system_config = SystemConfig()
     
     total_points_gained = 0
-    if loyalty_config.is_active:
+    if system_config.loyalty.is_active:
         for item in order.items:
             # If points are already snapshotted (e.g. from Quote), use them
             if item.loyalty_points is not None and item.loyalty_points > 0:
@@ -228,8 +265,8 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
                 points = 0
                 if product.loyalty_points > 0:
                     points = product.loyalty_points
-                elif loyalty_config.points_per_sole > 0:
-                    points = int(item.unit_price * loyalty_config.points_per_sole)
+                elif system_config.loyalty.points_per_currency_unit > 0:
+                    points = int(item.unit_price * system_config.loyalty.points_per_currency_unit)
                 
                 item.loyalty_points = points
                 total_points_gained += points * item.quantity
@@ -256,7 +293,7 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
                 if order.source == "SHOP":
                     user.loyalty_points = (user.loyalty_points or 0) + total_points_gained
                 else: # source == "ERP" or other
-                    if not loyalty_config.only_web_accumulation:
+                    if not system_config.loyalty.only_web_accumulation:
                         # If not only web, do they go to public or internal? 
                         # Based on user request: Physical sales go to internal points.
                         user.internal_points_local = (user.internal_points_local or 0) + total_points_gained
@@ -427,9 +464,12 @@ async def get_invoices(
     payment_status: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    is_confirmed: Optional[bool] = None
+    is_confirmed: Optional[bool] = None,
+    company_id: Optional[str] = None
 ) -> PaginatedResponse[SalesInvoice]:
     query = {}
+    if company_id:
+        query["company_id"] = company_id
     
     if search:
         query["$or"] = [
@@ -585,6 +625,9 @@ async def create_invoice(
         issuer_info=issuer_info or order.issuer_info,
         requested_by=order.requested_by # Carry over contact snapshot
     )
+    
+    # WORLD-CLASS PROFITABILITY GUARDRAIL (STOP-LOSS)
+    await validate_transaction_margins(invoice.items, user)
     
     if amount_paid > 0 and payment_date:
         payment = Payment(
@@ -830,10 +873,19 @@ async def register_payment(invoice_number: str, amount: float, payment_date: str
 
     return {"message": "Payment registered successfully", "invoice": invoice}
 
+from app.models.company import Company
+
 # ==================== CUSTOMERS ====================
 
-async def get_customers() -> List[Dict[str, Any]]:
-    customers = await Customer.find_all().to_list()
+async def get_customers(company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    query = {}
+    if company_id:
+        # Check governance mode
+        company = await Company.get(company_id)
+        if company and company.enterprise_settings.customers_mode == 'SOVEREIGN':
+            query = {"company_id": company_id}
+            
+    customers = await Customer.find(query).to_list()
     
     # Pre-fetch all linked users to avoid N+1 queries
     users = await User.find(User.ruc_linked != None).to_list()
@@ -883,14 +935,22 @@ async def get_customers() -> List[Dict[str, Any]]:
         
     return results
 
-async def get_customer_by_number(number: str) -> Customer:
-    customer = await Customer.find_one(Customer.document_number == number)
+async def get_customer_by_number(number: str, company_id: Optional[str] = None) -> Customer:
+    query = {"document_number": number}
+    if company_id:
+        query["company_id"] = company_id
+        
+    customer = await Customer.find_one(query)
     if not customer:
         raise NotFoundException("Customer", number)
     return customer
 
 async def create_customer(customer: Customer) -> Customer:
-    existing = await Customer.find_one(Customer.document_number == customer.document_number)
+    query = {"document_number": customer.document_number}
+    if customer.company_id:
+        query["company_id"] = customer.company_id
+        
+    existing = await Customer.find_one(query)
     if existing:
         raise DuplicateEntityException("Customer", "document_number", customer.document_number)
     await customer.insert()
@@ -1100,28 +1160,32 @@ async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str
         sunat_number=sunat_number,
         guide_type=GuideType.DISPATCH,
         status=GuideStatus.COMPLETED,
-        invoice_id=invoice_number,
-        target=target_text,
+        invoice_number=invoice_number,
+        customer_name=invoice.customer_name,
+        customer_ruc=invoice.customer_ruc or "00000000000",
         delivery_address=invoice.delivery_address,
         items=guide_items,
         notes=notes,
         created_by=created_by,
-        completed_date=datetime.now(),
-        issuer_info=issuer_info or invoice.issuer_info # Inherit from invoice if not provided
+        issue_date=datetime.now(),
+        company_id=str(invoice.company_id)
     )
     await guide.insert()
     
-    # Move Inventory (OUT)
+    # Move Inventory (OUT) - Considering Reservation
     for item in invoice.items:
         await inventory_service.register_movement(
             sku=item.product_sku,
             quantity=item.quantity,
             movement_type=MovementType.OUT,
-            reference=guide_number
+            reference=guide_number,
+            company_id=invoice.company_id,
+            is_reservation_release=invoice.is_stock_reserved # Crucial: release if previously reserved
         )
     
     invoice.dispatch_status = "DISPATCHED"
     invoice.guide_id = str(guide.id)
+    invoice.is_stock_reserved = False # Clear flag after release
     await invoice.save()
     
     if user:
@@ -1141,109 +1205,85 @@ async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str
         "delivery_address": invoice.delivery_address
     }
 
-async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: Optional[float] = None, user: Optional[User] = None) -> SalesInvoice:
-    """Importación directa de factura XML saltando cotización/orden manual"""
+async def import_invoice_xml(data: Any, auto_guide: bool = False, exchange_rate: Optional[float] = None, user: Optional[User] = None) -> SalesInvoice:
+    """
+    Importación 'Lean' de factura XML (Clase Mundial).
+    No crea Orden de Venta. Soporta Incubación de SKUs y Reserva de Stock.
+    """
     if isinstance(data, str):
-        # Aquí iría el parser de XML a dict si el frontend enviara el raw string.
-        # Por ahora lanzamos error descriptivo si llega como string pero no tenemos el parser inyectado.
         raise ValidationException("El backend recibió un string en lugar de un objeto parseado. Verifique el integrador de XML.")
-    from app.models.sales import OrderItem, OrderStatus, PaymentStatus, SalesOrder, SalesInvoice
-    from app.models.inventory import DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
     
-    # 0. Validación de Factura Duplicada (ADN de SUNAT)
+    from app.models.sales import OrderItem, PaymentStatus, SalesInvoice
+    from app.models.inventory import Product
+    
+    # 0. Validación de Factura Duplicada
     sunat_number = data.get('sunat_number') or data.get('document_number')
+    company_id = user.current_company_id if user else data.get('company_id')
+    
     if sunat_number:
         existing_invoice = await SalesInvoice.find_one(SalesInvoice.sunat_number == sunat_number)
         if existing_invoice:
             raise ValidationException(
-                f"DOCUMENTO DUPLICADO: La factura con número oficial '{sunat_number}' ya se encuentra registrada "
-                f"en el sistema (Folio Interno: {existing_invoice.invoice_number}). No se puede procesar dos veces el mismo archivo XML."
+                f"DOCUMENTO DUPLICADO: La factura '{sunat_number}' ya está registrada. "
+                f"(Folio Interno: {existing_invoice.invoice_number})"
             )
-    
-    # 1. Crear Orden de Venta Interna para la importación XML (Prefijo IMP)
-    year_prefix = datetime.now().strftime('%y')
-    prefix = f"IMP-{year_prefix}"
-    last_order = await SalesOrder.find({"order_number": {"$regex": f"^{prefix}"}}).sort("-order_number").limit(1).to_list()
-    
-    new_num = 1
-    if last_order and last_order[0].order_number:
-        try:
-            parts = last_order[0].order_number.split('-')
-            if len(parts) == 3:
-                new_num = int(parts[2]) + 1
-        except: pass
-    
-    order_number = f"{prefix}-{new_num:04d}"
     
     # 1. Moneda y Tipo de Cambio
     currency_val = data.get('currency', 'PEN')
+    is_exchange_rate_confirmed = True
+    current_exchange_rate = 1.0
+
     if currency_val in ['SOLES', 'PEN']: 
         currency_val = 'PEN'
-        current_exchange_rate = 1.0
     elif currency_val in ['DOLARES', 'USD']:
         currency_val = 'USD'
-        # Buscar tipo de cambio para la fecha del documento
         from app.models.finance import ExchangeRate
         doc_date = datetime.fromisoformat(data['date']).replace(hour=0, minute=0, second=0, microsecond=0)
         rate_obj = await ExchangeRate.find_one(ExchangeRate.date == doc_date)
-        if not rate_obj:
-            # Fallback al más cercano si no hay exacto (máximo 30 días atrás por seguridad)
-            rate_obj_list = await ExchangeRate.find({"date": {"$lte": doc_date}}).sort("-date").limit(1).to_list()
-            if not rate_obj_list:
-                raise ValidationException(f"ERROR: No se encontró tipo de cambio para la fecha {doc_date.date()}. Debe registrar el tipo de cambio en ADM. Y FINANZAS > Tipos de Cambio para procesar documentos en USD.")
-            current_exchange_rate = rate_obj_list[0].sale
-            print(f"INFO: Usando tipo de cambio anterior ({rate_obj_list[0].date}) para la fecha {doc_date.date()}: {current_exchange_rate}")
-        else:
+        
+        if rate_obj:
             current_exchange_rate = rate_obj.sale
+        else:
+            # Estrategia de Incubación: No bloqueamos la importación, pero marcamos inconsistencia
+            rate_obj_list = await ExchangeRate.find({"date": {"$lte": doc_date}}).sort("-date").limit(1).to_list()
+            if rate_obj_list:
+                current_exchange_rate = rate_obj_list[0].sale
+                # Marcamos como no confirmado porque el TC no es el exacto del día
+                is_exchange_rate_confirmed = False
+            else:
+                current_exchange_rate = 0.0 # Placeholder crítico
+                is_exchange_rate_confirmed = False
+    else:
+        current_exchange_rate = 1.0
 
-    # 1.5 Enriquecer Items con Maestro de Productos (VALIDACIÓN INDUSTRIAL)
+    # 2. Procesamiento de Items y Búsqueda Masiva
     from app.utils.norm_utils import smart_parse_item
-    
-    # 1.5.1 Pre-procesamiento de SKUs y Marcas (Gathering)
     raw_items = data.get('items', [])
-    processed_keys = []
-    for item in raw_items:
-        raw_sku = item.get('product_sku') or item.get('code')
-        raw_desc = item.get('product_name') or item.get('description', '')
-        processed_keys.append(smart_parse_item(raw_sku, raw_desc))
-    
-    # Ejecutar normalización en paralelo (CPU Bound but async safe)
+    processed_keys = [smart_parse_item(i.get('product_sku') or i.get('code'), i.get('product_name') or i.get('description', '')) for i in raw_items]
     normalization_results = await asyncio.gather(*processed_keys)
     
-    # 1.5.2 Búsqueda Masiva de Productos (1 sola query para N ítems)
-    # Optimizamos para 1000-2000 ítems
     skus_to_find = list(set(r[0] for r in normalization_results))
-    brands_to_find = list(set(r[1] for r in normalization_results))
-    
-    # Búsqueda optimizada por SKU (luego filtramos por marca en memoria para máxima velocidad)
     db_products = await Product.find({"sku": {"$in": skus_to_find}}).to_list()
     product_map = {(p.sku, p.brand): p for p in db_products}
 
     order_items = []
+    all_mapped = True
+    
     for i, item in enumerate(raw_items):
         clean_sku, detected_brand = normalization_results[i]
-        
-        # Clasificaciones ERP
-        classification = item.get('classification') or item.get('product_type') or 'COMMERCIAL'
-        is_misc = item.get('is_misc', False)
-
-        # Buscar en el mapa cargado en memoria
         product = product_map.get((clean_sku, detected_brand))
         
-        # Si no está por marca exacta, intentar buscar solo por SKU en el mapa (Fallback)
+        # Fallback por SKU si no hay marca exacta
         if not product:
-            # Buscamos el primero que coincida con el SKU si no hay marca específica
             product = next((p for (s, b), p in product_map.items() if s == clean_sku), None)
 
-        # BLOQUEO DE INTEGRIDAD (REQUERIDO): Solo si es Filtro (Core) y no existe
-        if not product and not is_misc and (classification in ['FILTER', 'COMMERCIAL']):
-            raise ValidationException(
-                f"PRODUCTO NO ENCONTRADO EN MAESTRO: El sistema identificó el código '{clean_sku}' "
-                f"de la marca '{detected_brand}', pero no existe en el catálogo global. "
-                f"Por favor, registre el producto antes de importar."
-            )
-        
+        is_unmapped = False
+        if not product:
+            is_unmapped = True
+            all_mapped = False
+
         order_items.append(OrderItem(
+            product_id=str(product.id) if product else None,
             product_sku=product.sku if product else clean_sku,
             product_name=product.name if product else item.get('product_name', item.get('description', '')), 
             brand=product.brand if product else detected_brand,
@@ -1251,58 +1291,46 @@ async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: 
             unit_value=item.get('unit_value', item['unit_price'] / 1.18),
             unit_price=item['unit_price'],
             tax_rate=item.get('tax_rate', 0.18),
-            invoiced_quantity=item['quantity']
+            invoiced_quantity=item['quantity'],
+            is_unmapped=is_unmapped
         ))
     
-    # 1.6 Vincular Cliente Existente (REQUISITO PROFESIONAL)
+    # 3. Vincular Cliente (Incubación de Entidades)
     customer_number = data['customer'].get('ruc') or data['customer'].get('document_number')
+    from app.models.sales import Customer
     customer = await Customer.find_one(Customer.document_number == customer_number)
-    if not customer:
-        raise ValidationException(f"CLIENTE NO REGISTRADO: El documento {customer_number} no existe en el maestro. Por favor, regístrelo manualmente antes de importar.")
-        
-    order = SalesOrder(
-        order_number=order_number,
-        customer_name=customer.name,
-        customer_ruc=customer.document_number,
-        delivery_address=customer.address or data['customer'].get('address') or "Dirección en XML",
-        items=order_items,
-        status=OrderStatus.INVOICED,
-        total_amount=data['total_amount'],
-        currency=currency_val,
-        exchange_rate=current_exchange_rate,
-        date=datetime.fromisoformat(data['date']),
-        payment_terms={
-            "mode": data.get('payment_terms', 'Contado'),
-            "installments": data.get('installments', [])
-        },
-        source="XML_IMPORT",
-        issuer_info=await resolve_issuer_info(data.get('issuer_info')) if data.get('issuer_info') else None
-    )
-    await order.insert()
     
-    # 2. Crear Factura vinculada
+    is_customer_confirmed = True
+    customer_id = None
+    customer_name = data['customer'].get('name', 'CLIENTE DESCONOCIDO')
+    customer_ruc = customer_number
+    customer_address = data['customer'].get('address', 'Dirección en XML')
+
+    if customer:
+        customer_id = str(customer.id)
+        customer_name = customer.name
+        customer_ruc = customer.document_number
+        customer_address = customer.address or customer_address
+    else:
+        is_customer_confirmed = False # Requiere Sinceramiento de Entidad
+
+    # 4. Generar Folio de Factura Interno
+    year_prefix = datetime.now().strftime('%y')
     prefix_inv = f"FV-{year_prefix}"
     last_inv = await SalesInvoice.find({"invoice_number": {"$regex": f"^{prefix_inv}"}}).sort("-invoice_number").limit(1).to_list()
-    
     new_num_inv = 1
     if last_inv and last_inv[0].invoice_number:
         try:
             parts = last_inv[0].invoice_number.split('-')
-            if len(parts) == 3:
-                new_num_inv = int(parts[2]) + 1
+            if len(parts) == 3: new_num_inv = int(parts[2]) + 1
         except: pass
-    
     invoice_number = f"{prefix_inv}-{new_num_inv:04d}"
-    
-    # Determinar estado de pago basado en XML
+
+    # 5. Fechas y Condiciones
     payment_mode = data.get('payment_terms', 'Contado')
     is_credit = payment_mode.lower() == 'crédito' or len(data.get('installments', [])) > 0
-    
-    payment_status = PaymentStatus.PENDING # Siempre nace pendiente en importación XML hasta el sinceramiento
-    amount_paid = 0.0
-    
-    # Calcular fecha de vencimiento real para créditos
-    due_date = order.date
+    invoice_date = datetime.fromisoformat(data['date'])
+    due_date = invoice_date
     if is_credit:
         installments = data.get('installments', [])
         if installments:
@@ -1311,102 +1339,62 @@ async def import_invoice_xml(data: Any, auto_guide: bool = True, exchange_rate: 
                 if dates: due_date = max(dates)
             except: pass
         else:
-            due_date = order.date + timedelta(days=30)
+            due_date = invoice_date + timedelta(days=30)
 
+    # 6. Crear Factura con flags de Integridad Completa
     invoice = SalesInvoice(
         invoice_number=invoice_number,
-        sunat_number=data.get('sunat_number') or data.get('document_number'),
-        order_number=order_number,
-        customer_name=order.customer_name,
-        customer_ruc=order.customer_ruc,
-        delivery_address=order.delivery_address,
-        invoice_date=order.date,
+        sunat_number=sunat_number,
+        order_number="XML-IMPORT",
+        customer_id=customer_id,
+        customer_name=customer_name,
+        customer_ruc=customer_ruc,
+        delivery_address=customer_address,
+        invoice_date=invoice_date,
         due_date=due_date,
-        items=order.items,
-        total_amount=order.total_amount,
-        currency=order.currency,
-        exchange_rate=order.exchange_rate,
+        items=order_items,
+        total_amount=data['total_amount'],
+        currency=currency_val,
+        exchange_rate=current_exchange_rate,
         payment_condition="CREDITO" if is_credit else "CONTADO",
-        payment_status=payment_status,
-        amount_paid=amount_paid,
-        issuer_info=order.issuer_info,
+        payment_status=PaymentStatus.PENDING,
+        amount_paid=0.0,
         payment_terms={"mode": payment_mode, "installments": data.get('installments', [])},
-        dispatch_status="PENDING",
-        is_financial_confirmed=False # Requiere doble confirmación (Buzón de Sinceramiento)
+        dispatch_status="PENDING_GUIDE",
+        is_financial_confirmed=False, 
+        is_catalog_confirmed=all_mapped,
+        is_customer_confirmed=is_customer_confirmed,
+        is_exchange_rate_confirmed=is_exchange_rate_confirmed,
+        is_stock_reserved=False, 
+        company_id=company_id
     )
     
-    # El registro de pago automático se ha ELIMINADO de aquí.
-    # Ahora se realiza exclusivamente en el "Buzón de Sinceramiento Financiero" (bulk_confirm_payment).
+    # 7. Reserva de Stock Inteligente (Fase 5)
+    # Solo reservamos los productos que están mapeados
+    if all_mapped:
+        for item in order_items:
+            # Buscar data de producto por empresa
+            p_data = next((d for d in product_map[(item.product_sku, item.brand)].company_data if d.company_id == company_id), None)
+            if p_data:
+                p_data.stock_current -= item.quantity
+                p_data.stock_reserved += item.quantity
         
+        await asyncio.gather(*[p.save() for p in product_map.values()])
+        invoice.is_stock_reserved = True
+
     await invoice.insert()
     
-    # 3. Auto-Guía (Descuento de stock)
-    print(f"DEBUG [XML-GUIDE]: Entrando a bloque auto_guide. auto_guide={auto_guide}")
-    if auto_guide:
-        prefix_g = f"GV-{year_prefix}"
-        last_g = await DeliveryGuide.find({"guide_number": {"$regex": f"^{prefix_g}"}}).sort("-guide_number").limit(1).to_list()
-        new_num_g = 1
-        if last_g and last_g[0].guide_number:
-            try:
-                parts = last_g[0].guide_number.split('-')
-                if len(parts) == 3:
-                    new_num_g = int(parts[2]) + 1
-            except: pass
-        guide_number = f"{prefix_g}-{new_num_g:04d}"
-        
-        guide_items = []
-        for item in order.items:
-            # Re-buscar para costo u otros datos técnicos si es necesario
-            product = await inventory_service.find_product_robustly(item.product_sku)
-            guide_items.append(GuideItem(
-                sku=item.product_sku,
-                product_name=item.product_name,
-                quantity=item.quantity,
-                unit_cost=float(product.cost or 0.0) if product else float(item.unit_price / 1.5)
-            ))
-            
-            # REFACTOR: El stock ya NO se mueve en la importación.
-            # Se delegará exclusivamente al flujo de Despacho de Guías (Logística).
-            # Por lo tanto, no llamamos a register_movement aquí.
-        print(f"DEBUG [XML-GUIDE]: Intentando crear modelo DeliveryGuide: {guide_number}")
-        try:
-            guide = DeliveryGuide(
-                guide_number=guide_number,
-                guide_type=GuideType.DISPATCH,
-                status=GuideStatus.DRAFT,  # La guía nace PENDIENTE de despacho físico
-                invoice_number=invoice_number,
-                order_number=order_number,
-                customer_name=order.customer_name,
-                customer_ruc=order.customer_ruc,
-                items=guide_items,
-                issue_date=datetime.now(),
-                created_by=user.username if user else "SYSTEM"
-            )
-            print(f"DEBUG [XML-GUIDE]: Modelo DeliveryGuide creado exitosamente. Insertando...")
-            await guide.insert()
-            print(f"DEBUG [XML-GUIDE]: Guía insertada exitosamente con ID {guide.id}")
-        except Exception as e:
-            print(f"ERROR FATAL [XML-GUIDE]: Falló la creación/inserción de la guía: {e}")
-            import traceback
-            traceback.print_exc()
-            raise e
-        
-        # Como la guía nace en DRAFT, la factura aún no está "Despachada" físicamente.
-        print(f"DEBUG [XML-GUIDE]: Actualizando factura con guide_id {guide.guide_number}")
-        invoice.dispatch_status = "NOT_DISPATCHED"
-        invoice.guide_id = str(guide.guide_number)
-        await invoice.save()
+    # Log de Auditoría
+    await AuditService.log_action(
+        user=user, 
+        action="IMPORT", 
+        module="SALES", 
+        description=f"Importación XML Factura {sunat_number}. Mapeada: {all_mapped}. Reserva: {invoice.is_stock_reserved}",
+        entity_id=str(invoice.id),
+        entity_name=sunat_number,
+        company_id=company_id
+    )
 
-    if user:
-        await AuditService.log_action(
-            user=user,
-            action="IMPORT",
-            module="SALES",
-            description=f"Importación XML Directa: {invoice.sunat_number or invoice_number}",
-            entity_id=str(invoice.id),
-            entity_name=invoice.sunat_number or invoice_number
-        )
-        
     return invoice
 
 async def bulk_update_payment_condition(invoice_numbers: List[str], condition: str, days: Optional[int] = 30, payment_terms: Optional[dict] = None) -> Dict[str, Any]:

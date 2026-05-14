@@ -23,9 +23,10 @@ async def get_orders(
     search: Optional[str] = None,
     status: Optional[str] = None,
     date_from: Optional[str] = None,
-    date_to: Optional[str] = None
+    date_to: Optional[str] = None,
+    company_id: str = Depends(get_current_company_id)
 ):
-    return await purchasing_service.get_orders(skip, limit, search, status, date_from, date_to)
+    return await purchasing_service.get_orders(skip, limit, search, status, date_from, date_to, company_id=company_id)
 
 # ==================== INVOICES ====================
 
@@ -49,9 +50,10 @@ async def get_invoices(
     payment_status: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    is_confirmed: Optional[bool] = None
+    is_confirmed: Optional[bool] = None,
+    company_id: str = Depends(get_current_company_id)
 ):
-    return await purchasing_service.get_invoices(skip, limit, search, payment_status, date_from, date_to, is_confirmed)
+    return await purchasing_service.get_invoices(skip, limit, search, payment_status, date_from, date_to, is_confirmed, company_id=company_id)
 
 @router.get("/invoices/{invoice_number}", response_model=PurchaseInvoice)
 async def get_invoice(invoice_number: str):
@@ -90,11 +92,12 @@ async def bulk_update_payment_condition(request: BulkPaymentConditionUpdate):
 # ==================== SUPPLIERS ====================
 
 @router.get("/suppliers", response_model=List[Supplier])
-async def get_suppliers():
-    return await purchasing_service.get_suppliers()
+async def get_suppliers(company_id: str = Depends(get_current_company_id)):
+    return await purchasing_service.get_suppliers(company_id=company_id)
 
 @router.post("/suppliers", response_model=Supplier)
-async def create_supplier(supplier: Supplier):
+async def create_supplier(supplier: Supplier, company_id: str = Depends(get_current_company_id)):
+    supplier.company_id = company_id
     return await purchasing_service.create_supplier(supplier)
 
 @router.delete("/suppliers/{id}")

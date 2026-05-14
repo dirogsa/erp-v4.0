@@ -45,9 +45,9 @@ export const CartProvider = ({ children }) => {
 
     const getItemPrice = (item) => {
         let discount = 0;
-        if (item.quantity >= 24) discount = item.discount_24_pct || 0;
-        else if (item.quantity >= 12) discount = item.discount_12_pct || 0;
+        if (item.quantity >= 12) discount = item.discount_12_pct || 0;
         else if (item.quantity >= 6) discount = item.discount_6_pct || 0;
+        else if (item.quantity >= 3) discount = item.discount_3_pct || 0;
 
         const price = item.price || 0;
         return price * (1 - (discount / 100));

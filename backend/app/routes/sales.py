@@ -27,9 +27,10 @@ async def get_orders(
     search: Optional[str] = None,
     status: Optional[str] = None,
     date_from: Optional[str] = None,
-    date_to: Optional[str] = None
+    date_to: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
 ):
-    return await sales_service.get_orders(skip, limit, search, status, date_from, date_to)
+    return await sales_service.get_orders(skip, limit, search, status, date_from, date_to, company_id=current_user.current_company_id)
 
 @router.post("/orders/{order_number}/convert")
 async def convert_order(order_number: str):
@@ -73,9 +74,10 @@ async def get_invoices(
     payment_status: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    is_confirmed: Optional[bool] = None
+    is_confirmed: Optional[bool] = None,
+    current_user: User = Depends(get_current_user)
 ):
-    return await sales_service.get_invoices(skip, limit, search, payment_status, date_from, date_to, is_confirmed)
+    return await sales_service.get_invoices(skip, limit, search, payment_status, date_from, date_to, is_confirmed, company_id=current_user.current_company_id)
 
 @router.get("/invoices/{invoice_number}", response_model=SalesInvoice)
 async def get_invoice(invoice_number: str):
@@ -125,15 +127,16 @@ async def bulk_update_payment_condition(
 # ==================== CUSTOMERS ====================
 
 @router.get("/customers")
-async def get_customers():
-    return await sales_service.get_customers()
+async def get_customers(current_user: User = Depends(get_current_user)):
+    return await sales_service.get_customers(company_id=current_user.current_company_id)
 
 @router.get("/customers/by-number/{number}", response_model=Customer)
-async def get_customer_by_number(number: str):
-    return await sales_service.get_customer_by_number(number)
+async def get_customer_by_number(number: str, current_user: User = Depends(get_current_user)):
+    return await sales_service.get_customer_by_number(number, company_id=current_user.current_company_id)
 
 @router.post("/customers", response_model=Customer)
-async def create_customer(customer: Customer):
+async def create_customer(customer: Customer, current_user: User = Depends(get_current_user)):
+    customer.company_id = current_user.current_company_id
     return await sales_service.create_customer(customer)
 
 @router.delete("/customers/{id}")

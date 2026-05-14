@@ -22,6 +22,17 @@ export const hasAccess = (userRole, allowedRoles) => {
 
 export const MENU_CONFIG = [
     {
+        id: 'soberania',
+        label: 'GOBIERNO Y SOBERANÍA',
+        icon: '🛡️',
+        roles: [ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.SUPERADMIN],
+        isGroup: true,
+        children: [
+            { id: 'financial-sincerity', label: 'Torre de Control (Buzón)', path: '/financial-sincerity', icon: '⚖️' },
+            { id: 'financial-audit', label: 'Auditoría de Cobranzas', path: '/audit/financial', icon: '🛡️' }
+        ]
+    },
+    {
         id: 'ventas',
         label: 'VENTAS',
         icon: '💰',
@@ -53,10 +64,7 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'exchange-rates', label: 'Tesorería y Monedas', path: '/exchange-rates', icon: '💱' },
-            { id: 'financial-audit', label: 'Gestión de Cobranzas', path: '/audit/financial', icon: '🛡️' },
-            { id: 'financial-sincerity', label: 'Buzón de Sinceramiento', path: '/financial-sincerity', icon: '⚖️' },
-            { id: 'reports', label: 'Reportes Financieros', path: '/reports', icon: '📉' },
-            { id: 'bulk-xml', label: 'Monitor Tributario (XML)', path: '/bulk/xml', icon: '📄' }
+            { id: 'reports', label: 'Reportes Financieros', path: '/reports', icon: '📉' }
         ]
     },
     {

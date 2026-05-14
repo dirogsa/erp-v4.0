@@ -91,11 +91,45 @@ export const authService = {
   deleteB2BApplication: (appId) => api.delete(`/auth/b2b-applications/${appId}`),
 };
 
+export const intelligenceService = {
+  getUnmappedCatalogItems: () => api.get('/intelligence/sincerity/unmapped'),
+  resolveCatalogMapping: (data) => api.post('/intelligence/sincerity/map', data),
+  getMasterGaps: () => api.get('/intelligence/sincerity/master-gaps'),
+  resolveRateSincerity: (data) => api.post('/intelligence/sincerity/resolve-rate', data),
+  resolveCustomerSincerity: (data) => api.post('/intelligence/sincerity/resolve-customer', data),
+  autoCreateCustomerFromGap: (data) => api.post('/intelligence/sincerity/auto-create-customer', data),
+  bulkAutoCreateCustomers: (batch) => api.post('/intelligence/sincerity/bulk-auto-create-customers', batch),
+  universalXmlIngest: (data) => api.post('/intelligence/ingest/xml', data),
+  getImportPlanning: (params) => api.get('/intelligence/import-planning', { params }),
+
+  // Persistent Queue Methods
+  getIngestQueue: () => api.get('/intelligence/ingest/queue'),
+  addToIngestQueue: (batch) => api.post('/intelligence/ingest/queue/batch', batch),
+  clearIngestQueue: () => api.delete('/intelligence/ingest/queue/clear'),
+  processIngestItem: (id) => api.post(`/intelligence/ingest/queue/process/${id}`),
+  
+  // Logistics Sincerity
+  getPendingLogistics: () => api.get('/intelligence/sincerity/pending-guides'),
+  bulkGenerateGuides: (data) => api.post('/intelligence/sincerity/bulk-generate-guides', data),
+  matchXMLGuides: (batch) => api.post('/intelligence/sincerity/match-xml-guides', batch),
+  revertLogistics: (invoiceId) => api.post(`/intelligence/sincerity/revert-logistics/${invoiceId}`)
+};
+
 
 
 export const inventoryService = {
-  getProducts: (page = 1, limit = 50, search = '', category = '', product_type = '') =>
-    api.get('/inventory/products', { params: { skip: (page - 1) * limit, limit, search, category, product_type } }),
+  getProducts: (page = 1, limit = 50, search = '', category = '', product_type = '', filter_unrecognized = false, filter_others = false) =>
+    api.get('/inventory/products', { 
+      params: { 
+        skip: (page - 1) * limit, 
+        limit, 
+        search, 
+        category, 
+        product_type,
+        filter_unrecognized: filter_unrecognized || undefined,
+        filter_others: filter_others || undefined
+      } 
+    }),
   createProduct: (product, initial_stock = 0) => api.post(`/inventory/products?initial_stock=${initial_stock}`, product),
   bulkCreateProducts: (products, updateExisting = true) => 
     api.post(`/inventory/products/bulk?update_existing=${updateExisting}`, products, { timeout: 120000 }),
@@ -380,8 +414,8 @@ export const auditService = {
     if (module) url += `&module=${module}`;
     return api.delete(url);
   },
-  getFinancialHealth: (start_date, end_date, doc_type = 'SALES') => 
-    api.get('/audit/financial-health', { params: { start_date, end_date, doc_type } }),
+  getFinancialHealth: (start_date, end_date, doc_type = 'SALES', company_id = null) => 
+    api.get('/audit/financial-health', { params: { start_date, end_date, doc_type, company_id } }),
 };
 
 export const staffService = {

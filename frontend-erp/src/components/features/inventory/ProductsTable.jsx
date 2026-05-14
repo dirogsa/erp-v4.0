@@ -59,6 +59,7 @@ const VisibilitySwitch = ({ value, onChange, loading, color = '#10b981', label, 
 const ProductsTable = ({
     products = [],
     loading = false,
+    companies = [],
     onView,
     onEdit,
     onDelete,
@@ -97,6 +98,35 @@ const ProductsTable = ({
 
     const columns = [
         { label: 'SKU', key: 'sku' },
+        {
+            label: 'Soberanía',
+            key: 'company_data',
+            render: (val) => {
+                const companyIds = Object.keys(val || {});
+                if (companyIds.length === 0) return (
+                    <span style={{ fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)', fontWeight: 'bold' }}>
+                        GLOBAL
+                    </span>
+                );
+                
+                return (
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {companyIds.map(cid => {
+                            const company = companies.find(c => c._id === cid);
+                            return (
+                                <span key={cid} style={{ 
+                                    fontSize: '0.6rem', padding: '2px 6px', borderRadius: '4px', 
+                                    background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6',
+                                    border: '1px solid rgba(59, 130, 246, 0.2)', fontWeight: 'bold'
+                                }}>
+                                    {company ? company.name.split(' ')[0] : cid.substring(0, 5)}
+                                </span>
+                            );
+                        })}
+                    </div>
+                );
+            }
+        },
         {
             label: 'Categoría',
             key: 'category_id',

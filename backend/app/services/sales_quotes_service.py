@@ -5,7 +5,7 @@ from app.models.sales import SalesQuote, QuoteStatus, SalesOrder, OrderStatus, O
 from app.services.sales_service import resolve_issuer_info
 from app.services import sales_service, inventory_service
 from app.models.inventory import Product
-from app.models.marketing import LoyaltyConfig
+from app.models.config import SystemConfig
 from app.exceptions.business_exceptions import NotFoundException, ValidationException
 from app.schemas.common import PaginatedResponse
 
@@ -86,20 +86,18 @@ async def create_quote(quote: SalesQuote) -> SalesQuote:
     quote.total_amount = round(sum(item.quantity * item.unit_price for item in quote.items), 3)
     quote.status = QuoteStatus.DRAFT
 
-    # Snapshot loyalty points
-    loyalty_config = await LoyaltyConfig.find_one({})
-    if not loyalty_config:
-        loyalty_config = LoyaltyConfig()
+    # Snapshot loyalty points using Sovereignty Hub
+    system_config = await SystemConfig.find_one({})
+    if not system_config:
+        system_config = SystemConfig()
 
     for item in quote.items:
-        # Check if points are already set (e.g. from frontend)? usually strictly backend.
-        # We re-fetch product to be sure of current value at creation time.
         try:
             product = await inventory_service.get_product_by_sku(item.product_sku)
-            if product.loyalty_points > 0:
+            if product and product.loyalty_points > 0:
                 item.loyalty_points = product.loyalty_points
-            elif loyalty_config.is_active and loyalty_config.points_per_sole > 0:
-                item.loyalty_points = int(item.unit_price * loyalty_config.points_per_sole)
+            elif system_config.loyalty.is_active and system_config.loyalty.points_per_currency_unit > 0:
+                item.loyalty_points = int(item.unit_price * system_config.loyalty.points_per_currency_unit)
             else:
                 item.loyalty_points = 0
         except Exception:
@@ -112,36 +110,33 @@ async def update_quote(quote_number: str, quote_data: SalesQuote) -> SalesQuote:
     quote = await get_quote(quote_number)
     
     if quote.status in [QuoteStatus.ACCEPTED, QuoteStatus.CONVERTED, QuoteStatus.REJECTED]:
-        raise ValidationException("Cannot update a finalized quote")
+        raise ValidationException("No se puede actualizar una cotización finalizada")
     
     quote.customer_name = quote_data.customer_name
     quote.customer_ruc = quote_data.customer_ruc
     quote.items = quote_data.items
-    quote.date = quote_data.date # Permitir actualizar la fecha de emisión
+    quote.date = quote_data.date
     quote.valid_until = quote_data.valid_until
     quote.delivery_address = quote_data.delivery_address
     quote.payment_terms = quote_data.payment_terms
     quote.due_date = quote_data.due_date
     quote.notes = quote_data.notes
-    quote.requested_by = quote_data.requested_by # Update contact snapshot
+    quote.requested_by = quote_data.requested_by
     quote.total_amount = round(sum(item.quantity * item.unit_price for item in quote_data.items), 3)
 
-    # Recalculate/Ensure points for updated items
-    loyalty_config = await LoyaltyConfig.find_one({})
-    if not loyalty_config:
-        loyalty_config = LoyaltyConfig()
+    # Recalculate/Ensure points for updated items using Sovereignty Hub
+    system_config = await SystemConfig.find_one({})
+    if not system_config:
+        system_config = SystemConfig()
 
     for item in quote.items:
-        # If points are missing (new item) or we want to refresh draft:
-        # For simplicity and consistency in Drafts, we might refresh all, or only 0s.
-        # Let's refresh if 0/None to ensure data integrity.
         if not item.loyalty_points: 
             try:
                 product = await inventory_service.get_product_by_sku(item.product_sku)
-                if product.loyalty_points > 0:
+                if product and product.loyalty_points > 0:
                     item.loyalty_points = product.loyalty_points
-                elif loyalty_config.is_active and loyalty_config.points_per_sole > 0:
-                    item.loyalty_points = int(item.unit_price * loyalty_config.points_per_sole)
+                elif system_config.loyalty.is_active and system_config.loyalty.points_per_currency_unit > 0:
+                    item.loyalty_points = int(item.unit_price * system_config.loyalty.points_per_currency_unit)
                 else:
                     item.loyalty_points = 0
             except Exception:
@@ -154,7 +149,6 @@ async def delete_quote(quote_number: str) -> bool:
     quote = await get_quote(quote_number)
     
     if quote.status == QuoteStatus.CONVERTED:
-        # Check if linked ACTIVE orders exist (Exclude CONVERTED or CANCELLED)
         linked_orders = await SalesOrder.find(
             SalesOrder.related_quote_number == quote_number,
             SalesOrder.status != OrderStatus.CONVERTED,
@@ -162,7 +156,7 @@ async def delete_quote(quote_number: str) -> bool:
         ).count()
         
         if linked_orders > 0:
-            raise ValidationException("Cannot delete a converted quote that has active orders")
+            raise ValidationException("No se puede eliminar una cotización que tiene órdenes activas")
         
     await quote.delete()
     return True
@@ -171,30 +165,26 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
     quote = await get_quote(quote_number)
     
     if quote.status == QuoteStatus.CONVERTED and not preview:
-        raise ValidationException("Quote already converted")
+        raise ValidationException("Cotización ya convertida")
         
-    # Prepare items for check
-    print(f"DEBUG QUOTE ITEMS: {quote.items}")
     check_items = [
         {"product_sku": item.product_sku, "quantity": item.quantity, "unit_price": item.unit_price} 
         for item in quote.items
     ]
     
-    # Map sku -> points from quote items to preserve snapshot
     sku_points_map = {item.product_sku: item.loyalty_points for item in quote.items}
 
     stock_check = await inventory_service.check_stock_availability(check_items)
     
     if preview:
         return {
-            "message": "Conversion preview",
+            "message": "Vista previa de conversión",
             "stock_check": stock_check,
             "will_split": not stock_check["can_fulfill_full"]
         }
     
     created_orders = []
     
-    # Create Standard Order if available items exist
     if stock_check["available_items"]:
         items = [
             OrderItem(
@@ -223,17 +213,15 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             date=quote.date,
             requested_by=quote.requested_by
         )
-
         
         saved_order = await sales_service.create_order(order)
         created_orders.append({"type": "STANDARD", "order_number": saved_order.order_number})
 
-    # Create Backorder if missing items exist
     if stock_check["missing_items"]:
         items = [
             OrderItem(
                 product_sku=i["product_sku"],
-                quantity=i["missing_quantity"], # Create order for the MISSING amount
+                quantity=i["missing_quantity"],
                 unit_price=i["unit_price"],
                 loyalty_points=sku_points_map.get(i["product_sku"], 0)
             ) for i in stock_check["missing_items"]
@@ -257,17 +245,15 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Di
             date=quote.date,
             requested_by=quote.requested_by
         )
-
         
         saved_order = await sales_service.create_order(order)
         created_orders.append({"type": "BACKORDER", "order_number": saved_order.order_number})
         
-    # Update Quote
     quote.status = QuoteStatus.CONVERTED
     await quote.save()
     
     return {
-        "message": "Quote converted successfully",
+        "message": "Cotización convertida exitosamente",
         "orders": created_orders,
         "stock_check": stock_check
     }

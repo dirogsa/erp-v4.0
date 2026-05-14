@@ -158,7 +158,7 @@ class PurchaseInvoice(Document):
 
 class Supplier(Document):
     name: str
-    ruc: Indexed(str, unique=True)
+    ruc: Indexed(str)
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
@@ -175,11 +175,14 @@ class Supplier(Document):
     
     created_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True
-
+    company_id: Optional[str] = None
+    
     class Settings:
         name = "suppliers"
         indexes = [
-            pymongo.IndexModel([("ruc", pymongo.ASCENDING)], unique=True)
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("ruc", pymongo.ASCENDING)], unique=True),
+            "ruc",
+            "company_id"
         ]
 
 class SupplierProductPrice(Document):

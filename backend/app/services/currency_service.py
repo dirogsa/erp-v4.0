@@ -44,7 +44,12 @@ async def get_functional_currency(company_id: Optional[str] = None) -> str:
     if not company_id:
         return await get_reporting_currency()
         
-    company = await Company.get(company_id)
+    from bson import ObjectId
+    try:
+        company = await Company.get(ObjectId(company_id))
+    except:
+        company = None
+
     if not company:
         return await get_reporting_currency()
         

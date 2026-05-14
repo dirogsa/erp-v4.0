@@ -10,6 +10,13 @@ class Department(BaseModel):
 class EnterpriseSettings(BaseModel):
     # ID del Grupo de Almacén: Empresas con el mismo ID comparten inventario físico
     warehouse_group_id: str = "DEFAULT"
+    
+    # MODOS DE SOBERANÍA: "SHARED" (Compartido) o "SOVEREIGN" (Segregado por RUC)
+    inventory_mode: str = "SHARED" 
+    customers_mode: str = "SOVEREIGN"
+    suppliers_mode: str = "SOVEREIGN"
+    users_mode: str = "SOVEREIGN"
+    
     # Autocancelación: ¿Se generan deudas automáticas en ventas cruzadas?
     auto_intercompany_settlement: bool = True
     # Margen de Traspaso: % de ganancia que cobra el dueño al ceder stock (0 = al costo)

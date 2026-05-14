@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Button from './Button';
 import { parseUBLXml } from '../../utils/ublParser';
 import { formatCurrency } from '../../utils/formatters';
+import { Rocket, Plus, Trash2, X } from 'lucide-react';
 
 const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
     const [batchData, setBatchData] = useState([]);
@@ -90,7 +91,7 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                     <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: 'white' }}>
                         Importación Masiva XML (SUNAT)
                     </h2>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#94a3b8' }}>×</button>
+                    <Button variant="ghost" size="small" onClick={onClose}><X size={20} /></Button>
                 </div>
 
                 <div style={{ padding: '1.5rem' }}>
@@ -98,20 +99,24 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                         <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
                             {batchData.length} documento(s) en cola
                         </span>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                            <button
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <Button
+                                variant="outline"
+                                size="small"
+                                icon={Plus}
                                 onClick={() => document.getElementById('xml-upload').click()}
-                                style={{ background: '#3b82f620', border: '1px solid #3b82f644', color: '#60a5fa', fontSize: '0.8rem', cursor: 'pointer', padding: '4px 12px', borderRadius: '6px', fontWeight: 'bold' }}
                             >
-                                + Añadir más archivos
-                            </button>
+                                Añadir más archivos
+                            </Button>
                             {batchData.length > 0 && (
-                                <button
+                                <Button
+                                    variant="ghost"
+                                    size="small"
+                                    icon={Trash2}
                                     onClick={() => setBatchData([])}
-                                    style={{ background: 'none', border: 'none', color: '#f87171', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}
                                 >
-                                    Limpiar lista
-                                </button>
+                                    Limpiar
+                                </Button>
                             )}
                         </div>
                     </div>
@@ -258,11 +263,11 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                     borderBottomLeftRadius: '1.25rem',
                     borderBottomRightRadius: '1.25rem'
                 }}>
-                    <Button variant="secondary" onClick={() => { setBatchData([]); onClose(); }} style={{ background: '#334155', border: 'none', color: '#e2e8f0' }}>
+                    <Button variant="secondary" onClick={() => { setBatchData([]); onClose(); }}>
                         Cancelar
                     </Button>
                     {batchData.length > 0 && (
-                        <Button variant="primary" onClick={handleConfirm} style={{ background: '#2563eb', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)' }}>
+                        <Button variant="primary" icon={Rocket} onClick={handleConfirm}>
                             Importar {batchData.length} Documentos
                         </Button>
                     )}

@@ -39,27 +39,6 @@ class QuoteStatus(str, Enum):
     CONVERTED = "CONVERTED"
     REJECTED = "REJECTED"
 
-class SalesPolicy(Document):
-    """Configuración maestra de porcentajes de recargo financiero"""
-    cash_discount: float = 0.0          # Contado (siempre 0 o descuento si se desea)
-    credit_30_days: float = 3.0        # Recargo % para 30 días
-    credit_60_days: float = 5.0        # Recargo % para 60 días
-    credit_90_days: float = 8.0        # Recargo % para 90 días
-    credit_180_days: float = 15.0      # Recargo % para 180 días
-    # Security Guard (Stop Loss)
-    min_margin_guard_pct: float = 12.0 # Margen mínimo permitido
-    
-    # Global Volume Discounts
-    vol_3_discount_pct: float = 0.0
-    vol_6_discount_pct: float = 0.0
-    vol_12_discount_pct: float = 0.0
-
-    last_updated: datetime = datetime.utcnow()
-    updated_by: Optional[str] = None    # Username del SuperAdmin
-    company_id: Optional[str] = None
-    
-    class Settings:
-        name = "sales_policies"
 
 class IssuerInfoDepartment(BaseModel):
     """Snapshot del encargado de área al momento de emitir el documento"""
@@ -97,6 +76,7 @@ class OrderItem(BaseModel):
     tax_rate: float = 0.18
     invoiced_quantity: int = 0 # Cantidad ya facturada de este item
     loyalty_points: Optional[int] = None
+    is_unmapped: bool = False # New: For SKU Incubation / Mismatch
 
     @field_validator('unit_price', 'unit_value')
     @classmethod
@@ -244,8 +224,14 @@ class SalesInvoice(Document):
     payment_terms: Optional[dict] = None
     linked_notes: List[dict] = [] # [{note_number, type, total_amount}]
     
-    # --- Sinceramiento Financiero (Doble Confirmación XML) ---
-    is_financial_confirmed: bool = True  # True por defecto para facturas manuales/legacy
+    # --- Sinceramiento de Datos (Doble Confirmación XML) ---
+    is_financial_confirmed: bool = True  # Para montos y pagos
+    is_catalog_confirmed: bool = True    # Para SKUs y Mapeos
+    is_customer_confirmed: bool = True   # New: Para validación de cliente en maestro
+    is_exchange_rate_confirmed: bool = True # New: Para validación de TC
+    is_stock_reserved: bool = False      # Indica si los items han pasado a stock_reserved
+    
+    customer_id: Optional[str] = None    # New: Link al ID del cliente real (si existe)
 
     # Datos de la empresa emisora (Snapshot)
     issuer_info: Optional[IssuerInfo] = None
@@ -292,7 +278,7 @@ class DocumentType(str, Enum):
 class Customer(Document):
     name: str
     document_type: DocumentType = DocumentType.RUC
-    document_number: Indexed(str, unique=True)
+    document_number: Indexed(str)
     
     @computed_field
     @property
@@ -337,6 +323,7 @@ class Customer(Document):
     class Settings:
         name = "customers"
         indexes = [
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("document_number", pymongo.ASCENDING)], unique=True),
             "document_number",
             "company_id"
         ]

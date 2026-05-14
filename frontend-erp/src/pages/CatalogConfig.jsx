@@ -28,15 +28,13 @@ const CatalogConfig = () => {
 
     const fetchMetadata = async () => {
         try {
-            const [catRes, prodRes] = await Promise.all([
+            const { productBrandService } = await import('../services/api');
+            const [catRes, brandRes] = await Promise.all([
                 categoryService.getCategories(),
-                inventoryService.getProducts(1, 1000)
+                productBrandService.getBrands()
             ]);
             setCategories(catRes.data || []);
-
-            // Extract unique brands
-            const uniqueBrands = [...new Set(prodRes.data.items.map(p => p.brand).filter(Boolean))];
-            setBrands(uniqueBrands);
+            setBrands(brandRes.data || []);
         } catch (err) {
             console.error("Error fetching metadata", err);
         } finally {

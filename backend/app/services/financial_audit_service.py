@@ -6,19 +6,21 @@ from ..models.purchasing import PurchaseInvoice
 
 class FinancialAuditService:
     @staticmethod
-    async def run_audit(start_date: datetime, end_date: datetime, doc_type: str = "SALES") -> Dict[str, Any]:
+    async def run_audit(start_date: datetime, end_date: datetime, doc_type: str = "SALES", company_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Ejecuta el Motor de Auditoría Financiera para un rango de fechas y tipo de documento.
         """
         findings = []
         
         if doc_type == "SALES":
-            invoices = await SalesInvoice.find(
-                {"invoice_date": {"$gte": start_date, "$lte": end_date}}
-            ).sort("sunat_number").to_list()
-            notes = await SalesNote.find(
-                {"date": {"$gte": start_date, "$lte": end_date}}
-            ).to_list()
+            invoice_query = {"invoice_date": {"$gte": start_date, "$lte": end_date}}
+            if company_id: invoice_query["company_id"] = company_id
+            
+            invoices = await SalesInvoice.find(invoice_query).sort("sunat_number").to_list()
+            
+            note_query = {"date": {"$gte": start_date, "$lte": end_date}}
+            if company_id: note_query["company_id"] = company_id
+            notes = await SalesNote.find(note_query).to_list()
             
             # 1. Auditoría de Secuencialidad (Gaps)
             findings.extend(await FinancialAuditService._check_sequential_gaps(invoices, "Factura"))
@@ -30,22 +32,33 @@ class FinancialAuditService:
             findings.extend(FinancialAuditService._check_duplicates(invoices))
 
             # 4. Auditoría de Continuidad (Huecos entre meses)
-            all_invoices = await SalesInvoice.find().sort("invoice_date").to_list()
+            all_invoices_query = {}
+            if company_id: all_invoices_query["company_id"] = company_id
+            all_invoices = await SalesInvoice.find(all_invoices_query).sort("invoice_date").to_list()
             continuity = FinancialAuditService._check_period_continuity(all_invoices)
             findings.extend(continuity["findings"])
 
         elif doc_type == "PURCHASE":
-            invoices = await PurchaseInvoice.find(
-                {"invoice_date": {"$gte": start_date, "$lte": end_date}}
-            ).to_list()
+            purchase_query = {"invoice_date": {"$gte": start_date, "$lte": end_date}}
+            if company_id: purchase_query["company_id"] = company_id
+            
+            invoices = await PurchaseInvoice.find(purchase_query).to_list()
             findings.extend(FinancialAuditService._check_arithmetic_consistency(invoices))
             findings.extend(FinancialAuditService._check_duplicates(invoices))
             continuity = {"status": "N/A", "months": []}
 
-        # 5. Cronograma SUNAT (Basado en RUC del primer documento o empresa activa)
+        # 5. Cronograma SUNAT (Basado en RUC de la empresa específica o activa)
         from ..models.company import Company
-        active_company = await Company.find_one({"is_active_local": True})
-        ruc = active_company.ruc if active_company else (invoices[0].customer_ruc if invoices else "00000000000")
+        from bson import ObjectId
+        if company_id:
+            try:
+                target_company = await Company.get(ObjectId(company_id))
+            except:
+                target_company = None
+        else:
+            target_company = await Company.find_one({"is_active_local": True})
+            
+        ruc = target_company.ruc if target_company else (invoices[0].customer_ruc if invoices else "00000000000")
         deadlines = FinancialAuditService._get_sunat_deadlines(ruc)
 
         # Resumen
@@ -56,7 +69,8 @@ class FinancialAuditService:
             "info": len([f for f in findings if f["severity"] == "INFO"]),
             "findings": findings,
             "continuity": continuity,
-            "deadlines": deadlines
+            "deadlines": deadlines,
+            "company_name": target_company.name if target_company else "Global / Múltiples"
         }
         
         return summary

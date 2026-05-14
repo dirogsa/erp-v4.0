@@ -91,11 +91,20 @@ const ProductDetail = () => {
                                 <span className="text-slate-400 font-medium">Inc. IGV</span>
                             </div>
 
-                            {/* Offers for quantity */}
-                            {(product.discount_6_pct > 0 || product.discount_12_pct > 0 || product.discount_24_pct > 0) && (
+                            {/* Offers for quantity (Soberanía Comercial) */}
+                            {(product.discount_3_pct > 0 || product.discount_6_pct > 0 || product.discount_12_pct > 0) && (
                                 <div className="space-y-3 pt-4 border-t border-white/10">
                                     <p className="text-[10px] font-black text-primary-400 uppercase tracking-[0.2em]">Ofertas por Volumen</p>
                                     <div className="grid grid-cols-1 gap-2">
+                                        {product.discount_3_pct > 0 && (
+                                            <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                                                <span className="text-sm font-bold">Lleva 3 o más</span>
+                                                <div className="text-right">
+                                                    <span className="block text-xs text-slate-400 line-through">S/ {product.price.toFixed(2)}</span>
+                                                    <span className="text-emerald-400 font-black">S/ {(product.price * (1 - product.discount_3_pct / 100)).toFixed(2)} u.</span>
+                                                </div>
+                                            </div>
+                                        )}
                                         {product.discount_6_pct > 0 && (
                                             <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
                                                 <span className="text-sm font-bold">Lleva 6 o más</span>
@@ -111,15 +120,6 @@ const ProductDetail = () => {
                                                 <div className="text-right">
                                                     <span className="block text-xs text-slate-400 line-through">S/ {product.price.toFixed(2)}</span>
                                                     <span className="text-emerald-400 font-black">S/ {(product.price * (1 - product.discount_12_pct / 100)).toFixed(2)} u.</span>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {product.discount_24_pct > 0 && (
-                                            <div className="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
-                                                <span className="text-sm font-bold">Lleva 24 o más</span>
-                                                <div className="text-right">
-                                                    <span className="block text-xs text-slate-400 line-through">S/ {product.price.toFixed(2)}</span>
-                                                    <span className="text-emerald-400 font-black">S/ {(product.price * (1 - product.discount_24_pct / 100)).toFixed(2)} u.</span>
                                                 </div>
                                             </div>
                                         )}

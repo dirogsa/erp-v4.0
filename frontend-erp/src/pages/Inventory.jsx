@@ -9,13 +9,14 @@ import LossesSection from '../components/features/inventory/LossesSection';
 import LoyaltyManagement from '../components/features/inventory/LoyaltyManagement';
 import Pagination from '../components/common/Table/Pagination';
 import { useProducts } from '../hooks/useProducts';
-import { categoryService, inventoryService } from '../services/api';
+import { categoryService, inventoryService, companyService } from '../services/api';
 import ProductDetailsView from '../components/features/inventory/ProductDetailsView';
 import SmartSearch from '../components/features/inventory/SmartSearch';
-import LoadingOverlay from '../components/common/LoadingOverlay';
 import { useNotification } from '../hooks/useNotification';
+import { useLoading } from '../context/LoadingContext';
 
 const Inventory = ({ forcedType = null }) => {
+    const { showLoading, hideLoading } = useLoading();
     const defaultTab = forcedType === 'MARKETING' ? 'marketing' : 'products';
     const [activeTab, setActiveTab] = useState(defaultTab);
     const [showProductModal, setShowProductModal] = useState(false);
@@ -31,6 +32,22 @@ const Inventory = ({ forcedType = null }) => {
     const [limit, setLimit] = useState(10);
     const [search, setSearch] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
+    const [filterUnrecognized, setFilterUnrecognized] = useState(false);
+    const [filterOthers, setFilterOthers] = useState(false);
+    const [companies, setCompanies] = useState([]);
+
+    useEffect(() => {
+        const loadCompanies = async () => {
+            try {
+                const res = await companyService.getCompanies();
+                setCompanies(res.data);
+            } catch (err) { }
+        };
+        loadCompanies();
+    }, []);
+
+    const currentCompanyId = localStorage.getItem('erp_company_id');
+    const activeCompany = companies.find(c => c._id === currentCompanyId);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -57,8 +74,12 @@ const Inventory = ({ forcedType = null }) => {
         page,
         limit,
         search,
+        filterUnrecognized,
+        filterOthers,
         type: forcedType || (activeTab === 'products' ? 'COMMERCIAL' : '')
     });
+
+    const isInitialEmptyState = !search && !filterUnrecognized && !filterOthers;
 
     if (error) console.error('[Inventory] Error loading products:', error);
 
@@ -91,6 +112,7 @@ const Inventory = ({ forcedType = null }) => {
         if (!confirm) return;
         
         setIsBulkLoading(true);
+        showLoading("Actualizando Lote...", "Sincronizando estados de visibilidad y filtros técnicos en el catálogo maestro.");
         try {
             const payload = { only_with_price };
             if (is_active_in_shop !== undefined) payload.is_active_in_shop = is_active_in_shop;
@@ -108,6 +130,7 @@ const Inventory = ({ forcedType = null }) => {
             showNotification(msg, 'error');
         } finally {
             setIsBulkLoading(false);
+            hideLoading();
         }
     };
 
@@ -130,41 +153,40 @@ const Inventory = ({ forcedType = null }) => {
     const handleCreate = async (data) => {
         if (isSubmitting) return;
         setIsSubmitting(true);
+        showLoading("Creando Producto...", "Generando identificadores únicos y vinculando categorías técnicas.");
         try {
             await createProduct(data, data.initial_stock);
             setShowProductModal(false);
         } catch (error) { 
         } finally {
             setIsSubmitting(false);
+            hideLoading();
         }
     };
 
     const handleUpdate = async (data) => {
         if (isSubmitting) return;
         setIsSubmitting(true);
+        showLoading("Guardando Cambios...", "Actualizando especificaciones y relaciones de equivalencia.");
         try {
             await updateProduct(data.sku, data, data.stock_current);
             setShowProductModal(false);
         } catch (error) { 
         } finally {
             setIsSubmitting(false);
+            hideLoading();
         }
     };
 
     return (
         <div style={{ padding: '2rem' }}>
-            <LoadingOverlay 
-                visible={isSubmitting} 
-                message="Actualizando Inventario..." 
-                subMessage="Estamos sincronizando los datos y las marcas vehiculares."
-            />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ color: 'white', marginBottom: '0.5rem' }}>
                         {forcedType === 'MARKETING' ? 'Gestión de Publicidad' : 'Gestión de Inventario'}
                     </h1>
                     <p style={{ color: '#94a3b8' }}>
-                        {forcedType === 'MARKETING' ? 'Control de artículos y premios publicitarios' : 'Control de productos, transferencias y ajustes'}
+                        {forcedType === 'MARKETING' ? 'Control de artículos y premios publicitarios' : 'Consulta proactiva de productos y depuración de catálogo'}
                     </p>
                 </div>
                 {(activeTab === 'products' || activeTab === 'marketing') && (
@@ -181,7 +203,7 @@ const Inventory = ({ forcedType = null }) => {
             {!forcedType && (
                 <div style={{ marginBottom: '2rem', borderBottom: '1px solid #334155' }}>
                     <button
-                        onClick={() => { setActiveTab('products'); setPage(1); }}
+                        onClick={() => { setActiveTab('products'); setPage(1); setFilterUnrecognized(false); setFilterOthers(false); }}
                         style={{
                             padding: '1rem 2rem',
                             background: 'none',
@@ -192,7 +214,21 @@ const Inventory = ({ forcedType = null }) => {
                             fontWeight: '500'
                         }}
                     >
-                        📦 Productos
+                        📦 Inventario Maestro
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab('loyalty'); setSelectedIds([]); }}
+                        style={{
+                            padding: '1rem 2rem',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: activeTab === 'loyalty' ? '2px solid #3b82f6' : 'none',
+                            color: activeTab === 'loyalty' ? '#3b82f6' : '#94a3b8',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        ⭐ Fidelización
                     </button>
                     <button
                         onClick={() => setActiveTab('smart-search')}
@@ -235,20 +271,6 @@ const Inventory = ({ forcedType = null }) => {
                         }}
                     >
                         ⚖️ Ajustes
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab('loyalty'); setSelectedIds([]); }}
-                        style={{
-                            padding: '1rem 2rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'loyalty' ? '2px solid #3b82f6' : 'none',
-                            color: activeTab === 'loyalty' ? '#3b82f6' : '#94a3b8',
-                            cursor: 'pointer',
-                            fontWeight: '500'
-                        }}
-                    >
-                        ⭐ Fidelización
                     </button>
                 </div>
             )}
@@ -318,74 +340,123 @@ const Inventory = ({ forcedType = null }) => {
                              </div>
                         </div>
                     )}
-
-                    {/* ── Opciones de Gestión Global (Ocultables) ── */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
-                        <div style={{ maxWidth: '400px', flex: 1 }}>
+                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+                         <div style={{ flex: 1 }}>
                             <Input
-                                placeholder={forcedType === 'MARKETING' || activeTab === 'marketing' ? "Buscar premios..." : "Buscar por filtros..."}
+                                placeholder="🔍 Ingrese SKU o Nombre del filtro para buscar..."
                                 value={search}
                                 onChange={(e) => {
                                     setSearch(e.target.value);
                                     setPage(1);
-                                    setSelectedIds([]);
+                                    if (e.target.value) {
+                                        setFilterUnrecognized(false);
+                                        setFilterOthers(false);
+                                    }
                                 }}
                             />
-                        </div>
-
-                        {activeTab === 'products' && (
-                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <button
-                                    onClick={() => handleBulkVisibility({ is_active_in_shop: true, only_with_price: true, label: 'Activar Catálogo con Precio' })}
-                                    style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.75rem', cursor: 'pointer' }}
-                                >
-                                    ⚡ Auto-activar (Con Precio)
-                                </button>
-                                <button
-                                    onClick={() => handleBulkVisibility({ is_active_in_shop: false, label: 'Ocultar TODO el Catálogo' })}
-                                    style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.75rem', cursor: 'pointer' }}
-                                >
-                                    🔒 Ocultar Todo
-                                </button>
-                             </div>
-                        )}
+                         </div>
                     </div>
 
-                    <ProductsTable
-                        products={products}
-                        loading={loading}
-                        isMarketing={forcedType === 'MARKETING' || activeTab === 'marketing'}
-                        categories={categories}
-                        onToggleVisibility={handleToggleVisibility}
-                        selectedIds={selectedIds}
-                        onSelectionChange={setSelectedIds}
-                        onView={(product) => {
-                            setSelectedProduct(product);
-                            setIsViewMode(true);
-                            setShowProductModal(true);
-                        }}
-                        onEdit={(product) => {
-                            setSelectedProduct(product);
-                            setIsViewMode(false);
-                            setShowProductModal(true);
-                        }}
-                        onDelete={(product) => {
-                            if (window.confirm('¿Está seguro de eliminar este ítem?')) {
-                                deleteProduct(product.sku);
-                            }
-                        }}
-                    />
+                    {isInitialEmptyState ? (
+                        <div style={{ 
+                            padding: '4rem 2rem', 
+                            textAlign: 'center', 
+                            background: 'rgba(30, 41, 59, 0.5)', 
+                            borderRadius: '2rem',
+                            border: '2px dashed #334155'
+                        }}>
+                            <div style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>🎯</div>
+                            <h2 style={{ color: 'white', marginBottom: '1rem' }}>Buscador de Inventario de Alta Eficiencia</h2>
+                            <p style={{ color: '#94a3b8', maxWidth: '600px', margin: '0 auto 2.5rem' }}>
+                                Para proteger el rendimiento de la base de datos, los productos no se cargan automáticamente. 
+                                Ingrese un código o utilice uno de los <b>Filtros de Depuración</b> rápidos.
+                            </p>
+                            
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', maxWidth: '900px', margin: '0 auto' }}>
+                                <div 
+                                    onClick={() => setFilterUnrecognized(true)}
+                                    style={{ padding: '2rem', background: '#1e293b', borderRadius: '1.5rem', cursor: 'pointer', border: '1px solid #334155', transition: 'all 0.2s' }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = '#ef4444'}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = '#334155'}
+                                >
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>❓</div>
+                                    <h3 style={{ color: 'white', fontSize: '1rem', marginBottom: '0.5rem' }}>No Reconocidos</h3>
+                                    <p style={{ color: '#64748b', fontSize: '0.8rem' }}>Marcas N/A o Genéricas sin identificar.</p>
+                                </div>
+                                <div 
+                                    onClick={() => setFilterOthers(true)}
+                                    style={{ padding: '2rem', background: '#1e293b', borderRadius: '1.5rem', cursor: 'pointer', border: '1px solid #334155', transition: 'all 0.2s' }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = '#334155'}
+                                >
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>📁</div>
+                                    <h3 style={{ color: 'white', fontSize: '1rem', marginBottom: '0.5rem' }}>Otros / Varios</h3>
+                                    <p style={{ color: '#64748b', fontSize: '0.8rem' }}>Productos en la categoría de misceláneos.</p>
+                                </div>
+                                <div 
+                                    onClick={() => { setSearch(' '); setPage(1); }} // Force a space to trigger isEnabled
+                                    style={{ padding: '2rem', background: '#1e293b', borderRadius: '1.5rem', cursor: 'pointer', border: '1px solid #334155', transition: 'all 0.2s' }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = '#10b981'}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = '#334155'}
+                                >
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>📦</div>
+                                    <h3 style={{ color: 'white', fontSize: '1rem', marginBottom: '0.5rem' }}>Ver Todo</h3>
+                                    <p style={{ color: '#64748b', fontSize: '0.8rem' }}>Cargar el inventario completo (Uso moderado).</p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                    <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Resultados para: <b>{search || (filterUnrecognized ? 'No Reconocidos' : 'Otros')}</b></span>
+                                    <button 
+                                        onClick={() => { setSearch(''); setFilterUnrecognized(false); setFilterOthers(false); }}
+                                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '0.3rem 0.8rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}
+                                    >
+                                        Limpiar Filtros
+                                    </button>
+                                </div>
+                            </div>
 
-                    <Pagination
-                        current={pagination.current}
-                        total={pagination.total}
-                        onChange={setPage}
-                        pageSize={limit}
-                        onPageSizeChange={(newSize) => {
-                            setLimit(newSize);
-                            setPage(1);
-                        }}
-                    />
+                            <ProductsTable
+                                products={products}
+                                loading={loading}
+                                companies={companies}
+                                isMarketing={forcedType === 'MARKETING' || activeTab === 'marketing'}
+                                categories={categories}
+                                onToggleVisibility={handleToggleVisibility}
+                                selectedIds={selectedIds}
+                                onSelectionChange={setSelectedIds}
+                                onView={(product) => {
+                                    setSelectedProduct(product);
+                                    setIsViewMode(true);
+                                    setShowProductModal(true);
+                                }}
+                                onEdit={(product) => {
+                                    setSelectedProduct(product);
+                                    setIsViewMode(false);
+                                    setShowProductModal(true);
+                                }}
+                                onDelete={(product) => {
+                                    if (window.confirm('¿Está seguro de eliminar este ítem?')) {
+                                        deleteProduct(product.sku);
+                                    }
+                                }}
+                            />
+
+                            <Pagination
+                                current={pagination.current}
+                                total={pagination.total}
+                                onChange={setPage}
+                                pageSize={limit}
+                                onPageSizeChange={(newSize) => {
+                                    setLimit(newSize);
+                                    setPage(1);
+                                }}
+                            />
+                        </>
+                    )}
                 </>
             )}
 
@@ -429,6 +500,11 @@ const Inventory = ({ forcedType = null }) => {
                                 <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <h2 style={{ color: 'white', margin: 0 }}>
                                         {selectedProduct ? 'Editar Producto' : 'Nuevo Producto'}
+                                        {!selectedProduct && (
+                                            <span style={{ fontSize: '0.7rem', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 10px', borderRadius: '10px', marginLeft: '1rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                                Contexto: {activeCompany ? activeCompany.name : 'GLOBAL / HOLDING'}
+                                            </span>
+                                        )}
                                     </h2>
                                     <button onClick={() => setShowProductModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
                                 </div>

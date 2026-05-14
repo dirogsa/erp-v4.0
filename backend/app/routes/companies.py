@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 from typing import List, Optional
 from pydantic import BaseModel
-from app.models.company import Company, Department
+from app.models.company import Company, Department, EnterpriseSettings
 from datetime import datetime
 
 router = APIRouter(prefix="/companies", tags=["Companies"])
@@ -23,6 +23,7 @@ class CompanyCreate(BaseModel):
     is_active_local: bool = False
     is_active_web: bool = False
     departments: List[Department] = []
+    enterprise_settings: EnterpriseSettings = EnterpriseSettings()
 
 class CompanyUpdate(BaseModel):
     name: Optional[str] = None
@@ -41,6 +42,7 @@ class CompanyUpdate(BaseModel):
     is_active_local: Optional[bool] = None
     is_active_web: Optional[bool] = None
     departments: Optional[List[Department]] = None
+    enterprise_settings: Optional[EnterpriseSettings] = None
 
 @router.get("/", response_model=List[Company])
 async def get_companies():

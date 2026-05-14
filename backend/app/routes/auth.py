@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
 from typing import List, Optional
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -13,7 +13,12 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+from ..models.company import Company
+
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    x_company_id: Optional[str] = Header(None, alias="X-Company-ID")
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -32,6 +37,22 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     
     if user is None:
         raise credentials_exception
+    
+    # --- Context Synchronization & Sovereignty Guard ---
+    if x_company_id:
+        # 🛡️ Blindaje de Soberanía de Usuarios
+        # Si el usuario es SUPERADMIN, ignoramos la restricción para permitir gestión global
+        if user.role != UserRole.SUPERADMIN:
+            company = await Company.get(x_company_id)
+            if company and company.enterprise_settings.users_mode == 'SOVEREIGN':
+                if x_company_id not in (user.assigned_companies or []):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN, 
+                        detail="Soberanía de Usuario activa: Acceso restringido a esta entidad."
+                    )
+        
+        user.current_company_id = x_company_id
+        
     return user
 
 async def get_optional_user(token: Optional[str] = Depends(OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False))):

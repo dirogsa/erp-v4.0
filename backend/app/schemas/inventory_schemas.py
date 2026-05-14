@@ -27,5 +27,18 @@ class BulkImportResponse(BaseModel):
     orphans_count: int = 0
     errors: List[str] = []
 
+class ProductLean(BaseModel):
+    sku: str
+    name: str
+    brand: Optional[str] = "N/A"
+    type: Optional[str] = "COMMERCIAL"
+    category_id: Optional[str] = "VARIOS"
+    stock_current: int = 0
+    is_active_in_shop: bool = True
+    is_new: bool = False
+
+class ProductLeanWithPrice(ProductLean):
+    price_list: float = 0.0
+
 class ProductWithPrice(Product):
     price_list: float = 0.0 # Field restored at Schema level for UI compatibility

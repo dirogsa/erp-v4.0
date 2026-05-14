@@ -31,7 +31,6 @@ async def init_db():
                 "app.models.inventory.VehicleBrand",
                 "app.models.inventory.SearchLog",
                 "app.models.inventory.ProductCategory",
-                "app.models.inventory.ProductBrand",
                 "app.models.inventory.PriceHistory",
                 "app.models.inventory.StockMovement",
                 "app.models.inventory.Warehouse",
@@ -48,7 +47,6 @@ async def init_db():
                 "app.models.sales.Customer",
                 "app.models.sales.SalesQuote",
                 "app.models.sales.SalesNote",
-                "app.models.sales.SalesPolicy",
                 "app.models.company.Company",
                 "app.models.auth.User",
                 "app.models.auth.B2BApplication",
@@ -56,9 +54,10 @@ async def init_db():
                 "app.models.staff.Staff",
                 "app.models.pricing.PriceList",
                 "app.models.pricing.PriceEntry",
-                "app.models.marketing.LoyaltyConfig",
                 "app.models.finance.ExchangeRate",
-                "app.models.config.SystemConfig"
+                "app.models.config.SystemConfig",
+                "app.models.product_alias.ProductAlias",
+                "app.models.ingestion.PendingIngest"
             ],
             allow_index_dropping=True
         )

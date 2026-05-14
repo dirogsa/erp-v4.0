@@ -1,68 +1,67 @@
 import React from 'react';
 
-const Loading = ({
-    size = 'medium',
-    text = 'Cargando...',
-    fullScreen = false
+/**
+ * Loading: Componente de feedback visual premium.
+ * Versátil y ligero, diseñado para integrarse en botones, tablas o pantallas completas.
+ */
+const Loading = ({ 
+    size = 'medium', 
+    text = '', 
+    fullScreen = false,
+    color = '#3b82f6'
 }) => {
     const sizes = {
-        small: '1.5rem',
-        medium: '2.5rem',
-        large: '4rem',
-    };
-
-    const spinnerStyle = {
-        width: sizes[size],
-        height: sizes[size],
-        border: '3px solid #334155',
-        borderTop: '3px solid #3b82f6',
-        borderRadius: '50%',
-        animation: 'spin 1s linear infinite',
+        small: '16px',
+        medium: '40px',
+        large: '80px'
     };
 
     const containerStyle = fullScreen ? {
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        inset: 0,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        zIndex: 9999,
+        background: 'rgba(15, 23, 42, 0.8)',
+        backdropFilter: 'blur(8px)',
+        zIndex: 9999
     } : {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '2rem',
+        padding: '1rem'
     };
 
     return (
-        <>
-            <style>
-                {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-            </style>
-            <div style={containerStyle}>
-                <div style={spinnerStyle}></div>
-                {text && (
-                    <p style={{
-                        marginTop: '1rem',
-                        color: fullScreen ? 'white' : '#94a3b8',
-                        fontSize: '0.875rem'
-                    }}>
-                        {text}
-                    </p>
-                )}
-            </div>
-        </>
+        <div style={containerStyle}>
+            <div style={{
+                width: sizes[size],
+                height: sizes[size],
+                border: `3px solid rgba(51, 65, 85, 0.3)`,
+                borderTop: `3px solid ${color}`,
+                borderRadius: '50%',
+                animation: 'spin-universal 0.8s linear infinite'
+            }} />
+            {text && (
+                <p style={{ 
+                    marginTop: '1rem', 
+                    color: '#94a3b8', 
+                    fontSize: size === 'large' ? '1.1rem' : '0.9rem',
+                    fontWeight: '600',
+                    letterSpacing: '0.025em'
+                }}>
+                    {text}
+                </p>
+            )}
+            <style>{`
+                @keyframes spin-universal {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
+        </div>
     );
 };
 

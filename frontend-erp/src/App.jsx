@@ -32,7 +32,6 @@ import PricingStrategy from './pages/PricingStrategy';
 import Marketing from './pages/Marketing';
 import Audit from './pages/Audit';
 import CatalogIngestion from './pages/CatalogIngestion';
-import BulkXMLImport from './pages/BulkXMLImport';
 import FinancialAudit from './pages/FinancialAudit';
 import StaffManagement from './pages/StaffManagement';
 import ExchangeRates from './pages/ExchangeRates';
@@ -41,6 +40,7 @@ import ReconciliationPage from './pages/ReconciliationPage';
 import ImportPlanning from './pages/ImportPlanning';
 import SystemStatus from './pages/SystemStatus';
 import FinancialSincerityInbox from './pages/FinancialSincerityInbox';
+import GovernanceDashboard from './pages/GovernanceDashboard';
 
 
 
@@ -85,7 +85,6 @@ function App() {
                           <Route path="/inventory" element={<Inventory />} />
                           <Route path="/inventory/marketing" element={<MarketingInventory />} />
                           <Route path="/catalog-ingestion" element={<CatalogIngestion />} />
-                          <Route path="/bulk/xml" element={<BulkXMLImport />} />
                           <Route path="/categories" element={<Categories />} />
                           <Route path="/suppliers" element={<Suppliers />} />
                           <Route path="/purchasing" element={<Purchasing />} />
@@ -111,6 +110,7 @@ function App() {
                           <Route path="/reconciliation" element={<ReconciliationPage />} />
                           <Route path="/import-planning" element={<ImportPlanning />} />
                           <Route path="/financial-sincerity" element={<FinancialSincerityInbox />} />
+                          <Route path="/governance" element={<GovernanceDashboard />} />
                         </Routes>
                       </Layout>
                     </ProtectedRoute>

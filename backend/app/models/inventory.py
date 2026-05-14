@@ -149,9 +149,12 @@ class AttributeDefinition(BaseModel):
     required: bool = False
 
 class CompanyProductData(BaseModel):
-    """Metadatos legales/auditoría por empresa para un producto"""
-    # Metadatos de auditoría por empresa
-    last_purchase_date: Optional[datetime] = None
+    company_id: str
+    stock_current: float = 0.0
+    stock_reserved: float = 0.0  # New: Stock committed by invoices but not yet dispatched
+    cost: float = 0.0
+    last_purchase_price: float = 0.0
+    price_manual: Optional[float] = None
     last_sale_date: Optional[datetime] = None
 
 class ProductCategory(Document):
@@ -170,19 +173,6 @@ class ProductCategory(Document):
             pymongo.IndexModel([("name", pymongo.ASCENDING)], unique=True)
         ]
 
-class ProductBrand(Document):
-    """Catálogo Maestro de Marcas (MDM)"""
-    name: str
-    aliases: List[str] = [] # Términos de búsqueda en XML (Ej: ["MANN", "MANN-FILTER"])
-    description: Optional[str] = None
-    logo_url: Optional[str] = None
-    is_active: bool = True
-    
-    class Settings:
-        name = "product_brands"
-        indexes = [
-            pymongo.IndexModel([("name", pymongo.ASCENDING)], unique=True)
-        ]
 
 class Product(Document):
     sku: Indexed(str)
@@ -203,7 +193,8 @@ class Product(Document):
     features: List[str] = [] # list of active feature labels: ["Cuerpo Metálico"]
     
     # Inyectados dinámicamente según la empresa que consulte
-    stock_current: int = 0
+    stock_current: float = 0.0
+    stock_reserved: float = 0.0 # New: Consolidated stock committed by invoices
     cost: float = 0.0 # ¡IMPORTANTE! Costo Unitario de compra siempre CON IGV incluido
     
     loyalty_points: int = 0

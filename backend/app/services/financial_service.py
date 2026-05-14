@@ -193,14 +193,16 @@ async def create_note(
 
         guide = DeliveryGuide(
             guide_number=guide_number,
-            guide_type=GuideType.RETURN, # Ensure this type exists or use equivalent
+            guide_type=GuideType.RETURN, 
             status=GuideStatus.COMPLETED,
-            invoice_id=note_number, # Reference the Note
-            target="Almacén Principal", # Defaulting for now
+            invoice_number=note_number,
+            customer_name="Almacén Principal",
+            customer_ruc=invoice.customer_ruc or "00000000000",
             items=guide_items,
             notes=f"Retorno por Nota de Crédito {note_number}",
             created_by="System",
-            completed_date=datetime.now()
+            issue_date=datetime.now(),
+            company_id=str(invoice.company_id)
         )
         await guide.insert()
         return_guide_id = str(guide.id)

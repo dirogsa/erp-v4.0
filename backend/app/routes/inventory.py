@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-from app.models.inventory import Product, Warehouse, MovementType, ProductType, ProductStatus, ProductBrand
+from app.models.inventory import Product, Warehouse, MovementType, ProductType, ProductStatus
 from app.models.auth import User, UserRole
 from app.services import inventory_service
-from app.schemas.inventory_schemas import LossRegistration, TransferRequest, BulkImportResponse, ProductWithPrice
+from app.schemas.inventory_schemas import LossRegistration, TransferRequest, BulkImportResponse, ProductWithPrice, ProductLeanWithPrice
 from app.schemas.common import PaginatedResponse
 from .auth import get_current_user, check_role
 from app.dependencies.company import get_current_company_id
@@ -24,7 +24,7 @@ class BulkVisibilityPayload(BaseModel):
     only_with_price: bool = True  # Solo productos con precio_retail > 0
     product_ids: Optional[List[str]] = None # Opcional: Lista de IDs específicos (mongo _id)
 
-@router.get("/products", response_model=PaginatedResponse[ProductWithPrice])
+@router.get("/products", response_model=PaginatedResponse[ProductLeanWithPrice])
 async def get_products(
     skip: int = 0, 
     limit: int = 50, 
@@ -32,9 +32,23 @@ async def get_products(
     category: Optional[str] = None,
     redeemable_only: Optional[bool] = None,
     product_type: Optional[str] = None,
+    filter_unrecognized: Optional[bool] = None,
+    filter_others: Optional[bool] = None,
     company_id: str = Depends(get_current_company_id)
 ):
-    return await inventory_service.get_products(skip, limit, search, category, redeemable_only, product_type, company_id=company_id)
+    return await inventory_service.get_products(
+        skip, limit, search, category, redeemable_only, product_type, 
+        filter_unrecognized=filter_unrecognized,
+        filter_others=filter_others,
+        company_id=company_id
+    )
+
+@router.get("/brands", response_model=List[str])
+async def get_unique_brands():
+    """
+    Retorna la lista única de marcas presentes en el inventario.
+    """
+    return await inventory_service.get_unique_brands()
 
 @router.get("/generate-marketing-sku")
 async def generate_marketing_sku(company_id: str = Depends(get_current_company_id)):
@@ -111,23 +125,6 @@ async def delete_warehouse(code: str):
     await inventory_service.delete_warehouse(code)
     return {"message": "Warehouse deleted successfully"}
 
-# --- Brand Endpoints ---
-@router.get("/brands", response_model=List[ProductBrand])
-async def get_brands():
-    return await inventory_service.get_brands()
-
-@router.post("/brands", response_model=ProductBrand)
-async def create_brand(brand: ProductBrand):
-    return await inventory_service.create_brand(brand)
-
-@router.put("/brands/{brand_id}", response_model=ProductBrand)
-async def update_brand(brand_id: str, brand: ProductBrand):
-    return await inventory_service.update_brand(brand_id, brand)
-
-@router.delete("/brands/{brand_id}")
-async def delete_brand(brand_id: str):
-    await inventory_service.delete_brand(brand_id)
-    return {"message": "Brand deleted successfully"}
 
 # --- Feature Endpoints ---
 

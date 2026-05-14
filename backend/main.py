@@ -88,14 +88,14 @@ def include_routers(app: FastAPI):
     from app.routes import (
         auth, companies, categories, brands, finance, analytics, 
         inventory, delivery, io, purchasing, purchase_quotes, 
-        financial, sales, sales_quotes, sales_config, pricing, 
+        financial, sales, sales_quotes, pricing, 
         marketing, audit, staff, shop, intercompany, config, intelligence
     )
     
     modules = [
         auth, companies, categories, brands, finance, analytics, 
         inventory, delivery, io, purchasing, purchase_quotes, 
-        financial, sales_quotes, sales, sales_config, pricing, 
+        financial, sales_quotes, sales, pricing, 
         marketing, audit, staff, shop, intercompany, config, intelligence
     ]
     

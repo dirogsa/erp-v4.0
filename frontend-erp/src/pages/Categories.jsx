@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { categoryService } from '../services/api';
 import Button from '../components/common/Button';
 import { useNotification } from '../hooks/useNotification';
+import { useLoading } from '../context/LoadingContext';
 import Layout from '../components/Layout';
 import { 
     Package, Droplet, Zap, Filter, Battery, Truck, 
     Layers, ChevronRight, ChevronDown, Trash2, 
     Rocket, Plus, Info, Database, Search, FolderPlus,
     Activity, CheckCircle2, AlertCircle, RefreshCw,
-    HelpCircle, Eye, Tag
+    HelpCircle, Eye, Tag, Settings2, Target, BarChart3,
+    ArrowRightLeft, FileJson
 } from 'lucide-react';
 
 const ICON_LIST = [
@@ -23,67 +25,48 @@ const ICON_LIST = [
 
 const Categories = () => {
     const { showNotification } = useNotification();
+    const { showLoading, hideLoading } = useLoading();
     const [categories, setCategories] = useState([]);
     const [orphans, setOrphans] = useState([]);
     const [activeTab, setActiveTab] = useState('explorer');
-    
     const [selectedCategoryId, setSelectedCategoryId] = useState(null);
     const [expandedIds, setExpandedIds] = useState(new Set());
     const [searchTerm, setSearchTerm] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
-    
     const [formData, setFormData] = useState({
-        name: '',
-        parent_id: '',
-        icon: 'Package',
-        color: '#6366f1',
-        import_aliases: [],
-        attributes_schema: []
+        name: '', parent_id: '', icon: 'Package', color: '#6366f1',
+        import_aliases: [], attributes_schema: []
     });
 
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
-    const [lastOrphanFetch, setLastOrphanFetch] = useState(null);
+    useEffect(() => { loadCategories(); }, []);
 
-    useEffect(() => { 
-        loadCategories(); 
-    }, []);
-
-    // Carga de categorías (Maestro)
     const loadCategories = async () => {
         try {
             const catRes = await categoryService.getCategories();
             setCategories(catRes.data);
-            
-            if (expandedIds.size === 0 && isInitialLoad) {
+            if (expandedIds.size === 0) {
                 const roots = catRes.data.filter(c => !c.parent_id).map(c => c._id);
                 setExpandedIds(new Set(roots));
-                setIsInitialLoad(false);
             }
-        } catch (error) {
-            showNotification('Error al cargar taxonomía', 'error');
-        }
+        } catch (error) { showNotification('Error al cargar taxonomía', 'error'); }
     };
 
-    // Carga de huérfanos (A pedido)
     const loadOrphans = async (manual = false) => {
         setIsProcessing(true);
+        if (manual) showLoading("Escaneando Base de Datos...", "Analizando inconsistencias taxonómicas en el inventario global.");
         try {
             const orphanRes = await categoryService.getOrphans();
             setOrphans(orphanRes.data);
-            setLastOrphanFetch(new Date());
-            if (manual) showNotification('Base de datos analizada correctamente', 'success');
-        } catch (error) {
-            showNotification('Error al buscar huérfanos', 'error');
-        } finally {
-            setIsProcessing(false);
+            if (manual) showNotification('Base de datos analizada', 'success');
+        } catch (error) { showNotification('Error al buscar huérfanos', 'error'); }
+        finally { 
+            setIsProcessing(false); 
+            hideLoading();
         }
     };
 
-    // Trigger para carga de huérfanos al cambiar de pestaña
     useEffect(() => {
-        if (activeTab === 'reconciliation' && !lastOrphanFetch) {
-            loadOrphans();
-        }
+        if (activeTab === 'reconciliation') loadOrphans();
     }, [activeTab]);
 
     const toggleExpand = (id) => {
@@ -104,53 +87,41 @@ const Categories = () => {
         });
     };
 
-    const handleCreate = (parentId = '') => {
-        setSelectedCategoryId('NEW');
-        setFormData({
-            name: '', parent_id: parentId, icon: 'Package', color: '#6366f1',
-            import_aliases: [], attributes_schema: []
-        });
-    };
-
     const handleSave = async (e) => {
         if (e) e.preventDefault();
-        if (!formData.name) return showNotification('Nombre obligatorio', 'error');
-        
-        // Ingeniería de Clase Mundial: Saneamiento de datos antes de persistencia
-        // MongoDB/Beanie esperan null para campos opcionales, no strings vacíos.
-        const cleanData = {
-            ...formData,
-            parent_id: formData.parent_id === '' ? null : formData.parent_id
-        };
-
+        const cleanData = { ...formData, parent_id: formData.parent_id === '' ? null : formData.parent_id };
         try {
-            if (selectedCategoryId === 'NEW') {
-                await categoryService.createCategory(cleanData);
-            } else {
-                await categoryService.updateCategory(selectedCategoryId, cleanData);
-            }
-            showNotification(selectedCategoryId === 'NEW' ? 'Categoría creada' : 'Maestro actualizado', 'success');
+            if (selectedCategoryId === 'NEW') await categoryService.createCategory(cleanData);
+            else await categoryService.updateCategory(selectedCategoryId, cleanData);
+            showNotification('Maestro actualizado', 'success');
             setSelectedCategoryId(null);
             loadCategories();
-        } catch (error) { 
-            console.error("Save Error:", error);
-            showNotification('Error al procesar: ' + (error.response?.data?.detail || 'Fallo de servidor'), 'error'); 
-        }
+        } catch (error) { showNotification('Error al procesar', 'error'); }
     };
 
     const handleMapOrphan = async (orphanName, canonicalId) => {
-        if (!canonicalId) return;
         setIsProcessing(true);
+        showLoading("Sincronizando Taxonomía...", `Mapeando registros técnicos a la categoría oficial.`);
         try {
             await categoryService.mapOrphan(orphanName, canonicalId);
-            showNotification(`Sistema sincronizado: "${orphanName}" ahora es parte de la taxonomía`, 'success');
+            showNotification(`Sincronización exitosa: "${orphanName}" mapeado`, 'success');
             loadOrphans();
             loadCategories();
-        } catch (error) {
-            showNotification('Error en sincronización', 'error');
-        } finally {
-            setIsProcessing(false);
+        } catch (error) { showNotification('Error en mapeo', 'error'); }
+        finally { 
+            setIsProcessing(false); 
+            hideLoading();
         }
+    };
+
+    const findBestMatch = (orphanName) => {
+        if (!orphanName) return '';
+        const normalizedOrphan = orphanName.toLowerCase().replace(/\s+/g, '');
+        const match = categories.find(c => 
+            c.name.toLowerCase().replace(/\s+/g, '') === normalizedOrphan ||
+            c.import_aliases.some(a => a.toLowerCase().replace(/\s+/g, '') === normalizedOrphan)
+        );
+        return match ? match._id : '';
     };
 
     const renderTree = (parentId = null, level = 0) => {
@@ -164,21 +135,28 @@ const Categories = () => {
                 const IconComp = ICON_LIST.find(i => i.name === cat.icon)?.icon || Package;
 
                 return (
-                    <div key={cat._id} className="tree-node">
+                    <div key={cat._id} style={{ display: 'flex', flexDirection: 'column' }}>
                         <div 
-                            className={`tree-item ${isSelected ? 'selected' : ''}`}
-                            style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}
                             onClick={() => handleSelectCategory(cat)}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.8rem',
+                                paddingLeft: `${level * 1.5 + 0.8}rem`, borderRadius: '0.75rem', cursor: 'pointer',
+                                background: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                                borderLeft: isSelected ? '3px solid #6366f1' : '3px solid transparent',
+                                transition: '0.2s', margin: '2px 0'
+                            }}
                         >
-                            <div className="tree-expander" onClick={(e) => { e.stopPropagation(); toggleExpand(cat._id); }}>
-                                {hasChildren ? (isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />) : <div style={{width: 14}}/>}
+                            <div onClick={(e) => { e.stopPropagation(); toggleExpand(cat._id); }} style={{ width: '16px', color: '#475569' }}>
+                                {hasChildren ? (isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />) : null}
                             </div>
-                            <div className="tree-icon" style={{ backgroundColor: `${cat.color}20`, color: cat.color }}>
-                                <IconComp size={14} />
-                            </div>
-                            <span className="tree-label">{cat.name}</span>
-                            <div className="tree-actions">
-                                <button onClick={(e) => { e.stopPropagation(); handleCreate(cat._id); }}><Plus size={14} /></button>
+                            <IconComp size={16} color={cat.color} />
+                            <span style={{ fontSize: '0.9rem', color: isSelected ? 'white' : '#cbd5e1', fontWeight: isSelected ? '700' : '500' }}>{cat.name}</span>
+                            <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                                {cat.import_aliases?.length > 0 && (
+                                    <span style={{ fontSize: '0.65rem', background: '#1e293b', color: '#6366f1', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                                        {cat.import_aliases.length} ALIAS
+                                    </span>
+                                )}
                             </div>
                         </div>
                         {isExpanded && renderTree(cat._id, level + 1)}
@@ -189,272 +167,200 @@ const Categories = () => {
 
     return (
         <Layout>
-            <div className="cat-master-container">
-                <div className="cat-header">
-                    <div className="cat-title-group">
-                        <div className="cat-icon-badge"><Layers size={24} /></div>
+            <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto', height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '1.5rem 2rem', borderRadius: '1.5rem', border: '1px solid #334155' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                        <div style={{ background: '#6366f1', padding: '0.75rem', borderRadius: '1rem' }}><Layers size={28} color="white" /></div>
                         <div>
-                            <h1>Taxonomía Industrial</h1>
-                            <p>Gestión de categorías y motor de reconciliación de datos</p>
+                            <h1 style={{ color: 'white', margin: 0, fontSize: '1.5rem', fontWeight: '800' }}>Centro de Taxonomía Técnica</h1>
+                            <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.9rem' }}>Gobernanza de categorías y motor de reconciliación industrial</p>
                         </div>
                     </div>
-                    
-                    <div className="tab-nav">
-                        <button className={`tab-btn ${activeTab === 'explorer' ? 'active' : ''}`} onClick={() => setActiveTab('explorer')}>
-                            <Database size={16} /> Explorador
+                    <div style={{ display: 'flex', background: '#0f172a', padding: '0.4rem', borderRadius: '0.8rem', gap: '0.25rem' }}>
+                        <button 
+                            onClick={() => setActiveTab('explorer')}
+                            style={{ 
+                                background: activeTab === 'explorer' ? '#6366f1' : 'transparent', color: activeTab === 'explorer' ? 'white' : '#64748b',
+                                border: 'none', padding: '0.6rem 1.2rem', borderRadius: '0.6rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: '0.3s'
+                            }}
+                        >
+                            <Search size={16} /> Explorador
                         </button>
-                        <button className={`tab-btn ${activeTab === 'reconciliation' ? 'active' : ''}`} onClick={() => setActiveTab('reconciliation')}>
-                            <RefreshCw size={16} className={isProcessing && activeTab === 'reconciliation' ? 'animate-spin' : ''} /> Sincronización
-                            {orphans.length > 0 && <span className="orphan-badge animate-pulse">{orphans.length}</span>}
+                        <button 
+                            onClick={() => setActiveTab('reconciliation')}
+                            style={{ 
+                                background: activeTab === 'reconciliation' ? '#f59e0b' : 'transparent', color: activeTab === 'reconciliation' ? 'white' : '#64748b',
+                                border: 'none', padding: '0.6rem 1.2rem', borderRadius: '0.6rem', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: '0.3s'
+                            }}
+                        >
+                            <ArrowRightLeft size={16} /> Sincronización 
+                            {orphans.length > 0 && <span style={{ background: '#ef4444', color: 'white', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '10px', marginLeft: '5px' }}>{orphans.length}</span>}
                         </button>
                     </div>
                 </div>
 
-                <div className="cat-main-layout">
+                <div style={{ display: 'grid', gridTemplateColumns: activeTab === 'explorer' ? '380px 1fr' : '1fr', gap: '2rem', flex: 1, overflow: 'hidden' }}>
                     {activeTab === 'explorer' ? (
                         <>
-                            <div className="cat-explorer">
-                                <div className="search-box">
-                                    <Search size={16} />
-                                    <input placeholder="Filtrar por nombre..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                            <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '1.5rem', padding: '1.5rem', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#0f172a', padding: '0.75rem 1rem', borderRadius: '1rem', marginBottom: '1.5rem', border: '1px solid #334155' }}>
+                                    <Search size={18} color="#64748b" />
+                                    <input placeholder="Filtrar taxonomía..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', width: '100%', fontSize: '0.9rem' }} />
                                 </div>
-                                <div className="tree-container">
+                                <div style={{ flex: 1, overflowY: 'auto' }}>
                                     {renderTree()}
                                 </div>
-                                <button className="btn-add-root" onClick={() => handleCreate('')}>
-                                    <Plus size={16} /> Nueva Categoría Raíz
+                                <button 
+                                    onClick={() => { setSelectedCategoryId('NEW'); setFormData({ name: '', parent_id: '', icon: 'Package', color: '#6366f1', import_aliases: [], attributes_schema: [] }); }}
+                                    style={{ marginTop: '1.5rem', width: '100%', padding: '1rem', background: 'rgba(99, 102, 241, 0.1)', border: '1px dashed #6366f1', color: '#818cf8', borderRadius: '1rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justify: 'center', gap: '0.5rem' }}
+                                >
+                                    <Plus size={18} /> Nueva Raíz
                                 </button>
                             </div>
 
-                            <div className="cat-editor">
+                            <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '1.5rem', padding: '3rem', overflowY: 'auto' }}>
                                 {selectedCategoryId ? (
-                                    <div className="editor-content animate-in fade-in slide-in-from-right-4">
-                                        <div className="editor-header-nav">
-                                            <div className="editor-badge">{selectedCategoryId === 'NEW' ? 'Nuevo Registro' : 'Modificar Categoría'}</div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase' }}>{selectedCategoryId === 'NEW' ? 'Nuevo Registro' : 'Ficha de Categoría'}</div>
                                             {selectedCategoryId !== 'NEW' && (
-                                                <button className="btn-add-sub-context" onClick={() => handleCreate(selectedCategoryId)}>
-                                                    <FolderPlus size={16} /> Crear Sub-categoría
+                                                <button 
+                                                    onClick={() => { setSelectedCategoryId('NEW'); setFormData({ ...formData, name: '', parent_id: selectedCategoryId, import_aliases: [], attributes_schema: [] }); }}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '0.8rem', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer' }}
+                                                >
+                                                    <FolderPlus size={16} /> Agregar Sub-categoría
                                                 </button>
                                             )}
                                         </div>
 
-                                        <div className="form-grid">
-                                            <div className="field">
-                                                <label>Nombre Oficial</label>
-                                                <input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Ej: Filtros de Aire" />
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#475569', textTransform: 'uppercase' }}>Nombre Oficial</label>
+                                                <input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '0.75rem', padding: '0.8rem 1rem', color: 'white', fontSize: '1rem' }} />
                                             </div>
-                                            <div className="field">
-                                                <label>Ubicación (Padre)</label>
-                                                <select value={formData.parent_id} onChange={(e) => setFormData({...formData, parent_id: e.target.value})}>
-                                                    <option value="">(Raíz del Árbol)</option>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#475569', textTransform: 'uppercase' }}>Ubicación</label>
+                                                <select value={formData.parent_id} onChange={(e) => setFormData({...formData, parent_id: e.target.value})} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '0.75rem', padding: '0.8rem 1rem', color: 'white' }}>
+                                                    <option value="">(Raíz)</option>
                                                     {categories.filter(c => c._id !== selectedCategoryId).map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                                                 </select>
                                             </div>
                                         </div>
 
-                                        <div className="editor-section">
-                                            <div className="section-header"><Tag size={18} /> <h2>Motor de Reconocimiento (Aliases)</h2></div>
-                                            <p className="section-tip">Escribe nombres del HTML/Excel y presiona <b>Enter</b> para que el sistema aprenda.</p>
-                                            <div className="alias-container">
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}><Tag size={20} color="#6366f1" /><h3 style={{ margin: 0, color: 'white', fontSize: '1.1rem' }}>Smart Aliases (Motor de Ingesta)</h3></div>
+                                            <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '1.5rem' }}>Agrega nombres alternativos que aparecen en catálogos para que el sistema los auto-identifique.</p>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', background: '#0f172a', padding: '1.5rem', borderRadius: '1rem', border: '1px dashed #334155' }}>
                                                 {formData.import_aliases.map((alias, idx) => (
-                                                    <div key={idx} className="alias-tag">
+                                                    <div key={idx} style={{ background: '#1e293b', border: '1px solid #334155', color: '#a5b4fc', padding: '0.4rem 0.8rem', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                         {alias}
-                                                        <button onClick={() => setFormData({...formData, import_aliases: formData.import_aliases.filter((_, i) => i !== idx)})}>×</button>
+                                                        <button onClick={() => setFormData({...formData, import_aliases: formData.import_aliases.filter((_, i) => i !== idx)})} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}>×</button>
                                                     </div>
                                                 ))}
-                                                <input className="alias-input" placeholder="+ Agregar término (Enter)" onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && e.target.value) {
-                                                        const val = e.target.value.trim().toUpperCase();
-                                                        if (!formData.import_aliases.includes(val)) {
-                                                            setFormData({...formData, import_aliases: [...formData.import_aliases, val]});
+                                                <input 
+                                                    placeholder="+ Enter para agregar" 
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && e.target.value) {
+                                                            const val = e.target.value.trim().toUpperCase();
+                                                            if (!formData.import_aliases.includes(val)) setFormData({...formData, import_aliases: [...formData.import_aliases, val]});
+                                                            e.target.value = '';
                                                         }
-                                                        e.target.value = '';
-                                                    }
-                                                }} />
+                                                    }}
+                                                    style={{ background: 'transparent', border: 'none', color: 'white', outline: 'none', flex: 1, minWidth: '150px' }}
+                                                />
                                             </div>
                                         </div>
 
-                                        <div className="editor-footer">
-                                            <div style={{ display: 'flex', gap: '1rem' }}>
-                                                <Button onClick={handleSave} style={{ flex: 1 }}><Rocket size={18} /> Guardar Cambios</Button>
-                                                {selectedCategoryId !== 'NEW' && (
-                                                    <button className="btn-delete-final" onClick={() => {
-                                                        if(window.confirm('¿Eliminar permanentemente?')) categoryService.deleteCategory(selectedCategoryId).then(() => { loadCategories(); setSelectedCategoryId(null); });
-                                                    }}>
-                                                        <Trash2 size={18} />
-                                                    </button>
-                                                )}
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}><FileJson size={20} color="#10b981" /><h3 style={{ margin: 0, color: 'white', fontSize: '1.1rem' }}>Esquema de Atributos Técnicos</h3></div>
+                                            <div style={{ background: '#0f172a', padding: '2rem', borderRadius: '1rem', textAlign: 'center', border: '1px solid #334155' }}>
+                                                <Settings2 size={32} color="#475569" style={{ marginBottom: '1rem' }} />
+                                                <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>Define los campos obligatorios para esta categoría (ej: Altura, Rosca, Voltaje).</p>
+                                                <Button variant="secondary" style={{ marginTop: '1.5rem', fontSize: '0.8rem' }}>Configurar Atributos</Button>
                                             </div>
+                                        </div>
+
+                                        <div style={{ borderTop: '1px solid #334155', paddingTop: '2rem', display: 'flex', gap: '1rem' }}>
+                                            <Button onClick={handleSave} style={{ flex: 1 }}><Rocket size={18} style={{ marginRight: '0.5rem' }} /> Guardar Master</Button>
+                                            {selectedCategoryId !== 'NEW' && (
+                                                <button 
+                                                    onClick={() => { if(window.confirm('¿Eliminar permanentemente?')) categoryService.deleteCategory(selectedCategoryId).then(() => { loadCategories(); setSelectedCategoryId(null); }); }}
+                                                    style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '0 1.5rem', borderRadius: '1rem', cursor: 'pointer' }}
+                                                >
+                                                    <Trash2 size={20} />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="editor-empty">
-                                        <Layers size={48} />
-                                        <h3>Configuración de Taxonomía</h3>
-                                        <p>Selecciona una rama del árbol para gestionar su identidad técnica y reglas de reconocimiento.</p>
+                                    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justify: 'center', textAlign: 'center', color: '#475569' }}>
+                                        <Layers size={64} style={{ marginBottom: '1.5rem', opacity: 0.2 }} />
+                                        <h3 style={{ color: '#94a3b8', margin: 0 }}>Taxonomía de Alto Nivel</h3>
+                                        <p style={{ maxWidth: '400px', fontSize: '0.95rem' }}>Selecciona una categoría para gestionar su identidad técnica, alias de importación y esquemas de datos.</p>
                                     </div>
                                 )}
                             </div>
                         </>
                     ) : (
-                        <div className="reconciliation-panel animate-in fade-in">
-                            <div className="recon-header">
-                                <Activity size={32} color="#6366f1" />
+                        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '2rem', padding: '4rem', overflowY: 'auto' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', marginBottom: '4rem', borderBottom: '1px solid #334155', paddingBottom: '2rem' }}>
+                                <Activity size={48} color="#f59e0b" />
                                 <div style={{ flex: 1 }}>
-                                    <h2>Limpieza de Datos (Huérfanos)</h2>
-                                    <p>Asigna categorías oficiales a los nombres desconocidos encontrados en el sistema.</p>
+                                    <h2 style={{ color: 'white', margin: 0, fontSize: '2.2rem', fontWeight: '950' }}>War Room: Reconciliación Industrial</h2>
+                                    <p style={{ color: '#94a3b8', margin: '0.5rem 0 0', fontSize: '1.1rem' }}>Sincroniza nombres de catálogos con tu taxonomía oficial mediante heurística de datos.</p>
                                 </div>
-                                <div className="recon-stats">
-                                    {lastOrphanFetch && <span className="last-sync">Último escaneo: {lastOrphanFetch.toLocaleTimeString()}</span>}
-                                    <button 
-                                        className="btn-refresh-manual" 
-                                        onClick={() => loadOrphans(true)}
-                                        disabled={isProcessing}
-                                    >
-                                        <RefreshCw size={16} className={isProcessing ? 'animate-spin' : ''} />
-                                        {isProcessing ? 'Escaneando...' : 'Escanear Base de Datos'}
-                                    </button>
-                                </div>
+                                <button onClick={() => loadOrphans(true)} disabled={isProcessing} style={{ background: '#6366f1', color: 'white', border: 'none', padding: '1rem 2rem', borderRadius: '1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                                    <RefreshCw size={20} className={isProcessing ? 'animate-spin' : ''} /> Escanear Base de Datos
+                                </button>
                             </div>
-                            
+
                             {orphans.length === 0 ? (
-                                <div className="recon-empty">
-                                    <CheckCircle2 size={64} color="#10b981" />
-                                    <h3>¡Base de Datos Sincronizada!</h3>
-                                    <p>Todos los productos están correctamente clasificados en tu taxonomía.</p>
+                                <div style={{ textAlign: 'center', padding: '6rem' }}>
+                                    <CheckCircle2 size={80} color="#10b981" style={{ marginBottom: '2rem', opacity: 0.5 }} />
+                                    <h3 style={{ color: 'white', fontSize: '1.8rem' }}>¡Taxonomía Íntegra!</h3>
+                                    <p style={{ color: '#64748b' }}>No se han detectado productos huérfanos o nombres desconocidos.</p>
                                 </div>
                             ) : (
-                                <div className="recon-grid">
-                                    {orphans.map(orphan => (
-                                        <div key={orphan._id} className="recon-card">
-                                            <div className="recon-card-header">
-                                                <div className="recon-info">
-                                                    <div className="orphan-name">"{orphan._id}"</div>
-                                                    <div className="orphan-meta">Detectado en <b>{orphan.count}</b> productos</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '2rem' }}>
+                                    {orphans.map(orphan => {
+                                        const suggestedId = findBestMatch(orphan._id);
+                                        return (
+                                            <div key={orphan._id} style={{ background: '#0f172a', borderRadius: '2rem', padding: '2rem', border: '1px solid #334155', borderLeft: '8px solid #f59e0b', position: 'relative' }}>
+                                                <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', padding: '4px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold' }}>HUÉRFANO</div>
+                                                <div style={{ marginBottom: '1.5rem' }}>
+                                                    <div style={{ color: 'white', fontSize: '1.4rem', fontWeight: '900', fontFamily: 'monospace' }}>"{orphan._id}"</div>
+                                                    <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '0.5rem' }}>Detectado en <b style={{ color: '#f59e0b' }}>{orphan.count}</b> productos</div>
                                                 </div>
-                                                <AlertCircle size={24} color="#f59e0b" />
-                                            </div>
-                                            
-                                            <div className="recon-samples">
-                                                <div className="sample-title"><Eye size={12} /> Productos Ejemplo:</div>
-                                                <ul>
-                                                    {orphan.samples.map((s, i) => <li key={i}>{s}</li>)}
-                                                </ul>
-                                            </div>
-
-                                            <div className="recon-action-zone">
-                                                <label>Asignar estos productos a:</label>
-                                                <select 
-                                                    onChange={(e) => handleMapOrphan(orphan._id, e.target.value)} 
-                                                    defaultValue="" 
-                                                    disabled={isProcessing}
-                                                >
-                                                    <option value="" disabled>Elegir categoría oficial...</option>
-                                                    {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-                                                </select>
-                                                <div className="recon-footer-tip">
-                                                    Esto actualizará el inventario y guardará "{orphan._id}" como alias automático.
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '1rem', marginBottom: '2rem' }}>
+                                                    <div style={{ fontSize: '0.7rem', color: '#475569', fontWeight: '900', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Eye size={12} /> MUESTRAS:</div>
+                                                    <ul style={{ margin: 0, paddingLeft: '1.2rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+                                                        {orphan.samples.map((s, i) => <li key={i}>{s}</li>)}
+                                                    </ul>
+                                                </div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                    <label style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '800' }}>{suggestedId ? '✨ Sugerencia detectada:' : 'Asignar a categoría oficial:'}</label>
+                                                    <select 
+                                                        value={suggestedId}
+                                                        onChange={(e) => handleMapOrphan(orphan._id, e.target.value)}
+                                                        style={{ width: '100%', background: '#1e293b', border: suggestedId ? '2px solid #10b981' : '2px solid #6366f1', padding: '1rem', borderRadius: '1rem', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
+                                                    >
+                                                        <option value="" disabled>Seleccionar...</option>
+                                                        {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                                                    </select>
+                                                    <div style={{ fontSize: '0.7rem', color: '#475569', textAlign: 'center' }}>Al asignar, el sistema aprenderá el alias automáticamente.</div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
                     )}
                 </div>
-
                 <style>{`
-                    .cat-master-container { padding: 2.5rem; max-width: 1400px; margin: 0 auto; height: calc(100vh - 40px); display: flex; flex-direction: column; overflow: hidden; gap: 2rem; }
-                    .cat-header { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 1.5rem 2rem; border-radius: 24px; border: 1px solid #1e293b; box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5); }
-                    .cat-title-group { display: flex; align-items: center; gap: 1.5rem; }
-                    .cat-icon-badge { background: #6366f1; color: white; padding: 12px; border-radius: 16px; box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
-                    .cat-header h1 { margin: 0; font-size: 1.6rem; font-weight: 950; color: white; letter-spacing: -0.03em; }
-                    .cat-header p { margin: 0; color: #64748b; font-size: 0.9rem; font-weight: 500; }
-                    
-                    .tab-nav { display: flex; background: #1e293b; padding: 0.4rem; border-radius: 16px; gap: 0.25rem; border: 1px solid #334155; }
-                    .tab-btn { background: transparent; border: none; color: #94a3b8; padding: 0.6rem 1.25rem; border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; font-weight: 800; font-size: 0.85rem; transition: all 0.2s; position: relative; }
-                    .tab-btn.active { background: #6366f1; color: white; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); }
-                    .orphan-badge { background: #ef4444; color: white; font-size: 0.7rem; padding: 2px 7px; border-radius: 12px; position: absolute; top: -8px; right: -8px; border: 3px solid #1e293b; font-weight: 900; }
-
-                    .cat-main-layout { display: grid; grid-template-columns: 380px 1fr; gap: 2rem; flex: 1; overflow: hidden; }
-                    .cat-main-layout:has(.reconciliation-panel) { display: block; }
-
-                    .cat-explorer { background: #0f172a; border: 1px solid #1e293b; border-radius: 24px; padding: 1.5rem; display: flex; flex-direction: column; overflow: hidden; }
-                    .search-box { display: flex; align-items: center; gap: 0.75rem; background: #1e293b; padding: 0.8rem 1rem; border-radius: 14px; margin-bottom: 1.5rem; border: 1px solid #334155; }
-                    .search-box input { background: transparent; border: none; color: white; outline: none; width: 100%; font-size: 0.9rem; }
-                    .tree-container { flex: 1; overflow-y: auto; padding-right: 0.5rem; }
-                    .btn-add-root { margin-top: 1.5rem; width: 100%; padding: 1.1rem; background: rgba(99, 102, 241, 0.1); border: 2px dashed #6366f1; color: #818cf8; border-radius: 16px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.6rem; font-size: 0.9rem; transition: 0.2s; }
-                    .btn-add-root:hover { background: rgba(99, 102, 241, 0.2); transform: translateY(-2px); }
-
-                    .tree-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.8rem; border-radius: 14px; cursor: pointer; transition: 0.2s; position: relative; }
-                    .tree-item:hover { background: rgba(255,255,255,0.05); }
-                    .tree-item.selected { background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); }
-                    .tree-expander { width: 14px; color: #475569; }
-                    .tree-icon { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
-                    .tree-label { font-size: 0.9rem; font-weight: 600; color: #cbd5e1; }
-                    .tree-actions { position: absolute; right: 0.8rem; display: flex; opacity: 0; transition: 0.2s; }
-                    .tree-item:hover .tree-actions { opacity: 1; }
-                    .tree-actions button { background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 5px; border-radius: 8px; cursor: pointer; }
-                    .tree-actions button:hover { background: #6366f1; color: white; border-color: #6366f1; }
-
-                    .cat-editor { background: #0f172a; border: 1px solid #1e293b; border-radius: 24px; overflow-y: auto; padding: 3rem; }
-                    .editor-header-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; }
-                    .editor-badge { background: rgba(99, 102, 241, 0.1); color: #818cf8; padding: 0.5rem 1.2rem; border-radius: 20px; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
-                    .btn-add-sub-context { display: flex; align-items: center; gap: 0.6rem; background: #10b981; color: white; border: none; padding: 0.7rem 1.4rem; border-radius: 14px; font-size: 0.85rem; font-weight: 900; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
-
-                    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2.5rem; }
-                    .field label { display: block; font-size: 0.7rem; font-weight: 900; color: #475569; text-transform: uppercase; margin-bottom: 0.6rem; }
-                    .field input, .field select { width: 100%; background: #1e293b; border: 1px solid #334155; padding: 1rem; border-radius: 14px; color: white; outline: none; font-size: 0.95rem; }
-                    .field input:focus { border-color: #6366f1; }
-                    
-                    .alias-container { display: flex; flex-wrap: wrap; gap: 0.7rem; background: #1e293b; padding: 1.5rem; border-radius: 20px; border: 2px dashed #334155; }
-                    .alias-tag { background: #0f172a; border: 1px solid #334155; color: #a5b4fc; padding: 0.5rem 1rem; border-radius: 10px; font-size: 0.85rem; font-weight: 800; display: flex; align-items: center; gap: 0.6rem; }
-                    .alias-tag button { background: none; border: none; color: #475569; cursor: pointer; font-size: 1.2rem; line-height: 1; }
-                    .alias-input { background: transparent; border: none; color: white; outline: none; font-size: 0.9rem; flex: 1; min-width: 200px; }
-
-                    .section-header { display: flex; align-items: center; gap: 0.75rem; color: #6366f1; margin-bottom: 1.5rem; }
-                    .section-header h2 { margin: 0; font-size: 1.1rem; font-weight: 900; color: #f1f5f9; text-transform: uppercase; }
-                    .section-tip { color: #64748b; font-size: 0.85rem; margin-bottom: 1.5rem; }
-
-                    .editor-footer { border-top: 1px solid #1e293b; padding-top: 2.5rem; margin-top: 3rem; }
-                    .btn-save-full { padding: 1.3rem !important; font-size: 1rem !important; border-radius: 18px !important; font-weight: 900 !important; }
-                    .btn-delete-final { background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.2); color: #f87171; padding: 0 1.2rem; border-radius: 18px; cursor: pointer; }
-
-                    .reconciliation-panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 32px; padding: 3.5rem; height: 100%; overflow-y: auto; box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6); }
-                    .recon-header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 3.5rem; border-bottom: 1px solid #1e293b; padding-bottom: 2rem; }
-                    .recon-header h2 { margin: 0; font-size: 2.2rem; font-weight: 950; color: white; letter-spacing: -0.04em; }
-                    .recon-header p { margin: 0.5rem 0 0; color: #64748b; font-size: 1.1rem; font-weight: 500; }
-
-                    .recon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 2rem; }
-                    .recon-card { background: #1e293b; border: 1px solid #334155; border-radius: 28px; padding: 2rem; border-left: 6px solid #f59e0b; transition: all 0.3s; }
-                    .recon-card:hover { transform: translateY(-8px); border-color: #6366f1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-                    .recon-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
-                    .orphan-name { font-size: 1.4rem; font-weight: 900; color: white; font-family: 'JetBrains Mono', monospace; }
-                    .orphan-meta { font-size: 0.85rem; color: #94a3b8; margin-top: 0.4rem; }
-                    .orphan-meta b { color: #f59e0b; font-weight: 900; }
-                    
-                    .recon-samples { background: #0f172a; padding: 1.5rem; border-radius: 20px; margin-bottom: 2rem; border: 1px solid #1e293b; }
-                    .sample-title { font-size: 0.75rem; color: #475569; font-weight: 900; text-transform: uppercase; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
-                    .recon-samples ul { margin: 0; padding-left: 1.5rem; font-size: 0.9rem; color: #cbd5e1; list-style-type: square; }
-                    .recon-samples li { margin-bottom: 0.5rem; }
-
-                    .recon-action-zone label { display: block; font-size: 0.8rem; color: #94a3b8; font-weight: 800; margin-bottom: 0.8rem; }
-                    .recon-action-zone select { width: 100%; background: #0f172a; border: 2px solid #6366f1; padding: 1.1rem; border-radius: 16px; color: white; outline: none; font-size: 1rem; font-weight: 600; cursor: pointer; }
-                    .recon-footer-tip { font-size: 0.7rem; color: #475569; display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; font-weight: 600; }
-
-                    .recon-empty { text-align: center; padding: 8rem; color: #1e293b; }
-                    .recon-empty h3 { color: #334155; font-size: 1.8rem; font-weight: 900; margin-top: 2rem; }
-                    .editor-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #1e293b; text-align: center; padding: 4rem; }
-                    .editor-empty h3 { color: #334155; margin-top: 1.5rem; font-size: 1.3rem; font-weight: 900; }
-
-                    .btn-refresh-manual { background: #6366f1; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 14px; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; cursor: pointer; transition: 0.2s; }
-                    .btn-refresh-manual:hover:not(:disabled) { background: #4f46e5; transform: scale(1.05); }
-                    .btn-refresh-manual:disabled { opacity: 0.5; cursor: not-allowed; }
-                    .last-sync { font-size: 0.75rem; color: #475569; font-weight: 700; margin-right: 1.5rem; }
-                    .recon-stats { display: flex; align-items: center; }
                     .animate-spin { animation: spin 1s linear infinite; }
                     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                    input:focus, select:focus { border-color: #6366f1 !important; outline: none; }
                 `}</style>
             </div>
         </Layout>

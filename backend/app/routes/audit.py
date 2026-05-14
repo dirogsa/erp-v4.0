@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import List, Optional
 from ..models.auth import User, UserRole, ActivityLog
 from ..services.audit_service import AuditService
-from .auth import check_role
+from .auth import get_current_user, check_role
 
 router = APIRouter(prefix="/audit", tags=["Audit Logs"])
 
@@ -48,13 +48,21 @@ async def get_financial_health(
     start_date: str,
     end_date: str,
     doc_type: str = "SALES",
-    current_user: User = Depends(check_role([UserRole.SUPERADMIN]))
+    company_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
 ):
     from ..services.financial_audit_service import FinancialAuditService
     from datetime import datetime
     
+    # Seguridad: Si no es SuperAdmin, debe tener acceso a la empresa solicitada
+    if current_user.role != UserRole.SUPERADMIN:
+        if not company_id:
+            raise HTTPException(status_code=400, detail="Debe especificar una empresa para auditar.")
+        if company_id not in current_user.assigned_companies:
+            raise HTTPException(status_code=403, detail="No tiene permisos para auditar esta empresa.")
+    
     dt_start = datetime.fromisoformat(start_date)
     dt_end = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
     
-    report = await FinancialAuditService.run_audit(dt_start, dt_end, doc_type)
+    report = await FinancialAuditService.run_audit(dt_start, dt_end, doc_type, company_id)
     return report

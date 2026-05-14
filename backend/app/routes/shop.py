@@ -150,18 +150,20 @@ async def get_shop_payment_options(current_user: Optional[User] = Depends(get_op
         }
         
     # Fetch policies to provide percentages to the shop
-    from app.models.sales import SalesPolicy
-    policy = await SalesPolicy.find_one()
-    if not policy:
-        policy = SalesPolicy()
+    from app.models.config import SystemConfig
+    config = await SystemConfig.find_one({})
+    if not config:
+        config = SystemConfig()
+    
+    policy = config.sales_policy
     
     # Map surcharges to allowed terms
     surcharges = {
-        0: policy.cash_discount,
-        30: policy.credit_30_days,
-        60: policy.credit_60_days,
-        90: policy.credit_90_days,
-        180: policy.credit_180_days
+        0: policy.cash_discount_pct,
+        30: policy.credit_30_days_pct,
+        60: policy.credit_60_days_pct,
+        90: policy.credit_90_days_pct,
+        180: policy.credit_180_days_pct
     }
     
     allowed_terms = customer.allowed_terms if customer.status_credit else [0]

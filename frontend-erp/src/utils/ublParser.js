@@ -61,14 +61,20 @@ export const parseUBLXml = (xmlString) => {
     };
 
     // 1. Basic Info & Document Type
+    const isDespatchAdvice = !!findElement(xmlDoc, 'DespatchAdvice');
+    const isCreditNote = !!findElement(xmlDoc, 'CreditNote');
+    
+    let documentType = 'INVOICE';
+    if (isCreditNote) documentType = 'CREDIT_NOTE';
+    if (isDespatchAdvice) documentType = 'DELIVERY_GUIDE';
+
     const documentId = getTagText(xmlDoc, 'cbc:ID');
     const issueDate = getTagText(xmlDoc, 'cbc:IssueDate');
     const issueTime = getTagText(xmlDoc, 'cbc:IssueTime');
+    
+    // Currency is only for Invoices/Notes
     const currencyRaw = getTagText(xmlDoc, 'cbc:DocumentCurrencyCode');
     const currency = currencyRaw === 'PEN' ? 'PEN' : (currencyRaw === 'USD' ? 'USD' : currencyRaw);
-    
-    const isCreditNote = !!findElement(xmlDoc, 'CreditNote');
-    const documentType = isCreditNote ? 'CREDIT_NOTE' : 'INVOICE';
 
     // 1.5 Billing Reference
     let relatedDocument = null;
@@ -175,6 +181,48 @@ export const parseUBLXml = (xmlString) => {
     const amountInWords = Array.from(xmlDoc.getElementsByTagName('cbc:Note'))
         .find(n => n.getAttribute('languageLocaleID') === '1000')?.textContent.trim() || '';
 
+    // 6. SPECIAL LOGIC FOR DELIVERY GUIDES (DESPATCH ADVICE)
+    if (isDespatchAdvice) {
+        // Find Referenced Invoice (Important for Sinceramiento)
+        let invoiceRef = '';
+        const orderRef = findElement(xmlDoc, 'cac:OrderReference');
+        if (orderRef) invoiceRef = getTagText(orderRef, 'cbc:ID');
+        
+        if (!invoiceRef) {
+            const docRefs = xmlDoc.getElementsByTagName('cac:AdditionalDocumentReference');
+            for (let i = 0; i < docRefs.length; i++) {
+                const docType = getTagText(docRefs[i], 'cbc:DocumentTypeCode');
+                if (docType === '01') { // 01 = Factura
+                    invoiceRef = getTagText(docRefs[i], 'cbc:ID');
+                    break;
+                }
+            }
+        }
+
+        // Guide Items
+        const guideLines = Array.from(xmlDoc.getElementsByTagName('cac:DespatchLine'));
+        const guideItems = guideLines.map(line => {
+            const item = findElement(line, 'cac:Item');
+            return {
+                sku: getTagText(findElement(item, 'cac:SellersItemIdentification'), 'cbc:ID') || getTagText(line, 'cbc:ID'),
+                product_name: getTagText(item, 'cbc:Description') || getTagText(line, 'cbc:Description'),
+                quantity: parseFloat(getTagText(line, 'cbc:DeliveredQuantity') || '0'),
+            };
+        });
+
+        return {
+            document_type: 'DELIVERY_GUIDE',
+            document_number: documentId,
+            sunat_number: documentId,
+            invoice_ref: invoiceRef,
+            date: issueDate,
+            items: guideItems,
+            // Minimal guide data for matching
+            _isGuide: true
+        };
+    }
+
+    // Standard Invoice/CreditNote Return
     return {
         document_type: documentType,
         related_document: relatedDocument,

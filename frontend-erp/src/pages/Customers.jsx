@@ -5,7 +5,7 @@ import Input from '../components/common/Input';
 import CustomerForm from '../components/features/customers/CustomerForm';
 import CustomerFinancialStatus from '../components/features/customers/CustomerFinancialStatus';
 import { useCustomers } from '../hooks/useCustomers';
-import { marketingService } from '../services/api';
+import { auditService, companyService, marketingService } from '../services/api';
 
 const Customers = () => {
     const {
@@ -23,6 +23,21 @@ const Customers = () => {
     const [converting, setConverting] = useState(false);
     const [pointsToConvert, setPointsToConvert] = useState(0);
 
+    const [companies, setCompanies] = useState([]);
+
+    React.useEffect(() => {
+        const loadCompanies = async () => {
+            try {
+                const res = await companyService.getCompanies();
+                setCompanies(res.data);
+            } catch (err) { }
+        };
+        loadCompanies();
+    }, []);
+
+    const currentCompanyId = localStorage.getItem('erp_company_id');
+    const activeCompany = companies.find(c => c._id === currentCompanyId);
+
     const handleCreate = async (data) => {
         try {
             await createCustomer(data);
@@ -39,6 +54,24 @@ const Customers = () => {
 
     const columns = [
         { label: 'Razón Social', key: 'name' },
+        {
+            label: 'Soberanía',
+            key: 'company_id',
+            render: (val) => {
+                const company = companies.find(c => c._id === val);
+                return (
+                    <span style={{ 
+                        fontSize: '0.65rem', padding: '2px 8px', borderRadius: '4px', 
+                        background: val ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                        color: val ? '#3b82f6' : '#10b981',
+                        border: `1px solid ${val ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`,
+                        fontWeight: 'bold'
+                    }}>
+                        {company ? company.name : 'GLOBAL'}
+                    </span>
+                );
+            }
+        },
         { 
             label: 'Documento', 
             key: 'document_number',
@@ -180,6 +213,11 @@ const Customers = () => {
                         <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h2 style={{ color: 'white', margin: 0 }}>
                                 {isViewMode ? 'Detalle del Cliente' : (selectedCustomer ? 'Editar Cliente' : 'Nuevo Cliente')}
+                                {!selectedCustomer && !isViewMode && (
+                                    <span style={{ fontSize: '0.7rem', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 10px', borderRadius: '10px', marginLeft: '1rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                        Contexto: {activeCompany ? activeCompany.name : 'GLOBAL / HOLDING'}
+                                    </span>
+                                )}
                             </h2>
                             <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
                         </div>

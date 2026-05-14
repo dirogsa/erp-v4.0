@@ -41,13 +41,15 @@ class ActivityLog(Document):
     # Intelligence Fields
     is_critical: bool = True # Vital for stock/finance
     expire_at: Optional[datetime] = None # For TTL Index (Automatic Cleanup)
+    company_id: Optional[str] = None # Scope for multi-tenant auditing
     
     class Settings:
         name = "activity_logs"
         indexes = [
             # Automatic Cleanup: MongoDB will delete the document when 'expire_at' is reached.
             # If 'expire_at' is null, it's kept forever.
-            pymongo.IndexModel([("expire_at", pymongo.ASCENDING)], expireAfterSeconds=0)
+            pymongo.IndexModel([("expire_at", pymongo.ASCENDING)], expireAfterSeconds=0),
+            "company_id"
         ]
 
 class User(Document):

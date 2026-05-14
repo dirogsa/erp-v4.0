@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { auditService } from '../services/api';
+import { auditService, companyService } from '../services/api';
 import { useNotification } from '../hooks/useNotification';
 import { 
     ShieldCheck, 
@@ -11,15 +11,20 @@ import {
     ArrowRight,
     TrendingUp,
     FileSearch,
-    AlertCircle
+    AlertCircle,
+    Building2,
+    Users,
+    Truck,
+    Package
 } from 'lucide-react';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import Layout from '../components/Layout';
-import LoadingOverlay from '../components/common/LoadingOverlay';
+import { useLoading } from '../context/LoadingContext';
 
 const FinancialAudit = () => {
     const { showNotification } = useNotification();
+    const { showLoading, hideLoading } = useLoading();
     const [loading, setLoading] = useState(false);
     const [auditType, setAuditType] = useState('SALES');
     const [startDate, setStartDate] = useState(() => {
@@ -30,12 +35,29 @@ const FinancialAudit = () => {
     const [endDate, setEndDate] = useState(() => {
         return new Date().toISOString().split('T')[0];
     });
+    const [companies, setCompanies] = React.useState([]);
+    const [selectedCompany, setSelectedCompany] = useState(''); // Empty = Global (SuperAdmin only)
     const [report, setReport] = useState(null);
+    const [showPolicyModal, setShowPolicyModal] = useState(false);
+    const [editingPolicies, setEditingPolicies] = useState(null);
+
+    React.useEffect(() => {
+        const loadCompanies = async () => {
+            try {
+                const res = await companyService.getCompanies();
+                setCompanies(res.data);
+            } catch (err) {
+                console.error("Error loading companies", err);
+            }
+        };
+        loadCompanies();
+    }, []);
 
     const runAudit = async () => {
         setLoading(true);
+        showLoading("Analizando Integridad Contable...", "Ejecutando motor de reglas avanzado para detectar discrepancias y saltos de serie.");
         try {
-            const res = await auditService.getFinancialHealth(startDate, endDate, auditType);
+            const res = await auditService.getFinancialHealth(startDate, endDate, auditType, selectedCompany || null);
             setReport(res.data);
             if (res.data.critical_issues > 0) {
                 showNotification(`Se encontraron ${res.data.critical_issues} problemas críticos de integridad.`, 'warning');
@@ -47,7 +69,37 @@ const FinancialAudit = () => {
             showNotification('Error al ejecutar la auditoría financiera.', 'error');
         } finally {
             setLoading(false);
+            hideLoading();
         }
+    };
+
+    const handleSavePolicies = async () => {
+        const targetId = selectedCompany || currentCompanyData?._id;
+        if (!targetId) {
+            showNotification("No se pudo identificar la empresa a actualizar.", "error");
+            return;
+        }
+        try {
+            showLoading("Actualizando Políticas de Gobernanza...", "Reconfigurando motor de segregación de datos.");
+            await companyService.updateCompany(targetId, { enterprise_settings: editingPolicies });
+            showNotification("Políticas actualizadas correctamente.", "success");
+            setShowPolicyModal(false);
+            // Recargar empresas para tener los datos frescos
+            const res = await companyService.getCompanies();
+            setCompanies(res.data);
+        } catch (err) {
+            showNotification("Error al actualizar políticas.", "error");
+        } finally {
+            hideLoading();
+        }
+    };
+
+    const currentCompanyData = selectedCompany ? companies.find(c => c._id === selectedCompany) : companies.find(c => c.is_active_local);
+    const policies = currentCompanyData?.enterprise_settings || {
+        inventory_mode: 'SHARED',
+        customers_mode: 'SOVEREIGN',
+        suppliers_mode: 'SOVEREIGN',
+        users_mode: 'SOVEREIGN'
     };
 
     const getSeverityColor = (severity) => {
@@ -70,8 +122,6 @@ const FinancialAudit = () => {
 
     return (
         <Layout>
-            <LoadingOverlay visible={loading} message="Analizando Integridad Contable..." />
-            
             <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1rem' }}>
                 {/* Header */}
                 <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -85,29 +135,49 @@ const FinancialAudit = () => {
                         </p>
                     </div>
                     
-                    <div style={{ display: 'flex', background: '#0f172a', padding: '0.4rem', borderRadius: '1rem', border: '1px solid #1e293b' }}>
-                        <button 
-                            onClick={() => setAuditType('SALES')}
-                            style={{ 
-                                padding: '0.6rem 1.5rem', borderRadius: '0.75rem', border: 'none', cursor: 'pointer',
-                                background: auditType === 'SALES' ? '#10b981' : 'transparent',
-                                color: auditType === 'SALES' ? '#064e3b' : '#94a3b8',
-                                fontWeight: 'bold', transition: 'all 0.2s'
-                            }}
-                        >
-                            Ventas
-                        </button>
-                        <button 
-                            onClick={() => setAuditType('PURCHASE')}
-                            style={{ 
-                                padding: '0.6rem 1.5rem', borderRadius: '0.75rem', border: 'none', cursor: 'pointer',
-                                background: auditType === 'PURCHASE' ? '#3b82f6' : 'transparent',
-                                color: auditType === 'PURCHASE' ? '#eff6ff' : '#94a3b8',
-                                fontWeight: 'bold', transition: 'all 0.2s'
-                            }}
-                        >
-                            Compras
-                        </button>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <div style={{ position: 'relative' }}>
+                            <Building2 style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} size={18} />
+                            <select 
+                                value={selectedCompany}
+                                onChange={(e) => setSelectedCompany(e.target.value)}
+                                style={{ 
+                                    background: '#0f172a', border: '1px solid #1e293b', color: 'white', 
+                                    padding: '0.6rem 1rem 0.6rem 3rem', borderRadius: '0.75rem', outline: 'none',
+                                    appearance: 'none', minWidth: '220px'
+                                }}
+                            >
+                                <option value="">🌍 Auditoría Global (Holding)</option>
+                                {companies.map(c => (
+                                    <option key={c._id} value={c._id}>🏢 {c.name} ({c.ruc})</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div style={{ display: 'flex', background: '#0f172a', padding: '0.4rem', borderRadius: '1rem', border: '1px solid #1e293b' }}>
+                            <button 
+                                onClick={() => setAuditType('SALES')}
+                                style={{ 
+                                    padding: '0.6rem 1.5rem', borderRadius: '0.75rem', border: 'none', cursor: 'pointer',
+                                    background: auditType === 'SALES' ? '#10b981' : 'transparent',
+                                    color: auditType === 'SALES' ? '#064e3b' : '#94a3b8',
+                                    fontWeight: 'bold', transition: 'all 0.2s'
+                                }}
+                            >
+                                Ventas
+                            </button>
+                            <button 
+                                onClick={() => setAuditType('PURCHASE')}
+                                style={{ 
+                                    padding: '0.6rem 1.5rem', borderRadius: '0.75rem', border: 'none', cursor: 'pointer',
+                                    background: auditType === 'PURCHASE' ? '#3b82f6' : 'transparent',
+                                    color: auditType === 'PURCHASE' ? '#eff6ff' : '#94a3b8',
+                                    fontWeight: 'bold', transition: 'all 0.2s'
+                                }}
+                            >
+                                Compras
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -152,6 +222,41 @@ const FinancialAudit = () => {
                                 Ejecutar Auditoría Global
                             </Button>
                         </div>
+                    </div>
+                </Card>
+
+                {/* Sovereignty Status Panel (Dynamic) */}
+                <Card style={{ marginBottom: '2.5rem', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', border: '1px solid #334155' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <h3 style={{ color: 'white', margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <ShieldCheck size={18} color="#60a5fa" />
+                            Centro de Gobierno y Soberanía (Estado de Segregación)
+                        </h3>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.7rem', color: '#64748b', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '20px' }}>
+                                Modo: {selectedCompany ? (currentCompanyData?.name || 'Empresa Seleccionada') : 'Holding Global (Active Local View)'}
+                            </span>
+                            {currentCompanyData && (
+                                <Button size="xs" variant="outline" onClick={() => { setEditingPolicies(policies); setShowPolicyModal(true); }}>Ajustar Políticas</Button>
+                            )}
+                        </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                        {[
+                            { label: 'Inventario', icon: Package, status: policies.inventory_mode === 'SHARED' ? 'COMPARTIDO' : 'SOBERANO', color: policies.inventory_mode === 'SHARED' ? '#f59e0b' : '#10b981', desc: policies.inventory_mode === 'SHARED' ? 'Pool común de stock' : 'Stock por RUC' },
+                            { label: 'Clientes', icon: Users, status: policies.customers_mode === 'SHARED' ? 'COMPARTIDO' : 'SOBERANO', color: policies.customers_mode === 'SHARED' ? '#3b82f6' : '#10b981', desc: policies.customers_mode === 'SHARED' ? 'Cartera unificada' : 'Cartera segregada' },
+                            { label: 'Proveedores', icon: Truck, status: policies.suppliers_mode === 'SHARED' ? 'COMPARTIDO' : 'SOBERANO', color: policies.suppliers_mode === 'SHARED' ? '#8b5cf6' : '#10b981', desc: policies.suppliers_mode === 'SHARED' ? 'Directorio Global' : 'Asignación por RUC' },
+                            { label: 'Usuarios', icon: ShieldCheck, status: policies.users_mode === 'SHARED' ? 'COMPARTIDO' : 'SOBERANO', color: policies.users_mode === 'SHARED' ? '#ec4899' : '#10b981', desc: policies.users_mode === 'SHARED' ? 'Acceso total' : 'Permisos por entidad' }
+                        ].map((item, idx) => (
+                            <div key={idx} style={{ background: 'rgba(15, 23, 42, 0.5)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #334155' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <item.icon size={16} color={item.color} />
+                                    <span style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold' }}>{item.label}</span>
+                                </div>
+                                <div style={{ color: 'white', fontSize: '0.9rem', fontWeight: 'bold' }}>{item.status}</div>
+                                <div style={{ color: '#64748b', fontSize: '0.65rem', marginTop: '0.25rem' }}>{item.desc}</div>
+                            </div>
+                        ))}
                     </div>
                 </Card>
 
@@ -348,6 +453,64 @@ const FinancialAudit = () => {
                         <RefreshCcw size={64} style={{ opacity: 0.1, margin: '0 auto 2rem' }} />
                         <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Listo para Auditar</h2>
                         <p>Seleccione el rango de fechas y presione el botón para iniciar el análisis profundo de consistencia.</p>
+                    </div>
+                )}
+                
+                {/* Governance Policy Editor Modal */}
+                {showPolicyModal && editingPolicies && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
+                        <div style={{ backgroundColor: '#1e293b', padding: '2.5rem', borderRadius: '1.5rem', width: '550px', border: '1px solid #334155', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+                            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                                <div style={{ background: 'rgba(59, 130, 246, 0.1)', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                                    <ShieldCheck size={32} color="#3b82f6" />
+                                </div>
+                                <h3 style={{ color: 'white', margin: 0, fontSize: '1.5rem' }}>Ajustar Políticas de Soberanía</h3>
+                                <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '0.5rem' }}>{currentCompanyData?.name}</p>
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                {[
+                                    { key: 'inventory_mode', label: 'Modo de Inventario', desc: 'Control de stock físico' },
+                                    { key: 'customers_mode', label: 'Modo de Clientes', desc: 'Segregación de cartera' },
+                                    { key: 'suppliers_mode', label: 'Modo de Proveedores', desc: 'Asignación de proveedores' },
+                                    { key: 'users_mode', label: 'Modo de Usuarios', desc: 'Permisos de acceso' }
+                                ].map(policy => (
+                                    <div key={policy.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: '#0f172a', borderRadius: '1rem', border: '1px solid #334155' }}>
+                                        <div>
+                                            <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{policy.label}</div>
+                                            <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{policy.desc}</div>
+                                        </div>
+                                        <div style={{ display: 'flex', background: '#1e293b', padding: '0.25rem', borderRadius: '0.5rem' }}>
+                                            <button 
+                                                onClick={() => setEditingPolicies({...editingPolicies, [policy.key]: 'SHARED'})}
+                                                style={{ 
+                                                    padding: '4px 12px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold',
+                                                    background: editingPolicies[policy.key] === 'SHARED' ? '#3b82f6' : 'transparent',
+                                                    color: editingPolicies[policy.key] === 'SHARED' ? 'white' : '#64748b'
+                                                }}
+                                            >
+                                                SHARED
+                                            </button>
+                                            <button 
+                                                onClick={() => setEditingPolicies({...editingPolicies, [policy.key]: 'SOVEREIGN'})}
+                                                style={{ 
+                                                    padding: '4px 12px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold',
+                                                    background: editingPolicies[policy.key] === 'SOVEREIGN' ? '#10b981' : 'transparent',
+                                                    color: editingPolicies[policy.key] === 'SOVEREIGN' ? 'white' : '#64748b'
+                                                }}
+                                            >
+                                                SOVEREIGN
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '2.5rem' }}>
+                                <Button variant="outline" onClick={() => setShowPolicyModal(false)} fullWidth>Cancelar</Button>
+                                <Button variant="primary" onClick={handleSavePolicies} fullWidth>Guardar Cambios</Button>
+                            </div>
+                        </div>
                     </div>
                 )}
                 

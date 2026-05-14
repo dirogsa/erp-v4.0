@@ -16,9 +16,12 @@ async def get_quotes(
     search: Optional[str] = None,
     status: Optional[str] = None,
     date_from: Optional[str] = None,
-    date_to: Optional[str] = None
+    date_to: Optional[str] = None,
+    company_id: Optional[str] = None
 ) -> PaginatedResponse[PurchaseQuote]:
     query = {}
+    if company_id:
+        query["company_id"] = company_id
     
     if search:
         query["$or"] = [
@@ -137,9 +140,12 @@ async def get_orders(
     search: Optional[str] = None,
     status: Optional[str] = None,
     date_from: Optional[str] = None,
-    date_to: Optional[str] = None
+    date_to: Optional[str] = None,
+    company_id: Optional[str] = None
 ) -> PaginatedResponse[PurchaseOrder]:
     query = {}
+    if company_id:
+        query["company_id"] = company_id
     
     if search:
         query["$or"] = [
@@ -203,9 +209,12 @@ async def get_invoices(
     payment_status: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
-    is_confirmed: Optional[bool] = None
+    is_confirmed: Optional[bool] = None,
+    company_id: Optional[str] = None
 ) -> PaginatedResponse[PurchaseInvoice]:
     query = {}
+    if company_id:
+        query["company_id"] = company_id
     
     if search:
         query["$or"] = [
@@ -250,7 +259,8 @@ async def create_invoice(
     invoice_date: str = None, 
     payment_status: PaymentStatus = PaymentStatus.PENDING,
     amount_paid: float = 0.0,
-    payment_date: Optional[str] = None
+    payment_date: Optional[str] = None,
+    company_id: Optional[str] = None
 ) -> PurchaseInvoice:
     
     order = await PurchaseOrder.find_one(PurchaseOrder.order_number == order_number)
@@ -378,8 +388,16 @@ async def register_payment(invoice_number: str, amount: float, payment_date: str
 
 # ==================== SUPPLIERS ====================
 
-async def get_suppliers() -> List[Supplier]:
-    return await Supplier.find_all().to_list()
+from app.models.company import Company
+
+async def get_suppliers(company_id: Optional[str] = None) -> List[Supplier]:
+    query = {}
+    if company_id:
+        company = await Company.get(company_id)
+        if company and company.enterprise_settings.suppliers_mode == 'SOVEREIGN':
+            query = {"company_id": company_id}
+            
+    return await Supplier.find(query).to_list()
 
 async def create_supplier(supplier: Supplier) -> Supplier:
     await supplier.insert()
@@ -462,10 +480,13 @@ async def create_reception_guide(invoice_number: str, notes: str, created_by: st
         guide_type=GuideType.RECEPTION,
         status=GuideStatus.DELIVERED,
         invoice_number=invoice_number,
+        customer_name=invoice.supplier_name,
+        customer_ruc=invoice.supplier_ruc or "00000000000",
         items=guide_items,
         notes=notes,
         created_by=created_by,
-        delivery_date=datetime.now()
+        delivery_date=datetime.now(),
+        company_id=str(invoice.company_id)
     )
     await guide.insert()
     
@@ -710,8 +731,10 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
             invoice_number=invoice_number,
             order_number=order_number,
             customer_name=order.supplier_name, 
+            customer_ruc=order.supplier_ruc or "00000000000", # Fallback preventivo
             items=guide_items,
-            issue_date=order.date
+            issue_date=order.date,
+            company_id=str(order.company_id)
         )
         await guide.insert()
         

@@ -3,10 +3,10 @@ import re
 import asyncio
 import logging
 from datetime import datetime
-from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus, CompanyProductData, ProductBrand, ProductCategory
+from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus, CompanyProductData, ProductCategory
 from app.utils.norm_utils import normalize_sku
 from beanie import PydanticObjectId
-from pymongo.operations import ReplaceOne
+from pymongo.operations import ReplaceOne, UpdateOne
 from app.models.pricing import PriceList, PriceEntry
 from app.services.audit_service import AuditService
 from app.services.brand_service import ensure_brands_exist
@@ -59,6 +59,10 @@ async def generate_marketing_sku() -> str:
 
 from app.schemas.common import PaginatedResponse
 
+from app.schemas.inventory_schemas import ProductWithPrice, ProductLeanWithPrice
+
+from app.models.company import Company
+
 async def get_products(
     skip: int = 0, 
     limit: int = 50, 
@@ -66,24 +70,36 @@ async def get_products(
     category: Optional[str] = None,
     redeemable_only: Optional[bool] = None,
     product_type: Optional[str] = None,
+    filter_unrecognized: Optional[bool] = None,
+    filter_others: Optional[bool] = None,
     company_id: Optional[str] = None,
     show_temporary: bool = False
-) -> PaginatedResponse[ProductWithPrice]:
+) -> PaginatedResponse[ProductLeanWithPrice]:
     query = {}
     
+    # --- GESTIÓN DE SOBERANÍA (Clase Mundial) ---
+    inventory_mode = "SHARED"
+    if company_id:
+        company = await Company.get(company_id)
+        if company:
+            inventory_mode = company.enterprise_settings.inventory_mode
+
+    # Si es SOBERANO, solo mostramos lo que esta empresa "posee" en su catálogo
+    if inventory_mode == "SOVEREIGN" and company_id:
+        query[f"company_data.{company_id}"] = {"$exists": True}
+
     # Por defecto ocultamos los productos temporales de conciliación
     if not show_temporary:
         query["is_temporary"] = {"$ne": True}
     
     if search:
-        # Búsqueda multi-campo usando los índices de texto y Regex seguro
+        # Búsqueda multi-campo inteligente
         query["$or"] = [
             {"name": {"$regex": search, "$options": "i"}},
             {"sku": {"$regex": search, "$options": "i"}},
             {"brand": {"$regex": search, "$options": "i"}},
             {"equivalences.code": {"$regex": search, "$options": "i"}},
             {"applications.model": {"$regex": search, "$options": "i"}},
-            # Intentar búsqueda exacta en aplicaciones por si acaso
             {"applications.make": {"$regex": search, "$options": "i"}}
         ]
         
@@ -94,31 +110,59 @@ async def get_products(
 
     if product_type:
         query["type"] = product_type
+
+    # Filtros Especiales de Depuración (Clase Mundial)
+    if filter_unrecognized:
+        query["brand"] = {"$in": ["N/A", "GENERICO", "", None]}
+    
+    if filter_others:
+        query["category_id"] = {"$in": ["VARIOS", "", None]}
         
     total = await Product.find(query).count()
-    items = await Product.find(query).sort('sku').skip(skip).limit(limit).to_list()
     
-    # Inyectar datos específicos de la empresa y PRECIO de la matriz
-    response_items = []
-    for item in items:
-        populate_company_data(item, company_id)
+    # Traemos los productos (incluyendo company_data para la inyección)
+    projection = {
+        "sku": 1, "name": 1, "brand": 1, "type": 1, 
+        "category_id": 1, "stock_current": 1, 
+        "is_active_in_shop": 1, "is_new": 1, "company_data": 1
+    }
+    
+    db_items = await Product.find(query).sort('sku').skip(skip).limit(limit).to_list()
+    
+    # RESOLUCION MASIVA DE PRECIOS Y STOCK SOBERANO
+    skus = [item.sku for item in db_items]
+    price_map = await PricingService.get_bulk_prices(skus)
+    
+    items = []
+    for db_item in db_items:
+        # Inyectar Stock/Costo Soberano si aplica
+        if inventory_mode == "SOVEREIGN" and company_id and company_id in db_item.company_data:
+            c_data = db_item.company_data[company_id]
+            db_item.stock_current = c_data.stock_current
+            db_item.cost = c_data.cost
         
-        # Obtener precio base de la matriz (Usando el nuevo motor dinámico)
-        price_info = await PricingService.get_product_price(item.sku, 1)
-        price = price_info.get("price", 0.0)
-        
-        # Convertir a DTO con precio
-        p_dict = item.model_dump()
-        p_dict['price_list'] = price
-        response_items.append(ProductWithPrice(**p_dict))
+        # Convertir a Lean schema
+        item_dict = db_item.model_dump()
+        item_dict['price_list'] = price_map.get(db_item.sku, 0.0)
+        items.append(ProductLeanWithPrice(**item_dict))
     
     return PaginatedResponse(
-        items=response_items,
+        items=items,
         total=total,
         page=(skip // limit) + 1,
         pages=(total // limit) + (1 if total % limit > 0 else 0),
         size=limit
     )
+
+async def get_unique_brands() -> List[str]:
+    """
+    World-Class Performance: Returns unique product brands directly from MongoDB.
+    Optimized for the Catalog Configurator.
+    """
+    collection = Product.get_motor_collection()
+    brands = await collection.distinct("brand")
+    # Filter out empty/None and sort
+    return sorted([b for b in brands if b], key=str.upper)
 
 async def find_product_robustly(
     sku: str, 
@@ -320,9 +364,6 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
     updated_count = 0
     skipped_count = 0
 
-    # Extraer SKUs y Marcas para búsqueda masiva previa si no queremos sobrescribir todo
-    # Pero para un ERP de alto nivel, el Upsert (ReplaceOne) es el estándar de oro.
-    
     # 3. Preparar operaciones Bulk
     collection = Product.get_motor_collection()
     
@@ -351,21 +392,41 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
             p_data.points_cost = 0
 
         # En Beanie/Motor, convertimos el modelo a dict para pymongo
-        # Excluimos el ID si es nuevo para que Mongo genere uno, o lo mantenemos si queremos UPSERT exacto.
         product_dict = p_data.model_dump(exclude={"id"})
         
-        # Operación Atómica: Buscar por SKU + Marca y Reemplazar/Insertar
-        # Esto es lo que garantiza escalabilidad para 2000+ items
-        bulk_ops.append(
-            ReplaceOne(
-                {"sku": p_data.sku, "brand": p_data.brand},
-                product_dict,
-                upsert=update_existing
-            )
-        )
+        # ESTRATEGIA DE SOBERANÍA DE DATOS (Smart Merge - Clase Mundial)
+        # Definimos campos que el catálogo NO tiene permiso de sobrescribir (financieros/logísticos)
+        protected_fields = {
+            "stock_current", "stock_reserved", "cost", "company_data", 
+            "loyalty_points", "points_cost", "is_temporary", "created_at"
+        }
         
-        # Para Bulk, lo ideal sería optimizar el guardado de precios también
-        # Por ahora lo haremos individual o recolectamos para bulk posterior
+        # Campos que el catálogo SI puede actualizar (técnicos/descriptivos)
+        update_data = {k: v for k, v in product_dict.items() if k not in protected_fields}
+        insert_only_data = {k: v for k, v in product_dict.items() if k in protected_fields}
+
+        if update_existing:
+            # MODO SMART MERGE: Actualiza lo técnico, protege lo financiero
+            bulk_ops.append(
+                UpdateOne(
+                    {"sku": p_data.sku, "brand": p_data.brand},
+                    {
+                        "$set": update_data,
+                        "$setOnInsert": insert_only_data
+                    },
+                    upsert=True
+                )
+            )
+        else:
+            # MODO CONSERVADOR: Protege todo lo existente, solo inserta si es nuevo
+            bulk_ops.append(
+                UpdateOne(
+                    {"sku": p_data.sku, "brand": p_data.brand},
+                    {"$setOnInsert": product_dict},
+                    upsert=True
+                )
+            )
+        
         # Nota: p_data.id podría no estar disponible hasta el bulk_write
 
     # 4. Ejecución Masiva en un solo Round-trip
@@ -712,54 +773,57 @@ async def calculate_weighted_average_cost(product: Product, new_quantity: int, n
 
 async def register_movement(
     sku: str, 
-    quantity: int, 
+    quantity: float, 
     movement_type: Any, 
     reference: str,
     unit_cost: Optional[float] = None,
     date: Optional[datetime] = None,
     product_id: Optional[str] = None,
     company_id: Optional[str] = None,
-    legal_owner_id: Optional[str] = None
+    legal_owner_id: Optional[str] = None,
+    is_reservation_release: bool = False # New: releases from stock_reserved
 ) -> Any:
     """
     Registra un movimiento de inventario y actualiza el stock del producto.
-    Si es una entrada (IN) con unit_cost, recalcula el costo promedio ponderado.
+    Soporta Soberanía: Puede actualizar el stock global o el stock por empresa según configuración.
     """
     if product_id:
         from beanie import PydanticObjectId
         product = await Product.get(PydanticObjectId(product_id))
         if not product: raise NotFoundException("Product", product_id)
     else:
-        # Importante: buscar sin company_id para obtener el catálogo global
         product = await find_product_robustly(sku)
         if not product: raise NotFoundException("Product", sku)
 
-    # El dueño legal por defecto es quien realiza el movimiento, 
-    # a menos que sea una venta cruzada (Inter-company)
     actual_owner_id = legal_owner_id or company_id
+    
+    # Obtener configuración de soberanía de la empresa
+    from app.models.company import Company
+    inventory_mode = "SHARED"
+    if company_id:
+        company = await Company.find_one({"ruc": company_id})
+        if company:
+            inventory_mode = company.enterprise_settings.inventory_mode
 
-    # Guard: solo operar company_data si hay un company_id válido.
-    # Guías legacy (sin company_id) ejecutan el movimiento de stock global
-    # sin crear un bucket de empresa para no corromper la estructura Pydantic.
-    if company_id is not None:
-        if company_id not in product.company_data:
-            product.company_data[company_id] = CompanyProductData()
-        if actual_owner_id and actual_owner_id not in product.company_data:
-            product.company_data[actual_owner_id] = CompanyProductData()
+    # Inicializar buckets de empresa si no existen
+    if company_id and company_id not in product.company_data:
+        product.company_data[company_id] = CompanyProductData(company_id=company_id)
+    if actual_owner_id and actual_owner_id not in product.company_data:
+        product.company_data[actual_owner_id] = CompanyProductData(company_id=actual_owner_id)
 
-    comp_data = product.company_data.get(company_id) if company_id else None
-    owner_data = product.company_data.get(actual_owner_id) if actual_owner_id else None
-
-    # 1. Si es entrada con costo, recalcular costo promedio GLOBAL
+    # 1. Gestión de Costo (Ponderado Global)
     if movement_type == MovementType.IN and unit_cost is not None:
         new_cost = await calculate_weighted_average_cost(product, quantity, unit_cost)
         product.cost = new_cost
+        # Si es soberano, también actualizamos el costo específico del dueño
+        if inventory_mode == "SOVEREIGN" and actual_owner_id:
+            product.company_data[actual_owner_id].cost = new_cost
 
-    # 2. Registrar el movimiento en el Kardex
+    # 2. Registrar Kardex
     movement = StockMovement(
         product_id=product.id,
         sku=sku,
-        quantity=quantity,
+        quantity=quantity if movement_type in [MovementType.IN, MovementType.TRANSFER_IN] else -quantity,
         movement_type=movement_type,
         unit_cost=unit_cost or product.cost,
         reference_id=reference,
@@ -771,28 +835,36 @@ async def register_movement(
     )
     await movement.insert()
 
-    # 3. Actualizar metadatos de auditoría por empresa (solo si hay company_id)
-    if company_id is not None:
-        if company_id not in product.company_data:
-            product.company_data[company_id] = CompanyProductData()
-        comp_metadata = product.company_data[company_id]
-        if movement_type == MovementType.IN:
-            comp_metadata.last_purchase_date = date or datetime.utcnow()
-        elif movement_type == MovementType.OUT:
-            comp_metadata.last_sale_date = date or datetime.utcnow()
+    # 3. Actualización de Stock (Soberanía Dinámica)
+    delta = quantity if movement_type in [MovementType.IN, MovementType.TRANSFER_IN] else -quantity
+    
+    # 3a. Actualizar Stock de Empresa (Solo si es Soberano)
+    if inventory_mode == "SOVEREIGN" and actual_owner_id:
+        owner_data = product.company_data[actual_owner_id]
+        
+        if is_reservation_release and movement_type == MovementType.OUT:
+            # Si liberamos reserva, NO tocamos stock_current (ya se redujo al reservar)
+            owner_data.stock_reserved -= abs(delta)
+        else:
+            owner_data.stock_current += delta
+        
+        # Auditoría de fechas
+        if delta > 0: owner_data.last_purchase_date = date or datetime.utcnow()
+        else: owner_data.last_sale_date = date or datetime.utcnow()
 
-    # 4. Actualizar stock GLOBAL
-    if movement_type == MovementType.IN:
-        product.stock_current += quantity
-    elif movement_type == MovementType.OUT:
-        # Recuperar configuración maestra (Caching implícito por Beanie si se desea, aquí es directo)
+    # 3b. Actualizar Stock Global
+    if is_reservation_release and movement_type == MovementType.OUT:
+        product.stock_reserved -= abs(delta)
+    else:
+        # Verificación de negativos según config global
         from app.models.config import SystemConfig
         config = await SystemConfig.find_one({})
         allow_neg = config.allow_negative_stock if config else False
 
-        if not allow_neg and product.stock_current < quantity:
-            raise InsufficientStockException(sku, product.stock_current, quantity)
-        product.stock_current -= quantity
+        if delta < 0 and not allow_neg and product.stock_current < abs(delta):
+            raise InsufficientStockException(sku, product.stock_current, abs(delta))
+            
+        product.stock_current += delta
     
     await product.save()
     return movement
@@ -1128,49 +1200,6 @@ async def smart_search(query: str) -> Dict[str, Any]:
 # MASTER DATA MANAGEMENT (MDM) — Gestión Dinámica de Marcas
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def get_brands() -> List[ProductBrand]:
-    """Obtiene el catálogo maestro de marcas"""
-    return await ProductBrand.find_all().to_list()
-
-async def create_brand(brand: ProductBrand) -> ProductBrand:
-    """Registra una nueva marca y actualiza el motor semántico"""
-    await brand.insert()
-    
-    # Sincronizar el motor inteligente de norm_utils
-    from app.utils.norm_utils import _refresh_brands_cache
-    await _refresh_brands_cache()
-    
-    return brand
-
-async def update_brand(brand_id: str, brand_data: ProductBrand) -> ProductBrand:
-    """Actualiza una marca y sus alias de importación"""
-    brand = await ProductBrand.get(PydanticObjectId(brand_id))
-    if not brand:
-        raise NotFoundException("Brand", brand_id)
-    
-    brand.name = brand_data.name
-    brand.aliases = brand_data.aliases
-    brand.description = brand_data.description
-    brand.is_active = brand_data.is_active
-    await brand.save()
-    
-    # Sincronizar motor
-    from app.utils.norm_utils import _refresh_brands_cache
-    await _refresh_brands_cache()
-    
-    return brand
-
-async def delete_brand(brand_id: str):
-    """Elimina una marca del catálogo maestro"""
-    brand = await ProductBrand.get(PydanticObjectId(brand_id))
-    if not brand:
-        raise NotFoundException("Brand", brand_id)
-    
-    await brand.delete()
-    
-    # Sincronizar motor
-    from app.utils.norm_utils import _refresh_brands_cache
-    await _refresh_brands_cache()
 
 async def check_products_existence(items: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """

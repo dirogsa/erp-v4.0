@@ -2,9 +2,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../services/api';
 import { useNotification } from './useNotification';
 
-export const useProducts = ({ page = 1, limit = 50, search = '', category = '', type = '' } = {}) => {
+export const useProducts = ({ 
+    page = 1, 
+    limit = 50, 
+    search = '', 
+    category = '', 
+    type = '',
+    filterUnrecognized = false,
+    filterOthers = false
+} = {}) => {
     const queryClient = useQueryClient();
     const { showNotification } = useNotification();
+
+    // CLASE MUNDIAL: Solo activamos la consulta si hay una intención clara (Search o Filtros Especiales)
+    // Esto protege el Tier Free de MongoDB.
+    const isEnabled = search.length >= 2 || filterUnrecognized || filterOthers || category !== '';
 
     const {
         data,
@@ -12,13 +24,18 @@ export const useProducts = ({ page = 1, limit = 50, search = '', category = '', 
         error,
         refetch
     } = useQuery({
-        queryKey: ['products', { page, limit, search, category, type }],
+        queryKey: ['products', { page, limit, search, category, type, filterUnrecognized, filterOthers }],
         queryFn: async () => {
-            const response = await inventoryService.getProducts(page, limit, search, category, type);
+            const response = await inventoryService.getProducts(
+                page, limit, search, category, type, 
+                filterUnrecognized, 
+                filterOthers
+            );
             return response.data;
         },
-        placeholderData: (previousData) => previousData, // React Query v5 replacement for keepPreviousData
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        enabled: isEnabled, // No carga nada por defecto
+        placeholderData: (previousData) => previousData,
+        staleTime: 5 * 60 * 1000, 
     });
 
     const createMutation = useMutation({
