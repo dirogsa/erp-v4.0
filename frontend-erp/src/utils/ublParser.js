@@ -199,6 +199,14 @@ export const parseUBLXml = (xmlString) => {
             }
         }
 
+        // Carrier & Transport Data
+        const carrierParty = findElement(xmlDoc, 'cac:CarrierParty');
+        const carrierRuc = carrierParty ? getTagText(carrierParty, 'cbc:ID') : '';
+        const carrierName = carrierParty ? getTagText(carrierParty, 'cac:PartyLegalEntity/cbc:RegistrationName') : '';
+        const mtcId = carrierParty ? getTagText(carrierParty, 'cac:PartyLegalEntity/cbc:CompanyID') : '';
+
+        const grossWeight = parseFloat(getTagText(xmlDoc, 'cbc:GrossWeightMeasure') || '0');
+
         // Guide Items
         const guideLines = Array.from(xmlDoc.getElementsByTagName('cac:DespatchLine'));
         const guideItems = guideLines.map(line => {
@@ -217,6 +225,12 @@ export const parseUBLXml = (xmlString) => {
             invoice_ref: invoiceRef,
             date: issueDate,
             items: guideItems,
+            carrier: {
+                ruc: carrierRuc,
+                name: carrierName,
+                mtc_id: mtcId
+            },
+            weight: grossWeight,
             // Minimal guide data for matching
             _isGuide: true
         };

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
 from beanie import Document, Indexed
@@ -279,6 +279,7 @@ class Customer(Document):
     name: str
     document_type: DocumentType = DocumentType.RUC
     document_number: Indexed(str)
+    country: str = "PE"  # ISO 3166-1 alpha-2 (PE, US, CO, etc)
     
     @computed_field
     @property
@@ -316,6 +317,7 @@ class Customer(Document):
     is_perception_agent: bool = False    # Agente de Percepción
     last_sunat_check: Optional[datetime] = None
     main_activity: Optional[str] = None  # CIIU o Descripción
+    sunat_metadata: Dict[str, Any] = {} # Almacén profundo (CIIU, fechas, etc)
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = True
@@ -323,9 +325,10 @@ class Customer(Document):
     class Settings:
         name = "customers"
         indexes = [
-            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("document_number", pymongo.ASCENDING)], unique=True),
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("country", pymongo.ASCENDING), ("document_number", pymongo.ASCENDING)], unique=True),
             "document_number",
-            "company_id"
+            "company_id",
+            "country"
         ]
 
 class NoteType(str, Enum):

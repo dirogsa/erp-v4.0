@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Button from '../components/common/Button';
 import Table from '../components/common/Table';
 import Input from '../components/common/Input';
 import CustomerForm from '../components/features/customers/CustomerForm';
 import CustomerFinancialStatus from '../components/features/customers/CustomerFinancialStatus';
+import BulkCustomerIngestor from '../components/features/customers/BulkCustomerIngestor';
 import { useCustomers } from '../hooks/useCustomers';
 import { auditService, companyService, marketingService } from '../services/api';
 
 const Customers = () => {
+    const location = useLocation();
     const {
         customers,
         loading,
@@ -21,9 +24,26 @@ const Customers = () => {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
     const [converting, setConverting] = useState(false);
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [pointsToConvert, setPointsToConvert] = useState(0);
 
     const [companies, setCompanies] = useState([]);
+
+    React.useEffect(() => {
+        if (location.state?.ruc || location.state?.name) {
+            setSelectedCustomer({
+                document_number: location.state.ruc,
+                name: location.state.name,
+                document_type: 'RUC',
+                is_active: true
+            });
+            setIsViewMode(false);
+            setIsModalOpen(true);
+            
+            // Clean state to avoid re-opening on manual refresh
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
 
     React.useEffect(() => {
         const loadCompanies = async () => {
@@ -187,13 +207,18 @@ const Customers = () => {
                     <h1 style={{ color: 'white', marginBottom: '0.5rem' }}>Gestión de Clientes</h1>
                     <p style={{ color: '#94a3b8' }}>Administración de clientes y sucursales</p>
                 </div>
-                <Button onClick={() => {
-                    setSelectedCustomer(null);
-                    setIsViewMode(false);
-                    setIsModalOpen(true);
-                }}>
-                    + Nuevo Cliente
-                </Button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <Button variant="secondary" onClick={() => setIsBulkModalOpen(true)}>
+                        🏭 Ingesta Masiva
+                    </Button>
+                    <Button onClick={() => {
+                        setSelectedCustomer(null);
+                        setIsViewMode(false);
+                        setIsModalOpen(true);
+                    }}>
+                        + Nuevo Cliente
+                    </Button>
+                </div>
             </div>
 
             <Table
@@ -371,6 +396,25 @@ const Customers = () => {
                                 loading={loading}
                             />
                         )}
+                    </div>
+                </div>
+            )}
+            {isBulkModalOpen && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 1001,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center'
+                }}>
+                    <div style={{ backgroundColor: '#0f172a', borderRadius: '0.5rem', width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #334155' }}>
+                        <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h2 style={{ color: 'white', margin: 0 }}>🏭 Ingesta Masiva de Clientes (SUNAT)</h2>
+                            <button onClick={() => setIsBulkModalOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+                        </div>
+                        <BulkCustomerIngestor 
+                            onComplete={handleCreate} 
+                            onCancel={() => setIsBulkModalOpen(false)}
+                            loading={loading}
+                        />
                     </div>
                 </div>
             )}

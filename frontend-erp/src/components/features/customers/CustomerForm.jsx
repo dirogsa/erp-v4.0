@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Input from '../../common/Input';
 import Button from '../../common/Button';
 import { useNotification } from '../../../hooks/useNotification';
+import { magicIngest } from '../../../utils/fiscalParser';
 
 const CustomerForm = ({
     initialData = null,
@@ -39,6 +40,8 @@ const CustomerForm = ({
         is_retention_agent: false,
         is_perception_agent: false,
         main_activity: '',
+        country: 'PE',
+        sunat_metadata: {},
         ...initialData
     });
 
@@ -101,7 +104,10 @@ const CustomerForm = ({
             sunat_condition: 'HABIDO',
             is_retention_agent: false,
             is_perception_agent: false,
-            main_activity: ''
+            main_activity: '',
+            country: 'PE',
+            sunat_metadata: {},
+            ...initialData
         };
         setFormData(resetData);
     }, [initialData?._id]);
@@ -212,51 +218,25 @@ const CustomerForm = ({
     const handleMagicPaste = () => {
         if (!magicText.trim()) return;
 
-        const data = { ...formData };
-        const lines = magicText.split('\n').map(l => l.trim());
-
-        // 1. Extraer RUC y Razón Social
-        const rucLineIdx = lines.findIndex(l => l.includes('Número de RUC:'));
-        if (rucLineIdx !== -1) {
-            const nextLine = lines[rucLineIdx + 1];
-            const match = nextLine.match(/(\d{11})\s*-\s*(.*)/);
-            if (match) {
-                data.document_number = match[1];
-                data.name = match[2].trim();
-            }
+        const deepData = magicIngest(magicText);
+        
+        if (!deepData) {
+            showNotification('No se pudo extraer información reconocida de la fuente.', 'warning');
+            return;
         }
 
-        // 2. Estado y Condición
-        const stateIdx = lines.findIndex(l => l.includes('Estado del Contribuyente:'));
-        if (stateIdx !== -1) data.sunat_state = lines[stateIdx + 1].replace(/\s+/g, ' ');
+        setFormData(prev => ({
+            ...prev,
+            ...deepData,
+            // Mantener campos que no queremos sobrescribir si ya existen y no están en deepData
+            name: deepData.name || prev.name,
+            document_number: deepData.document_number || prev.document_number,
+            address: deepData.address || prev.address
+        }));
 
-        const conditionIdx = lines.findIndex(l => l.includes('Condición del Contribuyente:'));
-        if (conditionIdx !== -1) data.sunat_condition = lines[conditionIdx + 1].replace(/\s+/g, ' ');
-
-        // 3. Domicilio Fiscal
-        const addressIdx = lines.findIndex(l => l.includes('Domicilio Fiscal:'));
-        if (addressIdx !== -1) data.address = lines[addressIdx + 1].replace(/\s+/g, ' ');
-
-        // 4. Actividad Económica
-        const activityIdx = lines.findIndex(l => l.includes('Actividad(es) Económica(s):'));
-        if (activityIdx !== -1) {
-            // Buscamos la línea que empieza con "Principal -"
-            const mainActivity = lines.find((l, i) => i > activityIdx && l.includes('Principal -'));
-            if (mainActivity) data.main_activity = mainActivity;
-        }
-
-        // 5. Padrones (Retención/Percepción)
-        const padronesIdx = lines.findIndex(l => l.includes('Padrones:'));
-        if (padronesIdx !== -1) {
-            const padronesText = lines.slice(padronesIdx + 1, padronesIdx + 5).join(' ').toUpperCase();
-            data.is_retention_agent = padronesText.includes('AGENTE DE RETENCION');
-            data.is_perception_agent = padronesText.includes('AGENTE DE PERCEPCION');
-        }
-
-        setFormData(data);
         setShowMagicBox(false);
         setMagicText('');
-        showNotification('Datos de SUNAT procesados e ingresados', 'success');
+        showNotification('Inteligencia Fiscal inyectada correctamente', 'success');
     };
 
     return (
@@ -307,7 +287,7 @@ const CustomerForm = ({
                 </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.8fr 1.2fr', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr 1.2fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <Input
                     label="Razón Social"
                     value={formData.name}
@@ -315,37 +295,59 @@ const CustomerForm = ({
                     placeholder="Ej: Filtros San Jorge S.A.C."
                     required
                 />
-                    <div className="form-group">
-                        <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Tipo Doc.</label>
-                        <select
-                            value={formData.document_type}
-                            onChange={(e) => setFormData({ ...formData, document_type: e.target.value })}
-                            style={{
-                                width: '100%',
-                                padding: '0.625rem',
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                borderRadius: '0.375rem',
-                                color: 'white',
-                                outline: 'none',
-                                height: '42px' // Altura estándar para alinear con Inputs
-                            }}
-                        >
-                            <option value="RUC">RUC</option>
-                            <option value="DNI">DNI</option>
-                            <option value="CE">C.E.</option>
-                            <option value="PASSPORT">Pasaporte</option>
-                            <option value="OTHERS">Otros</option>
-                        </select>
-                    </div>
-                    <Input
-                        label="Número de Documento"
-                        value={formData.document_number}
-                        onChange={(e) => setFormData({ ...formData, document_number: e.target.value })}
-                        placeholder="Ej: 20501158012"
-                        required
-                    />
+                <div className="form-group">
+                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>País</label>
+                    <select
+                        value={formData.country}
+                        onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                        style={{ width: '100%', padding: '0.625rem', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.375rem', color: 'white', height: '42px' }}
+                    >
+                        <option value="PE">Perú (PE)</option>
+                        <option value="CO">Colombia (CO)</option>
+                        <option value="MX">México (MX)</option>
+                        <option value="US">USA (US)</option>
+                        <option value="CL">Chile (CL)</option>
+                    </select>
                 </div>
+                <div className="form-group">
+                    <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Tipo Doc.</label>
+                    <select
+                        value={formData.document_type}
+                        onChange={(e) => setFormData({ ...formData, document_type: e.target.value })}
+                        style={{
+                            width: '100%',
+                            padding: '0.625rem',
+                            backgroundColor: '#1e293b',
+                            border: '1px solid #334155',
+                            borderRadius: '0.375rem',
+                            color: 'white',
+                            outline: 'none',
+                            height: '42px'
+                        }}
+                    >
+                        {formData.country === 'PE' ? (
+                            <>
+                                <option value="RUC">RUC</option>
+                                <option value="DNI">DNI</option>
+                                <option value="CE">C.E.</option>
+                            </>
+                        ) : (
+                            <>
+                                <option value="TAX_ID">Tax ID / NIT / RFC</option>
+                                <option value="PASSPORT">Pasaporte</option>
+                                <option value="OTHERS">Otros</option>
+                            </>
+                        )}
+                    </select>
+                </div>
+                <Input
+                    label={formData.country === 'PE' ? (formData.document_type === 'RUC' ? 'RUC' : 'Documento') : 'ID Fiscal'}
+                    value={formData.document_number}
+                    onChange={(e) => setFormData({ ...formData, document_number: e.target.value })}
+                    placeholder={formData.country === 'PE' ? "Ej: 2060..." : "Tax ID Number"}
+                    required
+                />
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <Input
                     label="Email"

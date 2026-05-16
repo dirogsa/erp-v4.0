@@ -6,7 +6,7 @@ import Button from '../components/common/Button';
 import { 
     ChevronLeft, ChevronRight, Calendar as CalendarIcon, 
     Download, ClipboardList, Info, AlertTriangle, 
-    Save, CheckCircle2, Trash2
+    Save, CheckCircle2, Trash2, Edit2, X
 } from 'lucide-react';
 import { formatCurrency } from '../utils/formatters';
 
@@ -19,6 +19,7 @@ const ExchangeRates = () => {
     const [sunatText, setSunatText] = useState('');
     const [parsedData, setParsedData] = useState([]);
     const [isSavingBatch, setIsSavingBatch] = useState(false);
+    const [editModal, setEditModal] = useState(null); // { date, purchase, sale }
 
     // Metadata del calendario
     const monthNames = [
@@ -111,6 +112,31 @@ const ExchangeRates = () => {
         }
     };
 
+    const handleDeleteRate = async (dateStr) => {
+        if (!window.confirm(`¿Está seguro de eliminar el tipo de cambio del ${dateStr}?`)) return;
+        try {
+            await financeService.deleteExchangeRate(dateStr);
+            showNotification("Tipo de cambio eliminado", "success");
+            fetchRates();
+        } catch (error) {
+            showNotification("Error al eliminar el registro", "error");
+        }
+    };
+
+    const handleSaveEdit = async () => {
+        try {
+            await financeService.saveExchangeRate(editModal.date, {
+                purchase: parseFloat(editModal.purchase),
+                sale: parseFloat(editModal.sale)
+            });
+            showNotification("Tipo de cambio actualizado", "success");
+            setEditModal(null);
+            fetchRates();
+        } catch (error) {
+            showNotification("Error al actualizar el registro", "error");
+        }
+    };
+
     // Renderizado de Celdas
     const renderCalendarCells = () => {
         const cells = [];
@@ -159,6 +185,28 @@ const ExchangeRates = () => {
                                 <span>Venta</span>
                                 <strong>{activeRate.sale.toFixed(3)}</strong>
                             </div>
+                            
+                            {/* Actions for Industrial Management */}
+                            {!preview && (
+                                <div style={{ 
+                                    marginTop: 'auto', paddingTop: '0.4rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem',
+                                    borderTop: '1px solid #1e293b', opacity: 0.2, transition: 'opacity 0.2s'
+                                }} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.2}>
+                                    <button 
+                                        onClick={() => setEditModal({ date: activeRate.date, purchase: activeRate.purchase, sale: activeRate.sale })}
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#3b82f6' }}
+                                    >
+                                        <Edit2 size={12} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteRate(activeRate.date)}
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#ef4444' }}
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
+                            )}
+
                             {preview && <div style={{ fontSize: '0.5rem', color: '#fbbf24', textAlign: 'center', marginTop: '2px' }}>PENDIENTE</div>}
                         </div>
                     )}
@@ -289,6 +337,53 @@ const ExchangeRates = () => {
                                             {isSavingBatch ? 'Guardando...' : `Confirmar y Guardar ${parsedData.length} días`}
                                         </Button>
                                     )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* MODAL DE EDICIÓN INDIVIDUAL */}
+                {editModal && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(10px)' }}>
+                        <div style={{ background: '#0f172a', width: '90%', maxWidth: '400px', borderRadius: '1.5rem', overflow: 'hidden', border: '1px solid #3b82f6', boxShadow: '0 0 40px rgba(59, 130, 246, 0.2)' }}>
+                            <div style={{ background: '#1e293b', color: 'white', padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <Edit2 size={18} color="#3b82f6" />
+                                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Editar Tipo de Cambio</h3>
+                                </div>
+                                <button onClick={() => setEditModal(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.25rem' }}>✕</button>
+                            </div>
+                            
+                            <div style={{ padding: '1.5rem' }}>
+                                <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.25rem' }}>FECHA SELECCIONADA</div>
+                                    <div style={{ fontSize: '1.25rem', color: 'white', fontWeight: '800' }}>{formatDate(editModal.date)}</div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold' }}>COMPRA</label>
+                                        <input 
+                                            type="number" step="0.001"
+                                            value={editModal.purchase}
+                                            onChange={e => setEditModal({...editModal, purchase: e.target.value})}
+                                            style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.75rem', padding: '0.75rem', color: 'white', textAlign: 'center' }}
+                                        />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold' }}>VENTA</label>
+                                        <input 
+                                            type="number" step="0.001"
+                                            value={editModal.sale}
+                                            onChange={e => setEditModal({...editModal, sale: e.target.value})}
+                                            style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '0.75rem', padding: '0.75rem', color: 'white', textAlign: 'center' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '1rem' }}>
+                                    <Button variant="ghost" style={{ flex: 1 }} onClick={() => setEditModal(null)}>Cancelar</Button>
+                                    <Button variant="primary" style={{ flex: 1 }} onClick={handleSaveEdit}>Guardar Cambios</Button>
                                 </div>
                             </div>
                         </div>

@@ -25,6 +25,7 @@ api.interceptors.request.use(config => {
   if (companyId) {
     config.headers['X-Company-ID'] = companyId;
   }
+
   console.log(`[API] Requesting: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config.params || '');
   return config;
 });
@@ -55,7 +56,17 @@ api.interceptors.response.use(
     if (status === 401) {
        // Normal token expiration
     } else {
-       const backendMessage = error.response?.data?.message || error.response?.data?.detail;
+       let backendMessage = error.response?.data?.message || error.response?.data?.detail;
+       
+       // World-Class Safeguard: If backend message is an object/array (like Pydantic 422), stringify it
+       if (backendMessage && typeof backendMessage !== 'string') {
+         if (Array.isArray(backendMessage)) {
+            backendMessage = backendMessage.map(err => err.msg || JSON.stringify(err)).join(', ');
+         } else {
+            backendMessage = JSON.stringify(backendMessage);
+         }
+       }
+
        console.error(`[API] ${status || 'DEBUG'} ERROR:`, {
          message: backendMessage || error.message,
          code: error.code,
@@ -110,7 +121,7 @@ export const intelligenceService = {
   
   // Logistics Sincerity
   getPendingLogistics: () => api.get('/intelligence/sincerity/pending-guides'),
-  bulkGenerateGuides: (data) => api.post('/intelligence/sincerity/bulk-generate-guides', data),
+  bulkGenerateGuides: (data) => api.post('/intelligence/sincerity/bulk-generate-guides', data, { timeout: 60000 }),
   matchXMLGuides: (batch) => api.post('/intelligence/sincerity/match-xml-guides', batch),
   revertLogistics: (invoiceId) => api.post(`/intelligence/sincerity/revert-logistics/${invoiceId}`)
 };
@@ -430,6 +441,7 @@ export const financeService = {
   getExchangeRates: () => api.get('/finance/exchange-rates'),
   getExchangeRate: (date) => api.get(`/finance/exchange-rate/${date}`),
   saveExchangeRate: (date, data) => api.post(`/finance/exchange-rate/${date}`, data),
+  deleteExchangeRate: (date) => api.delete(`/finance/exchange-rate/${date}`),
   getCustomerStatement: (number) => api.get(`/sales/customers/${number}/statement`),
 };
 

@@ -20,14 +20,16 @@ logger = logging.getLogger("uvicorn.error")
 # --- EXCEPTION HANDLERS ---
 app.add_exception_handler(BusinessException, business_exception_handler)
 
+from fastapi.encoders import jsonable_encoder
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
+        content=jsonable_encoder({
             "detail": exc.errors(),
             "message": "Error de validación en los datos. Por favor revise los campos."
-        },
+        }),
     )
 
 @app.exception_handler(Exception)

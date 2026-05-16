@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
 from beanie import Document, Indexed
@@ -158,7 +158,9 @@ class PurchaseInvoice(Document):
 
 class Supplier(Document):
     name: str
-    ruc: Indexed(str)
+    document_type: str = "RUC"
+    ruc: Indexed(str) # Se mantiene como ruc por compatibilidad, pero es el document_number
+    country: str = "PE"
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
@@ -172,6 +174,7 @@ class Supplier(Document):
     is_perception_agent: bool = False    # Agente de Percepción
     last_sunat_check: Optional[datetime] = None
     main_activity: Optional[str] = None  # CIIU o Descripción
+    sunat_metadata: Dict[str, Any] = {}  # Almacén profundo (CIIU, fechas, etc)
     
     created_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True
@@ -180,9 +183,10 @@ class Supplier(Document):
     class Settings:
         name = "suppliers"
         indexes = [
-            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("ruc", pymongo.ASCENDING)], unique=True),
+            pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("country", pymongo.ASCENDING), ("ruc", pymongo.ASCENDING)], unique=True),
             "ruc",
-            "company_id"
+            "company_id",
+            "country"
         ]
 
 class SupplierProductPrice(Document):

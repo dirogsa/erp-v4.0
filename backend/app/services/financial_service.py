@@ -194,7 +194,7 @@ async def create_note(
         guide = DeliveryGuide(
             guide_number=guide_number,
             guide_type=GuideType.RETURN, 
-            status=GuideStatus.COMPLETED,
+            status=GuideStatus.DISPATCHED,
             invoice_number=note_number,
             customer_name="Almacén Principal",
             customer_ruc=invoice.customer_ruc or "00000000000",

@@ -38,3 +38,18 @@ async def upsert_exchange_rate(date_str: str, request: ExchangeRateRequest):
             return new_rate
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+
+@router.delete("/exchange-rate/{date_str}")
+async def delete_exchange_rate(date_str: str):
+    """
+    Elimina un registro de tipo de cambio por fecha.
+    """
+    try:
+        d = date.fromisoformat(date_str)
+        existing = await ExchangeRate.find_one(ExchangeRate.date == d)
+        if existing:
+            await existing.delete()
+            return {"status": "success", "message": f"Tipo de cambio del {date_str} eliminado"}
+        raise HTTPException(status_code=404, detail="Registro no encontrado")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido")

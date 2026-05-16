@@ -127,7 +127,7 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                         multiple
                         onChange={(e) => {
                             handleFileUpload(e);
-                            e.target.value = ''; // Reset para permitir re-selección
+                            e.target.value = '';
                         }}
                         style={{ display: 'none' }}
                         id="xml-upload"
@@ -161,15 +161,18 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                             onMouseOver={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.backgroundColor = '#1e293b'; }}
                             onMouseOut={e => { e.currentTarget.style.borderColor = '#334155'; e.currentTarget.style.backgroundColor = '#0f172a'; }}
                             onClick={() => document.getElementById('xml-upload').click()}>
-                            <div style={{ fontSize: '3.5rem', marginBottom: '1.25rem' }}>🧾</div>
-                            <div style={{ fontWeight: '700', color: 'white', fontSize: '1.2rem' }}>Selecciona Facturas XML</div>
+                            <div style={{ fontSize: '3.5rem', marginBottom: '1.25rem' }}>
+                                {type === 'DELIVERY_GUIDE' ? '🚚' : '🧾'}
+                            </div>
+                            <div style={{ fontWeight: '700', color: 'white', fontSize: '1.2rem' }}>
+                                {type === 'DELIVERY_GUIDE' ? 'Selecciona Guías de Remisión XML' : 'Selecciona Facturas XML'}
+                            </div>
                             <div style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '0.6rem' }}>Arrastra archivos o haz clic para buscar</div>
                             {isParsing && <div style={{ color: '#3b82f6', marginTop: '1rem', fontWeight: 'bold' }}>Procesando...</div>}
                             {error && <div style={{ color: '#f87171', marginTop: '1.5rem', fontWeight: '600', background: '#450a0a', padding: '0.5rem', borderRadius: '0.5rem', fontSize: '0.85rem' }}>{error}</div>}
                         </div>
                     ) : (
                         <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
-
                             <div style={{
                                 background: '#0f172a',
                                 borderRadius: '1rem',
@@ -181,9 +184,9 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                                     <thead style={{ position: 'sticky', top: 0, backgroundColor: '#1e293b', borderBottom: '1px solid #334155', color: '#94a3b8', zIndex: 1 }}>
                                         <tr>
-                                            <th style={{ textAlign: 'left', padding: '1rem' }}>Factura / RUC</th>
+                                            <th style={{ textAlign: 'left', padding: '1rem' }}>{type === 'DELIVERY_GUIDE' ? 'Guía / Cliente' : 'Factura / RUC'}</th>
                                             <th style={{ textAlign: 'center', padding: '1rem' }}>Fecha Emisión</th>
-                                            <th style={{ textAlign: 'right', padding: '1rem' }}>Total</th>
+                                            <th style={{ textAlign: 'right', padding: '1rem' }}>{type === 'DELIVERY_GUIDE' ? 'Factura Ref.' : 'Total'}</th>
                                             <th style={{ textAlign: 'center', padding: '1rem' }}></th>
                                         </tr>
                                     </thead>
@@ -197,15 +200,22 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                                                             <span style={{ backgroundColor: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem' }}>NOTA DE CRÉDITO</span>
                                                         )}
                                                     </div>
-                                                    {doc.document_type === 'CREDIT_NOTE' && doc.related_document && (
-                                                        <div style={{ fontSize: '0.75rem', color: '#fca5a5', marginTop: '2px' }}>Aplica a: {doc.related_document}</div>
-                                                    )}
-                                                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{doc.supplier.name} ({doc.supplier.ruc})</div>
+                                                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                                        {type === 'DELIVERY_GUIDE' ? (doc.customer?.name || 'Cliente XML') : (doc.supplier?.name || 'Proveedor XML')}
+                                                    </div>
                                                 </td>
                                                 <td style={{ textAlign: 'center', padding: '1rem', color: '#cbd5e1' }}>{doc.date}</td>
-                                                <td style={{ textAlign: 'right', padding: '1rem', fontWeight: '800', color: doc.document_type === 'CREDIT_NOTE' ? '#ef4444' : (doc.currency === 'USD' || doc.currency === 'DOLARES' ? '#60a5fa' : '#34d399') }}>
-                                                    {doc.document_type === 'CREDIT_NOTE' ? '-' : ''}
-                                                    {formatCurrency(doc.total_amount, (doc.currency === 'USD' || doc.currency === 'DOLARES') ? '$' : 'S/')}
+                                                <td style={{ textAlign: 'right', padding: '1rem', fontWeight: '800' }}>
+                                                    {type === 'DELIVERY_GUIDE' ? (
+                                                        <span style={{ color: doc.invoice_ref ? '#3b82f6' : '#f59e0b' }}>
+                                                            {doc.invoice_ref || 'Sin Referencia'}
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ color: doc.document_type === 'CREDIT_NOTE' ? '#ef4444' : (doc.currency === 'USD' ? '#60a5fa' : '#34d399') }}>
+                                                            {doc.document_type === 'CREDIT_NOTE' ? '-' : ''}
+                                                            {formatCurrency(doc.total_amount, doc.currency === 'USD' ? '$' : 'S/')}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td style={{ textAlign: 'center', padding: '1rem' }}>
                                                     <button
@@ -221,34 +231,36 @@ const XMLImportModal = ({ visible, onClose, onConfirm, type = 'PURCHASE' }) => {
                                 </table>
                             </div>
 
-                            <div style={{
-                                marginTop: '1.5rem',
-                                padding: '1.25rem',
-                                background: '#0f172a',
-                                borderRadius: '1rem',
-                                border: '1px solid #334155',
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                                gap: '1.5rem'
-                            }}>
-                                {batchData.some(d => !(d.currency === 'USD' || d.currency === 'DOLARES')) && (
-                                    <div>
-                                        <div style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Total en Soles (PEN)</div>
-                                        <div style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: '900' }}>
-                                            {formatCurrency(batchData.filter(d => !(d.currency === 'USD' || d.currency === 'DOLARES')).reduce((sum, d) => sum + d.total_amount, 0), 'S/')}
+                            {type !== 'DELIVERY_GUIDE' && (
+                                <div style={{
+                                    marginTop: '1.5rem',
+                                    padding: '1.25rem',
+                                    background: '#0f172a',
+                                    borderRadius: '1rem',
+                                    border: '1px solid #334155',
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                    gap: '1.5rem'
+                                }}>
+                                    {batchData.some(d => d.currency !== 'USD') && (
+                                        <div>
+                                            <div style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Total en Soles (PEN)</div>
+                                            <div style={{ color: '#10b981', fontSize: '1.5rem', fontWeight: '900' }}>
+                                                {formatCurrency(batchData.filter(d => d.currency !== 'USD').reduce((sum, d) => sum + d.total_amount, 0), 'S/')}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                
-                                {batchData.some(d => (d.currency === 'USD' || d.currency === 'DOLARES')) && (
-                                    <div style={{ borderLeft: '1px solid #1e293b', paddingLeft: '1.5rem' }}>
-                                        <div style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Total en Dólares (USD)</div>
-                                        <div style={{ color: '#3b82f6', fontSize: '1.5rem', fontWeight: '900' }}>
-                                            {formatCurrency(batchData.filter(d => (d.currency === 'USD' || d.currency === 'DOLARES')).reduce((sum, d) => sum + d.total_amount, 0), '$')}
+                                    )}
+                                    
+                                    {batchData.some(d => d.currency === 'USD') && (
+                                        <div style={{ borderLeft: '1px solid #1e293b', paddingLeft: '1.5rem' }}>
+                                            <div style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.4rem' }}>Total en Dólares (USD)</div>
+                                            <div style={{ color: '#3b82f6', fontSize: '1.5rem', fontWeight: '900' }}>
+                                                {formatCurrency(batchData.filter(d => d.currency === 'USD').reduce((sum, d) => sum + d.total_amount, 0), '$')}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

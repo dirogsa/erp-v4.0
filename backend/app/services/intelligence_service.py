@@ -2,6 +2,7 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from app.models.sales import SalesOrder, OrderStatus, SalesInvoice
+from app.models.purchasing import PurchaseInvoice
 from app.models.inventory import Product, ProductType, ProductStatus, DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
 from app.models.ingestion import PendingIngest
 import math
@@ -514,8 +515,26 @@ class IntelligenceService:
             rate_map[date_str]["occurrences"] += 1
             rate_map[date_str]["invoice_refs"].append(inv.sunat_number)
 
+        # 3. Proveedores Desconocidos (Agrupados por RUC)
+        query_supp = {"is_supplier_confirmed": False}
+        if company_id: query_supp["company_id"] = company_id
+        
+        unknown_suppliers = await PurchaseInvoice.find(query_supp).to_list()
+        supp_map = {}
+        for inv in unknown_suppliers:
+            if inv.supplier_ruc not in supp_map:
+                supp_map[inv.supplier_ruc] = {
+                    "ruc": inv.supplier_ruc,
+                    "name": inv.supplier_name,
+                    "occurrences": 0,
+                    "invoice_refs": []
+                }
+            supp_map[inv.supplier_ruc]["occurrences"] += 1
+            supp_map[inv.supplier_ruc]["invoice_refs"].append(inv.sunat_number)
+
         return {
             "unknown_customers": list(cust_map.values()),
+            "unknown_suppliers": list(supp_map.values()),
             "missing_exchange_rates": list(rate_map.values())
         }
 
@@ -549,6 +568,47 @@ class IntelligenceService:
             inv.is_exchange_rate_confirmed = True
             await inv.save()
 
+        # 2.b Actualizar Compras
+        from app.models.purchasing import PurchaseInvoice
+        purchases = await PurchaseInvoice.find({
+            "invoice_date": {"$gte": date_obj, "$lt": date_obj + timedelta(days=1)},
+            "is_exchange_rate_confirmed": False
+        }).to_list()
+
+        for pur in purchases:
+            pur.exchange_rate = sale_rate
+            pur.is_exchange_rate_confirmed = True
+            await pur.save()
+
+        return {"status": "success", "invoices_updated": len(invoices) + len(purchases)}
+
+    @staticmethod
+    async def resolve_supplier_sincerity(ruc: str, supplier_id: str) -> Dict[str, Any]:
+        """
+        Vincula un RUC incubado a un proveedor real del maestro.
+        """
+        from app.models.purchasing import PurchaseInvoice, Supplier
+        
+        supplier = await Supplier.find_one({"_id": supplier_id})
+        if not supplier:
+            try:
+                supplier = await Supplier.get(ObjectId(supplier_id))
+            except: pass
+            
+        if not supplier:
+            raise Exception("Proveedor no encontrado en el maestro.")
+
+        invoices = await PurchaseInvoice.find({
+            "supplier_ruc": ruc,
+            "is_supplier_confirmed": False
+        }).to_list()
+
+        for inv in invoices:
+            inv.supplier_id = str(supplier.id)
+            inv.supplier_name = supplier.name
+            inv.is_supplier_confirmed = True
+            await inv.save()
+
         return {"status": "success", "invoices_updated": len(invoices)}
 
     @staticmethod
@@ -558,12 +618,11 @@ class IntelligenceService:
         """
         from app.models.sales import SalesInvoice, Customer
         
-        customer = await Customer.find_one({"_id": customer_id}) # O por ID real
+        # Intentar obtener el cliente por ID (Beanie PydanticObjectId o string)
+        customer = await Customer.get(customer_id)
         if not customer:
-            # Re-intentar por ID string si Beanie lo requiere
-            try:
-                customer = await Customer.get(ObjectId(customer_id))
-            except: pass
+            # Fallback a búsqueda por document_number si el ID no es válido
+            customer = await Customer.find_one({"document_number": ruc})
             
         if not customer:
             raise Exception("Cliente no encontrado en el maestro.")
@@ -587,25 +646,30 @@ class IntelligenceService:
         Alta automática de maestro desde un Gap detectado. 
         Crea el cliente y cura todas las facturas incubadas.
         """
-        from app.models.sales import SalesInvoice, Customer
+        from app.models.sales import Customer
+        from app.services import sales_service
         
-        # 1. Verificar si ya existe (por si acaso)
-        existing = await Customer.find_one(Customer.ruc == ruc)
-        if existing:
-            return await IntelligenceService.resolve_customer_sincerity(ruc, str(existing.id))
+        # 1. Verificar si ya existe en el scope (usando la lógica de búsqueda de sales_service)
+        try:
+            existing = await sales_service.get_customer_by_number(ruc, company_id)
+            if existing:
+                return await IntelligenceService.resolve_customer_sincerity(ruc, str(existing.id))
+        except:
+            pass
 
-        # 2. Crear Cliente
+        # 2. Crear Cliente usando el service (que aplica la política de Shared/Sovereign)
         new_customer = Customer(
-            ruc=ruc,
+            document_number=ruc,
             name=name,
-            company_name=name,
+            company_id=company_id,
             is_active=True,
             created_at=datetime.utcnow()
         )
-        await new_customer.insert()
+        # El service decidirá si pone company_id = None basado en la política
+        created = await sales_service.create_customer(new_customer)
 
         # 3. Sincerar Facturas
-        return await IntelligenceService.resolve_customer_sincerity(ruc, str(new_customer.id))
+        return await IntelligenceService.resolve_customer_sincerity(ruc, str(created.id))
 
     @staticmethod
     async def bulk_auto_create_customers(customers: List[Dict[str, str]], company_id: Optional[str] = None) -> Dict[str, Any]:
@@ -719,33 +783,52 @@ class IntelligenceService:
             "dispatch_status": "PENDING_GUIDE"
         }).sort("-invoice_date").to_list()
         
-        return [inv.dict() for inv in invoices]
+        return [{**inv.dict(), "_id": str(inv.id)} for inv in invoices]
 
     @staticmethod
     async def bulk_generate_sales_guides(invoice_ids: List[str], user: Any) -> Dict[str, Any]:
         """
         Genera guías internas automáticas para un lote de facturas.
         """
+        import asyncio
         from app.services import sales_service
+
+        # Concurrency Control: Process 5 at a time to avoid DB contention
+        semaphore = asyncio.Semaphore(5)
+        
+        async def process_single_invoice(inv_id):
+            async with semaphore:
+                try:
+                    invoice = await SalesInvoice.get(ObjectId(inv_id))
+                    if not invoice: return None
+                    
+                    # Integrity Gate
+                    if not invoice.is_catalog_confirmed:
+                        return {"id": inv_id, "error": f"Documento {invoice.sunat_number or invoice.invoice_number} tiene brechas en el catálogo."}
+                    
+                    if not invoice.is_customer_confirmed:
+                        return {"id": inv_id, "error": f"Documento {invoice.sunat_number or invoice.invoice_number} tiene cliente no reconocido."}
+
+                    await sales_service.create_dispatch_guide(
+                        invoice_number=invoice.invoice_number,
+                        notes="Generación automática (Sinceramiento Masivo)",
+                        created_by=user.username,
+                        user=user
+                    )
+                    return "SUCCESS"
+                except Exception as e:
+                    return {"id": inv_id, "error": str(e)}
+
+        # Execute all in parallel for World-Class performance
+        results = await asyncio.gather(*[process_single_invoice(id) for id in invoice_ids])
+        
         count = 0
         errors = []
-        
-        for inv_id in invoice_ids:
-            try:
-                invoice = await SalesInvoice.get(ObjectId(inv_id))
-                if not invoice: continue
-                
-                # Usar la lógica existente de creación de guía en SalesService
-                # Pero ajustada para ser llamada masivamente
-                await sales_service.create_dispatch_guide(
-                    invoice_number=invoice.invoice_number,
-                    notes="Generación automática (Sinceramiento Masivo)",
-                    created_by=user.username,
-                    user=user
-                )
+        for res in results:
+            if res == "SUCCESS":
                 count += 1
-            except Exception as e:
-                errors.append({"id": inv_id, "error": str(e)})
+            elif res is not None:
+                errors.append(res)
         
         return {"status": "success", "processed": count, "errors": errors}
 
@@ -780,12 +863,19 @@ class IntelligenceService:
                     guide_number=f"EXT-{g_data['sunat_number']}",
                     sunat_number=g_data['sunat_number'],
                     guide_type=GuideType.DISPATCH,
-                    status=GuideStatus.COMPLETED,
+                    status=GuideStatus.DISPATCHED,
                     invoice_number=invoice.invoice_number,
                     customer_name=invoice.customer_name,
                     customer_ruc=invoice.customer_ruc,
                     items=[GuideItem(**item) for item in g_data.get('items', [])],
                     issue_date=datetime.fromisoformat(g_data['date']) if g_data.get('date') else datetime.now(),
+                    
+                    # World-Class Metadata
+                    carrier_name=g_data.get('carrier', {}).get('name'),
+                    carrier_ruc=g_data.get('carrier', {}).get('ruc'),
+                    carrier_mtc_id=g_data.get('carrier', {}).get('mtc_id'),
+                    total_weight=g_data.get('weight', 0.0),
+                    
                     company_id=company_id
                 )
                 await guide.insert()

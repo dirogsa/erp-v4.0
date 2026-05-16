@@ -884,6 +884,7 @@ async def get_customers(company_id: Optional[str] = None) -> List[Dict[str, Any]
         company = await Company.get(company_id)
         if company and company.enterprise_settings.customers_mode == 'SOVEREIGN':
             query = {"company_id": company_id}
+        # If SHARED, query remains {}, returning ALL customers (Global View)
             
     customers = await Customer.find(query).to_list()
     
@@ -938,7 +939,10 @@ async def get_customers(company_id: Optional[str] = None) -> List[Dict[str, Any]
 async def get_customer_by_number(number: str, company_id: Optional[str] = None) -> Customer:
     query = {"document_number": number}
     if company_id:
-        query["company_id"] = company_id
+        company = await Company.get(company_id)
+        if company and company.enterprise_settings.customers_mode == 'SOVEREIGN':
+            query["company_id"] = company_id
+        # If SHARED, we don't filter by company_id, allowing global lookup
         
     customer = await Customer.find_one(query)
     if not customer:
@@ -946,9 +950,17 @@ async def get_customer_by_number(number: str, company_id: Optional[str] = None) 
     return customer
 
 async def create_customer(customer: Customer) -> Customer:
+    # Check governance mode to decide if it's a global or local customer
+    if customer.company_id:
+        company = await Company.get(customer.company_id)
+        if company and company.enterprise_settings.customers_mode == 'SHARED':
+            customer.company_id = None # Set to Global
+            
     query = {"document_number": customer.document_number}
     if customer.company_id:
         query["company_id"] = customer.company_id
+    else:
+        query["company_id"] = None # Look for global record
         
     existing = await Customer.find_one(query)
     if existing:
@@ -1111,13 +1123,18 @@ async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str
     if invoice.dispatch_status == "DISPATCHED":
         raise ValidationException("Invoice already dispatched")
     
-    # Validate stock
-    for item in invoice.items:
-        product = await inventory_service.get_product_by_sku(item.product_sku)
-        if product.stock_current < item.quantity:
-            raise ValidationException(
-                f"Insufficient stock for {product.name}. Available: {product.stock_current}, Required: {item.quantity}"
-            )
+    # Validate stock (World-Class Guardrail - Skip if system allows negative stock for reconciliation)
+    config = await SystemConfig.find_one({})
+    allow_negative = config.allow_negative_stock if config else False
+
+    if not allow_negative:
+        for item in invoice.items:
+            product = await inventory_service.get_product_by_sku(item.product_sku)
+            if product.stock_current < item.quantity:
+                raise ValidationException(
+                    f"Stock insuficiente para {product.name}. Disponible: {product.stock_current}, Requerido: {item.quantity}. "
+                    "Active el 'Modo Conciliación' en Configuración si desea regularizar facturas históricas sin stock físico."
+                )
     
     # Generate Internal ID: GV-YY-####
     year_prefix = datetime.now().strftime('%y')
@@ -1155,11 +1172,19 @@ async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str
     if invoice.delivery_branch_name:
         target_text = f"{invoice.customer_name} - {invoice.delivery_branch_name}"
     
+    # Calculate Total Weight (World-Class Logistics)
+    total_weight_kg = sum((item.weight_g * item.quantity) for item in guide_items) / 1000.0
+
+    # Default Carrier: If it's internal/automatic, the Issuer is the "Remitente/Carrier" (Private Transport)
+    issuer = invoice.issuer_info
+    c_name = issuer.name if issuer else "Empresa Emisora"
+    c_ruc = issuer.ruc if issuer else "00000000000"
+
     guide = DeliveryGuide(
         guide_number=guide_number,
         sunat_number=sunat_number,
         guide_type=GuideType.DISPATCH,
-        status=GuideStatus.COMPLETED,
+        status=GuideStatus.DISPATCHED,
         invoice_number=invoice_number,
         customer_name=invoice.customer_name,
         customer_ruc=invoice.customer_ruc or "00000000000",
@@ -1168,6 +1193,12 @@ async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str
         notes=notes,
         created_by=created_by,
         issue_date=datetime.now(),
+        
+        # World-Class Metadata Injection
+        carrier_name=c_name,
+        carrier_ruc=c_ruc,
+        total_weight=total_weight_kg,
+        
         company_id=str(invoice.company_id)
     )
     await guide.insert()
@@ -1403,6 +1434,15 @@ async def bulk_update_payment_condition(invoice_numbers: List[str], condition: s
     for num in invoice_numbers:
         invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == num)
         if not invoice: continue
+        
+        # HARDENING: Integrity Gate check (World-Class Firewall)
+        is_ready = getattr(invoice, 'is_catalog_confirmed', False) and \
+                   getattr(invoice, 'is_customer_confirmed', False) and \
+                   getattr(invoice, 'is_exchange_rate_confirmed', False)
+        
+        if not is_ready:
+            # Si llegó aquí por bypass de UI, lo omitimos para proteger la integridad financiera
+            continue
         
         changed = False
         if condition == "CREDITO":

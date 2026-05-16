@@ -3,6 +3,8 @@ import Button from '../components/common/Button';
 import Table from '../components/common/Table';
 import Input from '../components/common/Input';
 import SupplierForm from '../components/features/suppliers/SupplierForm';
+import BulkSupplierIngestor from '../components/features/suppliers/BulkSupplierIngestor';
+import { companyService } from '../services/api';
 import { useSuppliers } from '../hooks/useSuppliers';
 
 const Suppliers = () => {
@@ -17,7 +19,22 @@ const Suppliers = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedSupplier, setSelectedSupplier] = useState(null);
     const [isViewMode, setIsViewMode] = useState(false);
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [companies, setCompanies] = useState([]);
+
+    React.useEffect(() => {
+        const loadCompanies = async () => {
+            try {
+                const res = await companyService.getCompanies();
+                setCompanies(res.data);
+            } catch (err) { }
+        };
+        loadCompanies();
+    }, []);
+
+    const currentCompanyId = localStorage.getItem('erp_company_id');
+    const activeCompany = companies.find(c => c._id === currentCompanyId);
 
     const filteredSuppliers = suppliers.filter(s => 
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -40,6 +57,24 @@ const Suppliers = () => {
 
     const columns = [
         { label: 'Razón Social', key: 'name', render: (val) => <span style={{ fontWeight: 'bold', color: 'white' }}>{val}</span> },
+        {
+            label: 'Soberanía',
+            key: 'company_id',
+            render: (val) => {
+                const company = companies.find(c => c._id === val);
+                return (
+                    <span style={{ 
+                        fontSize: '0.65rem', padding: '2px 8px', borderRadius: '4px', 
+                        background: val ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                        color: val ? '#3b82f6' : '#10b981',
+                        border: `1px solid ${val ? 'rgba(59, 130, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`,
+                        fontWeight: 'bold'
+                    }}>
+                        {company ? company.name : 'GLOBAL'}
+                    </span>
+                );
+            }
+        },
         { 
             label: 'RUC', 
             key: 'ruc',
@@ -159,6 +194,9 @@ const Suppliers = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{ width: '300px', marginBottom: 0 }}
                     />
+                    <Button variant="secondary" onClick={() => setIsBulkModalOpen(true)}>
+                        🏭 Ingesta Masiva
+                    </Button>
                     <Button onClick={() => {
                         setSelectedSupplier(null);
                         setIsViewMode(false);
@@ -196,6 +234,11 @@ const Suppliers = () => {
                         <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b' }}>
                             <h2 style={{ color: 'white', margin: 0, fontSize: '1.25rem' }}>
                                 {isViewMode ? '🔍 Ficha del Proveedor' : (selectedSupplier ? '📝 Editar Información' : '🚀 Nuevo Proveedor')}
+                                {!selectedSupplier && !isViewMode && (
+                                    <span style={{ fontSize: '0.7rem', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 10px', borderRadius: '10px', marginLeft: '1rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                        Contexto: {activeCompany ? activeCompany.name : 'GLOBAL / HOLDING'}
+                                    </span>
+                                )}
                             </h2>
                             <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer', transition: 'color 0.2s' }}>×</button>
                         </div>
@@ -247,6 +290,25 @@ const Suppliers = () => {
                                 loading={loading}
                             />
                         )}
+                    </div>
+                </div>
+            )}
+            {isBulkModalOpen && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1001,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center',
+                    backdropFilter: 'blur(4px)'
+                }}>
+                    <div style={{ backgroundColor: '#0f172a', borderRadius: '0.75rem', width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid #334155' }}>
+                        <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b' }}>
+                            <h2 style={{ color: 'white', margin: 0, fontSize: '1.25rem' }}>🏭 Ingesta Masiva de Proveedores (SUNAT)</h2>
+                            <button onClick={() => setIsBulkModalOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+                        </div>
+                        <BulkSupplierIngestor 
+                            onComplete={handleCreate} 
+                            onCancel={() => setIsBulkModalOpen(false)}
+                        />
                     </div>
                 </div>
             )}

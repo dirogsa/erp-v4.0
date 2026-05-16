@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from beanie import PydanticObjectId
 from app.models.purchasing import PurchaseOrder, PurchaseInvoice, Supplier, PaymentStatus, OrderStatus, Payment, PurchaseQuote, QuoteStatus
 from app.models.inventory import DeliveryGuide, GuideType, GuideStatus, GuideItem, MovementType, Product
+from app.models.company import Company
 from app.services import inventory_service
 from app.exceptions.business_exceptions import NotFoundException, ValidationException, DuplicateEntityException
 from app.schemas.common import PaginatedResponse
@@ -388,18 +389,47 @@ async def register_payment(invoice_number: str, amount: float, payment_date: str
 
 # ==================== SUPPLIERS ====================
 
-from app.models.company import Company
-
 async def get_suppliers(company_id: Optional[str] = None) -> List[Supplier]:
     query = {}
     if company_id:
         company = await Company.get(company_id)
         if company and company.enterprise_settings.suppliers_mode == 'SOVEREIGN':
             query = {"company_id": company_id}
+        # If SHARED, query remains {}, returning ALL suppliers (Global View)
             
     return await Supplier.find(query).to_list()
 
+async def get_supplier_by_ruc(ruc: str, company_id: Optional[str] = None) -> Supplier:
+    query = {"ruc": ruc}
+    if company_id:
+        company = await Company.get(company_id)
+        if company and company.enterprise_settings.suppliers_mode == 'SOVEREIGN':
+            query["company_id"] = company_id
+        # If SHARED, we don't filter by company_id, allowing global lookup
+            
+    supplier = await Supplier.find_one(query)
+    if not supplier:
+        raise NotFoundException("Supplier", ruc)
+    return supplier
+
 async def create_supplier(supplier: Supplier) -> Supplier:
+    # Check governance mode to decide if it's a global or local supplier
+    if supplier.company_id:
+        company = await Company.get(supplier.company_id)
+        if company and company.enterprise_settings.suppliers_mode == 'SHARED':
+            supplier.company_id = None # Set to Global
+            
+    # Check for existing
+    query = {"ruc": supplier.ruc}
+    if supplier.company_id:
+        query["company_id"] = supplier.company_id
+    else:
+        query["company_id"] = None # Look for global record
+        
+    existing = await Supplier.find_one(query)
+    if existing:
+        raise DuplicateEntityException("Supplier", "ruc", supplier.ruc)
+        
     await supplier.insert()
     return supplier
 
@@ -754,6 +784,15 @@ async def bulk_update_payment_condition(invoice_numbers: List[str], condition: s
     for num in invoice_numbers:
         invoice = await PurchaseInvoice.find_one(PurchaseInvoice.invoice_number == num)
         if not invoice: continue
+        
+        # HARDENING: Integrity Gate check (World-Class Firewall)
+        is_ready = getattr(invoice, 'is_catalog_confirmed', False) and \
+                   getattr(invoice, 'is_customer_confirmed', False) and \
+                   getattr(invoice, 'is_exchange_rate_confirmed', False)
+        
+        if not is_ready:
+            # Si llegó aquí por bypass de UI, lo omitimos para proteger la integridad financiera
+            continue
         
         changed = False
         if condition == "CREDITO":

@@ -334,6 +334,7 @@ class GuideItem(BaseModel):
     product_name: str
     quantity: float
     unit_cost: Optional[float] = None
+    weight_g: float = 0.0
 
 class DeliveryGuide(Document):
     guide_number: Indexed(str)
@@ -354,6 +355,13 @@ class DeliveryGuide(Document):
     dispatch_date: Optional[datetime] = None
     delivery_date: Optional[datetime] = None
     received_by: Optional[str] = None
+    
+    # Carrier & Shipping Info (World-Class Logistics)
+    carrier_name: Optional[str] = None
+    carrier_ruc: Optional[str] = None
+    carrier_mtc_id: Optional[str] = None
+    total_weight: float = 0.0
+    
     company_id: Optional[str] = None
 
     class Settings:
