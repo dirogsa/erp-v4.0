@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { productBrandService } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { productBrandService, brandService } from '../services/api';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import { useNotification } from '../hooks/useNotification';
 
 const BrandsManager = () => {
+    const navigate = useNavigate();
     const [brands, setBrands] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState({ progress: 0, total: 0, current_step: '', is_running: false });
     const [showModal, setShowModal] = useState(false);
     const [editingBrand, setEditingBrand] = useState(null);
     const { showNotification } = useNotification();
@@ -19,12 +23,51 @@ const BrandsManager = () => {
 
     useEffect(() => {
         fetchBrands();
+        checkSyncStatus();
     }, []);
+
+    // Polling logic for Sync
+    useEffect(() => {
+        let interval;
+        if (syncing) {
+            interval = setInterval(checkSyncStatus, 2000);
+        }
+        return () => clearInterval(interval);
+    }, [syncing]);
+
+    const checkSyncStatus = async () => {
+        try {
+            const res = await brandService.getSyncStatus();
+            setSyncProgress(res.data);
+            
+            if (res.data.is_running) {
+                setSyncing(true);
+            } else if (syncing) {
+                // Sincronización ha concluido
+                setSyncing(false);
+                showNotification(res.data.last_result || 'Sincronización finalizada con éxito', 'success');
+                fetchBrands();
+            }
+        } catch (error) {
+            console.error("Error al obtener estado de sincronización", error);
+        }
+    };
+
+    const handleSync = async () => {
+        if (!window.confirm('¿Deseas iniciar la sincronización masiva? Este proceso indexará todas las marcas de vehículos y compilará en caliente el caché local de fabricantes.')) return;
+        try {
+            await brandService.syncBrands();
+            setSyncing(true);
+            showNotification('Sincronización masiva de marcas iniciada', 'info');
+        } catch (error) {
+            showNotification('Error al iniciar la sincronización', 'error');
+        }
+    };
 
     const fetchBrands = async () => {
         try {
             setLoading(true);
-            const res = await productBrandService.getBrands();
+            const res = await productBrandService.getBrands(true);
             setBrands(res.data);
         } catch (error) {
             showNotification('Error al cargar las marcas maestras', 'error');
@@ -47,7 +90,7 @@ const BrandsManager = () => {
     const handleDeleteClick = async (brand) => {
         if (window.confirm(`¿Estás seguro de eliminar la marca "${brand.name}"? Esto afectará la inteligencia de importación XML.`)) {
             try {
-                await productBrandService.deleteBrand(brand.id);
+                await productBrandService.deleteBrand(brand.id || brand._id);
                 showNotification('Marca eliminada del catálogo maestro', 'success');
                 fetchBrands();
             } catch (error) {
@@ -73,7 +116,7 @@ const BrandsManager = () => {
 
         try {
             if (editingBrand) {
-                await productBrandService.updateBrand(editingBrand.id, payload);
+                await productBrandService.updateBrand(editingBrand.id || editingBrand._id, payload);
                 showNotification('Catálogo maestro actualizado', 'success');
             } else {
                 await productBrandService.createBrand(payload);
@@ -99,15 +142,46 @@ const BrandsManager = () => {
                     <h2 style={{ color: 'white', fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: '900' }}>Maestro de Marcas (MDM)</h2>
                     <p style={{ color: '#94a3b8' }}>Gestiona la inteligencia semántica para el reconocimiento automático de marcas en XML.</p>
                 </div>
-                <Button onClick={() => { resetForm(); setShowModal(true); }} variant="primary">+ Nueva Marca Maestra</Button>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <Button onClick={() => navigate('/financial-sincerity')} variant="outline" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        ⚖️ Volver al Buzón Fiscal
+                    </Button>
+                    <Button onClick={handleSync} variant="outline" style={{ borderColor: '#f59e0b', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {syncing ? '🔄 Sincronizando...' : '⚡ Sincronizar Catálogo'}
+                    </Button>
+                    <Button onClick={() => { resetForm(); setShowModal(true); }} variant="primary">+ Nueva Marca Maestra</Button>
+                </div>
             </div>
+
+            {syncing && (
+                <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.2)',
+                    padding: '1.5rem',
+                    borderRadius: '1.5rem',
+                    marginBottom: '2.5rem',
+                    color: '#fbbf24',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                    animation: 'pulse 2s infinite ease-in-out'
+                }}>
+                    <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem' }}>
+                        <span>🔄 Sincronización Masiva en Progreso:</span>
+                        <span style={{ color: 'white' }}>{syncProgress.current_step || 'Actualizando catálogos...'}</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.5' }}>
+                        El backend está compilando las marcas de vehículos y actualizando en caliente el catálogo maestro local de marcas de autopartes. Puedes continuar usando la suite con total libertad mientras esto concluye.
+                    </p>
+                </div>
+            )}
 
             {loading ? (
                 <div style={{ color: '#94a3b8', textAlign: 'center', padding: '5rem' }}>Sincronizando catálogo con la nube...</div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
-                    {brands.map(brand => (
-                        <div key={brand.id} style={{
+                    {brands.map((brand, index) => (
+                        <div key={brand.id || brand._id || index} style={{
                             background: 'rgba(30, 41, 59, 0.4)',
                             backdropFilter: 'blur(12px)',
                             border: '1px solid rgba(255,255,255,0.05)',
@@ -128,7 +202,7 @@ const BrandsManager = () => {
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     color: 'white', fontWeight: 'bold', fontSize: '1.2rem'
                                 }}>
-                                    {brand.name.substring(0, 1)}
+                                    {(brand.name || '').substring(0, 1)}
                                 </div>
                                 <div>
                                     <h3 style={{ color: 'white', margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>{brand.name}</h3>

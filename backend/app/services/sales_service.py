@@ -207,6 +207,7 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
         # Validate or Fetch the price based on quantity and strategy
         price_data = await pricing_service.PricingService.get_product_price(
             sku=product.sku,
+            brand=product.brand,
             quantity=item.quantity
         )
         
@@ -505,6 +506,8 @@ async def get_invoices(
 
 async def get_invoice(invoice_number: str) -> SalesInvoice:
     invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == invoice_number)
+    if not invoice:
+        invoice = await SalesInvoice.find_one(SalesInvoice.sunat_number == invoice_number)
     if not invoice:
         raise NotFoundException("Invoice", invoice_number)
     return invoice
@@ -1304,9 +1307,14 @@ async def import_invoice_xml(data: Any, auto_guide: bool = False, exchange_rate:
         clean_sku, detected_brand = normalization_results[i]
         product = product_map.get((clean_sku, detected_brand))
         
-        # Fallback por SKU si no hay marca exacta
+        # Fallback por SKU si no hay marca exacta (Con firewall de marca estricta para Filtros/Lubricantes)
         if not product:
-            product = next((p for (s, b), p in product_map.items() if s == clean_sku), None)
+            product_fallback = next((p for (s, b), p in product_map.items() if s == clean_sku), None)
+            if product_fallback:
+                # Si el producto es de categoría técnica (Comercial/Lubricante), exigimos marca válida (no N/A) y coincidente.
+                is_technical = getattr(product_fallback, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
+                if not is_technical or (detected_brand != "N/A" and product_fallback.brand == detected_brand):
+                    product = product_fallback
 
         is_unmapped = False
         if not product:
@@ -1405,7 +1413,8 @@ async def import_invoice_xml(data: Any, auto_guide: bool = False, exchange_rate:
     if all_mapped:
         for item in order_items:
             # Buscar data de producto por empresa
-            p_data = next((d for d in product_map[(item.product_sku, item.brand)].company_data if d.company_id == company_id), None)
+            product = product_map.get((item.product_sku, item.brand))
+            p_data = product.company_data.get(company_id) if product and company_id else None
             if p_data:
                 p_data.stock_current -= item.quantity
                 p_data.stock_reserved += item.quantity

@@ -251,6 +251,8 @@ async def get_invoices(
 async def get_invoice(invoice_number: str) -> PurchaseInvoice:
     invoice = await PurchaseInvoice.find_one(PurchaseInvoice.invoice_number == invoice_number)
     if not invoice:
+        invoice = await PurchaseInvoice.find_one(PurchaseInvoice.sunat_number == invoice_number)
+    if not invoice:
         raise NotFoundException("Invoice", invoice_number)
     return invoice
 
@@ -605,9 +607,17 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
         # Buscar en maestro
         product = await inventory_service.find_product_robustly(sku)
         
+        # Guardafuegos estricto de marca para Filtros/Lubricantes
+        if product:
+            from app.utils.norm_utils import detect_brand_from_text
+            detected_brand = await detect_brand_from_text(item.get('product_name', ''))
+            is_technical = getattr(product, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
+            if is_technical and (detected_brand == "N/A" or product.brand != detected_brand):
+                product = None
+        
         # Bloqueo estricto SOLO para filtros (FILTER/COMMERCIAL)
         if not product and not is_misc and (classification in ['FILTER', 'COMMERCIAL']):
-            raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
+            raise ValidationException(f"PRODUCTO NO ENCONTRADO: El SKU '{sku}' con marca válida no existe en su Maestro de Productos. Por favor, regístrelo en el módulo de Inventario antes de procesar este documento.")
 
         # --- LÓGICA DE CLASE MUNDIAL: Catálogo de Precios por Proveedor ---
         if product and supplier_ruc:

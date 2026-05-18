@@ -29,6 +29,7 @@ async def init_db():
                 # ... (lista de modelos)
                 "app.models.inventory.Product",
                 "app.models.inventory.VehicleBrand",
+                "app.models.inventory.ProductBrand",
                 "app.models.inventory.SearchLog",
                 "app.models.inventory.ProductCategory",
                 "app.models.inventory.PriceHistory",

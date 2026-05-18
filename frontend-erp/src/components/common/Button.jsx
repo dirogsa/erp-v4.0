@@ -10,6 +10,7 @@ const Button = ({
     fullWidth = false,
     loading = false,
     icon: Icon,
+    style = {},
     ...props
 }) => {
     // Design System Tokens (Industrial Tech 2026)
@@ -95,7 +96,8 @@ const Button = ({
         background: currentVariant.bg, // Ensure it overrides base
         boxShadow: currentVariant.shadow,
         border: currentVariant.border,
-        color: currentVariant.color
+        color: currentVariant.color,
+        ...style
     };
 
     return (

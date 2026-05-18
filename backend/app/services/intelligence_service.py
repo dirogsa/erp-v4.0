@@ -474,6 +474,73 @@ class IntelligenceService:
         }
 
     @staticmethod
+    async def map_ghost_sku(
+        external_code: str, 
+        brand: str, 
+        category_id: str,
+        company_id: str
+    ) -> Dict[str, Any]:
+        """
+        Aísla un código externo en el Purgatorio (Ghost SKU).
+        Crea el producto temporal, genera un ProductAlias para que futuras facturas pasen en automático,
+        y resuelve las facturas actuales.
+        """
+        from app.models.sales import SalesInvoice
+        from app.models.inventory import Product, CompanyProductData
+        import uuid
+        
+        # 1. Encontrar al menos una factura con este código para sacar la descripción
+        inv = await SalesInvoice.find_one({
+            "is_catalog_confirmed": False,
+            "company_id": company_id,
+            "items.product_sku": external_code
+        })
+        
+        description = f"Ghost Item: {external_code}"
+        if inv:
+            for it in inv.items:
+                if it.product_sku == external_code:
+                    description = it.product_name
+                    break
+        
+        # 2. Generar Ghost SKU (ej. GHOST-FA1526)
+        safe_code = str(external_code).strip() if external_code else "NN"
+        if not safe_code: safe_code = "NN"
+        ghost_sku = f"GHOST-{safe_code}"
+        
+        # Si ya existe por alguna razón, usamos un sufijo
+        existing = await Product.find_one({"sku": ghost_sku})
+        if existing:
+            ghost_sku = f"GHOST-{safe_code}-{str(uuid.uuid4())[:4].upper()}"
+            
+        # 3. Crear Producto Temporal (is_temporary = True)
+        new_ghost = Product(
+            sku=ghost_sku,
+            name=description,
+            brand=brand or "GENERIC",
+            category_id=category_id,
+            is_temporary=True,
+            company_data={
+                company_id: CompanyProductData(
+                    company_id=company_id,
+                    stock_current=0,
+                    stock_reserved=0,
+                    cost=0
+                )
+            }
+        )
+        await new_ghost.insert()
+        
+        # 4. Delegar la vinculación y el Alias a resolve_catalog_mapping
+        return await IntelligenceService.resolve_catalog_mapping(
+            external_code=external_code,
+            brand=brand,
+            internal_sku=ghost_sku,
+            company_id=company_id,
+            create_alias=True
+        )
+
+    @staticmethod
     async def get_master_data_gaps(company_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Detecta brechas en Clientes y Tipos de Cambio (Triple Escudo).
@@ -914,3 +981,177 @@ class IntelligenceService:
         await invoice.save()
         
         return {"status": "success", "message": "Logística revertida. Factura lista para nueva vinculación."}
+
+    @staticmethod
+    async def reprocess_sincerity_pipeline(company_id: str, section: str) -> Dict[str, Any]:
+        """
+        World-Class Financial Sincerity Reprocessing Engine.
+        Cures incubated documents by re-evaluating them against the latest database state
+        (aliases, RUC masters, and daily exchange rates).
+        """
+        from app.models.sales import SalesInvoice, Customer
+        from app.models.purchasing import PurchaseInvoice, Supplier
+        from app.models.finance import ExchangeRate
+        from app.models.product_alias import ProductAlias
+        from app.models.inventory import Product
+        
+        cured_catalog = 0
+        cured_master = 0
+        cured_rates = 0
+        cured_logistics = 0
+        errors = []
+
+        # --- A. CATALOG REPROCESSING ---
+        if section in ("catalog", "all"):
+            # Fetch all unmapped sales invoices
+            sales_invoices = await SalesInvoice.find({
+                "company_id": company_id,
+                "is_catalog_confirmed": False
+            }).to_list()
+
+            for inv in sales_invoices:
+                inv_changed = False
+                for item in inv.items:
+                    if getattr(item, 'is_unmapped', False):
+                        # Query ProductAlias
+                        alias = await ProductAlias.find_one({
+                            "external_code": item.product_sku,
+                            "company_id": company_id
+                        })
+                        
+                        # Fallback: Query Product with exact SKU or brand Spec Match
+                        product = None
+                        if alias:
+                            product = await Product.find_one({"sku": alias.internal_sku})
+                        else:
+                            product = await Product.find_one({"sku": item.product_sku})
+
+                        if product:
+                            item.product_sku = product.sku
+                            item.product_name = product.name
+                            item.product_id = str(product.id)
+                            item.brand = product.brand
+                            item.is_unmapped = False
+                            inv_changed = True
+
+                if inv_changed:
+                    # Check if all items are mapped now
+                    has_unmapped = any(getattr(it, 'is_unmapped', False) for it in inv.items)
+                    if not has_unmapped:
+                        inv.is_catalog_confirmed = True
+                        
+                        # Trigger inventory reservation logic
+                        if not getattr(inv, 'is_stock_reserved', False):
+                            for item in inv.items:
+                                product = await Product.find_one({"sku": item.product_sku})
+                                if product:
+                                    # Find matching company data block
+                                    for p_data in product.company_data:
+                                        if p_data.company_id == company_id:
+                                            p_data.stock_current -= item.quantity
+                                            p_data.stock_reserved += item.quantity
+                                            await product.save()
+                                            break
+                            inv.is_stock_reserved = True
+                            
+                    await inv.save()
+                    cured_catalog += 1
+
+        # --- B. MASTER DATA REPROCESSING (Customers, Suppliers, Rates) ---
+        if section in ("master", "all"):
+            # 1. Exchange Rates (USD invoices missing TC)
+            usd_sales = await SalesInvoice.find({
+                "company_id": company_id,
+                "is_exchange_rate_confirmed": False,
+                "currency": "USD"
+            }).to_list()
+            
+            for inv in usd_sales:
+                # Get day start and end
+                date_start = inv.invoice_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                rate = await ExchangeRate.find_one(ExchangeRate.date == date_start)
+                if rate:
+                    inv.exchange_rate = rate.sale
+                    inv.is_exchange_rate_confirmed = True
+                    await inv.save()
+                    cured_rates += 1
+
+            usd_purchases = await PurchaseInvoice.find({
+                "company_id": company_id,
+                "is_exchange_rate_confirmed": False,
+                "currency": "USD"
+            }).to_list()
+            
+            for inv in usd_purchases:
+                date_start = inv.invoice_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                rate = await ExchangeRate.find_one(ExchangeRate.date == date_start)
+                if rate:
+                    inv.exchange_rate = rate.purchase or rate.sale
+                    inv.is_exchange_rate_confirmed = True
+                    await inv.save()
+                    cured_rates += 1
+
+            # 2. Customers
+            unconfirmed_sales = await SalesInvoice.find({
+                "company_id": company_id,
+                "is_customer_confirmed": False
+            }).to_list()
+
+            for inv in unconfirmed_sales:
+                customer = await Customer.find_one({"document_number": inv.customer_ruc})
+                if customer:
+                    inv.customer_id = str(customer.id)
+                    inv.customer_name = customer.name
+                    inv.is_customer_confirmed = True
+                    await inv.save()
+                    cured_master += 1
+
+            # 3. Suppliers
+            unconfirmed_purchases = await PurchaseInvoice.find({
+                "company_id": company_id,
+                "is_supplier_confirmed": False
+            }).to_list()
+
+            for inv in unconfirmed_purchases:
+                supplier = await Supplier.find_one({"ruc": inv.supplier_ruc, "company_id": company_id})
+                if not supplier:
+                    supplier = await Supplier.find_one({"ruc": inv.supplier_ruc, "company_id": None})
+                if supplier:
+                    inv.supplier_id = str(supplier.id)
+                    inv.supplier_name = supplier.name
+                    inv.is_supplier_confirmed = True
+                    await inv.save()
+                    cured_master += 1
+
+        # --- C. LOGISTICS REPROCESSING ---
+        if section in ("logistics", "all"):
+            # Get pending sales invoices that are fully sincere'd
+            pending_dispatch = await SalesInvoice.find({
+                "company_id": company_id,
+                "dispatch_status": "PENDING_GUIDE",
+                "is_catalog_confirmed": True,
+                "is_customer_confirmed": True
+            }).to_list()
+            
+            if pending_dispatch:
+                invoice_ids = [str(inv.id) for inv in pending_dispatch]
+                # We can call the class method `bulk_generate_sales_guides`
+                # Create a mock user or system user profile for guidance Audit log
+                class SystemUser:
+                    username = "SYSTEM_AUTO_SINCERITY"
+                    current_company_id = company_id
+                
+                logistics_res = await IntelligenceService.bulk_generate_sales_guides(invoice_ids, SystemUser())
+                cured_logistics = logistics_res.get("processed", 0)
+                if logistics_res.get("errors"):
+                    errors.extend(logistics_res["errors"])
+
+        return {
+            "status": "success",
+            "section": section,
+            "cured_catalog": cured_catalog,
+            "cured_master": cured_master,
+            "cured_rates": cured_rates,
+            "cured_logistics": cured_logistics,
+            "errors": errors
+        }

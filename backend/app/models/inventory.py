@@ -369,3 +369,16 @@ class DeliveryGuide(Document):
         indexes = [
             pymongo.IndexModel([("company_id", pymongo.ASCENDING), ("guide_number", pymongo.ASCENDING)], unique=True)
         ]
+
+class ProductBrand(Document):
+    """
+    Master Brand Catalog (Fabricantes de Autopartes/Marcas de Repuestos).
+    Enterprise-Grade Master Data Management (MDM) for Multinational Corporations.
+    """
+    name: Indexed(str, unique=True)  # Official name, normalized (e.g., "AZUMI")
+    aliases: List[str] = []         # Sunat/XML variations (e.g., ["AZUMI FILTERS", "AZUMI JAPAN"])
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Settings:
+        name = "product_brands"

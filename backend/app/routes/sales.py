@@ -11,6 +11,35 @@ from .auth import get_current_user, check_role
 
 router = APIRouter(prefix="/sales", tags=["Sales"])
 
+# ==================== CONFIGURATION ====================
+
+@router.get("/config/policies")
+async def get_sales_policies(current_user: User = Depends(get_current_user)):
+    from app.models.config import SystemConfig
+    config = await SystemConfig.find_one({})
+    if not config:
+        config = SystemConfig()
+        await config.insert()
+    return config.sales_policy
+
+@router.put("/config/policies")
+async def update_sales_policies(
+    policy_data: dict,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    from app.models.config import SystemConfig
+    config = await SystemConfig.find_one({})
+    if not config:
+        config = SystemConfig()
+        await config.insert()
+        
+    for key, value in policy_data.items():
+        if hasattr(config.sales_policy, key):
+            setattr(config.sales_policy, key, value)
+            
+    await config.save()
+    return config.sales_policy
+
 # ==================== ORDERS ====================
 
 @router.post("/orders", response_model=SalesOrder)

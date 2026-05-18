@@ -92,15 +92,16 @@ async def get_products(
     if not show_temporary:
         query["is_temporary"] = {"$ne": True}
     
-    if search:
+    if search and search.strip():
         # Búsqueda multi-campo inteligente
+        search_term = search.strip()
         query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"sku": {"$regex": search, "$options": "i"}},
-            {"brand": {"$regex": search, "$options": "i"}},
-            {"equivalences.code": {"$regex": search, "$options": "i"}},
-            {"applications.model": {"$regex": search, "$options": "i"}},
-            {"applications.make": {"$regex": search, "$options": "i"}}
+            {"name": {"$regex": search_term, "$options": "i"}},
+            {"sku": {"$regex": search_term, "$options": "i"}},
+            {"brand": {"$regex": search_term, "$options": "i"}},
+            {"equivalences.code": {"$regex": search_term, "$options": "i"}},
+            {"applications.model": {"$regex": search_term, "$options": "i"}},
+            {"applications.make": {"$regex": search_term, "$options": "i"}}
         ]
         
     if category:
@@ -129,9 +130,9 @@ async def get_products(
     
     db_items = await Product.find(query).sort('sku').skip(skip).limit(limit).to_list()
     
-    # RESOLUCION MASIVA DE PRECIOS Y STOCK SOBERANO
-    skus = [item.sku for item in db_items]
-    price_map = await PricingService.get_bulk_prices(skus)
+    # RESOLUCION MASIVA DE PRECIOS Y STOCK SOBERANO (Clave Compuesta SKU + Marca)
+    items_to_resolve = [{"sku": item.sku, "brand": item.brand} for item in db_items]
+    price_map = await PricingService.get_bulk_prices(items_to_resolve)
     
     items = []
     for db_item in db_items:
@@ -143,7 +144,7 @@ async def get_products(
         
         # Convertir a Lean schema
         item_dict = db_item.model_dump()
-        item_dict['price_list'] = price_map.get(db_item.sku, 0.0)
+        item_dict['price_list'] = price_map.get((db_item.sku, db_item.brand), 0.0)
         items.append(ProductLeanWithPrice(**item_dict))
     
     return PaginatedResponse(

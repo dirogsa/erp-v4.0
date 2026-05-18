@@ -43,6 +43,7 @@ class PriceEntry(Document):
     """
     product_id: Indexed(PydanticObjectId)
     sku: Indexed(str)
+    brand: Indexed(str) = "N/A" # Denormalización técnica para evitar colisión multimarca (ej. AZUMI vs ASAKASHI)
     price_list_id: Indexed(PydanticObjectId)
     price: float = 0.0
     currency: str = "PEN"

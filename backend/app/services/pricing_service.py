@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class PricingService:
     @staticmethod
-    async def get_product_price(sku: str, quantity: int = 1) -> Dict[str, Any]:
+    async def get_product_price(sku: str, brand: str = "N/A", quantity: int = 1) -> Dict[str, Any]:
         """
         Enterprise-Grade Price Resolution Engine.
         Resolves prices based on Master Price + Active Campaigns.
@@ -27,15 +27,28 @@ class PricingService:
             return {"price": 0.0, "currency": "PEN", "source": "None", "error": "No price lists found"}
 
         # 2. Get Base Price from Master List
-        # We search for the specific SKU and the appropriate quantity tier
+        # We search for the specific SKU + Brand and the appropriate quantity tier
         base_entry = await PriceEntry.find(
             PriceEntry.sku == sku,
+            PriceEntry.brand == brand,
             PriceEntry.price_list_id == master_list.id,
             PriceEntry.min_quantity <= quantity
         ).sort("-min_quantity").first_or_none() # Get the highest tier that fits the quantity
 
+        # Auto-Reparación Pasiva Integrada con Marca (Self-Healing)
         if not base_entry:
-            return {"price": 0.0, "currency": "PEN", "source": "Master", "error": "Product price not found in Master List"}
+            product = await Product.find_one(Product.sku == sku, Product.brand == brand)
+            if product:
+                base_entry = PriceEntry(
+                    product_id=product.id,
+                    sku=sku,
+                    brand=brand,
+                    price_list_id=master_list.id,
+                    price=0.0
+                )
+                await base_entry.insert()
+            else:
+                return {"price": 0.0, "currency": "PEN", "source": "Master", "error": "Product price not found in Master List"}
 
         final_price = base_entry.price
         currency = base_entry.currency
@@ -76,12 +89,25 @@ class PricingService:
         }
 
     @staticmethod
-    async def get_bulk_prices(skus: List[str]) -> Dict[str, float]:
+    async def get_bulk_prices(items: Any) -> Dict[Any, float]:
         """
-        World-Class Optimized Bulk Price Resolution.
-        Returns a mapping of {sku: final_price}.
+        World-Class Optimized Bulk Price Resolution with brand support and self-healing.
+        Accepts:
+          - A list of SKUs: List[str] -> returns {sku: price} (backward compatible)
+          - A list of dicts: List[dict] where dict has 'sku' and 'brand' keys -> returns {(sku, brand): price}
         """
-        if not skus: return {}
+        if not items: return {}
+        
+        is_composite = isinstance(items[0], dict)
+        
+        # Estandarización de consultas a tuplas (SKU, Brand)
+        query_items = []
+        if is_composite:
+            query_items = [(i.get("sku"), i.get("brand", "N/A")) for i in items if i.get("sku")]
+        else:
+            query_items = [(sku, "N/A") for sku in items if sku]
+
+        if not query_items: return {}
         
         # 1. Context Acquisition
         now = datetime.utcnow()
@@ -90,18 +116,39 @@ class PricingService:
             master_list = await PriceList.find_one(PriceList.is_active == True)
         
         if not master_list:
-            return {sku: 0.0 for sku in skus}
+            if is_composite:
+                return {(sku, brand): 0.0 for sku, brand in query_items}
+            return {sku: 0.0 for sku, _ in query_items}
 
-        # 2. Bulk Fetch Master Entries
-        # We only care about base quantity (min_quantity=1) for general list view
+        # 2. Búsqueda masiva por Clave Compuesta (SKU + Brand)
+        or_conditions = [{"sku": sku, "brand": brand} for sku, brand in query_items]
+        
         entries = await PriceEntry.find(
-            In(PriceEntry.sku, skus),
-            PriceEntry.price_list_id == master_list.id,
-            PriceEntry.min_quantity == 1
+            {"$or": or_conditions, "price_list_id": master_list.id, "min_quantity": 1}
         ).to_list()
         
-        price_map = {e.sku: e.price for e in entries}
+        price_map = {(e.sku, e.brand): e.price for e in entries}
         
+        # --- MOTOR DE AUTO-REPARACIÓN PASIVA (Self-Healing) ---
+        missing_pairs = set(query_items) - set(price_map.keys())
+        if missing_pairs:
+            product_or_conditions = [{"sku": sku, "brand": brand} for sku, brand in missing_pairs]
+            missing_products = await Product.find({"$or": product_or_conditions}).to_list()
+            
+            new_entries = []
+            for p in missing_products:
+                new_entries.append(PriceEntry(
+                    product_id=p.id,
+                    sku=p.sku,
+                    brand=p.brand,
+                    price_list_id=master_list.id,
+                    price=0.0
+                ))
+            if new_entries:
+                await PriceEntry.insert_many(new_entries)
+                for ne in new_entries:
+                    price_map[(ne.sku, ne.brand)] = 0.0
+
         # 3. Bulk Fetch Active Campaigns
         active_campaigns = await PriceList.find(
             PriceList.is_active == True,
@@ -112,8 +159,8 @@ class PricingService:
 
         # 4. In-Memory Resolution
         final_map = {}
-        for sku in skus:
-            base_price = price_map.get(sku, 0.0)
+        for sku, brand in query_items:
+            base_price = price_map.get((sku, brand), 0.0)
             final_price = base_price
             
             # Apply first matching campaign (highest priority)
@@ -124,7 +171,10 @@ class PricingService:
                     final_price = base_price * modifier
                     break
             
-            final_map[sku] = round(final_price, 2)
+            if is_composite:
+                final_map[(sku, brand)] = round(final_price, 2)
+            else:
+                final_map[sku] = round(final_price, 2)
             
         return final_map
 
@@ -147,7 +197,7 @@ class PricingService:
         return campaign
 
     @staticmethod
-    async def set_master_price(sku: str, price: float, currency: str = "PEN"):
+    async def set_master_price(sku: str, price: float, currency: str = "PEN", brand: Optional[str] = None):
         """
         Set or update the Master Price for a product.
         This is the single point of entry for base prices.
@@ -158,8 +208,19 @@ class PricingService:
             master_list = PriceList(name="General", is_master=True, color="#6366f1")
             await master_list.insert()
 
+        # If brand is not specified, resolve it from the product in database
+        resolved_brand = brand
+        product = None
+        if not resolved_brand:
+            product = await Product.find_one(Product.sku == sku)
+            if product:
+                resolved_brand = product.brand
+            else:
+                resolved_brand = "N/A"
+
         entry = await PriceEntry.find_one(
             PriceEntry.sku == sku, 
+            PriceEntry.brand == resolved_brand,
             PriceEntry.price_list_id == master_list.id,
             PriceEntry.min_quantity == 1
         )
@@ -170,14 +231,19 @@ class PricingService:
             entry.last_updated = datetime.utcnow()
             await entry.save()
         else:
-            # We need the product_id
-            product = await Product.find_one(Product.sku == sku)
             if not product:
-                raise ValueError(f"Product with SKU {sku} not found in inventory")
+                if brand:
+                    product = await Product.find_one(Product.sku == sku, Product.brand == brand)
+                else:
+                    product = await Product.find_one(Product.sku == sku)
+            
+            if not product:
+                raise ValueError(f"Product with SKU {sku} and brand {resolved_brand} not found in inventory")
             
             entry = PriceEntry(
                 product_id=product.id,
                 sku=sku,
+                brand=product.brand,
                 price_list_id=master_list.id,
                 price=price,
                 currency=currency

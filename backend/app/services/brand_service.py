@@ -150,7 +150,49 @@ async def perform_full_brand_sync():
                         {"$set": {"parent_name": best_parent_name}}
                     )
 
-        sync_status["last_result"] = f"Sincronización Exitosa: {len(results)} marcas protegidas."
+        # --- ENTERPRISE PRODUCT BRANDS SYNCHRONIZATION (High-Performance MDM Sync) ---
+        sync_status["current_step"] = "Sincronizando marcas de productos del catálogo..."
+        from app.models.inventory import ProductBrand
+        import json
+        import os
+        
+        # 1. Extraer marcas de repuestos/autopartes únicas del catálogo de productos
+        collection = Product.get_motor_collection()
+        db_brands = await collection.distinct("brand")
+        unique_product_brands = set(b.strip().upper() for b in db_brands if b)
+        
+        # 2. Registrar en la base de datos (colección product_brands) sin sobrescribir los alias manuales
+        for pb_name in unique_product_brands:
+            await ProductBrand.get_motor_collection().update_one(
+                {"name": pb_name},
+                {"$setOnInsert": {
+                    "name": pb_name,
+                    "aliases": [pb_name],
+                    "is_active": True
+                }},
+                upsert=True
+            )
+            
+        # 3. Re-escribir el caché local persistentemente (product_brands.json)
+        active_brands = await ProductBrand.find(ProductBrand.is_active == True).to_list()
+        new_cache = {}
+        for b in active_brands:
+            aliases_set = set(a.upper().strip() for a in b.aliases if a)
+            aliases_set.add(b.name.upper().strip())
+            new_cache[b.name.upper()] = list(aliases_set)
+            
+        # Actualizar e inicializar en caliente los módulos
+        from app.utils.norm_utils import CACHE_FILE_PATH
+        os.makedirs(os.path.dirname(CACHE_FILE_PATH), exist_ok=True)
+        with open(CACHE_FILE_PATH, "w", encoding="utf-8") as f:
+            json.dump(new_cache, f, ensure_ascii=False, indent=4)
+            
+        # Actualizar las variables globales del módulo norm_utils para impacto inmediato en caliente
+        import app.utils.norm_utils as nu
+        nu._BRANDS_CACHE = new_cache
+        nu._IS_CACHE_LOADED = True
+
+        sync_status["last_result"] = f"Sincronización Exitosa: {len(results)} marcas vehiculares y {len(new_cache)} marcas de productos actualizadas persistentemente."
     except Exception as e:
         sync_status["last_result"] = f"Error Crítico: {str(e)}"
         print(f"[SYNC CRITICAL ERROR] {str(e)}")

@@ -15,8 +15,8 @@ export const useProducts = ({
     const { showNotification } = useNotification();
 
     // CLASE MUNDIAL: Solo activamos la consulta si hay una intención clara (Search o Filtros Especiales)
-    // Esto protege el Tier Free de MongoDB.
-    const isEnabled = search.length >= 2 || filterUnrecognized || filterOthers || category !== '';
+    // El espacio simple ' ' es un bypass explícito para "Ver Todo"
+    const isEnabled = (search.trim().length >= 2) || search === ' ' || filterUnrecognized || filterOthers || category !== '';
 
     const {
         data,

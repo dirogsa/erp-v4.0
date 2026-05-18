@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel
 from app.models.inventory import Product, Warehouse, MovementType, ProductType, ProductStatus
 from app.models.auth import User, UserRole
@@ -43,12 +43,90 @@ async def get_products(
         company_id=company_id
     )
 
-@router.get("/brands", response_model=List[str])
-async def get_unique_brands():
+from beanie import PydanticObjectId
+from app.models.inventory import ProductBrand
+
+@router.get("/brands")
+async def get_brands(full: bool = False):
     """
-    Retorna la lista única de marcas presentes en el inventario.
+    Retorna la lista de marcas. 
+    Si full=True, devuelve la lista completa de objetos ProductBrand (catálogo MDM).
+    Si full=False (default), devuelve una lista simple de strings con nombres de marcas en inventario.
     """
-    return await inventory_service.get_unique_brands()
+    if full:
+        # Devuelve objetos ProductBrand de MongoDB, ordenados por nombre
+        return await ProductBrand.find().sort([("name", 1)]).to_list()
+    else:
+        # Devuelve nombres únicos de marcas de los productos
+        return await inventory_service.get_unique_brands()
+
+@router.post("/brands", response_model=ProductBrand)
+async def create_product_brand(
+    brand: ProductBrand,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Registra una nueva marca maestra en el catálogo MDM.
+    """
+    brand.name = brand.name.strip().upper()
+    brand.aliases = [a.strip().upper() for a in brand.aliases if a.strip()]
+    
+    existing = await ProductBrand.find_one(ProductBrand.name == brand.name)
+    if existing:
+        raise HTTPException(status_code=400, detail=f"La marca {brand.name} ya existe en el maestro.")
+        
+    await brand.insert()
+    
+    # Forzar recarga en caliente del caché local
+    from app.utils.norm_utils import _refresh_brands_cache
+    await _refresh_brands_cache()
+    
+    return brand
+
+@router.put("/brands/{id}", response_model=ProductBrand)
+async def update_product_brand(
+    id: PydanticObjectId,
+    brand_data: ProductBrand,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Actualiza una marca maestra existente en el catálogo MDM.
+    """
+    brand = await ProductBrand.get(id)
+    if not brand:
+        raise HTTPException(status_code=404, detail="Marca no encontrada")
+        
+    brand.name = brand_data.name.strip().upper()
+    brand.aliases = [a.strip().upper() for a in brand_data.aliases if a.strip()]
+    brand.is_active = brand_data.is_active
+    
+    await brand.save()
+    
+    # Forzar recarga en caliente del caché local
+    from app.utils.norm_utils import _refresh_brands_cache
+    await _refresh_brands_cache()
+    
+    return brand
+
+@router.delete("/brands/{id}")
+async def delete_product_brand(
+    id: PydanticObjectId,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Elimina una marca del catálogo maestro MDM.
+    """
+    brand = await ProductBrand.get(id)
+    if not brand:
+        raise HTTPException(status_code=404, detail="Marca no encontrada")
+        
+    await brand.delete()
+    
+    # Forzar recarga en caliente del caché local
+    from app.utils.norm_utils import _refresh_brands_cache
+    await _refresh_brands_cache()
+    
+    return {"message": "Marca eliminada del catálogo maestro con éxito."}
 
 @router.get("/generate-marketing-sku")
 async def generate_marketing_sku(company_id: str = Depends(get_current_company_id)):

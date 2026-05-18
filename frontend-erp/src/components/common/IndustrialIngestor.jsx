@@ -326,11 +326,27 @@ const IndustrialIngestor = forwardRef(({
                                 <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 12px #10b981', animation: 'pulse 2s infinite' }} />
                                 <h3 style={{ color: 'white', margin: 0, fontSize: '1.1rem', fontWeight: '900', letterSpacing: '-0.01em' }}>{previewTitle}</h3>
                             </div>
-                            {allowManualClean && (
-                                <button onClick={() => setItems([])} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', padding: '0.5rem 1rem', borderRadius: '0.75rem', transition: 'all 0.2s' }}>
-                                    <Trash2 size={16} /> LIMPIAR BUFFER
-                                </button>
-                            )}
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <Button 
+                                    variant="warning" 
+                                    icon={Database} 
+                                    onClick={handleBulkUpload} 
+                                    loading={isProcessing}
+                                    size="sm"
+                                    style={{ 
+                                        fontWeight: '800',
+                                        boxShadow: `0 0 10px ${iconColor}33`,
+                                        border: `1px solid ${iconColor}66`
+                                    }}
+                                >
+                                    {processButtonText}
+                                </Button>
+                                {allowManualClean && (
+                                    <button onClick={() => setItems([])} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', padding: '0.5rem 1rem', borderRadius: '0.75rem', transition: 'all 0.2s' }}>
+                                        <Trash2 size={16} /> LIMPIAR BUFFER
+                                    </button>
+                                )}
+                            </div>
                         </div>
                         <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>

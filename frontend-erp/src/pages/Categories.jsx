@@ -93,7 +93,15 @@ const Categories = () => {
         try {
             if (selectedCategoryId === 'NEW') await categoryService.createCategory(cleanData);
             else await categoryService.updateCategory(selectedCategoryId, cleanData);
+            
             showNotification('Maestro actualizado', 'success');
+            
+            // Auto-expand the parent so the new child is visible
+            if (cleanData.parent_id) {
+                setExpandedIds(prev => new Set(prev).add(cleanData.parent_id));
+            }
+            
+            setSearchTerm(''); // Clear search so the list isn't artificially filtered
             setSelectedCategoryId(null);
             loadCategories();
         } catch (error) { showNotification('Error al procesar', 'error'); }

@@ -59,6 +59,24 @@ async def resolve_catalog_mapping(
         create_alias=request.create_alias
     )
 
+class GhostMappingRequest(BaseModel):
+    external_code: Optional[str] = None
+    brand: Optional[str] = None
+    category_id: str
+
+@router.post("/sincerity/map-ghost")
+async def map_ghost_sku(
+    request: GhostMappingRequest,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """Aisla un código desconocido en Cuarentena creando un Ghost SKU, SIN aprender (alias)."""
+    return await IntelligenceService.map_ghost_sku(
+        external_code=request.external_code,
+        brand=request.brand,
+        category_id=request.category_id,
+        company_id=current_user.current_company_id
+    )
+
 @router.get("/sincerity/master-gaps")
 async def get_master_gaps(
     company_id: Optional[str] = None,
@@ -200,3 +218,19 @@ async def revert_logistics(
 ):
     """Desvincula una guía y devuelve la factura a estado PENDING_GUIDE."""
     return await IntelligenceService.revert_logistics_status(invoice_id, current_user.current_company_id)
+
+class ReprocessRequest(BaseModel):
+    section: str  # "catalog" | "master" | "logistics" | "all"
+
+@router.post("/sincerity/reprocess")
+async def reprocess_sincerity(
+    request: ReprocessRequest,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Ejecuta el motor de reprocesamiento masivo para curar brechas de la empresa.
+    """
+    return await IntelligenceService.reprocess_sincerity_pipeline(
+        company_id=current_user.current_company_id,
+        section=request.section
+    )

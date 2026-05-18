@@ -105,6 +105,7 @@ export const authService = {
 export const intelligenceService = {
   getUnmappedCatalogItems: () => api.get('/intelligence/sincerity/unmapped'),
   resolveCatalogMapping: (data) => api.post('/intelligence/sincerity/map', data),
+  mapGhostSku: (data) => api.post('/intelligence/sincerity/map-ghost', data),
   getMasterGaps: () => api.get('/intelligence/sincerity/master-gaps'),
   resolveRateSincerity: (data) => api.post('/intelligence/sincerity/resolve-rate', data),
   resolveCustomerSincerity: (data) => api.post('/intelligence/sincerity/resolve-customer', data),
@@ -123,7 +124,8 @@ export const intelligenceService = {
   getPendingLogistics: () => api.get('/intelligence/sincerity/pending-guides'),
   bulkGenerateGuides: (data) => api.post('/intelligence/sincerity/bulk-generate-guides', data, { timeout: 60000 }),
   matchXMLGuides: (batch) => api.post('/intelligence/sincerity/match-xml-guides', batch),
-  revertLogistics: (invoiceId) => api.post(`/intelligence/sincerity/revert-logistics/${invoiceId}`)
+  revertLogistics: (invoiceId) => api.post(`/intelligence/sincerity/revert-logistics/${invoiceId}`),
+  reprocessSincerity: (section) => api.post('/intelligence/sincerity/reprocess', { section }, { timeout: 120000 })
 };
 
 
@@ -159,6 +161,7 @@ export const inventoryService = {
     });
   },
   exportProducts: (template = 'current') => api.get(`/inventory/export?template=${template}`, { responseType: 'blob' }),
+  getCategories: () => api.get('/categories'),
 
   // Losses
   registerLoss: (lossData) => api.post('/inventory/losses', lossData),
@@ -211,6 +214,7 @@ export const purchasingService = {
   createInvoice: (invoiceData) => api.post('/purchasing/invoices', invoiceData),
   getInvoices: (page = 1, limit = 50, search = '', payment_status = '', date_from = '', date_to = '', is_confirmed = null) =>
     api.get('/purchasing/invoices', { params: { skip: (page - 1) * limit, limit, search, payment_status, date_from, date_to, is_confirmed } }),
+  getInvoice: (invoiceNumber) => api.get(`/purchasing/invoices/${invoiceNumber}`),
   deleteInvoice: (invoiceNumber) => api.delete(`/purchasing/invoices/${invoiceNumber}`),
   registerPayment: (invoiceNumber, paymentData) => api.post(`/purchasing/invoices/${invoiceNumber}/payments`, paymentData),
   registerReception: (invoiceNumber, receptionData) => api.post(`/purchasing/invoices/${invoiceNumber}/receive`, receptionData),
@@ -280,6 +284,7 @@ export const salesService = {
   createInvoice: (invoiceData) => api.post('/sales/invoices', invoiceData),
   getInvoices: (page = 1, limit = 50, search = '', payment_status = '', date_from = '', date_to = '', is_confirmed = null) =>
     api.get('/sales/invoices', { params: { skip: (page - 1) * limit, limit, search, payment_status, date_from, date_to, is_confirmed } }),
+  getInvoice: (invoiceNumber) => api.get(`/sales/invoices/${invoiceNumber}`),
   deleteInvoice: (invoiceNumber) => api.delete(`/sales/invoices/${invoiceNumber}`),
   registerPayment: (invoiceNumber, paymentData) => api.post(`/sales/invoices/${invoiceNumber}/payments`, paymentData),
   bulkUpdatePaymentCondition: (payload) => api.post('/sales/invoices/bulk-payment-condition', payload),
@@ -356,7 +361,7 @@ export const brandService = {
 };
 
 export const productBrandService = {
-  getBrands: () => api.get('/inventory/brands'),
+  getBrands: (full = false) => api.get('/inventory/brands', { params: { full } }),
   createBrand: (brand) => api.post('/inventory/brands', brand),
   updateBrand: (id, brand) => api.put(`/inventory/brands/${id}`, brand),
   deleteBrand: (id) => api.delete(`/inventory/brands/${id}`),

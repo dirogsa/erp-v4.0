@@ -18,9 +18,9 @@ class BulkCampaignUpdate(BaseModel):
     skus: List[str]
 
 @router.get("/resolve/{sku}")
-async def resolve_price(sku: str, qty: int = 1):
+async def resolve_price(sku: str, qty: int = 1, brand: str = "N/A"):
     """Resolves the final price for a product considering all active campaigns."""
-    return await PricingService.get_product_price(sku, qty)
+    return await PricingService.get_product_price(sku, brand, qty)
 
 @router.post("/master", dependencies=[Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))])
 async def set_master_price(data: MasterPriceUpdate):
