@@ -27,7 +27,7 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp', dbCategories = [
     // Selector: h2.search-res-card__title -> "CABIN FILTER | AZUMI - AC31011C"
     const titleEl = doc.querySelector('.search-res-card__title');
     if (titleEl) {
-        let text = titleEl.innerText.trim();
+        let text = titleEl.textContent.trim();
         // Split by '|' then by '-'
         // Part 1: "CABIN FILTER" (Category)
         // Part 2: "AZUMI - AC31011C"
@@ -74,8 +74,8 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp', dbCategories = [
         const nameEl = row.querySelector('.search-res-card__name');
         const valEl = row.querySelector('.search-res-card__value');
         if (nameEl && valEl) {
-            const label = nameEl.innerText.trim();
-            const value = valEl.innerText.trim();
+            const label = nameEl.textContent.trim();
+            const value = valEl.textContent.trim();
             if (value) {
                 // Mapeo específico para Peso y Forma en Azumi
                 if (/Weight|Peso|Mass/i.test(label)) {
@@ -103,8 +103,8 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp', dbCategories = [
         const brandEl = row.querySelector('.search-res-crosses__name');
         const codeEl = row.querySelector('.search-res-crosses__value');
         if (brandEl && codeEl) {
-            const brand = brandEl.innerText.trim();
-            const code = codeEl.innerText.trim();
+            const brand = brandEl.textContent.trim();
+            const code = codeEl.textContent.trim();
             data.equivalences.push({
                 brand: brand,
                 code: code,
@@ -121,7 +121,7 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp', dbCategories = [
         const titleBtn = item.querySelector('.spollers__title a');
         if (!titleBtn) return;
 
-        let fullTitle = titleBtn.innerText.trim(); // "MERCEDES-BENZ » A 180"
+        let fullTitle = titleBtn.textContent.trim(); // "MERCEDES-BENZ » A 180"
         let make = '';
         let model = '';
 
@@ -138,7 +138,7 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp', dbCategories = [
         lines.forEach(line => {
             // Date: .application-date (e.g. "04.18 ~")
             const dateEl = line.querySelector('.application-date');
-            const year = dateEl ? dateEl.innerText.replace(/\s+/g, '').trim() : '';
+            const year = dateEl ? dateEl.textContent.replace(/\s+/g, '').trim() : '';
 
             // Article: W177 , Eng: 1.5L OM 608.915
             const articleEl = line.querySelector('.search-res-application__article');
@@ -148,12 +148,12 @@ export const parseAzumi = (doc, domain = 'https://azfilter.jp', dbCategories = [
                 const clone = articleEl.cloneNode(true);
                 const dateChild = clone.querySelector('.application-date');
                 if (dateChild) dateChild.remove();
-                engineText = clone.innerText.trim().replace(/^,/, '').replace(/,$/, '').trim();
+                engineText = clone.textContent.trim().replace(/^,/, '').replace(/,$/, '').trim();
             }
 
             // Extra text (e.g. "(Cabin)")
             const textEl = line.querySelector('.search-res-application__text');
-            const note = textEl ? textEl.innerText.trim() : '';
+            const note = textEl ? textEl.textContent.trim() : '';
 
             // Combine engine info for cleaner UI if possible, or keep as is
             const fullEngine = `${engineText} ${note}`.trim();

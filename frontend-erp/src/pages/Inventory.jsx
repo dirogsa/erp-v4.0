@@ -428,15 +428,33 @@ const Inventory = ({ forcedType = null }) => {
                                 onToggleVisibility={handleToggleVisibility}
                                 selectedIds={selectedIds}
                                 onSelectionChange={setSelectedIds}
-                                onView={(product) => {
-                                    setSelectedProduct(product);
-                                    setIsViewMode(true);
-                                    setShowProductModal(true);
+                                onView={async (product) => {
+                                    showLoading("Cargando Ficha...", "Recuperando especificaciones técnicas e imágenes de alta resolución.");
+                                    try {
+                                        const res = await inventoryService.getProduct(product.sku);
+                                        setSelectedProduct(res.data);
+                                        setIsViewMode(true);
+                                        setShowProductModal(true);
+                                    } catch (err) {
+                                        const msg = err.response?.data?.detail || "Error al cargar la ficha técnica del producto";
+                                        showNotification(msg, "error");
+                                    } finally {
+                                        hideLoading();
+                                    }
                                 }}
-                                onEdit={(product) => {
-                                    setSelectedProduct(product);
-                                    setIsViewMode(false);
-                                    setShowProductModal(true);
+                                onEdit={async (product) => {
+                                    showLoading("Cargando Editor...", "Cargando metadatos completos y equivalencias maestras.");
+                                    try {
+                                        const res = await inventoryService.getProduct(product.sku);
+                                        setSelectedProduct(res.data);
+                                        setIsViewMode(false);
+                                        setShowProductModal(true);
+                                    } catch (err) {
+                                        const msg = err.response?.data?.detail || "Error al cargar el producto para edición";
+                                        showNotification(msg, "error");
+                                    } finally {
+                                        hideLoading();
+                                    }
                                 }}
                                 onDelete={(product) => {
                                     if (window.confirm('¿Está seguro de eliminar este ítem?')) {

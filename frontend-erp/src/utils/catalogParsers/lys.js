@@ -30,8 +30,8 @@ export const parseLys = (doc, domain = 'http://www.millardcatalog.com', dbCatego
 
     // 1. Extraer SKU y Nombre (del formato Millard)
     const titleEl = doc.querySelector('title');
-    if (titleEl && titleEl.innerText) {
-        const titleMatch = titleEl.innerText.match(/Ficha T[é\e]cnica\s+([A-Z0-9-]+)/i);
+    if (titleEl && titleEl.textContent) {
+        const titleMatch = titleEl.textContent.match(/Ficha T[é\e]cnica\s+([A-Z0-9-]+)/i);
         if (titleMatch) {
             data.sku = normalizeSku(titleMatch[1]);
         }
@@ -39,12 +39,12 @@ export const parseLys = (doc, domain = 'http://www.millardcatalog.com', dbCatego
     
     const schemaNameEl = doc.querySelector('span[itemprop="name"]');
     if (!data.sku && schemaNameEl) {
-        data.sku = normalizeSku(schemaNameEl.innerText);
+        data.sku = normalizeSku(schemaNameEl.textContent);
     }
 
     const schemaDescEl = doc.querySelector('span[itemprop="description"]');
     if (schemaDescEl) {
-        data.description = schemaDescEl.innerText.trim();
+        data.description = schemaDescEl.textContent.trim();
         // Intentar deducir la categoría de la descripción
         if (data.description.toUpperCase().includes('OIL FILTER') || data.description.toUpperCase().includes('FILTRO DE ACEITE')) {
             data.category_name = resolveCategoryName('OIL FILTER', dbCategories);
@@ -62,7 +62,7 @@ export const parseLys = (doc, domain = 'http://www.millardcatalog.com', dbCatego
     // 2. Extraer Imágenes
     const mainImgEl = doc.querySelector('span[itemprop="image"]');
     if (mainImgEl) {
-        let imgUrl = mainImgEl.innerText.trim();
+        let imgUrl = mainImgEl.textContent.trim();
         if (imgUrl.startsWith('http')) {
             data.image_url = imgUrl;
         } else {
@@ -94,8 +94,8 @@ export const parseLys = (doc, domain = 'http://www.millardcatalog.com', dbCatego
         const valueEl = row.querySelector('.i_elemvalue');
         
         if (titleEl && valueEl) {
-            const label = titleEl.innerText.trim().replace(/\n/g, ' ');
-            const value = valueEl.innerText.trim();
+            const label = titleEl.textContent.trim().replace(/\n/g, ' ');
+            const value = valueEl.textContent.trim();
 
             if (label.toUpperCase().includes('EAN')) {
                 data.ean = value;
@@ -112,8 +112,8 @@ export const parseLys = (doc, domain = 'http://www.millardcatalog.com', dbCatego
         if (row.querySelector('.i_elemtitle_gasket')) {
             const innerRows = row.querySelectorAll('.panel-body .i_element');
             innerRows.forEach(inner => {
-                const innerTitle = inner.querySelector('.i_elemtitle')?.innerText.trim() || 'Junta';
-                const innerValue = inner.querySelector('.i_elemvalue')?.innerText.trim();
+                const innerTitle = inner.querySelector('.i_elemtitle')?.textContent.trim() || 'Junta';
+                const innerValue = inner.querySelector('.i_elemvalue')?.textContent.trim();
                 if (innerValue) {
                     data.specs.push({
                         label: innerTitle.replace(/\s+\(.*\)/, ''),
@@ -131,14 +131,14 @@ export const parseLys = (doc, domain = 'http://www.millardcatalog.com', dbCatego
         data.specs.push({
             label: 'Atributo',
             measure_type: 'other',
-            value: badge.innerText.trim()
+            value: badge.textContent.trim()
         });
     });
 
     // 4. Equivalencias (Cross References)
     const searchAlert = doc.querySelector('.alert-info');
-    if (searchAlert && searchAlert.innerText.includes('searching for')) {
-        const searchedMatch = searchAlert.innerText.match(/searching for\s+"([^"]+)"/i);
+    if (searchAlert && searchAlert.textContent.includes('searching for')) {
+        const searchedMatch = searchAlert.textContent.match(/searching for\s+"([^"]+)"/i);
         if (searchedMatch && searchedMatch[1]) {
             const eqCode = normalizeSku(searchedMatch[1]);
             if (eqCode && eqCode !== data.sku) {
@@ -165,14 +165,14 @@ export const parseLys = (doc, domain = 'http://www.millardcatalog.com', dbCatego
         const tds = row.querySelectorAll('td');
         if (tds.length >= 9) {
             // Estructura: 0:Logo, 1:Fabricante, 2:Modelo, 3:Motor, 4:Kw, 5:HP, 6:CV, 7:Desde, 8:Hasta
-            const make = tds[1].innerText.trim();
-            const model = tds[2].innerText.trim();
-            const engine = tds[3].innerText.trim();
-            const kw = tds[4].innerText.trim();
-            const hp = tds[5].innerText.trim();
-            const cv = tds[6].innerText.trim();
-            const yearStart = tds[7].innerText.trim();
-            const yearEnd = tds[8].innerText.trim();
+            const make = tds[1].textContent.trim();
+            const model = tds[2].textContent.trim();
+            const engine = tds[3].textContent.trim();
+            const kw = tds[4].textContent.trim();
+            const hp = tds[5].textContent.trim();
+            const cv = tds[6].textContent.trim();
+            const yearStart = tds[7].textContent.trim();
+            const yearEnd = tds[8].textContent.trim();
 
             let year = '';
             if (yearStart && yearEnd && yearStart !== '-' && yearEnd !== '-') year = `${yearStart}-${yearEnd}`;

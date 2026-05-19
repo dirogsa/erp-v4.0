@@ -31,7 +31,7 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
     const ldJsonScript = doc.querySelector('script[type="application/ld+json"]');
     if (ldJsonScript) {
         try {
-            const ldData = JSON.parse(ldJsonScript.innerText);
+            const ldData = JSON.parse(ldJsonScript.textContent);
             if (ldData.name) data.name = ldData.name;
             if (ldData.description) data.description = ldData.description;
             if (ldData.sku) {
@@ -48,12 +48,12 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
     // 2. Títulos y Identificación (Fallback)
     const titleName = doc.querySelector('.cmp-product__title-name');
     if (titleName && !data.sku) {
-        data.sku = normalizeSku(titleName.innerText);
+        data.sku = normalizeSku(titleName.textContent);
     }
     
     const categoryEl = doc.querySelector('.cmp-product__title-family');
     if (categoryEl) {
-        const rawCat = categoryEl.innerText.trim().toUpperCase();
+        const rawCat = categoryEl.textContent.trim().toUpperCase();
         
         // Sincronizar con categorías de la BD usando utilidad común
         data.category_name = resolveCategoryName(rawCat, dbCategories);
@@ -65,7 +65,7 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
     // 3. EAN / GTIN
     const skuValueEl = doc.querySelector('.cmp-product__sku-value');
     if (skuValueEl) {
-        const eanMatch = skuValueEl.innerText.match(/\d{10,13}/);
+        const eanMatch = skuValueEl.textContent.match(/\d{10,13}/);
         if (eanMatch) data.ean = eanMatch[0];
     }
 
@@ -116,8 +116,8 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
         dimensionsPanel.querySelectorAll('tr').forEach(row => {
             const tds = row.querySelectorAll('td');
             if (tds.length >= 2) {
-                const label = tds[0].innerText.trim();
-                const value = tds[1].innerText.trim();
+                const label = tds[0].textContent.trim();
+                const value = tds[1].textContent.trim();
                 
                 if (/Weight|Peso|Masa/i.test(label)) {
                     const numMatch = value.match(/[\d.]+/);
@@ -139,7 +139,7 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
     const appAccordion = doc.querySelector('#applications');
     if (appAccordion) {
         appAccordion.querySelectorAll('.cmp-accordion__header .cmp-accordion__title').forEach(makeEl => {
-            const make = makeEl.innerText.trim();
+            const make = makeEl.textContent.trim();
             if (/Dimensiones|Aplicaciones|OE|Descargas/i.test(make)) return;
 
             const makePanel = makeEl.closest('.cmp-accordion__item').querySelector('.cmp-accordion__panel');
@@ -147,19 +147,19 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
                 makePanel.querySelectorAll('.cmp-accordion__item').forEach(modelItem => {
                     const modelTitle = modelItem.querySelector('.cmp-accordion__title');
                     if (!modelTitle) return;
-                    const modelName = modelTitle.innerText.trim();
+                    const modelName = modelTitle.textContent.trim();
 
                     const tableRows = modelItem.querySelectorAll('.cmp-table tbody tr');
                     tableRows.forEach(row => {
                         if (row.querySelector('th')) return;
                         const tds = row.querySelectorAll('td');
                         if (tds.length >= 6) {
-                            const modelType = tds[0].innerText.trim();
-                            const engineCode = tds[2].innerText.trim();
-                            const ccm = tds[3].innerText.trim();
-                            const kw = tds[4].innerText.trim();
-                            const hp = tds[5].innerText.trim();
-                            const year = tds[6]?.innerText.trim() || '';
+                            const modelType = tds[0].textContent.trim();
+                            const engineCode = tds[2].textContent.trim();
+                            const ccm = tds[3].textContent.trim();
+                            const kw = tds[4].textContent.trim();
+                            const hp = tds[5].textContent.trim();
+                            const year = tds[6]?.textContent.trim() || '';
 
                             data.applications.push({
                                 make: make,

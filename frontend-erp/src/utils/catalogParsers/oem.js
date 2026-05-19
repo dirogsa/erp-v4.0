@@ -38,7 +38,7 @@ export const parseOEM = (doc, filename, dbCategories = []) => {
     };
 
     // 1. Identificar si es JS ASAKASHI y extraer nombre base del producto
-    const asakashiTitle = doc.querySelector('.search-title')?.innerText.trim();
+    const asakashiTitle = doc.querySelector('.search-title')?.textContent.trim();
     if (asakashiTitle) {
         // Normalizar texto por si hay saltos de línea o entidades raras
         const normalizedTitle = asakashiTitle.replace(/\s+/g, ' ');
@@ -90,8 +90,8 @@ export const parseOEM = (doc, filename, dbCategories = []) => {
     // 3. Especificaciones (Específico JS Asakashi)
     const specBlocks = doc.querySelectorAll('.detail__specification .str');
     specBlocks.forEach(block => {
-        const title = block.querySelector('.param-title')?.innerText.trim();
-        const value = block.querySelector('.param-field')?.innerText.trim();
+        const title = block.querySelector('.param-title')?.textContent.trim();
+        const value = block.querySelector('.param-field')?.textContent.trim();
         
         if (title && value) {
             data.specs.push({
@@ -111,8 +111,8 @@ export const parseOEM = (doc, filename, dbCategories = []) => {
     // 4. Referencias Cruzadas (Cross References)
     const crossRefs = doc.querySelectorAll('.detail__plate .str');
     crossRefs.forEach(ref => {
-        const owner = ref.querySelector('.owner')?.innerText.trim();
-        const code = ref.querySelector('.field')?.innerText.trim();
+        const owner = ref.querySelector('.owner')?.textContent.trim();
+        const code = ref.querySelector('.field')?.textContent.trim();
         if (owner && code) {
             data.equivalences.push({
                 brand: owner,
@@ -125,7 +125,7 @@ export const parseOEM = (doc, filename, dbCategories = []) => {
     // 5. Aplicaciones de Vehículos
     const models = doc.querySelectorAll('.model-title h3');
     models.forEach(modelEl => {
-        const fullModelText = modelEl.innerText.trim(); // Ej: "CHERY » Tiggo 3x"
+        const fullModelText = modelEl.textContent.trim(); // Ej: "CHERY » Tiggo 3x"
         const [make, ...modelRest] = fullModelText.split('»').map(s => s.trim());
         const modelName = modelRest.join(' ');
 
@@ -137,10 +137,10 @@ export const parseOEM = (doc, filename, dbCategories = []) => {
                 data.applications.push({
                     make: make,
                     model: modelName,
-                    engine: row.querySelector('.tdEngineNo')?.innerText.trim() || '',
-                    year: row.querySelector('.tdYear')?.innerText.trim() || '',
-                    engine_vol: row.querySelector('.tdEngineVol')?.innerText.trim() || '',
-                    body: row.querySelector('.tdBody')?.innerText.trim() || '',
+                    engine: row.querySelector('.tdEngineNo')?.textContent.trim() || '',
+                    year: row.querySelector('.tdYear')?.textContent.trim() || '',
+                    engine_vol: row.querySelector('.tdEngineVol')?.textContent.trim() || '',
+                    body: row.querySelector('.tdBody')?.textContent.trim() || '',
                     notes: `Fuente: Catálogo JS Asakashi - Referencia OEM`
                 });
             });

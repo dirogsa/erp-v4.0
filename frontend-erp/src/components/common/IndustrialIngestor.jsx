@@ -5,7 +5,7 @@ import { useLoading } from '../../context/LoadingContext';
 import { 
     Zap, ShieldCheck, Database, Rocket, Trash2, 
     Search, Info, Upload, FileText, X, Activity,
-    CheckCircle2, AlertCircle
+    CheckCircle2, AlertCircle, Eye, Image, Link2, Car
 } from 'lucide-react';
 
 /**
@@ -41,6 +41,7 @@ const IndustrialIngestor = forwardRef(({
     const [isProcessing, setIsProcessing] = useState(false);
     const [strategy, setStrategy] = useState(initialStrategy);
     const [isDragging, setIsDragging] = useState(false);
+    const [selectedItem, setSelectedItem] = useState(null);
 
     // Exponer métodos imperativos
     useImperativeHandle(ref, () => ({
@@ -110,12 +111,12 @@ const IndustrialIngestor = forwardRef(({
         }
     };
 
-    // Telemetría simple
+    // Telemetría de Catálogo
     const getSummary = () => {
         const total = items.length;
-        const active = items.filter(i => i.sunat_state === 'ACTIVO' || i.status === 'active').length;
-        const warning = items.filter(i => i.sunat_condition === 'NO HALLADO' || i.sunat_condition === 'NO HABIDO').length;
-        return { total, active, warning };
+        const withImage = items.filter(i => i.image_url && i.image_url.length > 0).length;
+        const withEquiv = items.filter(i => i.equivalences && i.equivalences.length > 0).length;
+        return { total, withImage, withEquiv };
     };
 
     const summary = getSummary();
@@ -302,20 +303,20 @@ const IndustrialIngestor = forwardRef(({
                         </div>
                         <div style={{ background: 'rgba(15, 23, 42, 0.4)', border: '1px solid #334155', borderRadius: '1.25rem', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <div style={{ width: '45px', height: '45px', borderRadius: '1rem', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <CheckCircle2 color="#10b981" size={20} />
+                                <Image color="#10b981" size={20} />
                             </div>
                             <div>
-                                <div style={{ fontSize: '1.5rem', fontWeight: '900', lineHeight: '1' }}>{summary.active}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginTop: '0.2rem' }}>Salud Fiscal Optima</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: '900', lineHeight: '1', color: summary.withImage === summary.total ? '#10b981' : '#eab308' }}>{summary.withImage}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginTop: '0.2rem' }}>Con Imagen HD</div>
                             </div>
                         </div>
                         <div style={{ background: 'rgba(15, 23, 42, 0.4)', border: '1px solid #334155', borderRadius: '1.25rem', padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <div style={{ width: '45px', height: '45px', borderRadius: '1rem', background: summary.warning > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(51, 65, 85, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <AlertCircle color={summary.warning > 0 ? '#ef4444' : '#64748b'} size={20} />
+                            <div style={{ width: '45px', height: '45px', borderRadius: '1rem', background: 'rgba(168, 85, 247, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Link2 color="#a855f7" size={20} />
                             </div>
                             <div>
-                                <div style={{ fontSize: '1.5rem', fontWeight: '900', lineHeight: '1', color: summary.warning > 0 ? '#ef4444' : 'white' }}>{summary.warning}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginTop: '0.2rem' }}>Alertas Críticas</div>
+                                <div style={{ fontSize: '1.5rem', fontWeight: '900', lineHeight: '1' }}>{summary.withEquiv}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', marginTop: '0.2rem' }}>Con Equivalencias</div>
                             </div>
                         </div>
                     </div>
@@ -360,18 +361,27 @@ const IndustrialIngestor = forwardRef(({
                                 </thead>
                                 <tbody>
                                     {items.map((item, idx) => (
-                                        <tr key={idx} style={{ borderTop: '1px solid #33415555', transition: 'all 0.2s' }} className="table-row-hover">
+                                        <tr key={idx} style={{ borderTop: '1px solid #33415555', transition: 'all 0.2s', cursor: 'pointer' }} className="table-row-hover" onClick={() => setSelectedItem(item)}>
                                             {columns.map((col, cIdx) => (
                                                 <td key={cIdx} style={{ padding: '1.5rem 2rem', textAlign: col.align || 'left', fontSize: '0.95rem' }}>
                                                     {col.render ? col.render(item[col.key], item) : item[col.key]}
                                                 </td>
                                             ))}
-                                            <td style={{ padding: '1.5rem 2rem', textAlign: 'right' }}>
+                                            <td style={{ padding: '1.5rem 2rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                                                 <button 
-                                                    onClick={() => setItems(prev => prev.filter((_, i) => i !== idx))} 
+                                                    onClick={(e) => { e.stopPropagation(); setSelectedItem(item); }} 
+                                                    style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '0.6rem', borderRadius: '0.75rem', cursor: 'pointer', transition: 'all 0.3s' }}
+                                                    onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'; }}
+                                                    onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)'; }}
+                                                    title="Inspeccionar datos extraídos"
+                                                >
+                                                    <Eye size={18} />
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); setItems(prev => prev.filter((_, i) => i !== idx)); }} 
                                                     style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '0.6rem', borderRadius: '0.75rem', cursor: 'pointer', transition: 'all 0.3s' }}
-                                                    onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.borderColor = '#ef4444'; }}
-                                                    onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.1)'; }}
+                                                    onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; }}
+                                                    onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'; }}
                                                 >
                                                     <Trash2 size={18} />
                                                 </button>
@@ -385,10 +395,117 @@ const IndustrialIngestor = forwardRef(({
                 </div>
             )}
             
+            {/* ═══ DRAWER DE INSPECCIÓN ═══ */}
+            {selectedItem && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', justifyContent: 'flex-end' }}>
+                    <div onClick={() => setSelectedItem(null)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', animation: 'fadeIn 0.2s ease' }} />
+                    <div style={{ position: 'relative', width: '580px', maxWidth: '95vw', height: '100vh', background: '#0f172a', borderLeft: '1px solid #334155', overflowY: 'auto', animation: 'slideRight 0.3s ease', boxShadow: '-20px 0 60px rgba(0,0,0,0.5)' }}>
+                        {/* Header */}
+                        <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #334155', background: '#1e293b', position: 'sticky', top: 0, zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                                <div style={{ fontSize: '1.4rem', fontWeight: '900', color: '#eab308' }}>{selectedItem.sku}</div>
+                                <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>{selectedItem.brand} · {selectedItem.category_name}</div>
+                            </div>
+                            <button onClick={() => setSelectedItem(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #334155', color: '#94a3b8', padding: '0.5rem', borderRadius: '0.75rem', cursor: 'pointer' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div style={{ padding: '1.5rem 2rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                            {/* Imagen HD */}
+                            <div>
+                                <div style={{ fontSize: '0.7rem', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <Image size={14} /> Imagen Extraída
+                                </div>
+                                {selectedItem.image_url ? (
+                                    <div style={{ background: '#1e293b', borderRadius: '1rem', border: '1px solid #334155', padding: '1rem', textAlign: 'center' }}>
+                                        <img src={selectedItem.image_url} alt={selectedItem.sku} style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'contain', borderRadius: '0.5rem' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                                        <div style={{ display: 'none', color: '#ef4444', fontSize: '0.85rem', padding: '1rem' }}>⚠ Imagen no disponible en origen</div>
+                                        <div style={{ fontSize: '0.7rem', color: '#475569', marginTop: '0.5rem', wordBreak: 'break-all' }}>{selectedItem.image_url}</div>
+                                    </div>
+                                ) : (
+                                    <div style={{ background: '#1e293b', borderRadius: '1rem', border: '1px dashed #475569', padding: '2rem', textAlign: 'center', color: '#475569' }}>Sin imagen detectada</div>
+                                )}
+                            </div>
+
+                            {/* Specs */}
+                            {selectedItem.specs && selectedItem.specs.length > 0 && (
+                                <div>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <Activity size={14} /> Especificaciones ({selectedItem.specs.length})
+                                    </div>
+                                    <div style={{ background: '#1e293b', borderRadius: '1rem', border: '1px solid #334155', overflow: 'hidden' }}>
+                                        {selectedItem.specs.map((spec, i) => (
+                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.65rem 1rem', borderBottom: i < selectedItem.specs.length - 1 ? '1px solid #33415555' : 'none', fontSize: '0.85rem' }}>
+                                                <span style={{ color: '#94a3b8' }}>{spec.label}</span>
+                                                <span style={{ color: 'white', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>{spec.value} {spec.measure_type === 'mm' ? 'mm' : ''}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Equivalencias */}
+                            {selectedItem.equivalences && selectedItem.equivalences.length > 0 && (
+                                <div>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <Link2 size={14} /> Equivalencias ({selectedItem.equivalences.length})
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                        {selectedItem.equivalences.map((eq, i) => (
+                                            <span key={i} style={{ background: eq.is_original ? 'rgba(234,179,8,0.1)' : 'rgba(59,130,246,0.1)', border: `1px solid ${eq.is_original ? '#eab30833' : '#3b82f633'}`, color: eq.is_original ? '#eab308' : '#93c5fd', padding: '0.35rem 0.75rem', borderRadius: '2rem', fontSize: '0.75rem', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>
+                                                {eq.brand}: {eq.code} {eq.is_original ? '★' : ''}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Aplicaciones */}
+                            {selectedItem.applications && selectedItem.applications.length > 0 && (
+                                <div>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <Car size={14} /> Aplicaciones ({selectedItem.applications.length})
+                                    </div>
+                                    <div style={{ background: '#1e293b', borderRadius: '1rem', border: '1px solid #334155', overflow: 'hidden', maxHeight: '300px', overflowY: 'auto' }}>
+                                        {selectedItem.applications.map((app, i) => (
+                                            <div key={i} style={{ padding: '0.6rem 1rem', borderBottom: '1px solid #33415555', fontSize: '0.8rem' }}>
+                                                <div style={{ fontWeight: '700', color: 'white' }}>{app.make} › {app.model}</div>
+                                                <div style={{ color: '#64748b', marginTop: '0.15rem' }}>{app.year}{app.engine ? ` · ${app.engine}` : ''}{app.notes ? ` · ${app.notes}` : ''}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Metadatos */}
+                            <div>
+                                <div style={{ fontSize: '0.7rem', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem' }}>Metadatos</div>
+                                <div style={{ background: '#1e293b', borderRadius: '1rem', border: '1px solid #334155', overflow: 'hidden' }}>
+                                    {[
+                                        { k: 'Nombre', v: selectedItem.name },
+                                        { k: 'Peso', v: selectedItem.weight_g ? `${selectedItem.weight_g}g` : '—' },
+                                        { k: 'Forma', v: selectedItem.shape || '—' },
+                                        { k: 'EAN', v: selectedItem.ean || '—' },
+                                        { k: 'Estado', v: selectedItem.status || '—' },
+                                    ].filter(m => m.v).map((m, i) => (
+                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.6rem 1rem', borderBottom: '1px solid #33415555', fontSize: '0.8rem' }}>
+                                            <span style={{ color: '#64748b' }}>{m.k}</span>
+                                            <span style={{ color: '#e2e8f0', fontWeight: '600' }}>{m.v}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style>{`
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
                 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes slideRight { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 .spinner { border-radius: 50%; border: 3px solid transparent; border-top-color: currentColor; animation: spin 0.8s linear infinite; }
                 .table-row-hover:hover { background: rgba(255, 255, 255, 0.02); }

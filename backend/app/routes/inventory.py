@@ -43,6 +43,28 @@ async def get_products(
         company_id=company_id
     )
 
+@router.get("/products/{sku}", response_model=ProductWithPrice)
+async def get_product_detail(
+    sku: str,
+    company_id: str = Depends(get_current_company_id)
+):
+    """
+    Retorna los detalles completos e íntegros de un producto (specs, aplicaciones e imagen HD)
+    a demanda del cliente REST para el modal de visualización en inventario.
+    """
+    product = await inventory_service.find_product_robustly(sku, company_id=company_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"Producto con SKU {sku} no encontrado.")
+    
+    # Inyectar precio dinámico de la lista maestra
+    from app.services.pricing_service import PricingService
+    price = await PricingService.get_bulk_prices([{"sku": product.sku, "brand": product.brand}])
+    price_val = price.get((product.sku, product.brand), 0.0)
+    
+    product_dict = product.model_dump()
+    product_dict['price_list'] = price_val
+    return ProductWithPrice(**product_dict)
+
 from beanie import PydanticObjectId
 from app.models.inventory import ProductBrand
 
