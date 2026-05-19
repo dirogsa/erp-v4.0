@@ -39,14 +39,24 @@ class PricingService:
         if not base_entry:
             product = await Product.find_one(Product.sku == sku, Product.brand == brand)
             if product:
-                base_entry = PriceEntry(
-                    product_id=product.id,
-                    sku=sku,
-                    brand=brand,
-                    price_list_id=master_list.id,
-                    price=0.0
+                base_entry = await PriceEntry.find_one(
+                    PriceEntry.product_id == product.id,
+                    PriceEntry.price_list_id == master_list.id,
+                    PriceEntry.min_quantity <= quantity
                 )
-                await base_entry.insert()
+                if base_entry:
+                    base_entry.sku = sku
+                    base_entry.brand = brand
+                    await base_entry.save()
+                else:
+                    base_entry = PriceEntry(
+                        product_id=product.id,
+                        sku=sku,
+                        brand=brand,
+                        price_list_id=master_list.id,
+                        price=0.0
+                    )
+                    await base_entry.insert()
             else:
                 return {"price": 0.0, "currency": "PEN", "source": "Master", "error": "Product price not found in Master List"}
 
@@ -135,19 +145,38 @@ class PricingService:
             product_or_conditions = [{"sku": sku, "brand": brand} for sku, brand in missing_pairs]
             missing_products = await Product.find({"$or": product_or_conditions}).to_list()
             
-            new_entries = []
-            for p in missing_products:
-                new_entries.append(PriceEntry(
-                    product_id=p.id,
-                    sku=p.sku,
-                    brand=p.brand,
-                    price_list_id=master_list.id,
-                    price=0.0
-                ))
-            if new_entries:
-                await PriceEntry.insert_many(new_entries)
-                for ne in new_entries:
-                    price_map[(ne.sku, ne.brand)] = 0.0
+            if missing_products:
+                missing_product_ids = [p.id for p in missing_products]
+                
+                existing_desync_entries = await PriceEntry.find(
+                    In(PriceEntry.product_id, missing_product_ids),
+                    PriceEntry.price_list_id == master_list.id,
+                    PriceEntry.min_quantity == 1
+                ).to_list()
+                
+                existing_desync_map = {e.product_id: e for e in existing_desync_entries}
+                
+                new_entries = []
+                for p in missing_products:
+                    if p.id in existing_desync_map:
+                        desync_entry = existing_desync_map[p.id]
+                        desync_entry.sku = p.sku
+                        desync_entry.brand = p.brand
+                        await desync_entry.save()
+                        price_map[(p.sku, p.brand)] = desync_entry.price
+                    else:
+                        new_entries.append(PriceEntry(
+                            product_id=p.id,
+                            sku=p.sku,
+                            brand=p.brand,
+                            price_list_id=master_list.id,
+                            price=0.0
+                        ))
+                
+                if new_entries:
+                    await PriceEntry.insert_many(new_entries)
+                    for ne in new_entries:
+                        price_map[(ne.sku, ne.brand)] = 0.0
 
         # 3. Bulk Fetch Active Campaigns
         active_campaigns = await PriceList.find(

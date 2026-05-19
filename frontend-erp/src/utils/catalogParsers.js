@@ -7,6 +7,9 @@ import { parseFiltron } from './catalogParsers/filtron';
 import { parseAzumi } from './catalogParsers/azumi';
 import { parseAsakashi } from './catalogParsers/asakashi';
 import { parseOEM } from './catalogParsers/oem';
+import { parseMillard } from './catalogParsers/millard';
+import { parseLys } from './catalogParsers/lys';
+import { parseFiltrow } from './catalogParsers/filtrow';
 
 /**
  * Orquestador de Parsers para Catálogos de Filtros
@@ -33,7 +36,7 @@ export const parseCatalogHtml = (htmlContent, filename = '', dbCategories = []) 
 
     // 2. Selección de Parser por Contenido
     const text = htmlContent.toUpperCase();
-    const title = doc.querySelector('title')?.innerText.toUpperCase() || '';
+    const title = doc.querySelector('title')?.textContent.toUpperCase() || '';
     
     let result = null;
 
@@ -43,8 +46,14 @@ export const parseCatalogHtml = (htmlContent, filename = '', dbCategories = []) 
         result = parseWix(doc, 'https://www.wixfilters.com', dbCategories);
     } else if (text.includes('AZFILTER.JP') || text.includes('AZUMI')) {
         result = parseAzumi(doc, 'https://azfilter.jp', dbCategories);
+    } else if (overrideBrand === 'FILTROW' || text.includes('FILTROW FILTERS') || title.includes('FILTROW FILTERS')) {
+        result = parseFiltrow(doc, 'https://www.jsfilter.jp', dbCategories);
     } else if (text.includes('JSFILTER.JP') || text.includes('JS ASAKASHI') || title.includes('JS ASAKASHI')) {
         result = parseAsakashi(doc, 'https://www.jsfilter.jp', dbCategories);
+    } else if (text.includes('MILLARDCATALOG.COM') || text.includes('MILLARD FILTERS') || title.includes('MILLARD FILTERS')) {
+        result = parseMillard(doc, 'http://www.millardcatalog.com', dbCategories);
+    } else if (overrideBrand === 'LYS' || text.includes('LYS FILTERS') || title.includes('LYS FILTERS')) {
+        result = parseLys(doc, 'http://www.millardcatalog.com', dbCategories);
     } else {
         // Fallback genérico OEM
         result = parseOEM(doc, filename, dbCategories);

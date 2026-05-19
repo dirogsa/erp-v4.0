@@ -1,18 +1,18 @@
 import { resolveCategoryName, normalizeSku, normalizeSpecs } from './common';
 
 /**
- * Parser para Catálogo JS Asakashi (jsfilter.jp)
+ * Parser para Catálogo FILTROW (Basado en formato JS Asakashi)
  * 
  * ARQUITECTURA: Usa `.textContent` en lugar de `.innerText` porque
  * DOMParser produce documentos inertes sin layout — `.innerText` 
  * retorna vacío en ese contexto, causando fallos silenciosos.
  */
-export const parseAsakashi = (doc, baseUrl = 'https://www.jsfilter.jp', dbCategories = []) => {
+export const parseFiltrow = (doc, baseUrl = 'https://www.jsfilter.jp', dbCategories = []) => {
     try {
         const product = {
             sku: '',
             name: '',
-            brand: 'JS ASAKASHI',
+            brand: 'FILTROW',
             description: '',
             image_url: '',
             category_name: 'FILTRO',
@@ -119,12 +119,12 @@ export const parseAsakashi = (doc, baseUrl = 'https://www.jsfilter.jp', dbCatego
         });
 
         // 6. Nombre descriptivo y Normalización
-        product.name = `JS ${product.category_name} ${product.sku}`;
+        product.name = `FILTROW ${product.category_name} ${product.sku}`;
         product.specs = normalizeSpecs(product.specs, product.category_name, dbCategories);
 
         return product;
     } catch (error) {
-        console.error('Error parsing Asakashi HTML:', error);
+        console.error('Error parsing Filtrow HTML:', error);
         return null;
     }
 };
