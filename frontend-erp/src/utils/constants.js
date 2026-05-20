@@ -50,7 +50,10 @@ export const STATUS_COLORS = {
     PAID: '#10b981',
     PARTIAL: '#f97316',
     DISPATCHED: '#3b82f6',
-    RECEIVED: '#10b981'
+    RECEIVED: '#10b981',
+    BRAND_FIREWALL_BLOCK: '#e11d48',
+    SKU_FORMAT_MISMATCH: '#d97706', // Ámbar oscuro para formato incorrecto
+    BRAND_NOT_DECLARED: '#b45309', // Naranja profundo para falta de marca
 };
 
 // Límites de paginación

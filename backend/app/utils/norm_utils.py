@@ -13,6 +13,13 @@ def normalize_sku(sku: str) -> str:
     clean_sku = str(sku).replace(' ', '')
     return re.sub(r'[^a-zA-Z0-9\-\/]', '', clean_sku).upper().strip()
 
+def canonical_sku(sku: str) -> str:
+    """Versión canónica sin guiones/espacios para matching interno.
+    """
+    if not sku: return ""
+    # Sólo alfanuméricos, todo mayúscula, sin separadores.
+    return re.sub(r'[^a-zA-Z0-9]', '', str(sku)).upper().strip()
+
 import os
 import json
 

@@ -25,6 +25,11 @@ class OrderItem(BaseModel):
     unit_cost: float = 0.0  # Legacy retrocompatibility
     tax_rate: float = 0.18
     is_custom: bool = False
+    original_xml_sku: Optional[str] = None # Audit trail
+    original_xml_name: Optional[str] = None # Audit trail
+    is_unmapped: bool = False # For SKU Incubation / Mismatch
+    rejection_code: Optional[str] = None # Explainability: SKU_NOT_FOUND, BRAND_FIREWALL_BLOCK, etc.
+    rejection_reason: Optional[str] = None # Explainability human-readable message
 
     @field_validator('unit_value', 'unit_price', 'unit_cost')
     @classmethod

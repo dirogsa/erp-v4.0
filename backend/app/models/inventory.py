@@ -2,7 +2,7 @@ from typing import Optional, Dict, List, Any
 from datetime import datetime
 from enum import Enum
 from beanie import Document, Indexed, PydanticObjectId
-from pydantic import BaseModel, field_validator, Field
+from pydantic import BaseModel, field_validator, Field, model_validator
 import pymongo
 
 class IssuerInfo(BaseModel):
@@ -212,7 +212,8 @@ class Product(Document):
     
     is_new: bool = False # Manual flag for catalog "Novedades"
     is_active_in_shop: bool = False # Control visibility in frontend-shop
-    is_temporary: bool = Field(default=False, description="Flag for reconciliation ghost products")
+    sku_canonical: Optional[Indexed(str, unique=False)] = None  # canonical SKU without separators for matching
+
     
     # Individual Promotion Override (Exceptions)
     promo_discount_pct: float = 0.0
@@ -223,6 +224,14 @@ class Product(Document):
     image_gallery: List[Dict[str, Any]] = []
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @model_validator(mode='after')
+    def set_canonical_sku(self):
+        """Automatically set sku_canonical when sku is set/updated"""
+        from app.utils.norm_utils import canonical_sku
+        if self.sku:
+            self.sku_canonical = canonical_sku(self.sku)
+        return self
 
     @field_validator('cost')
     @classmethod
@@ -238,6 +247,7 @@ class Product(Document):
                 [("sku", pymongo.ASCENDING), ("brand", pymongo.ASCENDING)],
                 unique=True
             ),
+            pymongo.IndexModel([("sku_canonical", pymongo.ASCENDING)], unique=False),
             # Texto completo para búsqueda potente
             pymongo.IndexModel([
                 ("name", pymongo.TEXT),

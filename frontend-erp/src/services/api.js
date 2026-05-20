@@ -104,6 +104,7 @@ export const authService = {
 
 export const intelligenceService = {
   getUnmappedCatalogItems: () => api.get('/intelligence/sincerity/unmapped'),
+  editUnmappedItem: (data) => api.put('/intelligence/sincerity/unmapped/edit', data),
   resolveCatalogMapping: (data) => api.post('/intelligence/sincerity/map', data),
   mapGhostSku: (data) => api.post('/intelligence/sincerity/map-ghost', data),
   getMasterGaps: () => api.get('/intelligence/sincerity/master-gaps'),

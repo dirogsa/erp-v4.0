@@ -76,7 +76,11 @@ class OrderItem(BaseModel):
     tax_rate: float = 0.18
     invoiced_quantity: int = 0 # Cantidad ya facturada de este item
     loyalty_points: Optional[int] = None
-    is_unmapped: bool = False # New: For SKU Incubation / Mismatch
+    is_unmapped: bool = False # For SKU Incubation / Mismatch
+    original_xml_sku: Optional[str] = None # Audit trail
+    original_xml_name: Optional[str] = None # Audit trail
+    rejection_code: Optional[str] = None # Explainability: SKU_NOT_FOUND, BRAND_FIREWALL_BLOCK, etc.
+    rejection_reason: Optional[str] = None # Explainability human-readable message
 
     @field_validator('unit_price', 'unit_value')
     @classmethod

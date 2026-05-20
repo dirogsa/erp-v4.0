@@ -39,6 +39,28 @@ async def get_unmapped_items(
     comp_id = company_id or current_user.current_company_id
     return await IntelligenceService.get_unmapped_catalog_items(comp_id)
 
+class EditUnmappedRequest(BaseModel):
+    old_external_code: str
+    old_brand: str
+    new_external_code: str
+    new_description: str
+    new_brand: str
+
+@router.put("/sincerity/unmapped/edit")
+async def edit_unmapped_item(
+    request: EditUnmappedRequest,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """Edita directamente un ítem en incubación, modificando las facturas de origen para limpiarlo."""
+    return await IntelligenceService.edit_unmapped_item(
+        old_external_code=request.old_external_code,
+        old_brand=request.old_brand,
+        new_external_code=request.new_external_code,
+        new_description=request.new_description,
+        new_brand=request.new_brand,
+        company_id=current_user.current_company_id
+    )
+
 class CatalogMappingRequest(BaseModel):
     external_code: str
     brand: str
@@ -234,3 +256,49 @@ async def reprocess_sincerity(
         company_id=current_user.current_company_id,
         section=request.section
     )
+
+# ═══════════════════════════════════════════════════════════════
+# SUPPLIER CROSS-REFERENCE TABLE (Product Alias Governance)
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/sincerity/aliases")
+async def get_product_aliases(
+    search: Optional[str] = None,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Retorna todos los alias de productos (Glosario de Proveedores) de la empresa.
+    Permite búsqueda por código externo, SKU interno, o nombre de proveedor.
+    """
+    from app.models.product_alias import ProductAlias
+    query = {"company_id": current_user.current_company_id}
+    if search:
+        search_regex = {"$regex": search, "$options": "i"}
+        query["$or"] = [
+            {"external_code": search_regex},
+            {"internal_sku": search_regex},
+            {"internal_product_name": search_regex},
+            {"supplier_name": search_regex},
+            {"supplier_ruc": search_regex},
+        ]
+    aliases = await ProductAlias.find(query).sort("-created_at").to_list()
+    return [a.model_dump(mode="json") for a in aliases]
+
+@router.delete("/sincerity/aliases/{alias_id}")
+async def delete_product_alias(
+    alias_id: str,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Elimina un alias de producto. Esto no afecta facturas ya procesadas,
+    pero sí impide que futuras facturas con ese código se auto-mapeen.
+    """
+    from app.models.product_alias import ProductAlias
+    from beanie import PydanticObjectId
+    alias = await ProductAlias.get(PydanticObjectId(alias_id))
+    if not alias:
+        return {"status": "error", "message": "Alias no encontrado"}
+    if alias.company_id != current_user.current_company_id:
+        return {"status": "error", "message": "No tienes permisos para eliminar este alias"}
+    await alias.delete()
+    return {"status": "ok", "message": f"Alias '{alias.external_code}' → '{alias.internal_sku}' eliminado exitosamente."}

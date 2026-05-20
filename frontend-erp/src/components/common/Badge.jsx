@@ -5,7 +5,8 @@ const Badge = ({
     children,
     variant = 'default',
     status,
-    size = 'medium'
+    size = 'medium',
+    ...rest
 }) => {
     const variants = {
         default: { backgroundColor: '#64748b', color: 'white' },
@@ -39,7 +40,7 @@ const Badge = ({
     };
 
     return (
-        <span style={style}>
+        <span style={style} {...rest}>
             {children}
         </span>
     );

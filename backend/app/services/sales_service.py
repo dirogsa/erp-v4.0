@@ -1292,33 +1292,77 @@ async def import_invoice_xml(data: Any, auto_guide: bool = False, exchange_rate:
 
     # 2. Procesamiento de Items y Búsqueda Masiva
     from app.utils.norm_utils import smart_parse_item
+    from app.models.product_alias import ProductAlias
+    
     raw_items = data.get('items', [])
     processed_keys = [smart_parse_item(i.get('product_sku') or i.get('code'), i.get('product_name') or i.get('description', '')) for i in raw_items]
     normalization_results = await asyncio.gather(*processed_keys)
     
+    # Pre-fetch aliases para los SKUs limpios
     skus_to_find = list(set(r[0] for r in normalization_results))
+    aliases = await ProductAlias.find({
+        "external_code": {"$in": skus_to_find},
+        "company_id": str(company_id)
+    }).to_list()
+    alias_map = {a.external_code: a for a in aliases}
+    
+    # También añadimos los SKUs internos de los aliases a la búsqueda principal
+    internal_skus = [a.internal_sku for a in aliases]
+    skus_to_find.extend(internal_skus)
+    skus_to_find = list(set(skus_to_find))
+    
     db_products = await Product.find({"sku": {"$in": skus_to_find}}).to_list()
     product_map = {(p.sku, p.brand): p for p in db_products}
+    product_by_sku_only = {p.sku: p for p in db_products}
 
     order_items = []
     all_mapped = True
     
     for i, item in enumerate(raw_items):
         clean_sku, detected_brand = normalization_results[i]
-        product = product_map.get((clean_sku, detected_brand))
         
-        # Fallback por SKU si no hay marca exacta (Con firewall de marca estricta para Filtros/Lubricantes)
-        if not product:
-            product_fallback = next((p for (s, b), p in product_map.items() if s == clean_sku), None)
-            if product_fallback:
-                # Si el producto es de categoría técnica (Comercial/Lubricante), exigimos marca válida (no N/A) y coincidente.
-                is_technical = getattr(product_fallback, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
-                if not is_technical or (detected_brand != "N/A" and product_fallback.brand == detected_brand):
-                    product = product_fallback
+        # 1. Búsqueda por Alias (Memoria de Alta Prioridad)
+        product = None
+        rejection_code = None
+        rejection_reason = None
+        
+        alias = alias_map.get(clean_sku)
+        if alias:
+            product = product_by_sku_only.get(alias.internal_sku)
+            if product:
+                alias.usage_count += 1
+                alias.last_used_at = datetime.utcnow()
+                asyncio.create_task(alias.save())
 
-        is_unmapped = False
+        # 2. Búsqueda Directa si no hubo alias
         if not product:
-            is_unmapped = True
+            product = product_map.get((clean_sku, detected_brand))
+            
+            # Fallback + Firewall de Marca con Diagnóstico
+            if not product:
+                product_fallback = next((p for (s, b), p in product_map.items() if s == clean_sku), None)
+                if product_fallback:
+                    is_technical = getattr(product_fallback, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
+                    if not is_technical or (detected_brand != "N/A" and product_fallback.brand == detected_brand):
+                        product = product_fallback
+                    else:
+                        # DIAGNÓSTICO: El SKU existe pero la marca colisionó con el Firewall
+                        rejection_code = "BRAND_FIREWALL_BLOCK"
+                        rejection_reason = (
+                            f"SKU encontrado ({clean_sku}) pero chocó contra el Firewall de Marca. "
+                            f"XML declara marca '{detected_brand}', el Maestro tiene '{product_fallback.brand}'. "
+                            f"Crea un Alias o corrige el XML para autorizar este cruce."
+                        )
+                else:
+                    # DIAGNÓSTICO: El SKU no existe en el catálogo maestro en absoluto
+                    rejection_code = "SKU_NOT_FOUND"
+                    rejection_reason = (
+                        f"Código '{clean_sku}' es inédito. No existe en el catálogo maestro. "
+                        f"Crea el producto o usa un Alias para mapearlo a un SKU existente."
+                    )
+
+        is_unmapped = product is None
+        if is_unmapped:
             all_mapped = False
 
         order_items.append(OrderItem(
@@ -1331,7 +1375,11 @@ async def import_invoice_xml(data: Any, auto_guide: bool = False, exchange_rate:
             unit_price=item['unit_price'],
             tax_rate=item.get('tax_rate', 0.18),
             invoiced_quantity=item['quantity'],
-            is_unmapped=is_unmapped
+            is_unmapped=is_unmapped,
+            original_xml_sku=item.get('product_sku') or item.get('code'),
+            original_xml_name=item.get('product_name', item.get('description', '')),
+            rejection_code=rejection_code,
+            rejection_reason=rejection_reason,
         ))
     
     # 3. Vincular Cliente (Incubación de Entidades)

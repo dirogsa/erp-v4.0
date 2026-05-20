@@ -657,7 +657,9 @@ async def import_invoice_xml(data: dict, auto_reception: bool = True, exchange_r
             unit_price=item['unit_price'],
             unit_cost=item['unit_price'], 
             tax_rate=item.get('tax_rate', 0.18),
-            is_custom=True if not product else False
+            is_custom=True if not product else False,
+            original_xml_sku=sku,
+            original_xml_name=item.get('product_name', 'Producto No Registrado')
         ))
         
     order = PurchaseOrder(

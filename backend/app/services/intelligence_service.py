@@ -5,6 +5,7 @@ from app.models.sales import SalesOrder, OrderStatus, SalesInvoice
 from app.models.purchasing import PurchaseInvoice
 from app.models.inventory import Product, ProductType, ProductStatus, DeliveryGuide, GuideItem, GuideType, GuideStatus, MovementType
 from app.models.ingestion import PendingIngest
+from app.utils.norm_utils import canonical_sku
 import math
 from bson import ObjectId
 
@@ -344,19 +345,76 @@ class IntelligenceService:
                             "external_code": item.product_sku,
                             "external_description": item.product_name,
                             "brand": item.brand,
+                            "original_xml_sku": getattr(item, 'original_xml_sku', None),
+                            "original_xml_name": getattr(item, 'original_xml_name', None),
                             "occurrences": 0,
                             "invoice_refs": [],
-                            "suggestions": []
+                            "suggestions": [],
+                            "rejection_code": getattr(item, 'rejection_code', None),
+                            "rejection_reason": getattr(item, 'rejection_reason', None)
                         }
                     unmapped_map[key]["occurrences"] += 1
                     if inv.sunat_number not in unmapped_map[key]["invoice_refs"]:
                         unmapped_map[key]["invoice_refs"].append(inv.sunat_number)
         
-        # Generar sugerencias Fuzzy para cada ítem huérfano
+        # Generar sugerencias Fuzzy para cada ítem huérfano y resolver códigos de rechazo faltantes dinámicamente
         results = list(unmapped_map.values())
+        unique_skus = list({res["external_code"] for res in results})
+        products = await Product.find({"sku": {"$in": unique_skus}}).to_list()
+        # Build both exact and canonical maps
+        product_map = {p.sku: p for p in products}
+        # Compute canonical map for format‑agnostic lookup
+        canonical_map = {p.sku_canonical: p for p in products if getattr(p, 'sku_canonical', None)}
+
         for res in results:
             res["suggestions"] = await IntelligenceService._get_fuzzy_suggestions(res["external_code"], res["external_description"])
             
+            # Retrocompatibilidad: diagnosticar si falta el código de rechazo
+            if not res.get("rejection_code"):
+                # Intento de coincidencia exacta
+                product = product_map.get(res["external_code"])
+                # Si no hay coincidencia exacta, pruebo con la forma canónica (ignora guiones/espacios)
+                if not product:
+                    product = canonical_map.get(canonical_sku(res["external_code"]))
+                if product:
+                    is_technical = getattr(product, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
+                    # Caso: falta marca en XML
+                    if is_technical and (not res["brand"] or res["brand"] == "N/A"):
+                        res["rejection_code"] = "BRAND_NOT_DECLARED"
+                        res["rejection_reason"] = (
+                            f"SKU encontrado ({res['external_code']}) es técnico pero el XML no declara marca. "
+                            f"El Maestro registra '{product.brand}'. Declara la marca o crea un Alias."
+                        )
+                    # Caso: SKU encontrado pero con formato diferente
+                    elif is_technical and product.sku != res["external_code"]:
+                        res["rejection_code"] = "SKU_FORMAT_MISMATCH"
+                        res["rejection_reason"] = (
+                            f"Código '{res['external_code']}' coincide con SKU '{product.sku}' del catálogo, "
+                            f"pero el formato incluye guiones/espacios. Usa un Alias o corrige el XML."
+                        )
+                    # Caso normal de firewall de marca
+                    elif is_technical and res["brand"] != "N/A" and product.brand != res["brand"]:
+                        res["rejection_code"] = "BRAND_FIREWALL_BLOCK"
+                        res["rejection_reason"] = (
+                            f"SKU encontrado ({res['external_code']}) pero chocó contra el Firewall de Marca. "
+                            f"XML declara marca '{res['brand']}', el Maestro tiene '{product.brand}'. "
+                            f"Crea un Alias o corrige el XML para autorizar este cruce."
+                        )
+                    else:
+                        # Si es técnico pero ninguna condición anterior se cumple, marcar como encontrado
+                        res["rejection_code"] = "SKU_NOT_FOUND"
+                        res["rejection_reason"] = (
+                            f"Código '{res['external_code']}' es inédito. No existe en el catálogo maestro. "
+                            f"Crea el producto o usa un Alias para mapearlo a un SKU existente."
+                        )
+                else:
+                    # No se encontró ni exacta ni canónica → SKU inexistente
+                    res["rejection_code"] = "SKU_NOT_FOUND"
+                    res["rejection_reason"] = (
+                        f"Código '{res['external_code']}' es inédito. No existe en el catálogo maestro. "
+                        f"Crea el producto o usa un Alias para mapearlo a un SKU existente."
+                    )
+        
         return results
 
     @staticmethod
@@ -390,6 +448,68 @@ class IntelligenceService:
         return sorted(suggestions, key=lambda x: x["confidence"], reverse=True)
 
     @staticmethod
+    async def edit_unmapped_item(
+        old_external_code: str, 
+        old_brand: str, 
+        new_external_code: str, 
+        new_description: str, 
+        new_brand: str, 
+        company_id: str
+    ) -> Dict[str, Any]:
+        """
+        Corrige de raíz un código externo o descripción que vino mal en el XML.
+        Modifica todas las facturas no confirmadas que contengan este ítem.
+        """
+        from app.models.sales import SalesInvoice
+        from app.models.purchasing import PurchaseInvoice
+        
+        count = 0
+        
+        # 1. Ventas
+        sales_invoices = await SalesInvoice.find({
+            "is_catalog_confirmed": False,
+            "company_id": company_id,
+            "items.product_sku": old_external_code
+        }).to_list()
+        
+        for inv in sales_invoices:
+            inv_changed = False
+            for item in inv.items:
+                if item.product_sku == old_external_code and (not old_brand or item.brand == old_brand):
+                    item.product_sku = new_external_code
+                    if new_description: item.product_name = new_description
+                    if new_brand: item.brand = new_brand
+                    inv_changed = True
+            if inv_changed:
+                await inv.save()
+                count += 1
+                
+        # 2. Compras
+        purch_invoices = await PurchaseInvoice.find({
+            "is_catalog_confirmed": False,
+            "company_id": company_id,
+            "items.product_sku": old_external_code
+        }).to_list()
+        
+        for inv in purch_invoices:
+            inv_changed = False
+            for item in inv.items:
+                if item.product_sku == old_external_code and (not old_brand or item.brand == old_brand):
+                    item.product_sku = new_external_code
+                    if new_description: item.product_name = new_description
+                    if new_brand: item.brand = new_brand
+                    inv_changed = True
+            if inv_changed:
+                await inv.save()
+                count += 1
+                
+        return {
+            "status": "success",
+            "invoices_updated": count,
+            "new_external_code": new_external_code
+        }
+
+    @staticmethod
     async def resolve_catalog_mapping(
         external_code: str, 
         brand: str, 
@@ -418,9 +538,12 @@ class IntelligenceService:
             if not alias:
                 alias = ProductAlias(
                     external_code=external_code,
+                    external_brand=brand, # El brand que vino en la orden/request
                     internal_sku=internal_sku,
+                    internal_brand=product.brand,
+                    internal_product_name=product.name,
                     company_id=company_id,
-                    external_description=product.name,
+                    external_description=product.name, # Mantener por compatibilidad si es necesario
                     confidence_score=1.0,
                     auto_mapped=False
                 )
@@ -1000,6 +1123,7 @@ class IntelligenceService:
         cured_rates = 0
         cured_logistics = 0
         errors = []
+        details = []
 
         # --- A. CATALOG REPROCESSING ---
         if section in ("catalog", "all"):
@@ -1024,7 +1148,12 @@ class IntelligenceService:
                         if alias:
                             product = await Product.find_one({"sku": alias.internal_sku})
                         else:
-                            product = await Product.find_one({"sku": item.product_sku})
+                            potential_product = await Product.find_one({"sku": item.product_sku})
+                            if potential_product:
+                                # Guardafuegos Estricto de Marca (Heredado de la Ingesta)
+                                is_technical = getattr(potential_product, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
+                                if not is_technical or (item.brand != "N/A" and potential_product.brand == item.brand):
+                                    product = potential_product
 
                         if product:
                             item.product_sku = product.sku
@@ -1033,6 +1162,7 @@ class IntelligenceService:
                             item.brand = product.brand
                             item.is_unmapped = False
                             inv_changed = True
+                            details.append(f"✓ Catálogo: Ítem externo '{item.product_sku}' (Factura {inv.sunat_number}) mapeado exitosamente al producto maestro '{product.name}'.")
 
                 if inv_changed:
                     # Check if all items are mapped now
@@ -1048,6 +1178,7 @@ class IntelligenceService:
                                     # Find matching company data block
                                     for p_data in product.company_data:
                                         if p_data.company_id == company_id:
+                                            # UI rendering removed from backend. Rejection details are sent to frontend.
                                             p_data.stock_current -= item.quantity
                                             p_data.stock_reserved += item.quantity
                                             await product.save()
@@ -1075,6 +1206,7 @@ class IntelligenceService:
                     inv.is_exchange_rate_confirmed = True
                     await inv.save()
                     cured_rates += 1
+                    details.append(f"✓ Tipo de Cambio: Factura {inv.sunat_number} actualizada con TC de Venta ({rate.sale}).")
 
             usd_purchases = await PurchaseInvoice.find({
                 "company_id": company_id,
@@ -1090,6 +1222,7 @@ class IntelligenceService:
                     inv.is_exchange_rate_confirmed = True
                     await inv.save()
                     cured_rates += 1
+                    details.append(f"✓ Tipo de Cambio: Factura Compra {inv.sunat_number} actualizada con TC ({inv.exchange_rate}).")
 
             # 2. Customers
             unconfirmed_sales = await SalesInvoice.find({
@@ -1105,6 +1238,7 @@ class IntelligenceService:
                     inv.is_customer_confirmed = True
                     await inv.save()
                     cured_master += 1
+                    details.append(f"✓ Maestro: Cliente {customer.name} ({inv.customer_ruc}) vinculado a la Factura {inv.sunat_number}.")
 
             # 3. Suppliers
             unconfirmed_purchases = await PurchaseInvoice.find({
@@ -1122,6 +1256,7 @@ class IntelligenceService:
                     inv.is_supplier_confirmed = True
                     await inv.save()
                     cured_master += 1
+                    details.append(f"✓ Maestro: Proveedor {supplier.name} ({inv.supplier_ruc}) vinculado a Factura {inv.sunat_number}.")
 
         # --- C. LOGISTICS REPROCESSING ---
         if section in ("logistics", "all"):
@@ -1145,6 +1280,8 @@ class IntelligenceService:
                 cured_logistics = logistics_res.get("processed", 0)
                 if logistics_res.get("errors"):
                     errors.extend(logistics_res["errors"])
+                if logistics_res.get("processed") > 0:
+                    details.append(f"✓ Logística: Se generaron guías para {logistics_res.get('processed')} facturas.")
 
         return {
             "status": "success",
@@ -1153,5 +1290,6 @@ class IntelligenceService:
             "cured_master": cured_master,
             "cured_rates": cured_rates,
             "cured_logistics": cured_logistics,
-            "errors": errors
+            "errors": errors,
+            "details": details
         }
