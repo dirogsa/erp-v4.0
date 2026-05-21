@@ -20,8 +20,6 @@ import Transfers from './pages/Transfers';
 import Dashboard from './pages/Dashboard';
 import Reports from './pages/Reports';
 import BrandsManager from './pages/BrandsManager';
-import ProductAliases from './pages/ProductAliases';
-
 import Companies from './pages/Companies';
 import Warehouses from './pages/Warehouses';
 import Categories from './pages/Categories';
@@ -42,6 +40,7 @@ import ImportPlanning from './pages/ImportPlanning';
 import SystemStatus from './pages/SystemStatus';
 import FinancialSincerityInbox from './pages/FinancialSincerityInbox';
 import GovernanceDashboard from './pages/GovernanceDashboard';
+import Treasury from './pages/Treasury';
 
 
 
@@ -99,7 +98,6 @@ function App() {
                           <Route path="/catalog/view" element={<CatalogView />} />
                           <Route path="/brands" element={<BrandManagement />} />
                           <Route path="/inventory/brands-master" element={<BrandsManager />} />
-                          <Route path="/sincerity/aliases" element={<ProductAliases />} />
                           <Route path="/b2b" element={<B2BManagement />} />
                           <Route path="/pricing-strategy" element={<PricingStrategy />} />
                           <Route path="/marketing" element={<Marketing />} />
@@ -113,6 +111,7 @@ function App() {
                           <Route path="/import-planning" element={<ImportPlanning />} />
                           <Route path="/financial-sincerity" element={<FinancialSincerityInbox />} />
                           <Route path="/governance" element={<GovernanceDashboard />} />
+                          <Route path="/treasury" element={<Treasury />} />
                         </Routes>
                       </Layout>
                     </ProtectedRoute>

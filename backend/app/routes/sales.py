@@ -5,11 +5,12 @@ from beanie import PydanticObjectId
 from app.models.sales import SalesOrder, SalesInvoice, Customer, PaymentStatus, CustomerBranch
 from app.models.auth import User, UserRole
 from app.services import sales_service
-from app.schemas.sales_schemas import InvoiceCreation, PaymentRegistration, DispatchRequest, InvoiceXmlImport, BulkPaymentConditionUpdate
+from app.schemas.sales_schemas import InvoiceCreation, PaymentRegistration, DispatchRequest, InvoiceXmlImport, BulkPaymentRegistration, FinancialTermsUpdate, PaymentRegistrationV2
 from app.schemas.common import PaginatedResponse
 from .auth import get_current_user, check_role
 
 router = APIRouter(prefix="/sales", tags=["Sales"])
+
 
 # ==================== CONFIGURATION ====================
 
@@ -141,16 +142,57 @@ async def register_payment(
         user=current_user
     )
 
-@router.post("/invoices/bulk-payment-condition")
-async def bulk_update_payment_condition(
-    request: BulkPaymentConditionUpdate,
-    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+@router.post("/invoices/bulk-payments")
+async def bulk_register_payments(
+    request: BulkPaymentRegistration,
+    current_user: User = Depends(check_role([UserRole.ACCOUNTANT, UserRole.ADMIN, UserRole.SUPERADMIN]))
 ):
-    return await sales_service.bulk_update_payment_condition(
+    """Confirms full payment for a batch of invoices on the given accounting date.
+    Creates a real Payment event per invoice. The XML fiscal record remains immutable.
+    """
+    return await sales_service.bulk_register_payments(
         request.invoice_numbers,
-        request.condition,
-        request.days,
-        request.payment_terms
+        request.payment_date,
+        request.payment_method,
+        request.bank_name,
+        request.notes,
+        user=current_user
+    )
+
+@router.post("/invoices/{invoice_number}/payments/verify")
+async def register_payment_with_bank_verification(
+    invoice_number: str,
+    payment_data: PaymentRegistrationV2,
+    current_user: User = Depends(check_role([UserRole.ACCOUNTANT, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """Registra un abono con metadata bancaria para auditoría anti-fraude."""
+    return await sales_service.register_payment_v2(
+        invoice_number,
+        payment_data.amount,
+        payment_data.payment_date,
+        payment_data.bank_name,
+        payment_data.operation_number,
+        payment_data.notes,
+        user=current_user
+    )
+
+@router.put("/invoices/{invoice_number}/financial-terms")
+async def update_financial_terms(
+    invoice_number: str,
+    terms: FinancialTermsUpdate,
+    current_user: User = Depends(check_role([UserRole.ACCOUNTANT, UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """
+    Reprograma la condición de pago y vencimiento INTERNO del ERP.
+    NUNCA altera el campo payment_condition_xml (registro fiscal inmutable del XML Sunat).
+    """
+    return await sales_service.update_financial_terms(
+        invoice_number,
+        terms.payment_condition,
+        terms.due_date,
+        terms.payment_terms,
+        terms.notes,
+        user=current_user
     )
 
 # ==================== CUSTOMERS ====================

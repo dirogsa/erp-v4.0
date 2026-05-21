@@ -876,6 +876,183 @@ async def register_payment(invoice_number: str, amount: float, payment_date: str
 
     return {"message": "Payment registered successfully", "invoice": invoice}
 
+async def register_payment_v2(
+    invoice_number: str,
+    amount: float,
+    payment_date: str,
+    bank_name: Optional[str] = None,
+    operation_number: Optional[str] = None,
+    notes: Optional[str] = None,
+    user: Optional[User] = None
+) -> Dict[str, Any]:
+    """
+    World-Class payment registration with bank verification metadata.
+    Allows recording which bank account received the deposit and the
+    operation number for anti-fraud audit trail.
+    """
+    invoice = await get_invoice(invoice_number)
+    
+    if invoice.payment_status == PaymentStatus.PAID:
+        raise ValidationException("Factura ya está completamente pagada.")
+    
+    pending = round(invoice.total_amount - invoice.amount_paid, 3)
+    if round(amount, 3) > pending + 0.01:  # small tolerance for float rounding
+        raise ValidationException(f"El monto S/ {amount:.2f} excede el saldo pendiente S/ {pending:.2f}")
+    
+    payment = Payment(
+        amount=amount,
+        date=datetime.fromisoformat(payment_date),
+        notes=notes,
+        bank_name=bank_name,
+        operation_number=operation_number,
+    )
+    invoice.payments.append(payment)
+    invoice.amount_paid = round(invoice.amount_paid + amount, 3)
+    
+    if invoice.amount_paid >= invoice.total_amount - 0.01:
+        invoice.payment_status = PaymentStatus.PAID
+    elif invoice.amount_paid > 0:
+        invoice.payment_status = PaymentStatus.PARTIAL
+    
+    await invoice.save()
+
+    if user:
+        bank_info = f" | Banco: {bank_name}" if bank_name else ""
+        op_info = f" | Op: {operation_number}" if operation_number else ""
+        await AuditService.log_action(
+            user=user,
+            action="UPDATE",
+            module="FINANCE",
+            description=f"Abono S/ {amount:.2f} registrado en factura {invoice.sunat_number or invoice.invoice_number}{bank_info}{op_info}. Estado: {invoice.payment_status}",
+            entity_id=str(invoice.id),
+            entity_name=invoice.sunat_number or invoice.invoice_number
+        )
+
+    return {"message": "Abono registrado exitosamente", "payment_status": invoice.payment_status, "amount_paid": invoice.amount_paid, "pending": round(invoice.total_amount - invoice.amount_paid, 3)}
+
+
+async def bulk_register_payments(
+    invoice_numbers: list,
+    payment_date: str,
+    payment_method: Optional[str] = None,
+    bank_name: Optional[str] = None,
+    notes: Optional[str] = None,
+    user: Optional[User] = None
+) -> dict:
+    """
+    World-Class Bulk Payment Engine (Constitution §5: Integridad Financiera).
+    
+    For each invoice in the batch:
+    - If already PAID → skip and report.
+    - Otherwise → calculate the full pending balance and inject a Payment event
+      with the supplied accounting date. The XML/fiscal record is never touched.
+    
+    Returns an execution report: { processed, skipped, errors }.
+    """
+    from app.models.sales import Payment
+
+    processed = []
+    skipped = []
+    errors = []
+
+    for inv_num in invoice_numbers:
+        try:
+            invoice = await get_invoice(inv_num)
+
+            if invoice.payment_status == PaymentStatus.PAID:
+                skipped.append(inv_num)
+                continue
+
+            pending = round(invoice.total_amount - invoice.amount_paid, 3)
+            if pending <= 0:
+                skipped.append(inv_num)
+                continue
+
+            method_note = f"Método: {payment_method}. " if payment_method else ""
+            full_notes = f"{method_note}{notes or ''}".strip() or None
+
+            payment = Payment(
+                amount=pending,
+                date=datetime.fromisoformat(payment_date),
+                notes=full_notes,
+                bank_name=bank_name,
+            )
+            invoice.payments.append(payment)
+            invoice.amount_paid = round(invoice.amount_paid + pending, 3)
+            invoice.payment_status = PaymentStatus.PAID
+            await invoice.save()
+            processed.append(inv_num)
+
+        except Exception as e:
+            errors.append({"invoice": inv_num, "error": str(e)})
+
+    if user and processed:
+        await AuditService.log_action(
+            user=user,
+            action="UPDATE",
+            module="FINANCE",
+            description=f"Cobro masivo confirmado: {len(processed)} facturas pagadas al {payment_date}. Banco: {bank_name or 'N/A'}. Método: {payment_method or 'N/A'}.",
+            entity_id="BULK",
+            entity_name="BULK_PAYMENT"
+        )
+
+    return {
+        "processed": len(processed),
+        "skipped": len(skipped),
+        "errors": errors,
+        "processed_invoices": processed,
+        "skipped_invoices": skipped,
+    }
+
+
+async def update_financial_terms(
+    invoice_number: str,
+    payment_condition: str,
+    due_date: Optional[str] = None,
+    payment_terms: Optional[dict] = None,
+    notes: Optional[str] = None,
+    user: Optional[User] = None
+) -> Dict[str, Any]:
+    """
+    Reprograms the INTERNAL financial terms of an invoice.
+    NEVER touches payment_condition_xml — the immutable fiscal record from Sunat.
+    Use when:
+    - Customer negotiates credit on a cash invoice
+    - Customer wants to reschedule payment installments
+    - Admin adjusts due dates for collection purposes
+    """
+    invoice = await get_invoice(invoice_number)
+
+    old_condition = invoice.payment_condition
+    invoice.payment_condition = payment_condition
+
+    if due_date:
+        invoice.due_date = datetime.fromisoformat(due_date)
+    
+    if payment_terms:
+        invoice.payment_terms = payment_terms
+
+    await invoice.save()
+
+    if user:
+        xml_original = invoice.payment_condition_xml or "N/A"
+        reason = f" | Motivo: {notes}" if notes else ""
+        await AuditService.log_action(
+            user=user,
+            action="UPDATE",
+            module="FINANCE",
+            description=f"Condición de pago ERP cambiada de {old_condition} → {payment_condition} en factura {invoice.sunat_number or invoice.invoice_number}. XML Fiscal inmutable: {xml_original}{reason}",
+            entity_id=str(invoice.id),
+            entity_name=invoice.sunat_number or invoice.invoice_number
+        )
+
+    return {
+        "message": "Términos financieros actualizados exitosamente",
+        "payment_condition": invoice.payment_condition,
+        "payment_condition_xml": invoice.payment_condition_xml,
+        "due_date": invoice.due_date.isoformat() if invoice.due_date else None,
+    }
+
 from app.models.company import Company
 
 # ==================== CUSTOMERS ====================
@@ -1118,126 +1295,129 @@ async def delete_customer_branch(id: PydanticObjectId, branch_index: int) -> Cus
 
 # ==================== DISPATCH ====================
 
-async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str, sunat_number: Optional[str] = None, issuer_info: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Dict[str, Any]:
-    invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == invoice_number)
-    if not invoice:
-        raise NotFoundException("Invoice", invoice_number)
-    
-    if invoice.dispatch_status == "DISPATCHED":
-        raise ValidationException("Invoice already dispatched")
-    
-    # Validate stock (World-Class Guardrail - Skip if system allows negative stock for reconciliation)
-    config = await SystemConfig.find_one({})
-    allow_negative = config.allow_negative_stock if config else False
+dispatch_guide_lock = asyncio.Lock()
 
-    if not allow_negative:
+async def create_dispatch_guide(invoice_number: str, notes: str, created_by: str, sunat_number: Optional[str] = None, issuer_info: Optional[Dict[str, Any]] = None, user: Optional[User] = None) -> Dict[str, Any]:
+    async with dispatch_guide_lock:
+        invoice = await SalesInvoice.find_one(SalesInvoice.invoice_number == invoice_number)
+        if not invoice:
+            raise NotFoundException("Invoice", invoice_number)
+        
+        if invoice.dispatch_status == "DISPATCHED":
+            raise ValidationException("Invoice already dispatched")
+        
+        # Validate stock (World-Class Guardrail - Skip if system allows negative stock for reconciliation)
+        config = await SystemConfig.find_one({})
+        allow_negative = config.allow_negative_stock if config else False
+
+        if not allow_negative:
+            for item in invoice.items:
+                product = await inventory_service.get_product_by_sku(item.product_sku)
+                if product.stock_current < item.quantity:
+                    raise ValidationException(
+                        f"Stock insuficiente para {product.name}. Disponible: {product.stock_current}, Requerido: {item.quantity}. "
+                        "Active el 'Modo Conciliación' en Configuración si desea regularizar facturas históricas sin stock físico."
+                    )
+        
+        # Generate Internal ID: GV-YY-####
+        year_prefix = datetime.now().strftime('%y')
+        prefix = f"GV-{year_prefix}"
+        
+        last_guide = await DeliveryGuide.find({"guide_number": {"$regex": f"^{prefix}"}}).sort("-guide_number").limit(1).to_list()
+        
+        if last_guide and last_guide[0].guide_number:
+            try:
+                parts = last_guide[0].guide_number.split('-')
+                if len(parts) == 3:
+                    last_num = int(parts[2])
+                    new_num = last_num + 1
+                else:
+                    new_num = 1
+            except (IndexError, ValueError):
+                new_num = 1
+        else:
+            new_num = 1
+            
+        guide_number = f"{prefix}-{new_num:04d}"
+        
+        guide_items = []
         for item in invoice.items:
             product = await inventory_service.get_product_by_sku(item.product_sku)
-            if product.stock_current < item.quantity:
-                raise ValidationException(
-                    f"Stock insuficiente para {product.name}. Disponible: {product.stock_current}, Requerido: {item.quantity}. "
-                    "Active el 'Modo Conciliación' en Configuración si desea regularizar facturas históricas sin stock físico."
-                )
-    
-    # Generate Internal ID: GV-YY-####
-    year_prefix = datetime.now().strftime('%y')
-    prefix = f"GV-{year_prefix}"
-    
-    last_guide = await DeliveryGuide.find({"guide_number": {"$regex": f"^{prefix}"}}).sort("-guide_number").limit(1).to_list()
-    
-    if last_guide and last_guide[0].guide_number:
-        try:
-            parts = last_guide[0].guide_number.split('-')
-            if len(parts) == 3:
-                last_num = int(parts[2])
-                new_num = last_num + 1
-            else:
-                new_num = 1
-        except (IndexError, ValueError):
-            new_num = 1
-    else:
-        new_num = 1
+            guide_items.append(GuideItem(
+                sku=item.product_sku,
+                product_name=product.name,
+                quantity=item.quantity,
+                unit_cost=product.cost,
+                weight_g=getattr(product, 'weight_g', 0.0) # Capturamos el peso del producto
+            ))
         
-    guide_number = f"{prefix}-{new_num:04d}"
-    
-    guide_items = []
-    for item in invoice.items:
-        product = await inventory_service.get_product_by_sku(item.product_sku)
-        guide_items.append(GuideItem(
-            sku=item.product_sku,
-            product_name=product.name,
-            quantity=item.quantity,
-            unit_cost=product.cost,
-            weight_g=getattr(product, 'weight_g', 0.0) # Capturamos el peso del producto
-        ))
-    
-    target_text = invoice.customer_name
-    if invoice.delivery_branch_name:
-        target_text = f"{invoice.customer_name} - {invoice.delivery_branch_name}"
-    
-    # Calculate Total Weight (World-Class Logistics)
-    total_weight_kg = sum((item.weight_g * item.quantity) for item in guide_items) / 1000.0
+        target_text = invoice.customer_name
+        if invoice.delivery_branch_name:
+            target_text = f"{invoice.customer_name} - {invoice.delivery_branch_name}"
+        
+        # Calculate Total Weight (World-Class Logistics)
+        total_weight_kg = sum((item.weight_g * item.quantity) for item in guide_items) / 1000.0
 
-    # Default Carrier: If it's internal/automatic, the Issuer is the "Remitente/Carrier" (Private Transport)
-    issuer = invoice.issuer_info
-    c_name = issuer.name if issuer else "Empresa Emisora"
-    c_ruc = issuer.ruc if issuer else "00000000000"
+        # Default Carrier: If it's internal/automatic, the Issuer is the "Remitente/Carrier" (Private Transport)
+        issuer = invoice.issuer_info
+        c_name = issuer.name if issuer else "Empresa Emisora"
+        c_ruc = issuer.ruc if issuer else "00000000000"
 
-    guide = DeliveryGuide(
-        guide_number=guide_number,
-        sunat_number=sunat_number,
-        guide_type=GuideType.DISPATCH,
-        status=GuideStatus.DISPATCHED,
-        invoice_number=invoice_number,
-        customer_name=invoice.customer_name,
-        customer_ruc=invoice.customer_ruc or "00000000000",
-        delivery_address=invoice.delivery_address,
-        items=guide_items,
-        notes=notes,
-        created_by=created_by,
-        issue_date=datetime.now(),
-        
-        # World-Class Metadata Injection
-        carrier_name=c_name,
-        carrier_ruc=c_ruc,
-        total_weight=total_weight_kg,
-        
-        company_id=str(invoice.company_id)
-    )
-    await guide.insert()
-    
-    # Move Inventory (OUT) - Considering Reservation
-    for item in invoice.items:
-        await inventory_service.register_movement(
-            sku=item.product_sku,
-            quantity=item.quantity,
-            movement_type=MovementType.OUT,
-            reference=guide_number,
-            company_id=invoice.company_id,
-            is_reservation_release=invoice.is_stock_reserved # Crucial: release if previously reserved
+        guide = DeliveryGuide(
+            guide_number=guide_number,
+            sunat_number=sunat_number,
+            guide_type=GuideType.DISPATCH,
+            status=GuideStatus.DISPATCHED,
+            invoice_number=invoice_number,
+            customer_name=invoice.customer_name,
+            customer_ruc=invoice.customer_ruc or "00000000000",
+            delivery_address=invoice.delivery_address,
+            items=guide_items,
+            notes=notes,
+            created_by=created_by,
+            issue_date=datetime.now(),
+            
+            # World-Class Metadata Injection
+            carrier_name=c_name,
+            carrier_ruc=c_ruc,
+            total_weight=total_weight_kg,
+            
+            company_id=str(invoice.company_id)
         )
-    
-    invoice.dispatch_status = "DISPATCHED"
-    invoice.guide_id = str(guide.id)
-    invoice.is_stock_reserved = False # Clear flag after release
-    await invoice.save()
-    
-    if user:
-        await AuditService.log_action(
-            user=user,
-            action="CREATE",
-            module="INVENTORY",
-            description=f"Se generó la Guía de Remisión {guide.sunat_number or guide.guide_number} para la factura {invoice_number}",
-            entity_id=str(guide.id),
-            entity_name=guide.sunat_number or guide.guide_number
-        )
-    
-    return {
-        "message": "Dispatch guide created successfully",
-        "guide_number": guide_number,
-        "items_count": len(guide_items),
-        "delivery_address": invoice.delivery_address
-    }
+        await guide.insert()
+        
+        # Move Inventory (OUT) - Considering Reservation
+        for item in invoice.items:
+            await inventory_service.register_movement(
+                sku=item.product_sku,
+                quantity=item.quantity,
+                movement_type=MovementType.OUT,
+                reference=guide_number,
+                company_id=invoice.company_id,
+                is_reservation_release=invoice.is_stock_reserved # Crucial: release if previously reserved
+            )
+        
+        invoice.dispatch_status = "DISPATCHED"
+        invoice.guide_id = str(guide.id)
+        invoice.is_stock_reserved = False # Clear flag after release
+        await invoice.save()
+        
+        if user:
+            await AuditService.log_action(
+                user=user,
+                action="CREATE",
+                module="INVENTORY",
+                description=f"Se generó la Guía de Remisión {guide.sunat_number or guide.guide_number} para la factura {invoice_number}",
+                entity_id=str(guide.id),
+                entity_name=guide.sunat_number or guide.guide_number
+            )
+        
+        return {
+            "message": "Dispatch guide created successfully",
+            "guide_number": guide_number,
+            "items_count": len(guide_items),
+            "delivery_address": invoice.delivery_address
+        }
 
 async def import_invoice_xml(data: Any, auto_guide: bool = False, exchange_rate: Optional[float] = None, user: Optional[User] = None) -> SalesInvoice:
     """
@@ -1292,28 +1472,15 @@ async def import_invoice_xml(data: Any, auto_guide: bool = False, exchange_rate:
 
     # 2. Procesamiento de Items y Búsqueda Masiva
     from app.utils.norm_utils import smart_parse_item
-    from app.models.product_alias import ProductAlias
     
     raw_items = data.get('items', [])
     processed_keys = [smart_parse_item(i.get('product_sku') or i.get('code'), i.get('product_name') or i.get('description', '')) for i in raw_items]
     normalization_results = await asyncio.gather(*processed_keys)
     
-    # Pre-fetch aliases para los SKUs limpios
     skus_to_find = list(set(r[0] for r in normalization_results))
-    aliases = await ProductAlias.find({
-        "external_code": {"$in": skus_to_find},
-        "company_id": str(company_id)
-    }).to_list()
-    alias_map = {a.external_code: a for a in aliases}
-    
-    # También añadimos los SKUs internos de los aliases a la búsqueda principal
-    internal_skus = [a.internal_sku for a in aliases]
-    skus_to_find.extend(internal_skus)
-    skus_to_find = list(set(skus_to_find))
     
     db_products = await Product.find({"sku": {"$in": skus_to_find}}).to_list()
     product_map = {(p.sku, p.brand): p for p in db_products}
-    product_by_sku_only = {p.sku: p for p in db_products}
 
     order_items = []
     all_mapped = True
@@ -1321,25 +1488,15 @@ async def import_invoice_xml(data: Any, auto_guide: bool = False, exchange_rate:
     for i, item in enumerate(raw_items):
         clean_sku, detected_brand = normalization_results[i]
         
-        # 1. Búsqueda por Alias (Memoria de Alta Prioridad)
         product = None
         rejection_code = None
         rejection_reason = None
         
-        alias = alias_map.get(clean_sku)
-        if alias:
-            product = product_by_sku_only.get(alias.internal_sku)
-            if product:
-                alias.usage_count += 1
-                alias.last_used_at = datetime.utcnow()
-                asyncio.create_task(alias.save())
-
-        # 2. Búsqueda Directa si no hubo alias
+        # 1. Búsqueda Directa
+        product = product_map.get((clean_sku, detected_brand))
+        
+        # Fallback + Firewall de Marca con Diagnóstico
         if not product:
-            product = product_map.get((clean_sku, detected_brand))
-            
-            # Fallback + Firewall de Marca con Diagnóstico
-            if not product:
                 product_fallback = next((p for (s, b), p in product_map.items() if s == clean_sku), None)
                 if product_fallback:
                     is_technical = getattr(product_fallback, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
@@ -1444,11 +1601,12 @@ async def import_invoice_xml(data: Any, auto_guide: bool = False, exchange_rate:
         currency=currency_val,
         exchange_rate=current_exchange_rate,
         payment_condition="CREDITO" if is_credit else "CONTADO",
+        payment_condition_xml="CREDITO" if is_credit else "CONTADO",
         payment_status=PaymentStatus.PENDING,
         amount_paid=0.0,
         payment_terms={"mode": payment_mode, "installments": data.get('installments', [])},
         dispatch_status="PENDING_GUIDE",
-        is_financial_confirmed=False, 
+        is_financial_confirmed=True, 
         is_catalog_confirmed=all_mapped,
         is_customer_confirmed=is_customer_confirmed,
         is_exchange_rate_confirmed=is_exchange_rate_confirmed,

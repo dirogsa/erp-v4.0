@@ -357,63 +357,97 @@ class IntelligenceService:
                     if inv.sunat_number not in unmapped_map[key]["invoice_refs"]:
                         unmapped_map[key]["invoice_refs"].append(inv.sunat_number)
         
-        # Generar sugerencias Fuzzy para cada ítem huérfano y resolver códigos de rechazo faltantes dinámicamente
+        # Generar sugerencias Fuzzy y resolver códigos de rechazo con Diagnósticos Granulares
+        from app.utils.norm_utils import canonical_sku
         results = list(unmapped_map.values())
         unique_skus = list({res["external_code"] for res in results})
-        products = await Product.find({"sku": {"$in": unique_skus}}).to_list()
-        # Build both exact and canonical maps
-        product_map = {p.sku: p for p in products}
-        # Compute canonical map for format‑agnostic lookup
-        canonical_map = {p.sku_canonical: p for p in products if getattr(p, 'sku_canonical', None)}
+        canonical_skus = [canonical_sku(sku) for sku in unique_skus]
+        
+        # Búsqueda global (Exacta O Canónica)
+        products = await Product.find({
+            "$or": [
+                {"sku": {"$in": unique_skus}},
+                {"sku_canonical": {"$in": canonical_skus}}
+            ]
+        }).to_list()
+        
+        # Agrupar por sku_canonical para saber bajo qué marcas existe
+        canonical_group_map = {}
+        for p in products:
+            if not getattr(p, 'sku_canonical', None):
+                continue
+            if p.sku_canonical not in canonical_group_map:
+                canonical_group_map[p.sku_canonical] = []
+            canonical_group_map[p.sku_canonical].append(p)
 
         for res in results:
             res["suggestions"] = await IntelligenceService._get_fuzzy_suggestions(res["external_code"], res["external_description"])
             
-            # Retrocompatibilidad: diagnosticar si falta el código de rechazo
-            if not res.get("rejection_code"):
-                # Intento de coincidencia exacta
-                product = product_map.get(res["external_code"])
-                # Si no hay coincidencia exacta, pruebo con la forma canónica (ignora guiones/espacios)
-                if not product:
-                    product = canonical_map.get(canonical_sku(res["external_code"]))
-                if product:
-                    is_technical = getattr(product, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
-                    # Caso: falta marca en XML
-                    if is_technical and (not res["brand"] or res["brand"] == "N/A"):
+            c_sku = canonical_sku(res["external_code"])
+            matched_products = canonical_group_map.get(c_sku, [])
+            
+            xml_brand = res.get("brand")
+            is_brand_missing = (not xml_brand or xml_brand == "N/A" or xml_brand == "UNKNOWN")
+            
+            if matched_products:
+                known_brands = list({p.brand for p in matched_products if p.brand})
+                brands_str = ", ".join(known_brands) if known_brands else "Desconocida"
+                
+                if is_brand_missing:
+                    # ── Tercera Pasada: Extracción de Marca desde Descripción ──────────
+                    # El operador MDM pudo haber escrito la marca en la descripción
+                    # (ej. "FILTRO OEM equiv LF260"). Buscamos si alguna de las marcas
+                    # conocidas del candidato aparece como palabra completa en el texto.
+                    import re as _re
+                    external_desc_upper = (res.get("external_description") or "").upper()
+                    brand_found_in_desc = None
+                    for known_brand in known_brands:
+                        pattern = r'\b' + _re.escape(known_brand.upper()) + r'\b'
+                        if _re.search(pattern, external_desc_upper):
+                            brand_found_in_desc = known_brand
+                            break
+                    
+                    if brand_found_in_desc:
+                        # Marca hallada en la descripción — listo para procesar
+                        matched_product = next(
+                            (p for p in matched_products if p.brand == brand_found_in_desc), 
+                            None
+                        )
+                        res["rejection_code"] = "READY_TO_PROCESS"
+                        res["rejection_reason"] = (
+                            f"✅ Listo para Procesar. Código canónico coincide con SKU maestro "
+                            f"'{matched_product.sku if matched_product else 'N/A'}' "
+                            f"(Marca '{brand_found_in_desc}' detectada en la descripción). "
+                            f"Presione 'Reprocesar Catálogo' para curar la factura."
+                        )
+                        res["resolved_brand"] = brand_found_in_desc
+                        res["resolved_sku"] = matched_product.sku if matched_product else None
+                    else:
                         res["rejection_code"] = "BRAND_NOT_DECLARED"
                         res["rejection_reason"] = (
-                            f"SKU encontrado ({res['external_code']}) es técnico pero el XML no declara marca. "
-                            f"El Maestro registra '{product.brand}'. Declara la marca o crea un Alias."
-                        )
-                    # Caso: SKU encontrado pero con formato diferente
-                    elif is_technical and product.sku != res["external_code"]:
-                        res["rejection_code"] = "SKU_FORMAT_MISMATCH"
-                        res["rejection_reason"] = (
-                            f"Código '{res['external_code']}' coincide con SKU '{product.sku}' del catálogo, "
-                            f"pero el formato incluye guiones/espacios. Usa un Alias o corrige el XML."
-                        )
-                    # Caso normal de firewall de marca
-                    elif is_technical and res["brand"] != "N/A" and product.brand != res["brand"]:
-                        res["rejection_code"] = "BRAND_FIREWALL_BLOCK"
-                        res["rejection_reason"] = (
-                            f"SKU encontrado ({res['external_code']}) pero chocó contra el Firewall de Marca. "
-                            f"XML declara marca '{res['brand']}', el Maestro tiene '{product.brand}'. "
-                            f"Crea un Alias o corrige el XML para autorizar este cruce."
-                        )
-                    else:
-                        # Si es técnico pero ninguna condición anterior se cumple, marcar como encontrado
-                        res["rejection_code"] = "SKU_NOT_FOUND"
-                        res["rejection_reason"] = (
-                            f"Código '{res['external_code']}' es inédito. No existe en el catálogo maestro. "
-                            f"Crea el producto o usa un Alias para mapearlo a un SKU existente."
+                            f"Marca no declarada en el XML. Este código existe en el Maestro bajo las marcas: [{brands_str}]. "
+                            f"Edite la descripción incluyendo la marca (ej. 'FILTRO {known_brands[0] if known_brands else 'MARCA'} ...') "
+                            f"o use 'Vincular a Catálogo' para resolverlo manualmente."
                         )
                 else:
-                    # No se encontró ni exacta ni canónica → SKU inexistente
-                    res["rejection_code"] = "SKU_NOT_FOUND"
-                    res["rejection_reason"] = (
-                        f"Código '{res['external_code']}' es inédito. No existe en el catálogo maestro. "
-                        f"Crea el producto o usa un Alias para mapearlo a un SKU existente."
-                    )
+                    exact_brand_match = next((p for p in matched_products if p.brand == xml_brand), None)
+                    if exact_brand_match:
+                        res["rejection_code"] = "SKU_FORMAT_MISMATCH"
+                        res["rejection_reason"] = (
+                            f"Código '{res['external_code']}' coincide con SKU '{exact_brand_match.sku}' (Marca {xml_brand}), "
+                            f"pero el formato es diferente (ej. guiones/espacios). Usa 'Vincular a Catálogo'."
+                        )
+                    else:
+                        res["rejection_code"] = "BRAND_MISMATCH"
+                        res["rejection_reason"] = (
+                            f"Discrepancia de Marca. El código existe bajo [{brands_str}], pero el proveedor reporta [{xml_brand}]. "
+                            f"Verifique si es una marca alternativa o un error de código."
+                        )
+            else:
+                res["rejection_code"] = "SKU_NOT_FOUND"
+                res["rejection_reason"] = (
+                    f"SKU Inédito. El código '{res['external_code']}' nunca ha sido registrado en el catálogo maestro."
+                )
         
         return results
 
@@ -454,7 +488,8 @@ class IntelligenceService:
         new_external_code: str, 
         new_description: str, 
         new_brand: str, 
-        company_id: str
+        company_id: str,
+        invoice_numbers: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Corrige de raíz un código externo o descripción que vino mal en el XML.
@@ -473,6 +508,8 @@ class IntelligenceService:
         }).to_list()
         
         for inv in sales_invoices:
+            if invoice_numbers and inv.invoice_number not in invoice_numbers:
+                continue
             inv_changed = False
             for item in inv.items:
                 if item.product_sku == old_external_code and (not old_brand or item.brand == old_brand):
@@ -492,13 +529,14 @@ class IntelligenceService:
         }).to_list()
         
         for inv in purch_invoices:
+            if invoice_numbers and inv.invoice_number not in invoice_numbers:
+                continue
             inv_changed = False
             for item in inv.items:
-                if item.product_sku == old_external_code and (not old_brand or item.brand == old_brand):
-                    item.product_sku = new_external_code
-                    if new_description: item.product_name = new_description
-                    if new_brand: item.brand = new_brand
-                    inv_changed = True
+                item.product_sku = new_external_code
+                if new_description: item.product_name = new_description
+                if new_brand: item.brand = new_brand
+                inv_changed = True
             if inv_changed:
                 await inv.save()
                 count += 1
@@ -510,44 +548,57 @@ class IntelligenceService:
         }
 
     @staticmethod
+    async def find_invoices_by_external_code(external_code: str, company_id: str) -> List[Dict[str, Any]]:
+        """Return incipient invoices (sales & purchases) that contain the external_code."""
+        from app.models.sales import SalesInvoice
+        from app.models.purchasing import PurchaseInvoice
+        result: List[Dict[str, Any]] = []
+        # Sales invoices
+        sales = await SalesInvoice.find({
+            "is_catalog_confirmed": False,
+            "company_id": company_id,
+            "items.product_sku": external_code
+        }).to_list()
+        for inv in sales:
+            result.append({
+                "type": "sale",
+                "invoice_number": inv.invoice_number,
+                "brand": inv.items[0].brand if inv.items else None,
+                "date": inv.invoice_date.isoformat() if hasattr(inv, 'invoice_date') else None
+            })
+        # Purchase invoices
+        purchases = await PurchaseInvoice.find({
+            "is_catalog_confirmed": False,
+            "company_id": company_id,
+            "items.product_sku": external_code
+        }).to_list()
+        for inv in purchases:
+            result.append({
+                "type": "purchase",
+                "invoice_number": inv.invoice_number,
+                "brand": inv.items[0].brand if inv.items else None,
+                "date": inv.invoice_date.isoformat() if hasattr(inv, 'invoice_date') else None
+            })
+        return result
+
+    @staticmethod
     async def resolve_catalog_mapping(
         external_code: str, 
         brand: str, 
         internal_sku: str, 
-        company_id: str,
-        create_alias: bool = True
+        company_id: str
     ) -> Dict[str, Any]:
         """
         Vincula un código externo con un SKU real y actualiza todas las facturas pendientes.
+        Cero Confianza: No se guardan alias permanentes, solo se cura la transacción actual.
         """
         from app.models.sales import SalesInvoice
         from app.models.inventory import Product
-        from app.models.product_alias import ProductAlias
         
         # 1. Validar SKU interno
         product = await Product.find_one({"sku": internal_sku})
         if not product:
             raise Exception(f"El SKU interno {internal_sku} no existe.")
-
-        # 2. Crear Alias si se solicita (Aprendizaje Permanente)
-        if create_alias:
-            alias = await ProductAlias.find_one({
-                "external_code": external_code, 
-                "company_id": company_id
-            })
-            if not alias:
-                alias = ProductAlias(
-                    external_code=external_code,
-                    external_brand=brand, # El brand que vino en la orden/request
-                    internal_sku=internal_sku,
-                    internal_brand=product.brand,
-                    internal_product_name=product.name,
-                    company_id=company_id,
-                    external_description=product.name, # Mantener por compatibilidad si es necesario
-                    confidence_score=1.0,
-                    auto_mapped=False
-                )
-                await alias.insert()
 
         # 3. Actualizar Facturas Pendientes
         invoices = await SalesInvoice.find({
@@ -592,8 +643,7 @@ class IntelligenceService:
         return {
             "status": "success",
             "mapped_to": internal_sku,
-            "invoices_updated": count,
-            "alias_created": create_alias
+            "invoices_updated": count
         }
 
     @staticmethod
@@ -605,8 +655,7 @@ class IntelligenceService:
     ) -> Dict[str, Any]:
         """
         Aísla un código externo en el Purgatorio (Ghost SKU).
-        Crea el producto temporal, genera un ProductAlias para que futuras facturas pasen en automático,
-        y resuelve las facturas actuales.
+        Crea el producto temporal y resuelve las facturas actuales.
         """
         from app.models.sales import SalesInvoice
         from app.models.inventory import Product, CompanyProductData
@@ -654,14 +703,36 @@ class IntelligenceService:
         )
         await new_ghost.insert()
         
-        # 4. Delegar la vinculación y el Alias a resolve_catalog_mapping
+        # 4. Delegar la vinculación a resolve_catalog_mapping
         return await IntelligenceService.resolve_catalog_mapping(
             external_code=external_code,
             brand=brand,
             internal_sku=ghost_sku,
-            company_id=company_id,
-            create_alias=True
+            company_id=company_id
         )
+
+    @staticmethod
+    async def get_ghost_skus(company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Obtiene la lista de Ghost SKUs (SKUs aislados temporalmente) para mostrarlos en el Purgatorio.
+        """
+        from app.models.inventory import Product
+        query = {"is_temporary": True}
+        if company_id:
+            query[f"company_data.{company_id}"] = {"$exists": True}
+            
+        ghosts = await Product.find(query).to_list()
+        
+        return [
+            {
+                "sku": g.sku,
+                "name": g.name,
+                "brand": g.brand,
+                "category_id": g.category_id,
+                "created_at": g.created_at.isoformat() if g.created_at else None
+            }
+            for g in ghosts
+        ]
 
     @staticmethod
     async def get_master_data_gaps(company_id: Optional[str] = None) -> Dict[str, Any]:
@@ -1115,7 +1186,6 @@ class IntelligenceService:
         from app.models.sales import SalesInvoice, Customer
         from app.models.purchasing import PurchaseInvoice, Supplier
         from app.models.finance import ExchangeRate
-        from app.models.product_alias import ProductAlias
         from app.models.inventory import Product
         
         cured_catalog = 0
@@ -1137,23 +1207,45 @@ class IntelligenceService:
                 inv_changed = False
                 for item in inv.items:
                     if getattr(item, 'is_unmapped', False):
-                        # Query ProductAlias
-                        alias = await ProductAlias.find_one({
-                            "external_code": item.product_sku,
-                            "company_id": company_id
-                        })
-                        
-                        # Fallback: Query Product with exact SKU or brand Spec Match
+                        # ── Primera Pasada: Coincidencia Exacta de SKU ──────────────────
                         product = None
-                        if alias:
-                            product = await Product.find_one({"sku": alias.internal_sku})
-                        else:
-                            potential_product = await Product.find_one({"sku": item.product_sku})
-                            if potential_product:
-                                # Guardafuegos Estricto de Marca (Heredado de la Ingesta)
-                                is_technical = getattr(potential_product, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
-                                if not is_technical or (item.brand != "N/A" and potential_product.brand == item.brand):
+                        potential_product = await Product.find_one({"sku": item.product_sku})
+
+                        # ── Segunda Pasada: Coincidencia Canónica (formato-agnóstica) ───
+                        # Solo si la primera falló (ej. "26300-35503" vs "2630035503")
+                        if not potential_product:
+                            c_sku = canonical_sku(item.product_sku)
+                            potential_product = await Product.find_one({"sku_canonical": c_sku})
+
+                        if potential_product:
+                            # ── FIREWALL DE MARCA (Zero Trust, tres pasadas) ─────────────
+                            xml_brand = item.brand or ""
+                            is_brand_missing = (not xml_brand or xml_brand in ("N/A", "UNKNOWN", ""))
+                            brand_matches = (potential_product.brand == xml_brand)
+
+                            is_technical = getattr(potential_product, 'type', None) in ['COMMERCIAL', 'LUBRICANT']
+
+                            if is_technical:
+                                if not is_brand_missing and brand_matches:
+                                    # Marca declarada en el campo brand y coincide ✓
                                     product = potential_product
+                                elif is_brand_missing:
+                                    # ── Tercera Pasada: Marca en la Descripción ──────────
+                                    # El operador MDM pudo escribir la marca en la descripción
+                                    # (ej. "FILTRO OEM equiv LF260"). Extraemos si hay match.
+                                    import re as _re
+                                    desc_upper = (getattr(item, 'product_name', '') or '').upper()
+                                    candidate_brand = potential_product.brand or ""
+                                    if candidate_brand and _re.search(
+                                        r'\b' + _re.escape(candidate_brand.upper()) + r'\b',
+                                        desc_upper
+                                    ):
+                                        # Marca confirmada vía descripción → curar
+                                        product = potential_product
+                            else:
+                                # No técnicos (genéricos, lubricantes sin clasificar, etc.):
+                                # no requieren verificación de marca
+                                product = potential_product
 
                         if product:
                             item.product_sku = product.sku

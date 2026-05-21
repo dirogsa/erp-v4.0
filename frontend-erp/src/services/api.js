@@ -107,6 +107,7 @@ export const intelligenceService = {
   editUnmappedItem: (data) => api.put('/intelligence/sincerity/unmapped/edit', data),
   resolveCatalogMapping: (data) => api.post('/intelligence/sincerity/map', data),
   mapGhostSku: (data) => api.post('/intelligence/sincerity/map-ghost', data),
+  getGhostSkus: () => api.get('/intelligence/sincerity/ghosts'),
   getMasterGaps: () => api.get('/intelligence/sincerity/master-gaps'),
   resolveRateSincerity: (data) => api.post('/intelligence/sincerity/resolve-rate', data),
   resolveCustomerSincerity: (data) => api.post('/intelligence/sincerity/resolve-customer', data),
@@ -126,7 +127,9 @@ export const intelligenceService = {
   bulkGenerateGuides: (data) => api.post('/intelligence/sincerity/bulk-generate-guides', data, { timeout: 60000 }),
   matchXMLGuides: (batch) => api.post('/intelligence/sincerity/match-xml-guides', batch),
   revertLogistics: (invoiceId) => api.post(`/intelligence/sincerity/revert-logistics/${invoiceId}`),
-  reprocessSincerity: (section) => api.post('/intelligence/sincerity/reprocess', { section }, { timeout: 120000 })
+  reprocessSincerity: (section) => api.post('/intelligence/sincerity/reprocess', { section }, { timeout: 120000 }),
+  getInvoicesByCode: (externalCode) => api.get(`/intelligence/sincerity/invoices-by-code/${encodeURIComponent(externalCode)}`)
+
 };
 
 
@@ -289,7 +292,9 @@ export const salesService = {
   getInvoice: (invoiceNumber) => api.get(`/sales/invoices/${invoiceNumber}`),
   deleteInvoice: (invoiceNumber) => api.delete(`/sales/invoices/${invoiceNumber}`),
   registerPayment: (invoiceNumber, paymentData) => api.post(`/sales/invoices/${invoiceNumber}/payments`, paymentData),
-  bulkUpdatePaymentCondition: (payload) => api.post('/sales/invoices/bulk-payment-condition', payload),
+  registerPaymentVerified: (invoiceNumber, paymentData) => api.post(`/sales/invoices/${invoiceNumber}/payments/verify`, paymentData),
+  updateFinancialTerms: (invoiceNumber, termsData) => api.put(`/sales/invoices/${invoiceNumber}/financial-terms`, termsData),
+  bulkRegisterPayments: (payload) => api.post('/sales/invoices/bulk-payments', payload),
 
   // Guides (NUEVO)
   createDispatchGuide: (invoiceNumber, guideData) => api.post(`/sales/invoices/${invoiceNumber}/dispatch`, guideData),

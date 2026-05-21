@@ -59,8 +59,31 @@ class InvoiceXmlImport(BaseModel):
             return float(v)
         except (ValueError, TypeError):
             return None
-class BulkPaymentConditionUpdate(BaseModel):
+class BulkPaymentRegistration(BaseModel):
+    """Confirms payment for multiple invoices in a single treasury event.
+    Applies the full pending balance as a payment for each invoice.
+    """
     invoice_numbers: List[str]
-    condition: str  # CONTADO | CREDITO
-    days: Optional[int] = 30
+    payment_date: str                # YYYY-MM-DD — accounting date chosen by user
+    payment_method: Optional[str] = None  # Transferencia, Efectivo, etc.
+    bank_name: Optional[str] = None
+    notes: Optional[str] = None
+
+class FinancialTermsUpdate(BaseModel):
+    """
+    Allows internal ERP reprogramming of payment condition WITHOUT altering
+    the immutable payment_condition_xml (the fiscal record from Sunat).
+    Use when customer negotiates credit on a cash invoice, or vice versa.
+    """
+    payment_condition: str           # CONTADO | CREDITO (new internal condition)
+    due_date: Optional[str] = None   # YYYY-MM-DD
     payment_terms: Optional[dict] = None
+    notes: Optional[str] = None      # Reason for change (audit trail)
+
+class PaymentRegistrationV2(BaseModel):
+    """Extended payment registration with bank verification metadata."""
+    amount: float
+    payment_date: str                # YYYY-MM-DD
+    bank_name: Optional[str] = None  # Banco donde llegó el depósito
+    operation_number: Optional[str] = None  # N° operación bancaria
+    notes: Optional[str] = None

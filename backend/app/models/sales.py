@@ -89,10 +89,13 @@ class OrderItem(BaseModel):
         return round(v, 4) if v is not None else v
 
 class Payment(BaseModel):
-    """Registro individual de un pago"""
+    """Registro individual de un pago con metadata de verificación bancaria."""
     amount: float
     date: datetime
     notes: Optional[str] = None
+    # Bank verification audit trail (optional — ERP manual or automatic)
+    bank_name: Optional[str] = None          # "BCP", "Interbank", "BBVA", etc.
+    operation_number: Optional[str] = None   # N° de operación / transferencia
 
     @field_validator('amount')
     @classmethod
@@ -214,7 +217,8 @@ class SalesInvoice(Document):
     delivery_address: Optional[str] = "No especificada"
     buyer_identity: Optional[str] = None
     
-    payment_condition: str = "CONTADO"  # CONTADO | CREDITO
+    payment_condition: str = "CONTADO"  # CONTADO | CREDITO (Financiero interno, modificable)
+    payment_condition_xml: str = "CONTADO"  # CONTADO | CREDITO (Inmutable fiscal del XML)
     payment_status: PaymentStatus = PaymentStatus.PENDING
     amount_paid: float = 0.0
     payments: List[Payment] = []

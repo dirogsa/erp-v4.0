@@ -57,7 +57,6 @@ async def init_db():
                 "app.models.pricing.PriceEntry",
                 "app.models.finance.ExchangeRate",
                 "app.models.config.SystemConfig",
-                "app.models.product_alias.ProductAlias",
                 "app.models.ingestion.PendingIngest"
             ],
             allow_index_dropping=True

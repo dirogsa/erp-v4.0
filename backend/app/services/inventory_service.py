@@ -180,19 +180,6 @@ async def find_product_robustly(
     sku_clean = normalize_sku(sku)
     brand_upper = brand.upper().strip() if brand else "GENERIC"
 
-    # 0. Búsqueda por Alias (Memoria de Alta Prioridad)
-    from app.models.product_alias import ProductAlias
-    # Asumimos que si hay un company_id, buscamos por él, sino de manera global
-    alias_query = {"external_code": sku_clean}
-    if company_id:
-        alias_query["company_id"] = str(company_id)
-        
-    alias = await ProductAlias.find_one(alias_query)
-    if alias:
-        product = await Product.find_one({"sku": alias.internal_sku})
-        if product:
-            return populate_company_data(product, company_id)
-
     # 1. Búsqueda Directa (SKU + Marca)
     product = await Product.find_one({"sku": sku_clean, "brand": brand_upper})
     if product: return populate_company_data(product, company_id)

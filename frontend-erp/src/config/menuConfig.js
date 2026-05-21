@@ -29,7 +29,7 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'financial-sincerity', label: 'Torre de Control (Buzón)', path: '/financial-sincerity', icon: '⚖️' },
-            { id: 'financial-audit', label: 'Auditoría de Cobranzas', path: '/audit/financial', icon: '🛡️' }
+            { id: 'treasury', label: 'Tesorería y Cobranzas', path: '/treasury', icon: '🏦' }
         ]
     },
     {

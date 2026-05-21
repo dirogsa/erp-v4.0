@@ -5,8 +5,6 @@ import {
     RefreshCcw, ShieldCheck, Zap, BookOpen, Upload, Rocket, FileText, AlertCircle, Edit2
 } from 'lucide-react';
 import { salesService, purchasingService, intelligenceService, productBrandService, inventoryService } from '../services/api';
-import { useSalesInvoices } from '../hooks/useSalesInvoices';
-import { usePurchaseInvoices } from '../hooks/usePurchaseInvoices';
 import { useNotification } from '../hooks/useNotification';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
@@ -99,9 +97,6 @@ const FinancialSincerityInbox = () => {
     const { showLoading, hideLoading } = useLoading();
 
     const [activeTab, setActiveTab] = useState('ingest'); 
-    const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(10);
-    const [search, setSearch] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
 
     // Ingest Queue State
@@ -119,6 +114,13 @@ const FinancialSincerityInbox = () => {
     const [ghostCategory, setGhostCategory] = useState('');
     const [categories, setCategories] = useState([]);
     const [editModal, setEditModal] = useState(null); // { item, new_external_code, new_description, new_brand }
+    const [editModalInvoices, setEditModalInvoices] = useState([]); // facturas afectadas
+    const [editModalLoadingInvoices, setEditModalLoadingInvoices] = useState(false);
+    const [editModalSelectedInvoices, setEditModalSelectedInvoices] = useState([]); // checkboxes
+
+    // Ghost SKUs State
+    const [ghostSkus, setGhostSkus] = useState([]);
+    const [loadingGhosts, setLoadingGhosts] = useState(false);
 
     // Master Data Specific State
     const [masterGaps, setMasterGaps] = useState({ unknown_customers: [], missing_exchange_rates: [] });
@@ -185,14 +187,25 @@ const FinancialSincerityInbox = () => {
     }, []);
 
     useEffect(() => {
-        setPage(1);
-        setSelectedIds([]);
         // Recargar el contenido específico de la pestaña activa si es necesario
         if (activeTab === 'ingest') fetchIngestQueue();
         if (activeTab === 'catalog') fetchUnmappedItems();
         if (activeTab === 'master') fetchMasterGaps();
         if (activeTab === 'logistics') fetchPendingLogistics();
+        if (activeTab === 'ghosts') fetchGhostSkus();
     }, [activeTab]);
+
+    const fetchGhostSkus = async () => {
+        setLoadingGhosts(true);
+        try {
+            const res = await intelligenceService.getGhostSkus();
+            setGhostSkus(res.data);
+        } catch (error) {
+            showNotification('Error al cargar Catálogo Fantasma', 'error');
+        } finally {
+            setLoadingGhosts(false);
+        }
+    };
 
     const fetchIngestQueue = async () => {
         setLoadingIngest(true);
@@ -230,107 +243,23 @@ const FinancialSincerityInbox = () => {
         }
     };
 
-    // Data hooks for Finance Tabs
-    const salesData = useSalesInvoices({ 
-        page, 
-        limit, 
-        search, 
-        is_confirmed: false 
-    });
-
-    const purchaseData = usePurchaseInvoices({ 
-        page, 
-        limit, 
-        search, 
-        is_confirmed: false 
-    });
-
-    const currentData = activeTab === 'sales' ? salesData : purchaseData;
-    const { invoices, pagination, loading, fetchInvoices, deleteInvoice } = currentData || { invoices: [], pagination: {} };
-
-    const handleSelectAll = (e) => {
-        if (e.target.checked) {
-            // Solo permitimos seleccionar aquellas que pasaron todos los "Gates" anteriores
-            const readyInvoices = invoices.filter(inv => 
-                inv.is_catalog_confirmed && 
-                inv.is_customer_confirmed && 
-                inv.is_exchange_rate_confirmed
-            );
-            setSelectedIds(readyInvoices.map(inv => inv.invoice_number));
-            
-            if (readyInvoices.length < invoices.length && invoices.length > 0) {
-                showNotification(`Seleccionadas ${readyInvoices.length} de ${invoices.length} facturas listas para finanzas. Las facturas con brechas de integridad han sido omitidas.`, 'info');
-            }
-        } else {
-            setSelectedIds([]);
-        }
-    };
-
-    const handleSelectOne = (inv) => {
-        const isReady = inv.is_catalog_confirmed && inv.is_customer_confirmed && inv.is_exchange_rate_confirmed;
-        
-        if (!isReady) {
-            showNotification("Esta factura aún tiene brechas de integridad (Catálogo o Maestros). Resuélvelas antes de sincerar el pago.", "warning");
-            return;
-        }
-
-        setSelectedIds(prev => 
-            prev.includes(inv.invoice_number) 
-                ? prev.filter(id => id !== inv.invoice_number)
-                : [...prev, inv.invoice_number]
-        );
-    };
-
-    const handleBulkSincerity = async (condition) => {
-        if (selectedIds.length === 0) return;
-
-        // Validar integridad
-        const selectedInvoices = invoices.filter(inv => selectedIds.includes(inv.invoice_number));
-        const incomplete = selectedInvoices.find(inv => !inv.is_catalog_confirmed || !inv.is_customer_confirmed || !inv.is_exchange_rate_confirmed);
-        
-        if (incomplete) {
-            showNotification(`La factura ${incomplete.sunat_number} tiene brechas de integridad. Resuélvelas en las pestañas de Catálogo o Maestros.`, 'warning');
-            return;
-        }
-
-        const label = condition === 'CONTADO' ? 'CONTADO (Pagado)' : 'CRÉDITO (Por Pagar/Cobrar)';
-        if (!window.confirm(`¿Desea sincerar ${selectedIds.length} facturas como ${label}?`)) return;
-
-        try {
-            const service = activeTab === 'sales' ? salesService : purchasingService;
-            await service.bulkUpdatePaymentCondition({
-                invoice_numbers: selectedIds,
-                condition
-            });
-            showNotification(`Se sinceraron ${selectedIds.length} facturas correctamente`, 'success');
-            setSelectedIds([]);
-            fetchInvoices();
-        } catch (error) {
-            showNotification('Error al sincerar facturas', 'error');
-        }
-    };
-
-    const handleDelete = async (invoiceNumber) => {
-        if (!window.confirm('¿Está seguro de eliminar esta factura importada?')) return;
-        try {
-            await deleteInvoice(invoiceNumber);
-            showNotification('Factura eliminada', 'success');
-        } catch (error) {}
-    };
+    // Data hooks for Finance Tabs removed as per segregating technical validation from cashflow.
 
     const handleResolveMapping = async (externalCode, brand, internalSku) => {
         try {
+            showLoading("Vinculando a Catálogo...", "Curando la factura con el producto oficial seleccionado.");
             await intelligenceService.resolveCatalogMapping({
                 external_code: externalCode,
-                brand,
-                internal_sku: internalSku,
-                create_alias: true
+                brand,          // Marca del producto maestro seleccionado (no la del XML vacío)
+                internal_sku: internalSku
             });
-            showNotification(`Código ${externalCode} vinculado exitosamente`, 'success');
+            showNotification(`Código ${externalCode} vinculado exitosamente al catálogo`, 'success');
             fetchUnmappedItems();
             setMappingModal(null);
         } catch (error) {
-            showNotification('Error al vincular código', 'error');
+            showNotification(error.response?.data?.detail || 'Error al vincular código', 'error');
+        } finally {
+            hideLoading();
         }
     };
 
@@ -384,17 +313,26 @@ const FinancialSincerityInbox = () => {
         }
         
         try {
-            showLoading("Limpiando Origen...", "Mutando líneas en facturas originales con los datos corregidos.");
+            showLoading("Limpiando Origen...", "Mutando líneas en facturas seleccionadas con los datos corregidos.");
             await intelligenceService.editUnmappedItem({
                 old_external_code: editModal.item.external_code,
                 old_brand: editModal.item.brand || "",
                 new_external_code: editModal.new_external_code,
                 new_description: editModal.new_description,
-                new_brand: editModal.new_brand || ""
+                new_brand: editModal.new_brand || "",
+                // Enviar solo las facturas seleccionadas (null = todas)
+                invoice_numbers: editModalSelectedInvoices.length < editModalInvoices.length
+                    ? editModalSelectedInvoices
+                    : null
             });
-            showNotification(`Ítem corregido exitosamente en facturas de origen`, 'success');
+            const scope = editModalSelectedInvoices.length < editModalInvoices.length
+                ? `${editModalSelectedInvoices.length} factura(s) seleccionada(s)`
+                : 'todas las facturas asociadas';
+            showNotification(`Ítem corregido en ${scope}`, 'success');
             fetchUnmappedItems();
             setEditModal(null);
+            setEditModalInvoices([]);
+            setEditModalSelectedInvoices([]);
         } catch (error) {
             showNotification(error.response?.data?.detail || 'Error al editar ítem', 'error');
         } finally {
@@ -965,7 +903,6 @@ const FinancialSincerityInbox = () => {
                         Reprocesar Catálogo
                     </Button>
                     <Button variant="outline" onClick={() => navigate('/inventory/brands-master')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: '#3b82f6', color: '#60a5fa' }}>🏷️ Maestro de Marcas</Button>
-                    <Button variant="outline" onClick={() => navigate('/sincerity/aliases')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: '#10b981', color: '#34d399' }}><BookOpen size={16} /> Glosario de Proveedores</Button>
                     <Button variant="outline" onClick={fetchUnmappedItems} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><RefreshCcw size={16} /> Actualizar</Button>
                 </div>
             </div>
@@ -1034,11 +971,34 @@ const FinancialSincerityInbox = () => {
                                                     status={item.rejection_code} 
                                                     size="small" 
                                                     title={item.rejection_reason}
-                                                    style={{ cursor: 'help', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.15rem 0.4rem', borderRadius: '0.25rem' }}
+                                                    style={{ 
+                                                        cursor: 'help', 
+                                                        display: 'inline-flex', 
+                                                        alignItems: 'center', 
+                                                        gap: '0.25rem', 
+                                                        padding: '0.15rem 0.4rem', 
+                                                        borderRadius: '0.25rem',
+                                                        ...(item.rejection_code === 'READY_TO_PROCESS' ? {
+                                                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                                            color: '#10b981',
+                                                            border: '1px solid rgba(16, 185, 129, 0.4)'
+                                                        } : {})
+                                                    }}
                                                 >
-                                                    {item.rejection_code === 'BRAND_FIREWALL_BLOCK' ? '🛡️ Firewall Marca' : '❓ SKU Inexistente'}
+                                                    {item.rejection_code === 'READY_TO_PROCESS'   ? '✅ Listo para Procesar'
+                                                     : item.rejection_code === 'BRAND_NOT_DECLARED' ? '🏷️ Marca No Declarada'
+                                                     : item.rejection_code === 'BRAND_MISMATCH'    ? '⚠️ Marca No Coincide'
+                                                     : item.rejection_code === 'SKU_FORMAT_MISMATCH' ? '🔀 Formato Diferente'
+                                                     : item.rejection_code === 'BRAND_FIREWALL_BLOCK' ? '🛡️ Firewall Marca'
+                                                     : '❓ SKU Desconocido'}
                                                 </Badge>
-                                                <div style={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: '300px', whiteSpace: 'normal', lineHeight: '1.2' }}>
+                                                <div style={{ 
+                                                    fontSize: '0.75rem', 
+                                                    color: item.rejection_code === 'READY_TO_PROCESS' ? '#6ee7b7' : '#94a3b8', 
+                                                    maxWidth: '300px', 
+                                                    whiteSpace: 'normal', 
+                                                    lineHeight: '1.2' 
+                                                }}>
                                                     {item.rejection_reason}
                                                 </div>
                                             </div>
@@ -1048,8 +1008,25 @@ const FinancialSincerityInbox = () => {
                                     </td>
                                     <td style={{ padding: '1.25rem 1rem', textAlign: 'right' }}>
                                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                                            <Button variant="outline" size="sm" style={{ color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.3)' }} icon={Edit2} onClick={() => setEditModal({ item, new_external_code: item.external_code || '', new_description: item.external_description || '', new_brand: item.brand || '' })}>Editar Origen</Button>
-                                            <Button variant="outline" size="sm" icon={CheckCircle} onClick={() => setMappingModal({ type: 'official', item })}>Enlazar a Oficial</Button>
+                                            <Button variant="outline" size="sm" style={{ color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.3)' }} icon={Edit2} onClick={async () => {
+                                                const baseModal = { item, new_external_code: item.external_code || '', new_description: item.external_description || '', new_brand: item.brand || '' };
+                                                setEditModal(baseModal);
+                                                setEditModalInvoices([]);
+                                                setEditModalSelectedInvoices([]);
+                                                setEditModalLoadingInvoices(true);
+                                                try {
+                                                    const res = await intelligenceService.getInvoicesByCode(item.external_code);
+                                                    const invList = res.data || [];
+                                                    setEditModalInvoices(invList);
+                                                    // Por defecto, todas seleccionadas
+                                                    setEditModalSelectedInvoices(invList.map(i => i.invoice_number));
+                                                } catch(e) {
+                                                    showNotification('No se pudo cargar la lista de facturas', 'warning');
+                                                } finally {
+                                                    setEditModalLoadingInvoices(false);
+                                                }
+                                            }}>Editar Origen</Button>
+                                            <Button variant="outline" size="sm" icon={CheckCircle} onClick={() => setMappingModal({ type: 'official', item })}>Vincular a Catálogo</Button>
                                             <Button variant="outline" style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)' }} size="sm" icon={Zap} onClick={() => setMappingModal({ type: 'ghost', item })}>Aislar (Ghost SKU)</Button>
                                         </div>
                                     </td>
@@ -1191,6 +1168,62 @@ const FinancialSincerityInbox = () => {
         </div>
     );
 
+    const GhostTabContent = () => (
+        <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', background: '#1e293b', padding: '1.25rem', borderRadius: '1.25rem', border: '1px solid #334155' }}>
+                <div style={{ color: 'white' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>El Purgatorio (Catálogo Fantasma)</h3>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>Ítems asilados que han sido separados del catálogo oficial para no ensuciar el maestro.</p>
+                </div>
+            </div>
+
+            <div style={{ backgroundColor: '#0f172a', borderRadius: '1rem', border: '1px solid #334155', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ backgroundColor: '#1e293b' }}>
+                            <th style={{ padding: '1rem', color: '#94a3b8', textAlign: 'left' }}>SKU FANTASMA</th>
+                            <th style={{ padding: '1rem', color: '#94a3b8', textAlign: 'left' }}>DESCRIPCIÓN ORIGINAL</th>
+                            <th style={{ padding: '1rem', color: '#94a3b8', textAlign: 'center' }}>MARCA</th>
+                            <th style={{ padding: '1rem', color: '#94a3b8', textAlign: 'right' }}>ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loadingGhosts ? (
+                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '3rem' }}><Loading /></td></tr>
+                        ) : ghostSkus.length === 0 ? (
+                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '3rem', color: '#475569' }}>No hay SKUs aislados en el Purgatorio.</td></tr>
+                        ) : (
+                            ghostSkus.map((g, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
+                                    <td style={{ padding: '1rem' }}>
+                                        <div style={{ color: '#f59e0b', fontWeight: 'bold' }}>{g.sku}</div>
+                                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Aislado el {new Date(g.created_at).toLocaleDateString()}</div>
+                                    </td>
+                                    <td style={{ padding: '1rem' }}>
+                                        <div style={{ color: 'white' }}>{g.name}</div>
+                                    </td>
+                                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                        <span style={{ backgroundColor: '#334155', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '0.3rem', fontSize: '0.75rem' }}>{g.brand}</span>
+                                    </td>
+                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                            <Button variant="outline" size="sm" icon={Database} onClick={() => showNotification("Funcionalidad de convertir a maestro en construcción", "info")}>
+                                                Convertir a Maestro
+                                            </Button>
+                                            <Button variant="ghost" size="sm" color="#3b82f6" icon={Edit2} onClick={() => showNotification("Editor de SKU en construcción", "info")}>
+                                                Editar SKU
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
     return (
         <div style={{ padding: '2rem', maxWidth: '1600px', margin: '0 auto' }}>
             {/* Header */}
@@ -1217,7 +1250,7 @@ const FinancialSincerityInbox = () => {
                     <div style={{ backgroundColor: '#1e293b', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: '1px solid #334155', textAlign: 'center' }}>
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>PENDIENTES</div>
                         <div style={{ fontSize: '1.5rem', color: '#3b82f6', fontWeight: 'bold' }}>
-                            {activeTab === 'catalog' ? unmappedItems.length : activeTab === 'master' ? (masterGaps.unknown_customers.length + masterGaps.missing_exchange_rates.length) : pagination.totalItems || 0}
+                            {activeTab === 'catalog' ? unmappedItems.length : activeTab === 'master' ? (masterGaps.unknown_customers.length + masterGaps.missing_exchange_rates.length) : activeTab === 'logistics' ? pendingLogistics.length : ingestQueue.length}
                         </div>
                     </div>
                 </div>
@@ -1237,11 +1270,8 @@ const FinancialSincerityInbox = () => {
                 <Button onClick={() => setActiveTab('logistics')} variant={activeTab === 'logistics' ? 'primary' : 'secondary'} icon={() => <span>🚚</span>}>
                     4. Logística {pendingLogistics.length > 0 && <span style={{ marginLeft: '0.5rem', backgroundColor: '#3b82f6', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '0.5rem', fontSize: '0.7rem' }}>{pendingLogistics.length}</span>}
                 </Button>
-                <Button onClick={() => setActiveTab('sales')} variant={activeTab === 'sales' ? 'primary' : 'secondary'} icon={() => <span>💰</span>}>
-                    5. Ventas {pagination.totalItems > 0 && activeTab !== 'sales' && <span style={{ marginLeft: '0.5rem', backgroundColor: 'rgba(255,255,255,0.2)', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '0.5rem', fontSize: '0.7rem' }}>{pagination.totalItems}</span>}
-                </Button>
-                <Button onClick={() => setActiveTab('purchasing')} variant={activeTab === 'purchasing' ? 'primary' : 'secondary'} icon={() => <span>🛒</span>}>
-                    6. Compras
+                <Button onClick={() => setActiveTab('ghosts')} variant={activeTab === 'ghosts' ? 'warning' : 'secondary'} icon={Zap}>
+                    5. SKUs Aislados (Ghost) {ghostSkus.length > 0 && <span style={{ marginLeft: '0.5rem', backgroundColor: '#f59e0b', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '0.5rem', fontSize: '0.7rem' }}>{ghostSkus.length}</span>}
                 </Button>
             </div>
 
@@ -1249,83 +1279,9 @@ const FinancialSincerityInbox = () => {
             {activeTab === 'ingest' ? <IngestTabContent /> : 
              activeTab === 'catalog' ? <CatalogTabContent /> : 
              activeTab === 'master' ? <MasterDataTabContent /> : 
-             activeTab === 'logistics' ? <LogisticsTabContent /> : (
-                <div style={{ backgroundColor: '#0f172a', borderRadius: '1rem', border: '1px solid #334155', overflow: 'hidden' }}>
-                    <div style={{ padding: '1.5rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between' }}>
-                        <div style={{ position: 'relative', width: '400px' }}>
-                            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-                            <input type="text" placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem', padding: '0.75rem 1rem 0.75rem 2.75rem', color: 'white' }} />
-                        </div>
-                    </div>
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ backgroundColor: '#1e293b' }}>
-                                    <th style={{ padding: '1rem' }}><input type="checkbox" onChange={handleSelectAll} checked={selectedIds.length === invoices.length && invoices.length > 0} /></th>
-                                    <th 
-                                        style={{ padding: '1rem', color: '#94a3b8', cursor: 'pointer' }}
-                                        onClick={() => requestSort('sunat_number')}
-                                    >
-                                        Documento <SortIcon columnKey="sunat_number" />
-                                    </th>
-                                    <th 
-                                        style={{ padding: '1rem', color: '#94a3b8', cursor: 'pointer' }}
-                                        onClick={() => requestSort('customer_name')}
-                                    >
-                                        Entidad <SortIcon columnKey="customer_name" />
-                                    </th>
-                                    <th 
-                                        style={{ padding: '1rem', color: '#94a3b8', cursor: 'pointer' }}
-                                        onClick={() => requestSort('total_amount')}
-                                    >
-                                        Monto <SortIcon columnKey="total_amount" />
-                                    </th>
-                                    <th style={{ padding: '1rem', color: '#94a3b8', textAlign: 'center' }}>Pipeline Integridad</th>
-                                    <th style={{ padding: '1rem', color: '#94a3b8', textAlign: 'right' }}>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loading ? <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}><Loading /></td></tr> : getSortedData(invoices).map(inv => {
-                                    const isReady = inv.is_catalog_confirmed && inv.is_customer_confirmed && inv.is_exchange_rate_confirmed;
-                                    return (
-                                        <tr key={inv.invoice_number} style={{ 
-                                            borderBottom: '1px solid #1e293b',
-                                            opacity: isReady ? 1 : 0.6,
-                                            backgroundColor: isReady ? 'transparent' : 'rgba(239, 68, 68, 0.02)'
-                                        }}>
-                                            <td style={{ padding: '1rem' }}>
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={selectedIds.includes(inv.invoice_number)} 
-                                                    onChange={() => handleSelectOne(inv)} 
-                                                    style={{ cursor: isReady ? 'pointer' : 'not-allowed' }}
-                                                />
-                                            </td>
-                                            <td style={{ padding: '1rem' }}><div style={{ color: 'white', fontWeight: 'bold' }}>{inv.sunat_number}</div><div style={{ fontSize: '0.75rem', color: '#64748b' }}>{formatDate(inv.invoice_date)}</div></td>
-                                            <td style={{ padding: '1rem' }}><div style={{ color: 'white' }}>{inv.customer_name}</div><div style={{ fontSize: '0.8rem', color: '#64748b' }}>{inv.customer_ruc}</div></td>
-                                            <td style={{ padding: '1rem', textAlign: 'right', color: 'white', fontWeight: 'bold' }}>{formatCurrency(inv.total_amount, inv.currency === 'USD' ? '$' : 'S/')}</td>
-                                            <td style={{ padding: '1rem' }}>{renderIntegrityPipeline(inv)}</td>
-                                            <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                                {isReady ? (
-                                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                                        <Button size="sm" variant="success" onClick={() => handleBulkSincerity('CONTADO', [inv.invoice_number])}>Contado</Button>
-                                                        <Button size="sm" variant="warning" onClick={() => handleBulkSincerity('CREDITO', [inv.invoice_number])}>Crédito</Button>
-                                                    </div>
-                                                ) : (
-                                                    <div style={{ color: '#64748b', fontSize: '0.65rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                                        Bloqueado por Integridad
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div style={{ padding: '1.5rem' }}><Pagination current={pagination.current} total={pagination.total} onChange={setPage} pageSize={limit} onPageSizeChange={setLimit} /></div>
-                </div>
-            )}
+             activeTab === 'logistics' ? <LogisticsTabContent /> :
+             <GhostTabContent />
+            }
 
             {/* Modal de Resolución de Tipo de Cambio */}
             {masterModal && masterModal.type === 'rate' && (
@@ -1428,7 +1384,7 @@ const FinancialSincerityInbox = () => {
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h2 style={{ color: 'white', margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 {mappingModal.type === 'official' ? (
-                                    <><CheckCircle color="#10b981" /> Enlazar al Maestro Oficial</>
+                                    <><CheckCircle color="#10b981" /> Vincular a Catálogo</>
                                 ) : (
                                     <><Zap color="#f59e0b" /> Aislar en Cuarentena (Ghost SKU)</>
                                 )}
@@ -1451,8 +1407,11 @@ const FinancialSincerityInbox = () => {
                                 <label style={{ display: 'block', color: 'white', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>
                                     Buscar en Catálogo Interno
                                 </label>
+                                <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '0.75rem', margin: '0 0 0.75rem 0' }}>
+                                    Al seleccionar un producto, su marca se usará para validar la curación. La factura será actualizada sin crear alias permanentes.
+                                </p>
                                 <ProductSearchInput 
-                                    onSelect={(prod) => handleResolveMapping(mappingModal.item.external_code, mappingModal.item.brand, prod.sku)}
+                                    onSelect={(prod) => handleResolveMapping(mappingModal.item.external_code, prod.brand, prod.sku)}
                                     placeholder="Escriba SKU o nombre del producto oficial..."
                                     autoFocus
                                 />
@@ -1730,9 +1689,25 @@ const FinancialSincerityInbox = () => {
                                             </div>
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700' }}>CONDICIÓN PAGO</div>
-                                            <div style={{ color: '#f59e0b', fontSize: '0.85rem', fontWeight: '700', marginTop: '0.25rem' }}>
-                                                {viewDocData.payment_condition || 'CONTADO'}
+                                            <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: '700' }}>CONDICIÓN PAGO (XML FISCAL)</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+                                                <span style={{ 
+                                                    color: 'white', fontSize: '0.8rem', fontWeight: '700',
+                                                    padding: '0.15rem 0.5rem', borderRadius: '0.4rem',
+                                                    backgroundColor: viewDocData.payment_condition_xml === 'CREDITO' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
+                                                    border: `1px solid ${viewDocData.payment_condition_xml === 'CREDITO' ? 'rgba(245,158,11,0.4)' : 'rgba(16,185,129,0.4)'}`,
+                                                }}>
+                                                    🔒 {viewDocData.payment_condition_xml || viewDocData.payment_condition || 'CONTADO'}
+                                                </span>
+                                                {viewDocData.payment_condition_xml && viewDocData.payment_condition !== viewDocData.payment_condition_xml && (
+                                                    <span style={{
+                                                        color: '#f59e0b', fontSize: '0.7rem', fontWeight: '700',
+                                                        padding: '0.15rem 0.5rem', borderRadius: '0.4rem',
+                                                        backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)'
+                                                    }}>
+                                                        ERP: {viewDocData.payment_condition} ⚠️
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                         <div>
@@ -2171,14 +2146,15 @@ const FinancialSincerityInbox = () => {
                 }}>
                     <div style={{ 
                         backgroundColor: '#0f172a', padding: '2rem', borderRadius: '1.5rem', 
-                        width: '100%', maxWidth: '500px', border: '1px solid #3b82f6',
-                        boxShadow: '0 0 40px rgba(59, 130, 246, 0.2)'
+                        width: '100%', maxWidth: '560px', border: '1px solid #3b82f6',
+                        boxShadow: '0 0 40px rgba(59, 130, 246, 0.2)',
+                        maxHeight: '90vh', overflowY: 'auto'
                     }}>
                         <div style={{ marginBottom: '1.5rem' }}>
                             <h3 style={{ color: 'white', margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <Edit2 color="#3b82f6" /> Limpieza de Origen
                             </h3>
-                            <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Corrija errores tipográficos del XML. Esto mutará las líneas de las facturas originales asociadas.</p>
+                            <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Corrija errores tipográficos del XML. Esto mutará las líneas de las facturas seleccionadas.</p>
                         </div>
                         
                         <div style={{ marginBottom: '1rem' }}>
@@ -2198,18 +2174,88 @@ const FinancialSincerityInbox = () => {
                                 placeholder="Escriba la descripción correcta..."
                             />
                         </div>
-                        
-                        <div style={{ marginBottom: '2rem' }}>
-                            <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.5rem', fontWeight: 'bold' }}>MARCA (Opcional)</label>
-                            <Input 
-                                value={editModal.new_brand}
-                                onChange={(e) => setEditModal({...editModal, new_brand: e.target.value})}
-                                placeholder="GENERIC"
-                            />
+
+                        {/* ── SECCIÓN MULTI-FACTURA ──────────────────────────────────── */}
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                                    📄 FACTURAS AFECTADAS
+                                </label>
+                                {editModalInvoices.length > 0 && (
+                                    <button
+                                        onClick={() => {
+                                            if (editModalSelectedInvoices.length === editModalInvoices.length) {
+                                                setEditModalSelectedInvoices([]);
+                                            } else {
+                                                setEditModalSelectedInvoices(editModalInvoices.map(i => i.invoice_number));
+                                            }
+                                        }}
+                                        style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
+                                    >
+                                        {editModalSelectedInvoices.length === editModalInvoices.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                                    </button>
+                                )}
+                            </div>
+
+                            <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid #334155', borderRadius: '0.75rem', overflow: 'hidden' }}>
+                                {editModalLoadingInvoices ? (
+                                    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>⏳ Cargando facturas...</div>
+                                ) : editModalInvoices.length === 0 ? (
+                                    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#475569', fontSize: '0.85rem' }}>No se encontraron facturas asociadas.</div>
+                                ) : (
+                                    editModalInvoices.map((inv, idx) => {
+                                        const isChecked = editModalSelectedInvoices.includes(inv.invoice_number);
+                                        return (
+                                            <label key={idx} style={{
+                                                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                                padding: '0.75rem 1rem', cursor: 'pointer',
+                                                borderBottom: idx < editModalInvoices.length - 1 ? '1px solid #1e293b' : 'none',
+                                                backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.07)' : 'transparent',
+                                                transition: 'background 0.15s'
+                                            }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => {
+                                                        setEditModalSelectedInvoices(prev =>
+                                                            isChecked
+                                                                ? prev.filter(n => n !== inv.invoice_number)
+                                                                : [...prev, inv.invoice_number]
+                                                        );
+                                                    }}
+                                                    style={{ accentColor: '#3b82f6', width: '16px', height: '16px' }}
+                                                />
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.85rem' }}>{inv.invoice_number}</div>
+                                                    <div style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                                                        {inv.type === 'sale' ? '🛒 Venta' : '📦 Compra'}
+                                                        {inv.date ? ` · ${inv.date.split('T')[0]}` : ''}
+                                                    </div>
+                                                </div>
+                                                <div style={{
+                                                    fontSize: '0.7rem',
+                                                    padding: '0.2rem 0.5rem',
+                                                    borderRadius: '0.375rem',
+                                                    backgroundColor: isChecked ? 'rgba(59, 130, 246, 0.2)' : 'rgba(100, 116, 139, 0.15)',
+                                                    color: isChecked ? '#93c5fd' : '#64748b'
+                                                }}>
+                                                    {isChecked ? '✓ Incluida' : 'Excluida'}
+                                                </div>
+                                            </label>
+                                        );
+                                    })
+                                )}
+                            </div>
+
+                            {editModalInvoices.length > 0 && (
+                                <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#64748b', textAlign: 'right' }}>
+                                    {editModalSelectedInvoices.length} de {editModalInvoices.length} facturas seleccionadas
+                                </div>
+                            )}
                         </div>
 
                         {editModal.item.original_xml_sku && (
-                            <div style={{ marginBottom: '2rem', padding: '1rem', backgroundColor: 'rgba(245, 158, 11, 0.05)', borderRadius: '0.75rem', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                            <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'rgba(245, 158, 11, 0.05)', borderRadius: '0.75rem', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
                                 <div style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <Database size={14} /> EVIDENCIA XML ORIGINAL (Solo lectura)
                                 </div>
@@ -2233,8 +2279,18 @@ const FinancialSincerityInbox = () => {
                         )}
 
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-                            <Button variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Button>
-                            <Button variant="primary" icon={CheckCircle} onClick={handleEditUnmapped}>Aplicar Corrección Global</Button>
+                            <Button variant="ghost" onClick={() => { setEditModal(null); setEditModalInvoices([]); setEditModalSelectedInvoices([]); }}>Cancelar</Button>
+                            <Button 
+                                variant="primary" 
+                                icon={CheckCircle} 
+                                onClick={handleEditUnmapped}
+                                disabled={editModalSelectedInvoices.length === 0}
+                            >
+                                {editModalSelectedInvoices.length === editModalInvoices.length || editModalInvoices.length === 0
+                                    ? 'Aplicar Corrección Global'
+                                    : `Aplicar en ${editModalSelectedInvoices.length} Factura(s)`
+                                }
+                            </Button>
                         </div>
                     </div>
                 </div>

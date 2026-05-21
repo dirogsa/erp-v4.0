@@ -45,6 +45,21 @@ class EditUnmappedRequest(BaseModel):
     new_external_code: str
     new_description: str
     new_brand: str
+    # Optional single invoice for backward compatibility
+    invoice_number: Optional[str] = None
+    # New field: list of invoice numbers for bulk editing (all selected by default)
+    invoice_numbers: Optional[List[str]] = None
+
+@router.get("/sincerity/invoices-by-code/{external_code}")
+async def get_invoices_by_code(
+    external_code: str,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """Return list of incipient invoices that contain the given external code."""
+    return await IntelligenceService.find_invoices_by_external_code(
+        external_code=external_code,
+        company_id=current_user.current_company_id
+    )
 
 @router.put("/sincerity/unmapped/edit")
 async def edit_unmapped_item(
@@ -58,14 +73,15 @@ async def edit_unmapped_item(
         new_external_code=request.new_external_code,
         new_description=request.new_description,
         new_brand=request.new_brand,
+        invoice_numbers=request.invoice_numbers,
         company_id=current_user.current_company_id
     )
+
 
 class CatalogMappingRequest(BaseModel):
     external_code: str
     brand: str
     internal_sku: str
-    create_alias: bool = True
 
 @router.post("/sincerity/map")
 async def resolve_catalog_mapping(
@@ -77,8 +93,7 @@ async def resolve_catalog_mapping(
         external_code=request.external_code,
         brand=request.brand,
         internal_sku=request.internal_sku,
-        company_id=current_user.current_company_id,
-        create_alias=request.create_alias
+        company_id=current_user.current_company_id
     )
 
 class GhostMappingRequest(BaseModel):
@@ -96,6 +111,15 @@ async def map_ghost_sku(
         external_code=request.external_code,
         brand=request.brand,
         category_id=request.category_id,
+        company_id=current_user.current_company_id
+    )
+
+@router.get("/sincerity/ghosts")
+async def get_ghost_skus(
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    """Obtiene el listado de SKUs aislados en el Purgatorio (Ghost SKUs)."""
+    return await IntelligenceService.get_ghost_skus(
         company_id=current_user.current_company_id
     )
 
@@ -261,44 +285,4 @@ async def reprocess_sincerity(
 # SUPPLIER CROSS-REFERENCE TABLE (Product Alias Governance)
 # ═══════════════════════════════════════════════════════════════
 
-@router.get("/sincerity/aliases")
-async def get_product_aliases(
-    search: Optional[str] = None,
-    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
-):
-    """
-    Retorna todos los alias de productos (Glosario de Proveedores) de la empresa.
-    Permite búsqueda por código externo, SKU interno, o nombre de proveedor.
-    """
-    from app.models.product_alias import ProductAlias
-    query = {"company_id": current_user.current_company_id}
-    if search:
-        search_regex = {"$regex": search, "$options": "i"}
-        query["$or"] = [
-            {"external_code": search_regex},
-            {"internal_sku": search_regex},
-            {"internal_product_name": search_regex},
-            {"supplier_name": search_regex},
-            {"supplier_ruc": search_regex},
-        ]
-    aliases = await ProductAlias.find(query).sort("-created_at").to_list()
-    return [a.model_dump(mode="json") for a in aliases]
 
-@router.delete("/sincerity/aliases/{alias_id}")
-async def delete_product_alias(
-    alias_id: str,
-    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
-):
-    """
-    Elimina un alias de producto. Esto no afecta facturas ya procesadas,
-    pero sí impide que futuras facturas con ese código se auto-mapeen.
-    """
-    from app.models.product_alias import ProductAlias
-    from beanie import PydanticObjectId
-    alias = await ProductAlias.get(PydanticObjectId(alias_id))
-    if not alias:
-        return {"status": "error", "message": "Alias no encontrado"}
-    if alias.company_id != current_user.current_company_id:
-        return {"status": "error", "message": "No tienes permisos para eliminar este alias"}
-    await alias.delete()
-    return {"status": "ok", "message": f"Alias '{alias.external_code}' → '{alias.internal_sku}' eliminado exitosamente."}

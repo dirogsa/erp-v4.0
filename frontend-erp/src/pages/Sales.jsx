@@ -36,7 +36,7 @@ import GuideFormModal from '../components/features/sales/GuideFormModal';
 import DeliveryGuideReceipt from '../components/features/sales/DeliveryGuideReceipt';
 import { useCompany } from '../context/CompanyContext';
 import { formatCurrency } from '../utils/formatters';
-import BulkCorrectionModal from '../components/common/BulkCorrectionModal';
+import BulkPaymentModal from '../components/features/sales/BulkPaymentModal';
 
 const Sales = () => {
     const { activeCompany, companies } = useCompany();
@@ -52,7 +52,6 @@ const Sales = () => {
     // Bulk Action State
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
     const [selectedGuideIds, setSelectedGuideIds] = useState([]);
-    const [showBulkModal, setShowBulkModal] = useState(false);
 
     // Modals state
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -149,29 +148,29 @@ const Sales = () => {
     } = useDeliveryGuides({ page, limit, search });
 
     // Handlers
-    const handleBulkPaymentCondition = async (condition, customTerms = null) => {
+    const [showBulkPaymentModal, setShowBulkPaymentModal] = useState(false);
+    const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
+    const handleBulkRegisterPayments = async (payload) => {
         if (selectedInvoiceIds.length === 0) return;
-        
-        if (condition === 'CREDITO' && !customTerms) {
-            setShowBulkModal(true);
-            return;
-        }
-
-        const label = condition === 'CREDITO' ? 'CRÉDITO (Cuentas por Cobrar)' : 'CONTADO (Caja)';
-        if (!customTerms && !window.confirm(`¿Seguro que desea regularizar ${selectedInvoiceIds.length} facturas a ${label}?`)) return;
-
+        setIsBulkProcessing(true);
         try {
-            await salesService.bulkUpdatePaymentCondition({
+            const res = await salesService.bulkRegisterPayments({
                 invoice_numbers: selectedInvoiceIds,
-                condition,
-                payment_terms: customTerms
+                ...payload,
             });
-            showNotification(`Se regularizaron ${selectedInvoiceIds.length} facturas correctamente`, 'success');
+            const { processed, skipped, errors } = res.data;
+            let msg = `✅ ${processed} factura(s) cobradas.`;
+            if (skipped > 0) msg += ` ${skipped} omitida(s) (ya pagadas).`;
+            if (errors.length > 0) msg += ` ⚠️ ${errors.length} con error.`;
+            showNotification(msg, errors.length > 0 ? 'warning' : 'success');
             setSelectedInvoiceIds([]);
-            setShowBulkModal(false);
+            setShowBulkPaymentModal(false);
             fetchInvoices();
         } catch (error) {
-            showNotification('Error al regularizar facturas', 'error');
+            showNotification('Error al procesar cobro masivo', 'error');
+        } finally {
+            setIsBulkProcessing(false);
         }
     };
 
@@ -742,52 +741,60 @@ const Sales = () => {
                         }}
                     />
 
-                    {/* Barra de Acciones Masivas (Clase Mundial) */}
                     {selectedInvoiceIds.length > 0 && (
                         <div style={{
                             position: 'fixed',
                             bottom: '2rem',
                             left: '50%',
                             transform: 'translateX(-50%)',
-                            backgroundColor: '#1e293b',
-                            padding: '1rem 2rem',
+                            backgroundColor: '#0f172a',
+                            padding: '0.875rem 1.5rem',
                             borderRadius: '1rem',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '2rem',
-                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
-                            border: '1px solid #334155',
+                            gap: '1.5rem',
+                            boxShadow: '0 10px 40px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(16, 185, 129, 0.2)',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
                             zIndex: 1000,
-                            animation: 'slideUp 0.3s ease-out'
+                            animation: 'slideUp 0.3s ease-out',
+                            backdropFilter: 'blur(8px)',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <div style={{ backgroundColor: '#3b82f6', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '0.5rem', fontWeight: 'bold' }}>
+                                <div style={{
+                                    backgroundColor: '#10b981',
+                                    color: 'white',
+                                    padding: '0.25rem 0.75rem',
+                                    borderRadius: '0.5rem',
+                                    fontWeight: '800',
+                                    fontSize: '0.9rem',
+                                    boxShadow: '0 0 12px rgba(16, 185, 129, 0.4)',
+                                }}>
                                     {selectedInvoiceIds.length}
                                 </div>
-                                <span style={{ color: 'white', fontWeight: '500' }}>Facturas Seleccionadas</span>
+                                <span style={{ color: 'white', fontWeight: '600' }}>Facturas Seleccionadas</span>
                             </div>
 
-                            <div style={{ width: '1px', height: '24px', backgroundColor: '#334155' }}></div>
+                            <div style={{ width: '1px', height: '24px', backgroundColor: '#1e293b' }}></div>
 
                             <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                <Button 
-                                    variant="warning" 
+                                <Button
+                                    variant="success"
                                     size="small"
-                                    onClick={() => handleBulkPaymentCondition('CREDITO')}
+                                    icon={CheckCircle}
+                                    onClick={() => setShowBulkPaymentModal(true)}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                                        boxShadow: '0 4px 12px rgba(5, 150, 105, 0.35)',
+                                        fontWeight: '700',
+                                    }}
                                 >
-                                    Convertir a CRÉDITO
+                                    Confirmar Cobro Masivo
                                 </Button>
-                                <Button 
-                                    variant="success" 
-                                    size="small"
-                                    onClick={() => handleBulkPaymentCondition('CONTADO')}
-                                >
-                                    Convertir a CONTADO
-                                </Button>
-                                <Button 
-                                    variant="secondary" 
+                                <Button
+                                    variant="ghost"
                                     size="small"
                                     onClick={() => setSelectedInvoiceIds([])}
+                                    style={{ color: '#64748b' }}
                                 >
                                     Cancelar
                                 </Button>
@@ -811,6 +818,14 @@ const Sales = () => {
                             setPage(1);
                         }}
                     />
+                    {showBulkPaymentModal && (
+                        <BulkPaymentModal
+                            invoiceCount={selectedInvoiceIds.length}
+                            onConfirm={handleBulkRegisterPayments}
+                            onClose={() => setShowBulkPaymentModal(false)}
+                            loading={isBulkProcessing}
+                        />
+                    )}
                 </>
             ) : activeTab === 'notes' ? (
                 <>
@@ -1136,13 +1151,7 @@ const Sales = () => {
 
 
 
-            <BulkCorrectionModal
-                visible={showBulkModal}
-                onClose={() => setShowBulkModal(false)}
-                selectedCount={selectedInvoiceIds.length}
-                onConfirm={(terms) => handleBulkPaymentCondition('CREDITO', terms)}
-                loading={invoicesLoading}
-            />
+
         </div>
     );
 };
