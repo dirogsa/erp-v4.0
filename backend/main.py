@@ -111,6 +111,13 @@ include_routers(app)
 async def health_check():
     return {"status": "operational", "version": "4.0.0", "timestamp": time.time()}
 
+@app.get("/system/version")
+async def system_version():
+    from app.models.config import SystemConfig
+    config = await SystemConfig.find_one({})
+    # Si no existe, usamos un fallback
+    return {"version": config.system_version if config else "v0.1.1"}
+
 @app.on_event("startup")
 async def startup_event():
     from app.core.bootstrap import bootstrap_system
