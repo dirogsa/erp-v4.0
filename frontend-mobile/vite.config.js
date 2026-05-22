@@ -13,11 +13,24 @@ export default defineConfig({
         type: 'module'
       },
       workbox: {
-        // Silenciamos el warning en dev ya que Vite sirve desde memoria
-        globPatterns: process.env.NODE_ENV === 'production' ? ['**/*.{js,css,html,ico,png,svg}'] : [],
+        // Solo cachear los assets estáticos del frontend (JS, CSS, HTML, imágenes).
+        // NUNCA cachear respuestas del backend API: precios e inventario deben ser siempre en tiempo real.
+        globPatterns: process.env.NODE_ENV === 'production' ? ['**/*.{js,css,html,ico,png,svg,woff2}'] : [],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true
+        skipWaiting: true,
+        // CONSTITUTION §5 — Single Source of Truth:
+        // La API del backend es la fuente de verdad para datos financieros.
+        // El SW debe actuar como un mensajero transparente para estas rutas.
+        runtimeCaching: [
+          {
+            // Todo lo que vaya al backend: NetworkOnly (nunca servir desde caché)
+            urlPattern: ({ url }) => url.hostname === new URL(
+              process.env.VITE_API_URL || 'http://localhost:8000'
+            ).hostname,
+            handler: 'NetworkOnly',
+          },
+        ],
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
