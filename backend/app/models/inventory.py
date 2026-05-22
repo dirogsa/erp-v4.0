@@ -87,6 +87,7 @@ class VehicleBrand(Document):
     is_popular: bool = False
     is_active: bool = True # Control visibility in shop dropdowns
     models: List[str] = [] # Cache of associated models for performance
+    product_count: int = 0  # Pre-calculated during sync — zero DB cost at query time
     
     class Settings:
         name = "vehicle_brands"

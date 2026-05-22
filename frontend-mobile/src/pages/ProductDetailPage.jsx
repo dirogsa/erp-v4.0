@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { shopService } from '../services/api';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import {
     ChevronLeftIcon,
     StarIcon,
@@ -24,6 +25,8 @@ const ProductDetailPage = () => {
     const navigate = useNavigate();
     const { addToCart } = useCart();
     const { showNotification } = useNotifications();
+    const { user } = useAuth();
+    const isSuperAdmin = user?.role === 'SUPERADMIN';
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
@@ -119,13 +122,15 @@ const ProductDetailPage = () => {
                             <span className="bg-brand-surface border border-brand-border px-4 py-1.5 rounded-lg text-brand-primary font-black text-brand-sm tracking-widest">
                                 {product.sku}
                             </span>
-                            <div className={`px-3 py-1.5 rounded-xl border-2 text-[9px] font-black tracking-widest uppercase ${
-                                product.stock_current > 0 
-                                ? 'bg-brand-primary/10 border-brand-primary/20 text-brand-primary' 
-                                : 'bg-brand-danger/10 border-brand-danger/20 text-brand-danger'
-                            }`}>
-                                {product.stock_current > 0 ? `${product.stock_current} EN STOCK` : 'SIN STOCK'}
-                            </div>
+                            {isSuperAdmin && (
+                                <div className={`px-3 py-1.5 rounded-xl border-2 text-[9px] font-black tracking-widest uppercase ${
+                                    product.stock_current > 0 
+                                    ? 'bg-brand-primary/10 border-brand-primary/20 text-brand-primary' 
+                                    : 'bg-brand-danger/10 border-brand-danger/20 text-brand-danger'
+                                }`}>
+                                    {product.stock_current > 0 ? `${product.stock_current} EN STOCK` : 'SIN STOCK'}
+                                </div>
+                            )}
                         </div>
                     </div>
 

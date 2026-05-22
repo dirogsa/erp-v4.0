@@ -192,7 +192,38 @@ async def perform_full_brand_sync():
         nu._BRANDS_CACHE = new_cache
         nu._IS_CACHE_LOADED = True
 
-        sync_status["last_result"] = f"Sincronización Exitosa: {len(results)} marcas vehiculares y {len(new_cache)} marcas de productos actualizadas persistentemente."
+        # --- PRODUCT COUNT PER VEHICLE BRAND (Pre-aggregation for Free Tier) ---
+        # Run once per sync. Zero cost at query time — data is stored in the brand document.
+        sync_status["current_step"] = "Calculando conteo de productos por marca vehicular..."
+        count_pipeline = [
+            {"$match": {"is_active_in_shop": True, "applications": {"$exists": True, "$not": {"$size": 0}}}},
+            {"$unwind": "$applications"},
+            {"$group": {
+                "_id": {"$trim": {"input": {"$toUpper": "$applications.make"}}},
+                "count": {"$sum": 1}
+            }}
+        ]
+        count_results = await Product.get_motor_collection().aggregate(count_pipeline).to_list(length=None)
+        count_map = {r["_id"]: r["count"] for r in count_results if r["_id"]}
+        
+        # Bulk write: update product_count on each VehicleBrand document
+        if count_map:
+            bulk_ops = [
+                pymongo.UpdateOne(
+                    {"name": brand_name},
+                    {"$set": {"product_count": count}},
+                    upsert=False
+                )
+                for brand_name, count in count_map.items()
+            ]
+            # Also zero-out brands not present in this sync (no compatible products)
+            await VehicleBrand.get_motor_collection().update_many(
+                {"name": {"$nin": list(count_map.keys())}},
+                {"$set": {"product_count": 0}}
+            )
+            await VehicleBrand.get_motor_collection().bulk_write(bulk_ops, ordered=False)
+
+        sync_status["last_result"] = f"Sincronización Exitosa: {len(results)} marcas vehiculares, {len(new_cache)} marcas de productos y conteos actualizados."
     except Exception as e:
         sync_status["last_result"] = f"Error Crítico: {str(e)}"
         print(f"[SYNC CRITICAL ERROR] {str(e)}")

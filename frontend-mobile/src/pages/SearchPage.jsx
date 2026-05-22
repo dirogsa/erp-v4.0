@@ -12,6 +12,7 @@ import {
     ArrowsPointingInIcon
 } from '@heroicons/react/24/outline';
 import { useNavigate, useLocation } from 'react-router-dom';
+import BrandCombobox from '../components/BrandCombobox';
 
 import { useCart } from '../context/CartContext';
 
@@ -71,8 +72,7 @@ const SearchPage = () => {
         loadMetadata();
     }, []);
 
-    // World-Class Logic: Consolidate Brands for UI
-    // Group "TOYOTA INDUSTRIAL" into "TOYOTA" and prioritize popular brands
+    // World-Class Logic: Consolidate Brands for UI, accumulating product_count from sub-brands
     const consolidatedBrands = React.useMemo(() => {
         const groups = {};
         rawBrands
@@ -83,18 +83,22 @@ const SearchPage = () => {
                 const displayName = parent || name;
                 
                 if (!groups[displayName]) {
-                    groups[displayName] = { name: displayName, models: new Set(), is_popular: false };
+                    groups[displayName] = { name: displayName, models: new Set(), is_popular: false, product_count: 0 };
                 }
                 // If any variant is popular, the group becomes popular
                 if (b.is_popular) groups[displayName].is_popular = true;
                 b.models.forEach(m => groups[displayName].models.add(m));
+                // Accumulate product_count from all sub-brands into the parent group
+                groups[displayName].product_count += (b.product_count || 0);
             });
         
-        return Object.values(groups).sort((a, b) => {
-            if (a.is_popular && !b.is_popular) return -1;
-            if (!a.is_popular && b.is_popular) return 1;
-            return a.name.localeCompare(b.name);
-        });
+        return Object.values(groups)
+            .map(g => ({ ...g, models: Array.from(g.models).sort() }))
+            .sort((a, b) => {
+                if (a.is_popular && !b.is_popular) return -1;
+                if (!a.is_popular && b.is_popular) return 1;
+                return b.product_count - a.product_count; // Most products first
+            });
     }, [rawBrands]);
 
     const availableModels = React.useMemo(() => {
@@ -190,7 +194,7 @@ const SearchPage = () => {
                 </div>
 
                 {/* Search panel */}
-                <div className="rounded-[1.75rem] p-5 relative overflow-hidden"
+                <div className="rounded-[1.75rem] p-5 relative"
                     style={{
                         background: 'var(--brand-surface)',
                         border: `1.5px solid ${tabs.find(t => t.id === activeTab)?.color ?? '#6EE7B7'}28`,
@@ -198,9 +202,14 @@ const SearchPage = () => {
                         transition: 'border-color 0.3s'
                     }}>
 
-                    {/* Panel ambient glow */}
-                    <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl pointer-events-none"
-                        style={{ background: tabs.find(t => t.id === activeTab)?.glow ?? 'rgba(110,231,183,0.06)', transition: 'background 0.3s' }} />
+                    {/* Background wrapper for the glow to be clipped */}
+                    <div className="absolute inset-0 rounded-[1.75rem] overflow-hidden pointer-events-none">
+                        {/* Panel ambient glow */}
+                        <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl pointer-events-none"
+                            style={{ background: tabs.find(t => t.id === activeTab)?.glow ?? 'rgba(110,231,183,0.06)', transition: 'background 0.3s' }} />
+                    </div>
+
+                    <div className="relative z-10">
 
                     {/* ── CODES TAB ── */}
                     {activeTab === 'CODES' && (
@@ -242,30 +251,24 @@ const SearchPage = () => {
                     {activeTab === 'APPS' && (
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-3">
                             <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#38BDF8' }}>Selecciona tu vehículo</label>
-                            <div className="relative">
-                                <TruckIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: '#38BDF8' }} />
+                            {/* ── Brand Combobox ── */}
+                            <BrandCombobox
+                                consolidatedBrands={consolidatedBrands}
+                                selectedMake={activeFilters.make}
+                                setSelectedMake={(val) => setActiveFilters(prev => ({ ...prev, make: val }))}
+                                setSelectedModel={(val) => setActiveFilters(prev => ({ ...prev, model: val }))}
+                            />
+                            {activeFilters.make && (
                                 <select
-                                    value={activeFilters.make}
-                                    onChange={(e) => setActiveFilters({ ...activeFilters, make: e.target.value, model: '' })}
-                                    className="tech-input w-full h-14 rounded-xl pl-11 pr-4 text-[11px] font-black appearance-none uppercase"
-                                    style={{ borderColor: 'rgba(56,189,248,0.25)' }}
+                                    value={activeFilters.model}
+                                    onChange={(e) => setActiveFilters({ ...activeFilters, model: e.target.value })}
+                                    className="tech-input w-full h-14 rounded-xl px-4 text-[11px] font-black appearance-none uppercase animate-in fade-in slide-in-from-top-2 duration-200"
+                                    style={{ borderColor: 'rgba(56,189,248,0.2)' }}
                                 >
-                                    <option value="">— SELECCIONAR MARCA —</option>
-                                    {consolidatedBrands.map(b => (
-                                        <option key={b.name} value={b.name}>{b.name}</option>
-                                    ))}
+                                    <option value="">— MODELO (OPCIONAL) —</option>
+                                    {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
                                 </select>
-                            </div>
-                            <select
-                                value={activeFilters.model}
-                                onChange={(e) => setActiveFilters({ ...activeFilters, model: e.target.value })}
-                                disabled={!activeFilters.make}
-                                className="tech-input w-full h-14 rounded-xl px-4 text-[11px] font-black appearance-none uppercase disabled:opacity-25"
-                                style={{ borderColor: 'rgba(56,189,248,0.2)' }}
-                            >
-                                <option value="">— MODELO (OPCIONAL) —</option>
-                                {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
-                            </select>
+                            )}
                             <button
                                 onClick={handleSearch}
                                 disabled={!activeFilters.make || loading}
@@ -349,6 +352,7 @@ const SearchPage = () => {
                             </div>
                         </div>
                     )}
+                    </div>
                 </div>
             </header>
 

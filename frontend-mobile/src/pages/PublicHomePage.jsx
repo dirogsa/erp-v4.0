@@ -16,6 +16,7 @@ import {
 import { shopService } from '../services/api';
 import MobileProductCard from '../components/MobileProductCard';
 import VersionInfo from '../components/VersionInfo';
+import BrandCombobox from '../components/BrandCombobox';
 
 /* ─── Micro-component: Animated status dot ─── */
 const LiveDot = () => (
@@ -87,6 +88,8 @@ const PublicHomePage = () => {
     const [codeSearch, setCodeSearch] = useState('');
     const [brands, setBrands] = useState([]);
     const [selectedMake, setSelectedMake] = useState('');
+    const [makeSearch, setMakeSearch] = useState('');
+    const [showMakeSuggestions, setShowMakeSuggestions] = useState(false);
     const [selectedModel, setSelectedModel] = useState('');
     const [specFilters, setSpecFilters] = useState({ h: '', d: '', t: '', id: '' });
 
@@ -106,7 +109,7 @@ const PublicHomePage = () => {
         load();
     }, []);
 
-    // World-Class Logic: Consolidate Brands for UI
+    // World-Class Logic: Consolidate Brands for UI, accumulating product_count from sub-brands
     const consolidatedBrands = React.useMemo(() => {
         const groups = {};
         brands.forEach(b => {
@@ -115,17 +118,21 @@ const PublicHomePage = () => {
             const displayName = parent || name;
             
             if (!groups[displayName]) {
-                groups[displayName] = { name: displayName, is_popular: false, models: new Set() };
+                groups[displayName] = { name: displayName, is_popular: false, models: new Set(), product_count: 0 };
             }
             if (b.is_popular) groups[displayName].is_popular = true;
             if (b.models) b.models.forEach(m => groups[displayName].models.add(m));
+            // Accumulate product_count from all sub-brands into the parent group
+            groups[displayName].product_count += (b.product_count || 0);
         });
         
-        return Object.values(groups).map(g => ({ ...g, models: Array.from(g.models).sort() })).sort((a, b) => {
-            if (a.is_popular && !b.is_popular) return -1;
-            if (!a.is_popular && b.is_popular) return 1;
-            return a.name.localeCompare(b.name);
-        });
+        return Object.values(groups)
+            .map(g => ({ ...g, models: Array.from(g.models).sort() }))
+            .sort((a, b) => {
+                if (a.is_popular && !b.is_popular) return -1;
+                if (!a.is_popular && b.is_popular) return 1;
+                return b.product_count - a.product_count; // Most products first
+            });
     }, [brands]);
 
     const availableModels = consolidatedBrands.find(b => b.name === selectedMake)?.models || [];
@@ -287,7 +294,7 @@ const PublicHomePage = () => {
                 </div>
 
                 {/* Search panel */}
-                <div className="rounded-[1.75rem] p-5 relative overflow-hidden"
+                <div className="rounded-[1.75rem] p-5 relative"
                     style={{
                         background: 'var(--brand-surface)',
                         border: `1.5px solid ${tabs.find(t => t.id === activeTab)?.color ?? '#6EE7B7'}28`,
@@ -295,9 +302,14 @@ const PublicHomePage = () => {
                         transition: 'border-color 0.3s'
                     }}>
 
-                    {/* Panel ambient glow — colour matches active tab */}
-                    <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl pointer-events-none"
-                        style={{ background: tabs.find(t => t.id === activeTab)?.glow ?? 'rgba(110,231,183,0.06)', transition: 'background 0.3s' }} />
+                    {/* Background wrapper for the glow to be clipped */}
+                    <div className="absolute inset-0 rounded-[1.75rem] overflow-hidden pointer-events-none">
+                        {/* Panel ambient glow — colour matches active tab */}
+                        <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl pointer-events-none"
+                            style={{ background: tabs.find(t => t.id === activeTab)?.glow ?? 'rgba(110,231,183,0.06)', transition: 'background 0.3s' }} />
+                    </div>
+
+                    <div className="relative z-10">
 
                     {/* ── CODE TAB ── */}
                     {activeTab === 'code' && (
@@ -329,31 +341,28 @@ const PublicHomePage = () => {
                     {/* ── VEHICLE TAB ── */}
                     {activeTab === 'vehicle' && (
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-3">
-                            <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#38BDF8' }}>Selecciona tu vehículo</label>
+                            <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#38BDF8' }}>Busca tu vehículo</label>
 
-                            <div className="relative">
-                                <TruckIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none" style={{ color: '#38BDF8' }} />
+                            {/* ── Brand Combobox ── */}
+                            <BrandCombobox
+                                consolidatedBrands={consolidatedBrands}
+                                selectedMake={selectedMake}
+                                setSelectedMake={setSelectedMake}
+                                setSelectedModel={setSelectedModel}
+                            />
+
+                            {/* Model select — only visible once brand is confirmed */}
+                            {selectedMake && (
                                 <select
-                                    value={selectedMake}
-                                    onChange={(e) => { setSelectedMake(e.target.value); setSelectedModel(''); }}
-                                    className="tech-input w-full h-14 rounded-xl pl-11 pr-4 text-[11px] font-black appearance-none uppercase"
-                                    style={{ borderColor: 'rgba(56,189,248,0.25)' }}
+                                    value={selectedModel}
+                                    onChange={(e) => setSelectedModel(e.target.value)}
+                                    className="tech-input w-full h-14 rounded-xl px-4 text-[11px] font-black appearance-none uppercase animate-in fade-in slide-in-from-top-2 duration-200"
+                                    style={{ borderColor: 'rgba(56,189,248,0.2)' }}
                                 >
-                                    <option value="">— MARCA DEL VEHÍCULO —</option>
-                                    {consolidatedBrands.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+                                    <option value="">— MODELO (OPCIONAL) —</option>
+                                    {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
                                 </select>
-                            </div>
-
-                            <select
-                                value={selectedModel}
-                                onChange={(e) => setSelectedModel(e.target.value)}
-                                disabled={!selectedMake}
-                                className="tech-input w-full h-14 rounded-xl px-4 text-[11px] font-black appearance-none uppercase disabled:opacity-25"
-                                style={{ borderColor: 'rgba(56,189,248,0.2)' }}
-                            >
-                                <option value="">— MODELO (OPCIONAL) —</option>
-                                {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
-                            </select>
+                            )}
 
                             <button
                                 onClick={handleVehicleSearch}
@@ -414,6 +423,7 @@ const PublicHomePage = () => {
                             </button>
                         </div>
                     )}
+                    </div>
                 </div>
             </section>
 

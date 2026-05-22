@@ -1,11 +1,14 @@
 import React from 'react';
 import { ShoppingCartIcon, StarIcon, GiftIcon, MagnifyingGlassPlusIcon, XMarkIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const MobileProductCard = ({ product, onAddToCart, isPrize = false, searchTerm = "" }) => {
     const [isZoomed, setIsZoomed] = React.useState(false);
     const [fullProduct, setFullProduct] = React.useState(product);
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const isSuperAdmin = user?.role === 'SUPERADMIN';
 
     // Smart Hydration: Fetch full specs if missing when zooming
     React.useEffect(() => {
@@ -58,10 +61,12 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false, searchTerm =
                     <span className="text-[10px] font-black text-brand-text-dim uppercase tracking-widest truncate">
                         {product.brand || 'DIROGSA'}
                     </span>
-                    {product.stock_current > 0 ? (
-                        <span className="text-[8px] font-black text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full">STOCK: {product.stock_current}</span>
-                    ) : (
-                        <span className="text-[8px] font-black text-brand-orange bg-brand-orange/10 px-2 py-0.5 rounded-full uppercase">Reserva</span>
+                    {isSuperAdmin && (
+                        product.stock_current > 0 ? (
+                            <span className="text-[8px] font-black text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full">STOCK: {product.stock_current}</span>
+                        ) : (
+                            <span className="text-[8px] font-black text-brand-orange bg-brand-orange/10 px-2 py-0.5 rounded-full uppercase">Reserva</span>
+                        )
                     )}
                 </div>
                 

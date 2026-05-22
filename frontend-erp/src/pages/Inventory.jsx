@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import ProductsTable from '../components/features/inventory/ProductsTable';
@@ -28,9 +29,12 @@ const Inventory = ({ forcedType = null }) => {
     const { showNotification } = useNotification();
 
     // Pagination & Search State
+    const location = useLocation();
+    const querySearch = new URLSearchParams(location.search).get('search') || location.state?.search || '';
+    
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(querySearch);
     const [selectedIds, setSelectedIds] = useState([]);
     const [filterUnrecognized, setFilterUnrecognized] = useState(false);
     const [filterOthers, setFilterOthers] = useState(false);

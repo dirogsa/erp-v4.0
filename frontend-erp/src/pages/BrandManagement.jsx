@@ -14,10 +14,13 @@ import {
     Settings,
     Layout,
     Eye,
-    EyeOff
+    EyeOff,
+    ExternalLink
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const BrandManagement = () => {
+    const navigate = useNavigate();
     const { showNotification } = useNotification();
     const [brands, setBrands] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -525,9 +528,20 @@ const BrandManagement = () => {
                                         </div>
                                     </div>
                                     
-                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', alignItems: 'center' }}>
                                         {getOriginBadge(brand.origin)}
                                         <span style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 'bold' }}>{brand.models.length} Modelos</span>
+                                        <div style={{ width: '4px', height: '4px', background: '#334155', borderRadius: '50%' }}></div>
+                                        <span style={{ 
+                                            color: brand.product_count > 0 ? '#38bdf8' : '#64748b', 
+                                            fontSize: '0.8rem', 
+                                            fontWeight: '900',
+                                            background: brand.product_count > 0 ? 'rgba(56,189,248,0.1)' : 'transparent',
+                                            padding: '2px 8px',
+                                            borderRadius: '6px'
+                                        }}>
+                                            {brand.product_count || 0} Filtros
+                                        </span>
                                     </div>
 
                                     {/* Nested Variants Section */}
@@ -568,7 +582,14 @@ const BrandManagement = () => {
                                     style={{ flex: 1, background: '#334155', color: 'white', border: 'none', padding: '0.8rem', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                                     className="hover-bright"
                                 >
-                                    <Settings style={{ height: '1.2rem' }} /> CONFIGURAR MARCA
+                                    <Settings style={{ height: '1.2rem' }} /> CONFIGURAR
+                                </button>
+                                <button 
+                                    onClick={() => navigate('/inventory', { state: { search: brand.name } })}
+                                    style={{ flex: 1, background: 'rgba(56,189,248,0.1)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.3)', padding: '0.8rem', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                                    className="hover-bright"
+                                >
+                                    <ExternalLink style={{ height: '1.2rem' }} /> VER FILTROS
                                 </button>
                             </div>
                         </div>

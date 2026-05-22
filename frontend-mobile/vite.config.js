@@ -25,9 +25,7 @@ export default defineConfig({
         runtimeCaching: [
           {
             // Todo lo que vaya al backend: NetworkOnly (nunca servir desde caché)
-            urlPattern: ({ url }) => url.hostname === new URL(
-              process.env.VITE_API_URL || 'http://localhost:8000'
-            ).hostname,
+            urlPattern: new RegExp(`^https?://${new URL(process.env.VITE_API_URL || 'http://localhost:8000').hostname.replace(/\./g, '\\.')}(:\\d+)?/.*`),
             handler: 'NetworkOnly',
           },
         ],
