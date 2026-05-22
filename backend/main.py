@@ -125,12 +125,15 @@ async def system_version():
     
     if os.path.exists(version_file):
         with open(version_file, "r") as f:
-            version = f.read().strip()
+            raw_version = f.read().strip()
+            # Si el string es v3.3.7-5-g1234, nos quedamos solo con v3.3.7
+            version = raw_version.split("-")[0]
     else:
         try:
             # Fallback for local development
             output = subprocess.check_output(["git", "describe", "--tags", "--always"], stderr=subprocess.DEVNULL)
-            version = output.decode().strip()
+            raw_version = output.decode().strip()
+            version = raw_version.split("-")[0]
         except Exception:
             pass
 
