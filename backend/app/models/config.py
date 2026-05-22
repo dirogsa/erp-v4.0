@@ -26,7 +26,6 @@ class SystemConfig(Document):
     decimal_precision: int = 2
     timezone: str = "America/Lima"
     allow_negative_stock: bool = False
-    system_version: str = "v0.1.1"
     
     # Consolidación de Soberanía
     loyalty: LoyaltySettings = LoyaltySettings()

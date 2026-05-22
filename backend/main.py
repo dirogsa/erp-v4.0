@@ -113,10 +113,28 @@ async def health_check():
 
 @app.get("/system/version")
 async def system_version():
-    from app.models.config import SystemConfig
-    config = await SystemConfig.find_one({})
-    # Si no existe, usamos un fallback
-    return {"version": config.system_version if config else "v0.1.1"}
+    """
+    World-Class CI/CD Versioning.
+    Reads the version from version.txt (generated during build) or falls back to git describe.
+    """
+    import subprocess
+    import os
+    
+    version = "dev-local"
+    version_file = os.path.join(os.path.dirname(__file__), "..", "version.txt")
+    
+    if os.path.exists(version_file):
+        with open(version_file, "r") as f:
+            version = f.read().strip()
+    else:
+        try:
+            # Fallback for local development
+            output = subprocess.check_output(["git", "describe", "--tags", "--always"], stderr=subprocess.DEVNULL)
+            version = output.decode().strip()
+        except Exception:
+            pass
+
+    return {"version": version}
 
 @app.on_event("startup")
 async def startup_event():
