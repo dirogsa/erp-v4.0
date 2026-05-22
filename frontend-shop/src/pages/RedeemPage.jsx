@@ -8,7 +8,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { SparklesIcon } from '@heroicons/react/24/outline';
 
 const RedeemPage = () => {
-    const { user, isAuthenticated, refreshProfile } = useAuth();
+    const { user, isAuthenticated, refreshProfile, canViewStock } = useAuth();
     const { showNotification } = useNotification();
     const { addToCart } = useCart();
     const [prizes, setPrizes] = useState([]);
@@ -168,12 +168,14 @@ const RedeemPage = () => {
                                                 Identifícate para canjear
                                             </div>
                                         )}
-                                        <div className="mt-4 flex items-center justify-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${prize.stock_current > 0 ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                                {prize.stock_current > 0 ? `${prize.stock_current} Unidades disponibles` : 'Sin stock'}
-                                            </span>
-                                        </div>
+                                        {canViewStock && (
+                                            <div className="mt-4 flex items-center justify-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${prize.stock_current > 0 ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                    {prize.stock_current > 0 ? `${prize.stock_current} Unidades disponibles` : 'Sin stock'}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

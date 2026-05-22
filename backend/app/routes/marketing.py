@@ -46,3 +46,36 @@ async def convert_points(
         "new_internal_points_local": user.internal_points_local,
         "conversion_rate": rate
     }
+
+class LoyaltyConfigUpdate(BaseModel):
+    points_per_currency_unit: float
+    is_active: bool
+    only_web_accumulation: bool
+    local_to_web_rate: float
+
+@router.get("/loyalty/config")
+async def get_loyalty_config(current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))):
+    """Obtiene la configuración del programa de lealtad"""
+    config = await SystemConfig.find_one({})
+    if not config:
+        config = SystemConfig()
+        await config.insert()
+    return config.loyalty
+
+@router.put("/loyalty/config")
+async def update_loyalty_config(
+    payload: LoyaltyConfigUpdate,
+    current_user: User = Depends(check_role([UserRole.SUPERADMIN]))
+):
+    """Actualiza la configuración del programa de lealtad (Solo SuperAdmin)"""
+    config = await SystemConfig.find_one({})
+    if not config:
+        config = SystemConfig()
+    
+    config.loyalty.points_per_currency_unit = payload.points_per_currency_unit
+    config.loyalty.is_active = payload.is_active
+    config.loyalty.only_web_accumulation = payload.only_web_accumulation
+    config.loyalty.local_to_web_rate = payload.local_to_web_rate
+    
+    await config.save()
+    return config.loyalty

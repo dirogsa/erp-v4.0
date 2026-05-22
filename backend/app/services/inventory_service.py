@@ -128,24 +128,27 @@ async def get_products(
         "is_active_in_shop": 1, "is_new": 1, "company_data": 1
     }
     
-    db_items = await Product.find(query).sort('sku').skip(skip).limit(limit).to_list()
+    cursor = Product.get_motor_collection().find(query, projection).sort("sku", 1).skip(skip).limit(limit)
+    db_items = await cursor.to_list(length=limit)
     
     # RESOLUCION MASIVA DE PRECIOS Y STOCK SOBERANO (Clave Compuesta SKU + Marca)
-    items_to_resolve = [{"sku": item.sku, "brand": item.brand} for item in db_items]
+    items_to_resolve = [{"sku": item["sku"], "brand": item.get("brand", "N/A")} for item in db_items]
     price_map = await PricingService.get_bulk_prices(items_to_resolve)
     
     items = []
     for db_item in db_items:
+        # Pydantic doesn't serialize ObjectId natively easily in **kwargs, pop it.
+        db_item.pop("_id", None)
+        
         # Inyectar Stock/Costo Soberano si aplica
-        if inventory_mode == "SOVEREIGN" and company_id and company_id in db_item.company_data:
-            c_data = db_item.company_data[company_id]
-            db_item.stock_current = c_data.stock_current
-            db_item.cost = c_data.cost
+        if inventory_mode == "SOVEREIGN" and company_id and company_id in db_item.get("company_data", {}):
+            c_data = db_item["company_data"][company_id]
+            db_item["stock_current"] = c_data.get("stock_current", 0)
+            db_item["cost"] = c_data.get("cost", 0)
         
         # Convertir a Lean schema
-        item_dict = db_item.model_dump()
-        item_dict['price_list'] = price_map.get((db_item.sku, db_item.brand), 0.0)
-        items.append(ProductLeanWithPrice(**item_dict))
+        db_item['price_list'] = price_map.get((db_item["sku"], db_item.get("brand", "N/A")), 0.0)
+        items.append(ProductLeanWithPrice(**db_item))
     
     return PaginatedResponse(
         items=items,

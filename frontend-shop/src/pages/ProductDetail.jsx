@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { shopService } from '../services/api';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { ShoppingCartIcon, ArrowLeftIcon, StarIcon, CheckBadgeIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline';
 
 const ProductDetail = () => {
     const { sku } = useParams();
     const { addToCart } = useCart();
+    const { canViewStock } = useAuth();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('specs');
@@ -70,15 +72,18 @@ const ProductDetail = () => {
                                 <StarIcon className="h-6 w-6" />
                                 <span className="text-lg font-black">{product.loyalty_points || 0} Puntos de Fidelidad</span>
                             </div>
-                            {product.stock_current > 0 ? (
-                                <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-2xl border border-emerald-100">
-                                    <CheckBadgeIcon className="h-6 w-6" />
-                                    <span className="text-lg font-black">Stock Disponible</span>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2 bg-rose-50 text-rose-600 px-4 py-2 rounded-2xl border border-rose-100">
-                                    <span className="text-lg font-black">Agotado</span>
-                                </div>
+                            {/* Privilege-Based Stock Visibility */}
+                            {canViewStock && (
+                                product.stock_current > 0 ? (
+                                    <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-2xl border border-emerald-100">
+                                        <CheckBadgeIcon className="h-6 w-6" />
+                                        <span className="text-lg font-black">En Stock: {product.stock_current} u.</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 bg-rose-50 text-rose-600 px-4 py-2 rounded-2xl border border-rose-100">
+                                        <span className="text-lg font-black">Agotado (0 u.)</span>
+                                    </div>
+                                )
                             )}
                         </div>
                     </div>

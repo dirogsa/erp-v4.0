@@ -458,8 +458,9 @@ async def get_shop_products(
     print(f"[SHOP] User role: {role}")
     
     # Obtener políticas globales para fallback
-    from app.models.sales import SalesPolicy
-    policy = await SalesPolicy.find_one({})
+    from app.models.config import SystemConfig
+    _config = await SystemConfig.find_one({})
+    policy = _config.sales_policy if _config else None
     # Get the designated active web company for currency context
     shop_company = await Company.find_one(Company.is_active_web == True)
     if not shop_company:
@@ -469,7 +470,7 @@ async def get_shop_products(
     response_items = []
     for p in products:
         # For list, we show base price (quantity=1) using the new Dynamic Engine
-        price_info = await PricingService.get_product_price(p.sku, 1)
+        price_info = await PricingService.get_product_price(p.sku, brand=p.brand, quantity=1)
         price = price_info.get("price", 0.0)
         
         response_items.append(ShopProductResponse(
@@ -526,11 +527,12 @@ async def get_shop_product_detail(
     })
     if not p:
         raise HTTPException(status_code=404, detail="Product not found or not available in shop")
-    price_info = await PricingService.get_product_price(p.sku, 1)
+    price_info = await PricingService.get_product_price(p.sku, brand=p.brand, quantity=1)
     price = price_info.get("price", 0.0)
     
-    from app.models.sales import SalesPolicy
-    policy = await SalesPolicy.find_one({})
+    from app.models.config import SystemConfig
+    _config = await SystemConfig.find_one({})
+    policy = _config.sales_policy if _config else None
 
     return ShopProductDetailResponse(
         sku=p.sku,
@@ -777,8 +779,9 @@ async def get_predictive_order(current_user: User = Depends(get_current_user)):
     products = await Product.find({"sku": {"$in": sku_list}, "is_active_in_shop": True}).to_list()
     
     # Obtener políticas globales para fallback
-    from app.models.sales import SalesPolicy
-    policy = await SalesPolicy.find_one({})
+    from app.models.config import SystemConfig
+    _config = await SystemConfig.find_one({})
+    policy = _config.sales_policy if _config else None
     
     # Resolve pricing
     role = current_user.role

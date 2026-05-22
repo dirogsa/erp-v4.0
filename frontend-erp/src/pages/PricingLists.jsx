@@ -119,7 +119,7 @@ const PricingLists = () => {
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
                     {lists.map(list => (
-                        <div key={list.id} style={{
+                        <div key={list.id || list._id || list.name} style={{
                             background: 'rgba(30, 41, 59, 0.4)',
                             backdropFilter: 'blur(12px)',
                             border: `1px solid ${list.is_campaign ? list.color : 'rgba(255,255,255,0.05)'}`,

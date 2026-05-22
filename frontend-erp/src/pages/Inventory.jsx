@@ -190,13 +190,29 @@ const Inventory = ({ forcedType = null }) => {
                     </p>
                 </div>
                 {(activeTab === 'products' || activeTab === 'marketing') && (
-                    <Button onClick={() => {
-                        setSelectedProduct(null);
-                        setIsViewMode(false);
-                        setShowProductModal(true);
-                    }}>
-                        {forcedType === 'MARKETING' || activeTab === 'marketing' ? '+ Nuevo Artículo Publicitario' : '+ Nuevo Producto'}
-                    </Button>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        {!forcedType && activeTab === 'products' && (
+                            <Button
+                                variant="success"
+                                onClick={() => handleBulkVisibility({ is_active_in_shop: true, only_with_price: true, label: 'Activar en Tienda (Con Precio)' })}
+                                disabled={isBulkLoading}
+                                style={{
+                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
+                                    fontWeight: 'bold',
+                                }}
+                            >
+                                🛒 Activar en Tienda (Con Precio)
+                            </Button>
+                        )}
+                        <Button onClick={() => {
+                            setSelectedProduct(null);
+                            setIsViewMode(false);
+                            setShowProductModal(true);
+                        }}>
+                            {forcedType === 'MARKETING' || activeTab === 'marketing' ? '+ Nuevo Artículo Publicitario' : '+ Nuevo Producto'}
+                        </Button>
+                    </div>
                 )}
             </div>
 

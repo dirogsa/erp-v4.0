@@ -58,6 +58,9 @@ export const AuthProvider = ({ children }) => {
 
     const isB2B = user?.role === 'CUSTOMER_B2B';
     const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERADMIN';
+    
+    // Domain-driven permission for stock visibility (Currently restricted to SUPERADMIN)
+    const canViewStock = user?.role === 'SUPERADMIN';
 
     return (
         <AuthContext.Provider value={{
@@ -68,7 +71,8 @@ export const AuthProvider = ({ children }) => {
             logout,
             refreshProfile,
             isB2B,
-            isAdmin
+            isAdmin,
+            canViewStock
         }}>
             {children}
         </AuthContext.Provider>
