@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Evitar indexar el portal de administracion/perfil si es necesario
+Disallow: /profile
+Disallow: /orders
+Disallow: /checkout
+
+Sitemap: https://dirogsa.com/sitemap.xml
