@@ -6,4 +6,4 @@ Disallow: /profile
 Disallow: /orders
 Disallow: /checkout
 
-Sitemap: https://dirogsa.com/sitemap.xml
+Sitemap: https://www.dirogsa.com/sitemap.xml
