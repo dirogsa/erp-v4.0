@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { shopService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -15,6 +16,16 @@ const Home = () => {
 
     return (
         <div>
+            <Helmet>
+                <title>DIROGSA | Tienda Online de Filtros Automotrices Premium en Perú</title>
+                <meta name="description" content="Encuentra filtros automotrices premium (aceite, aire, cabina, combustible) de calidad OEM en DIROGSA. Catálogo completo con más de 5,000 aplicaciones. Envío a todo el Perú." />
+                <link rel="canonical" href="https://dirogsa.com/" />
+                <meta property="og:type" content="website" />
+                <meta property="og:title" content="DIROGSA | Filtros Automotrices Premium en Perú" />
+                <meta property="og:description" content="Distribuidora líder de filtros premium. Calidad OEM garantizada y entrega a nivel nacional." />
+                <meta property="og:image" content="https://dirogsa.com/og-default.jpg" />
+                <meta property="og:url" content="https://dirogsa.com/" />
+            </Helmet>
             {/* Hero Section */}
             <header className="bg-slate-900 text-white py-16 md:py-32 px-4 relative overflow-hidden">
                 <div className="max-w-7xl mx-auto text-center relative z-10">

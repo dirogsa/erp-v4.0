@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { shopService } from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -40,8 +41,52 @@ const ProductDetail = () => {
         </div>
     );
 
+    const pageTitle = `${product.name} | ${product.brand} ${product.sku} — DIROGSA`;
+    const pageDesc = `Compra ${product.name} marca ${product.brand} (SKU: ${product.sku}) en DIROGSA. Filtros automotrices con calidad OEM. Precio: S/ ${product.price?.toFixed(2)}. Envío a todo el Perú.`;
+    const pageUrl = `https://dirogsa.com/product/${product.sku}`;
+    const pageImage = product.image_url || 'https://dirogsa.com/og-default.jpg';
+
+    const schemaProduct = {
+        '@context': 'https://schema.org/',
+        '@type': 'Product',
+        name: product.name,
+        sku: product.sku,
+        brand: { '@type': 'Brand', name: product.brand || 'DIROGSA' },
+        description: product.description || `Filtro automotriz ${product.name} marca ${product.brand}`,
+        image: pageImage,
+        url: pageUrl,
+        offers: {
+            '@type': 'Offer',
+            priceCurrency: 'PEN',
+            price: product.price?.toFixed(2),
+            availability: product.stock_current > 0
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+            seller: { '@type': 'Organization', name: 'DIROGSA' }
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto px-4 py-6 md:py-12">
+            <Helmet>
+                <title>{pageTitle}</title>
+                <meta name="description" content={pageDesc} />
+                <link rel="canonical" href={pageUrl} />
+                {/* Open Graph (Facebook, WhatsApp previews) */}
+                <meta property="og:type" content="product" />
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDesc} />
+                <meta property="og:image" content={pageImage} />
+                <meta property="og:url" content={pageUrl} />
+                <meta property="og:site_name" content="DIROGSA" />
+                {/* Twitter Card */}
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={pageTitle} />
+                <meta name="twitter:description" content={pageDesc} />
+                <meta name="twitter:image" content={pageImage} />
+                {/* Schema.org JSON-LD — habilita Google Shopping */}
+                <script type="application/ld+json">{JSON.stringify(schemaProduct)}</script>
+            </Helmet>
             <Link to="/catalog" className="inline-flex items-center gap-2 text-slate-500 hover:text-primary-600 transition-colors mb-8 font-bold">
                 <ArrowLeftIcon className="h-5 w-5" /> VOLVER AL CATÁLOGO
             </Link>

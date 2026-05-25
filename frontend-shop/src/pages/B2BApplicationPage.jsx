@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { authService } from '../services/api';
 import { CheckCircleIcon, RocketLaunchIcon, BuildingOfficeIcon, UserIcon, PhoneIcon, EnvelopeIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
@@ -53,6 +54,16 @@ const B2BApplicationPage = () => {
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-16 grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+            <Helmet>
+                <title>Distribuidor y Proveedor de Filtros al Por Mayor en Perú | DIROGSA B2B</title>
+                <meta name="description" content="Únete al programa B2B de DIROGSA. Accede a precios de importación directa y mayorista en filtros automotrices (aceite, aire, cabina, combustible) para talleres, flotas y tiendas de repuestos." />
+                <link rel="canonical" href="https://dirogsa.com/b2b" />
+                <meta property="og:type" content="website" />
+                <meta property="og:title" content="Programa de Socios Mayoristas B2B | DIROGSA" />
+                <meta property="og:description" content="Accede a precios de importador directo, crédito corporativo y stock en tiempo real de filtros automotrices." />
+                <meta property="og:image" content="https://dirogsa.com/og-default.jpg" />
+                <meta property="og:url" content="https://dirogsa.com/b2b" />
+            </Helmet>
             {/* Info Side */}
             <div className="space-y-10">
                 <div>

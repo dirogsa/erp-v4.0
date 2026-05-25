@@ -1,7 +1,7 @@
 import os
 import time
 import logging
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -157,6 +157,74 @@ async def startup_event():
     await init_db()
     logger.info("Running System Bootstrap...")
     await bootstrap_system()
+
+@app.get("/sitemap.xml")
+async def sitemap():
+    """
+    Dynamically generates the sitemap.xml listing all active products in the shop.
+    Optimized with Beanie projection to only fetch SKUs, preventing memory leaks and timeouts on free tiers.
+    """
+    from pydantic import BaseModel
+    
+    class ProductSitemapProjection(BaseModel):
+        sku: str
+
+    try:
+        from app.models.inventory import Product
+        # Highly optimized projection query: only returns SKU, ignoring heavy fields like applications and specs
+        products = await Product.find(Product.is_active_in_shop == True).project(ProductSitemapProjection).to_list()
+    except Exception as e:
+        logger.error(f"Error generating sitemap: {e}")
+        products = []
+    
+    xml_items = []
+    # Home Page
+    xml_items.append("""  <url>
+    <loc>https://dirogsa.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>""")
+    # Catalog Page
+    xml_items.append("""  <url>
+    <loc>https://dirogsa.com/catalog</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>""")
+    # B2B Page
+    xml_items.append("""  <url>
+    <loc>https://dirogsa.com/b2b</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>""")
+  
+    # Dynamic Products
+    for p in products:
+        # Avoid malformed XML by cleaning up SKU
+        sku_clean = str(p.sku).strip()
+        xml_items.append(f"""  <url>
+    <loc>https://dirogsa.com/product/{sku_clean}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>""")
+        
+    xml_body = "\n".join(xml_items)
+    xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+{xml_body}
+</urlset>"""
+    return Response(content=xml_content, media_type="application/xml")
+
+@app.get("/robots.txt")
+async def robots():
+    """
+    Serves a dynamically mapped robots.txt.
+    """
+    content = """User-agent: *
+Allow: /
+
+Sitemap: https://dirogsa.com/sitemap.xml
+"""
+    return Response(content=content, media_type="text/plain")
 
 @app.get("/")
 async def root():
