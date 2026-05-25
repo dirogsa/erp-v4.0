@@ -125,7 +125,8 @@ async def get_products(
     projection = {
         "sku": 1, "name": 1, "brand": 1, "type": 1, 
         "category_id": 1, "stock_current": 1, 
-        "is_active_in_shop": 1, "is_new": 1, "company_data": 1
+        "is_active_in_shop": 1, "is_new": 1, "company_data": 1,
+        "cost": 1, "promo_discount_pct": 1
     }
     
     cursor = Product.get_motor_collection().find(query, projection).sort("sku", 1).skip(skip).limit(limit)
@@ -995,7 +996,7 @@ async def check_stock_availability(items: List[Dict[str, Any]], company_id: Opti
         "allow_negative_stock": allow_neg
     }
 
-async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[str, Any]:
+async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User, company_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Procesa una lista de ajustes de inventario masivos.
     adjustments: [{"sku": "...", "physical_stock": 10, "reason": "...", "responsible": "...", "notes": "..."}]
@@ -1010,10 +1011,20 @@ async def bulk_reconcile(adjustments: List[Dict[str, Any]], user: User) -> Dict[
         reason = adj.get("reason", MovementType.ADJUSTMENT_STOCKTAKE)
         notes = adj.get("notes", "Ajuste masivo por inventario físico")
         responsible = adj.get("responsible", user.username)
+        unit_cost_input = adj.get("unit_cost")
 
         product = await get_product_by_sku(sku)
         system_stock = product.stock_current
         diff = physical_stock - system_stock
+        
+        # Si envían un costo, actualizamos el costo maestro del producto (Sinceramiento Valorado)
+        if unit_cost_input is not None:
+            new_cost = float(unit_cost_input)
+            product.cost = new_cost
+            if diff == 0:
+                # Si el stock no cambió pero sí el costo, forzamos guardar el producto y seguimos
+                await product.save()
+                continue
 
         if diff == 0:
             continue

@@ -8,7 +8,7 @@ console.log('[API] Current environment:', import.meta.env);
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },

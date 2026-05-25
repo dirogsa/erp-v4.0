@@ -34,6 +34,7 @@ class ProductLean(BaseModel):
     type: Optional[str] = "COMMERCIAL"
     category_id: Optional[str] = "VARIOS"
     stock_current: int = 0
+    cost: float = 0.0
     is_active_in_shop: bool = True
     is_new: bool = False
 

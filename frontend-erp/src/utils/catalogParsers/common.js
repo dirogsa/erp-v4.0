@@ -24,13 +24,13 @@ export const TECHNICAL_MAP = {
     'ROSCA': { label: 'Rosca', code: 'G', key: 'spec_t' },
     
     // Códigos Directos (Wix/Filtron/Mann)
-    'A': { label: 'Diámetro Exterior', code: 'A', key: 'spec_d' },
-    'B': { label: 'Diámetro Interior 1', code: 'B', key: 'spec_id1' },
-    'C': { label: 'Diámetro Interior 2', code: 'C', key: 'spec_id2' },
-    'D': { label: 'Diámetro Exterior', code: 'D', key: 'spec_d' }, // A veces D es Diámetro en otras marcas
-    'H': { label: 'Altura', code: 'H', key: 'spec_h' },
-    'G': { label: 'Rosca', code: 'G', key: 'spec_t' },
-    'T': { label: 'Rosca', code: 'T', key: 'spec_t' },
+    'A': { label: 'A', code: 'A', key: 'spec_d' },
+    'B': { label: 'B', code: 'B', key: 'spec_id1' },
+    'C': { label: 'C', code: 'C', key: 'spec_id2' },
+    'D': { label: 'D', code: 'D', key: 'spec_d' }, // A veces D es Diámetro en otras marcas
+    'H': { label: 'H', code: 'H', key: 'spec_h' },
+    'G': { label: 'G', code: 'G', key: 'spec_t' },
+    'T': { label: 'T', code: 'T', key: 'spec_t' },
 };
 
 /**

@@ -6,7 +6,7 @@ import { formatCurrency } from '../../../utils/formatters';
 const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
     const [pastedData, setPastedData] = useState('');
     const [parsedItems, setParsedItems] = useState([]);
-    const [mapping, setMapping] = useState({ sku: 0, physical_stock: 1 });
+    const [mapping, setMapping] = useState({ sku: 0, physical_stock: 1, unit_cost: -1 });
     const [step, setStep] = useState(1); // 1: Paste, 2: Map, 3: Reconciliation Audit
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState([]);
@@ -41,6 +41,8 @@ const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
             const row = parsedItems[i];
             const sku = row[mapping.sku]?.trim();
             const physical = parseInt(row[mapping.physical_stock]) || 0;
+            const unitCostRaw = mapping.unit_cost !== -1 ? row[mapping.unit_cost]?.replace(/[^\d.]/g, '') : null;
+            const parsedUnitCost = unitCostRaw ? parseFloat(unitCostRaw) : null;
 
             if (!sku) continue;
 
@@ -60,8 +62,9 @@ const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
                         physical_stock: physical,
                         delta: delta,
                         reason: globalReason,
-                        cost: product.cost,
-                        impact: delta * product.cost
+                        cost: parsedUnitCost !== null && !isNaN(parsedUnitCost) ? parsedUnitCost : product.cost,
+                        impact: delta * (parsedUnitCost !== null && !isNaN(parsedUnitCost) ? parsedUnitCost : product.cost),
+                        has_new_cost: parsedUnitCost !== null && !isNaN(parsedUnitCost)
                     });
                 } else {
                     validationErrors.push(`Fila ${i + 1}: SKU "${sku}" no existe.`);
@@ -89,6 +92,7 @@ const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
                 sku: item.sku,
                 physical_stock: item.physical_stock,
                 reason: item.reason,
+                unit_cost: item.has_new_cost ? item.cost : null,
                 responsible: responsible,
                 notes: `Reconciliación Masiva - Delta: ${item.delta}`
             }));
@@ -162,14 +166,25 @@ const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
                     {step === 1 && (
                         <div>
                             <div style={{ backgroundColor: '#3b82f61a', border: '1px solid #3b82f633', padding: '1rem', borderRadius: '0.75rem', marginBottom: '1.5rem' }}>
-                                <p style={{ margin: 0, fontSize: '0.9rem', color: '#93c5fd', lineHeight: '1.5' }}>
-                                    💡 <strong>Instrucciones:</strong> Copia el SKU y el STOCK FÍSICO desde tu Excel y pégalos aquí. El sistema detectará las diferencias automáticamente.
+                                <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', color: '#93c5fd', lineHeight: '1.6' }}>
+                                    💡 <strong>Instrucciones:</strong> Selecciona y copia columnas de tu Excel y pégalas aquí.
                                 </p>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem' }}>
+                                    <div style={{ background: '#0f172a', borderRadius: '0.5rem', padding: '0.75rem', border: '1px solid #334155' }}>
+                                        <div style={{ color: '#64748b', marginBottom: '0.35rem', fontWeight: 'bold' }}>📦 Solo Stock</div>
+                                        <code style={{ color: '#e2e8f0' }}>SKU [Tab] Cantidad</code>
+                                    </div>
+                                    <div style={{ background: 'rgba(245,158,11,0.08)', borderRadius: '0.5rem', padding: '0.75rem', border: '1px solid rgba(245,158,11,0.3)' }}>
+                                        <div style={{ color: '#f59e0b', marginBottom: '0.35rem', fontWeight: 'bold' }}>⭐ Stock + Costo Inicial</div>
+                                        <code style={{ color: '#e2e8f0' }}>SKU [Tab] Cantidad [Tab] Costo</code>
+                                    </div>
+                                </div>
                             </div>
                             <textarea
                                 value={pastedData}
                                 onChange={handlePaste}
-                                placeholder="Pega columnas de Excel aquí (Ej: SKU \t Cantidad)..."
+                                placeholder={"Pega aquí tus datos de Excel...\n\nEjemplo con costo (para inventario inicial):\nW6712\t25\t5.80\nW7462\t10\t12.40\n\nEjemplo solo stock:\nW6712\t25"}
+
                                 style={{
                                     width: '100%', height: '350px',
                                     backgroundColor: '#0f172a', color: 'white',
@@ -192,17 +207,26 @@ const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
                                             {parsedItems[0]?.map((_, i) => (
                                                 <th key={i} style={{ padding: '1rem', borderBottom: '1px solid #334155' }}>
                                                     <select
-                                                        value={mapping.sku === i ? 'sku' : mapping.physical_stock === i ? 'stock' : 'none'}
+                                                        value={mapping.sku === i ? 'sku' : mapping.physical_stock === i ? 'stock' : mapping.unit_cost === i ? 'cost' : 'none'}
                                                         onChange={(e) => {
                                                             const v = e.target.value;
                                                             if (v === 'sku') setMapping({ ...mapping, sku: i });
-                                                            if (v === 'stock') setMapping({ ...mapping, physical_stock: i });
+                                                            else if (v === 'stock') setMapping({ ...mapping, physical_stock: i });
+                                                            else if (v === 'cost') setMapping({ ...mapping, unit_cost: i });
+                                                            else {
+                                                                const newMapping = { ...mapping };
+                                                                if (newMapping.sku === i) newMapping.sku = -1;
+                                                                if (newMapping.physical_stock === i) newMapping.physical_stock = -1;
+                                                                if (newMapping.unit_cost === i) newMapping.unit_cost = -1;
+                                                                setMapping(newMapping);
+                                                            }
                                                         }}
                                                         style={{ background: '#1e293b', color: 'white', border: '1px solid #334155', padding: '0.5rem', borderRadius: '0.5rem', width: '100%' }}
                                                     >
                                                         <option value="none">Omitir</option>
                                                         <option value="sku">📍 SKU / Código</option>
                                                         <option value="stock">🔢 Stock Físico</option>
+                                                        <option value="cost">💰 Costo Unitario (Opc.)</option>
                                                     </select>
                                                 </th>
                                             ))}
@@ -276,6 +300,7 @@ const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
                                             <th style={{ textAlign: 'center', padding: '1rem' }}>Stock Sistema</th>
                                             <th style={{ textAlign: 'center', padding: '1rem' }}>Stock Físico</th>
                                             <th style={{ textAlign: 'center', padding: '1rem' }}>Diferencia</th>
+                                            <th style={{ textAlign: 'center', padding: '1rem' }}>Nuevo Costo</th>
                                             <th style={{ textAlign: 'left', padding: '1rem' }}>Motivo del Ajuste</th>
                                         </tr>
                                     </thead>
@@ -296,6 +321,10 @@ const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
                                                     }}>
                                                         {item.delta > 0 ? `+${item.delta}` : item.delta}
                                                     </div>
+                                                </td>
+                                                <td style={{ textAlign: 'center', padding: '1rem', color: item.has_new_cost ? '#f59e0b' : '#94a3b8' }}>
+                                                    {item.cost ? `S/ ${item.cost.toFixed(2)}` : '---'}
+                                                    {item.has_new_cost && <div style={{ fontSize: '0.65rem', color: '#f59e0b' }}>(Actualizado)</div>}
                                                 </td>
                                                 <td style={{ padding: '1rem' }}>
                                                     <select
