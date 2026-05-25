@@ -521,8 +521,10 @@ async def get_shop_product_detail(
     sku: str,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
+    import re
+    # Hacemos que la búsqueda del SKU sea insensible a mayúsculas y minúsculas (case-insensitive)
     p = await Product.find_one({
-        "sku": sku,
+        "sku": {"$regex": f"^{re.escape(sku)}$", "$options": "i"},
         "is_active_in_shop": True,
     })
     if not p:
