@@ -25,6 +25,8 @@ function App() {
                     <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/catalog" element={<CatalogPage />} />
+                        <Route path="/vehiculo/:make" element={<CatalogPage />} />
+                        <Route path="/vehiculo/:make/:model" element={<CatalogPage />} />
                         <Route path="/product/:sku" element={<ProductDetail />} />
                         <Route path="/b2b" element={<B2BApplicationPage />} />
                         <Route path="/login" element={<LoginPage />} />

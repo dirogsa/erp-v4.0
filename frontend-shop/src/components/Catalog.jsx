@@ -12,13 +12,16 @@ import {
     SparklesIcon
 } from '@heroicons/react/24/outline';
 
-const Catalog = () => {
+const Catalog = ({ initialMake, initialModel }) => {
+    const initialSearchStr = initialMake ? `${initialMake} ${initialModel || ''}`.trim() : '';
+    const initialMode = initialMake ? 'vehicle' : 'all';
+
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
+    const [search, setSearch] = useState(initialSearchStr);
     const [selectedCategory, setSelectedCategory] = useState('');
     const [categories, setCategories] = useState([]);
-    const [searchMode, setSearchMode] = useState('all'); // all, vehicle, specs, equivalence
+    const [searchMode, setSearchMode] = useState(initialMode); // all, vehicle, specs, equivalence
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [brands, setBrands] = useState([]);
     const [selectedVehicleBrand, setSelectedVehicleBrand] = useState('');

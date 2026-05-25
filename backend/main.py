@@ -202,11 +202,39 @@ async def sitemap():
         # Avoid malformed XML by cleaning up SKU
         sku_clean = str(p.sku).strip()
         xml_items.append(f"""  <url>
-    <loc>https://dirogsa.com/product/{sku_clean}</loc>
+    <loc>https://www.dirogsa.com/product/{sku_clean}</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>""")
+
+    # Dynamic Vehicle Pages for SEO (ChatGPT Priority #3)
+    try:
+        from urllib.parse import quote
+        pipeline = [
+            {"$match": {"is_active_in_shop": True, "applications": {"$exists": True, "$not": {"$size": 0}}}},
+            {"$unwind": "$applications"},
+            {"$group": {"_id": {"make": {"$toUpper": "$applications.make"}, "model": {"$toUpper": "$applications.model"}}}}
+        ]
+        vehicles = await Product.get_motor_collection().aggregate(pipeline).to_list(length=None)
         
+        for v in vehicles:
+            if not v["_id"] or not v["_id"].get("make"): continue
+            make = str(v["_id"]["make"]).strip().lower()
+            model = str(v["_id"].get("model", "")).strip().lower()
+            
+            if model and model != "none":
+                loc = f"https://www.dirogsa.com/vehiculo/{quote(make)}/{quote(model)}"
+            else:
+                loc = f"https://www.dirogsa.com/vehiculo/{quote(make)}"
+                
+            xml_items.append(f"""  <url>
+    <loc>{loc}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>""")
+    except Exception as e:
+        logger.error(f"Error adding vehicle pages to sitemap: {e}")
+
     xml_body = "\n".join(xml_items)
     xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
