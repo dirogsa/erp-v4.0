@@ -215,9 +215,9 @@ const PublicHomePage = () => {
             {/* ── NEWS CAROUSEL ── */}
             <section className="pb-4 pt-4">
                 <div className="flex px-5 justify-between items-center mb-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-brand-text-2">
+                    <h2 className="text-[10px] font-black uppercase tracking-widest text-brand-text-2 m-0">
                         Novedades
-                    </span>
+                    </h2>
                     <div className="flex gap-1.5">
                         {news.map((_, i) => (
                             <div key={i}
@@ -316,7 +316,7 @@ const PublicHomePage = () => {
                     {/* ── CODE TAB ── */}
                     {activeTab === 'code' && (
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-3">
-                            <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#6EE7B7' }}>Código / Referencia del filtro</label>
+                            <h2 className="text-[9px] font-black uppercase tracking-widest m-0" style={{ color: '#6EE7B7' }}>Código / Referencia del filtro</h2>
                             <div className="relative">
                                 <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#6EE7B7' }} />
                                 <input
@@ -343,7 +343,7 @@ const PublicHomePage = () => {
                     {/* ── VEHICLE TAB ── */}
                     {activeTab === 'vehicle' && (
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-3">
-                            <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#38BDF8' }}>Busca tu vehículo</label>
+                            <h2 className="text-[9px] font-black uppercase tracking-widest m-0" style={{ color: '#38BDF8' }}>Busca tu vehículo</h2>
 
                             {/* ── Brand Combobox ── */}
                             <BrandCombobox
@@ -380,7 +380,7 @@ const PublicHomePage = () => {
                     {/* ── DIMENSIONS TAB ── */}
                     {activeTab === 'dimensions' && (
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-4">
-                            <label className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#FB923C' }}>Búsqueda Técnica (Precisión)</label>
+                            <h2 className="text-[9px] font-black uppercase tracking-widest m-0" style={{ color: '#FB923C' }}>Búsqueda Técnica (Precisión)</h2>
                             <div className="grid grid-cols-2 gap-2">
                                 {[
                                     { key: 'h', label: 'ALTURA', code: '(H)', placeholder: 'mm', icon: '📏' },
