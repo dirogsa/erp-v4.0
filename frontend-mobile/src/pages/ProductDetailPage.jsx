@@ -135,85 +135,103 @@ const ProductDetailPage = () => {
                     </div>
 
                     {/* Price Display */}
-                    <div className="bg-brand-surface/50 border-2 border-white/5 p-6 rounded-[2rem] shadow-2xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                            <TagIcon className="h-16 w-16 text-brand-primary" />
-                        </div>
-                        <div className="relative z-10">
-                            <div className="flex items-baseline gap-2 mb-2">
-                                <span className="text-brand-xs font-bold text-brand-text-dim uppercase tracking-widest">Precio Unitario</span>
-                                {product.promo_discount_pct > 0 && (
-                                    <span className="bg-brand-orange/20 text-brand-orange text-[10px] font-black px-3 py-1 rounded-full animate-pulse border border-brand-orange/30">
-                                        ¡OFERTA -{product.promo_discount_pct}%!
-                                    </span>
-                                )}
+                    {user ? (
+                        <div className="bg-brand-surface/50 border-2 border-white/5 p-6 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <TagIcon className="h-16 w-16 text-brand-primary" />
                             </div>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-brand-2xl font-black text-white">S/ {product.price_retail?.toFixed(2) || product.price?.toFixed(2)}</span>
-                                <span className="text-brand-xs font-bold text-brand-text-muted">Incl. IGV</span>
+                            <div className="relative z-10">
+                                <div className="flex items-baseline gap-2 mb-2">
+                                    <span className="text-brand-xs font-bold text-brand-text-dim uppercase tracking-widest">Precio Unitario</span>
+                                    {product.promo_discount_pct > 0 && (
+                                        <span className="bg-brand-orange/20 text-brand-orange text-[10px] font-black px-3 py-1 rounded-full animate-pulse border border-brand-orange/30">
+                                            ¡OFERTA -{product.promo_discount_pct}%!
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-brand-2xl font-black text-white">S/ {product.price_retail?.toFixed(2) || product.price?.toFixed(2)}</span>
+                                    <span className="text-brand-xs font-bold text-brand-text-muted">Incl. IGV</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="bg-brand-surface/30 border border-brand-orange/30 p-6 rounded-[2rem] shadow-xl text-center space-y-3 backdrop-blur-md">
+                            <div className="mx-auto h-12 w-12 bg-brand-orange/10 rounded-full flex items-center justify-center mb-2">
+                                <span className="text-brand-orange text-xl">🔒</span>
+                            </div>
+                            <h3 className="text-white font-black uppercase tracking-tighter text-lg">Acceso B2B</h3>
+                            <p className="text-brand-text-dim text-xs font-bold px-4 leading-relaxed">TBD</p>
+                            <button
+                                onClick={() => navigate('/login')}
+                                className="mt-4 w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 bg-brand-orange text-black shadow-[0_0_20px_rgba(251,146,60,0.3)] hover:brightness-110"
+                            >
+                                INICIAR SESIÓN
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* VOLUME OFFERS SECTION */}
-                <div className="space-y-4">
-                    <h3 className="text-brand-metadata flex items-center gap-3 px-1 uppercase tracking-widest font-black text-[10px]">
-                        <ShoppingCartIcon className="h-5 w-5 text-brand-primary" />
-                        Ofertas por Volumen
-                    </h3>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        {[
-                            { qty: 3, label: 'PACK 3', discount: (product.discount_3_pct || 0) + (product.promo_discount_pct || 0) },
-                            { qty: 6, label: 'PACK 6', discount: (product.discount_6_pct || 0) + (product.promo_discount_pct || 0) },
-                            { qty: 12, label: 'PACK 12', discount: (product.discount_12_pct || 0) + (product.promo_discount_pct || 0) }
-                        ].map((tier) => {
-                            const basePrice = product.price_retail || product.price || 0;
-                            const unitPrice = basePrice * (1 - tier.discount / 100);
-                            const totalPrice = unitPrice * tier.qty;
-                            return (
-                                <button
-                                    key={tier.qty}
-                                    onClick={() => {
-                                        setQuantity(tier.qty);
-                                        showNotification({
-                                            type: 'info',
-                                            title: 'Nivel Aplicado',
-                                            message: `Pack ${tier.qty}u — S/ ${unitPrice.toFixed(2)}/u`
-                                        });
-                                    }}
-                                    className={`
-                                        relative overflow-hidden p-5 rounded-[2rem] border-2 transition-all duration-300 text-left
-                                        ${quantity === tier.qty 
-                                            ? 'bg-brand-primary/10 border-brand-primary shadow-[0_0_30px_rgba(16,185,129,0.2)]' 
-                                            : 'bg-brand-surface border-white/5 shadow-xl'}
-                                    `}
-                                >
-                                    <span className="block text-[10px] font-black text-brand-text-dim uppercase tracking-widest mb-1">{tier.label}</span>
-                                    <span className="block text-brand-lg font-black text-white mb-0.5">-{tier.discount}%</span>
-                                    <span className="block text-[11px] font-black text-brand-primary">S/ {unitPrice.toFixed(2)}/u</span>
-                                    <span className="block text-[9px] font-bold text-brand-text-dim mt-0.5">Total: S/ {totalPrice.toFixed(2)}</span>
-                                </button>
-                            );
-                        })}
+                {user && (
+                    <div className="space-y-4">
+                        <h3 className="text-brand-metadata flex items-center gap-3 px-1 uppercase tracking-widest font-black text-[10px]">
+                            <ShoppingCartIcon className="h-5 w-5 text-brand-primary" />
+                            Ofertas por Volumen
+                        </h3>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            {[
+                                { qty: 3, label: 'PACK 3', discount: (product.discount_3_pct || 0) + (product.promo_discount_pct || 0) },
+                                { qty: 6, label: 'PACK 6', discount: (product.discount_6_pct || 0) + (product.promo_discount_pct || 0) },
+                                { qty: 12, label: 'PACK 12', discount: (product.discount_12_pct || 0) + (product.promo_discount_pct || 0) }
+                            ].map((tier) => {
+                                const basePrice = product.price_retail || product.price || 0;
+                                const unitPrice = basePrice * (1 - tier.discount / 100);
+                                const totalPrice = unitPrice * tier.qty;
+                                return (
+                                    <button
+                                        key={tier.qty}
+                                        onClick={() => {
+                                            setQuantity(tier.qty);
+                                            showNotification({
+                                                type: 'info',
+                                                title: 'Nivel Aplicado',
+                                                message: `Pack ${tier.qty}u — S/ ${unitPrice.toFixed(2)}/u`
+                                            });
+                                        }}
+                                        className={`
+                                            relative overflow-hidden p-5 rounded-[2rem] border-2 transition-all duration-300 text-left
+                                            ${quantity === tier.qty 
+                                                ? 'bg-brand-primary/10 border-brand-primary shadow-[0_0_30px_rgba(16,185,129,0.2)]' 
+                                                : 'bg-brand-surface border-white/5 shadow-xl'}
+                                        `}
+                                    >
+                                        <span className="block text-[10px] font-black text-brand-text-dim uppercase tracking-widest mb-1">{tier.label}</span>
+                                        <span className="block text-brand-lg font-black text-white mb-0.5">-{tier.discount}%</span>
+                                        <span className="block text-[11px] font-black text-brand-primary">S/ {unitPrice.toFixed(2)}/u</span>
+                                        <span className="block text-[9px] font-bold text-brand-text-dim mt-0.5">Total: S/ {totalPrice.toFixed(2)}</span>
+                                    </button>
+                                );
+                            })}
 
-                        <button
-                            onClick={() => setIsVolumeModalOpen(true)}
-                            className="p-5 rounded-[2rem] border-2 border-brand-orange/30 bg-brand-orange/5 shadow-xl flex flex-col justify-center items-start text-left gap-1.5 active:scale-95 transition-all group"
-                        >
-                            <span className="text-brand-orange font-black text-brand-sm uppercase tracking-tighter">
-                                +50 UNIDADES
-                            </span>
-                            <span className="text-[9px] font-black text-brand-text-muted uppercase tracking-widest leading-tight">
-                                SOLICITAR COTIZACIÓN
-                            </span>
-                            <span className="mt-1 px-2 py-0.5 bg-brand-orange/20 border border-brand-orange/40 rounded-lg text-[8px] font-black text-brand-orange uppercase tracking-wider">
-                                Precio Manual
-                            </span>
-                        </button>
+                            <button
+                                onClick={() => setIsVolumeModalOpen(true)}
+                                className="p-5 rounded-[2rem] border-2 border-brand-orange/30 bg-brand-orange/5 shadow-xl flex flex-col justify-center items-start text-left gap-1.5 active:scale-95 transition-all group"
+                            >
+                                <span className="text-brand-orange font-black text-brand-sm uppercase tracking-tighter">
+                                    +50 UNIDADES
+                                </span>
+                                <span className="text-[9px] font-black text-brand-text-muted uppercase tracking-widest leading-tight">
+                                    SOLICITAR COTIZACIÓN
+                                </span>
+                                <span className="mt-1 px-2 py-0.5 bg-brand-orange/20 border border-brand-orange/40 rounded-lg text-[8px] font-black text-brand-orange uppercase tracking-wider">
+                                    Precio Manual
+                                </span>
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* MODAL DE VOLUMEN PERSONALIZADO */}
                 {isVolumeModalOpen && (
@@ -405,51 +423,53 @@ const ProductDetailPage = () => {
             </div>
 
             {/* Sticky Bottom Bar */}
-            <div className="fixed left-0 right-0 glass-card border-t border-white/5 p-6 z-40 shadow-[0_-20px_50px_rgba(0,0,0,0.6)]"
-                style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
-                
-                {/* ETIQUETA DINÁMICA DE PRECIO ESPECIAL */}
-                {quantity >= 50 && (
-                    <div className="flex justify-center mb-4 animate-in slide-in-from-bottom-2 duration-300">
-                        <div className="bg-brand-orange/20 border border-brand-orange/40 px-4 py-2 rounded-xl flex items-center gap-3 shadow-[0_0_20px_rgba(251,146,60,0.1)]">
-                            <span className="h-2.5 w-2.5 bg-brand-orange rounded-full animate-pulse shadow-[0_0_10px_rgba(251,146,60,0.5)]"></span>
-                            <span className="text-[11px] font-black text-brand-orange uppercase tracking-wider">
-                                Precio Especial Sujeto a Evaluación (+50u)
-                            </span>
+            {user && (
+                <div className="fixed left-0 right-0 glass-card border-t border-white/5 p-6 z-40 shadow-[0_-20px_50px_rgba(0,0,0,0.6)]"
+                    style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom))' }}>
+                    
+                    {/* ETIQUETA DINÁMICA DE PRECIO ESPECIAL */}
+                    {quantity >= 50 && (
+                        <div className="flex justify-center mb-4 animate-in slide-in-from-bottom-2 duration-300">
+                            <div className="bg-brand-orange/20 border border-brand-orange/40 px-4 py-2 rounded-xl flex items-center gap-3 shadow-[0_0_20px_rgba(251,146,60,0.1)]">
+                                <span className="h-2.5 w-2.5 bg-brand-orange rounded-full animate-pulse shadow-[0_0_10px_rgba(251,146,60,0.5)]"></span>
+                                <span className="text-[11px] font-black text-brand-orange uppercase tracking-wider">
+                                    Precio Especial Sujeto a Evaluación (+50u)
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                <div className="flex items-center gap-4">
-                    {/* Quantity Controls */}
-                    <div className="flex-1 flex items-center justify-between bg-brand-bg border-2 border-brand-border text-white px-6 py-4 rounded-[1.5rem] shadow-inner">
+                    <div className="flex items-center gap-4">
+                        {/* Quantity Controls */}
+                        <div className="flex-1 flex items-center justify-between bg-brand-bg border-2 border-brand-border text-white px-6 py-4 rounded-[1.5rem] shadow-inner">
+                            <button
+                                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                className="p-1 hover:text-brand-primary active:scale-75 transition-all text-brand-text-muted"
+                            >
+                                <ChevronLeftIcon className="h-7 w-7" />
+                            </button>
+                            <span className="font-black text-brand-lg">{quantity}</span>
+                            <button
+                                onClick={() => setQuantity(quantity + 1)}
+                                className="p-1 hover:text-brand-primary active:scale-75 transition-all text-brand-text-muted rotate-180"
+                            >
+                                <ChevronLeftIcon className="h-7 w-7" />
+                            </button>
+                        </div>
+
+                        {/* Add to Order Action */}
                         <button
-                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                            className="p-1 hover:text-brand-primary active:scale-75 transition-all text-brand-text-muted"
+                            onClick={() => {
+                                addToCart(product, quantity);
+                                navigate('/cart');
+                            }}
+                            className="h-[64px] w-[64px] shrink-0 bg-brand-primary text-brand-bg rounded-[1.5rem] active:scale-[0.90] transition-all flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:brightness-110"
                         >
-                            <ChevronLeftIcon className="h-7 w-7" />
-                        </button>
-                        <span className="font-black text-brand-lg">{quantity}</span>
-                        <button
-                            onClick={() => setQuantity(quantity + 1)}
-                            className="p-1 hover:text-brand-primary active:scale-75 transition-all text-brand-text-muted rotate-180"
-                        >
-                            <ChevronLeftIcon className="h-7 w-7" />
+                            <ShoppingCartIcon className="h-8 w-8" />
                         </button>
                     </div>
-
-                    {/* Add to Order Action */}
-                    <button
-                        onClick={() => {
-                            addToCart(product, quantity);
-                            navigate('/cart');
-                        }}
-                        className="h-[64px] w-[64px] shrink-0 bg-brand-primary text-brand-bg rounded-[1.5rem] active:scale-[0.90] transition-all flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:brightness-110"
-                    >
-                        <ShoppingCartIcon className="h-8 w-8" />
-                    </button>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

@@ -81,21 +81,36 @@ const MobileProductCard = ({ product, onAddToCart, isPrize = false, searchTerm =
                     )}
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
-                    <span className="text-white font-black text-sm">
-                        S/ {(product.price || product.price_retail || 0).toFixed(2)}
-                    </span>
-                    <button
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onAddToCart?.(product);
-                        }}
-                        className="h-10 w-10 flex items-center justify-center rounded-xl bg-brand-primary text-black active:scale-90 shadow-lg shadow-brand-primary/20"
-                    >
-                        <ShoppingCartIcon className="h-5 w-5" />
-                    </button>
-                </div>
+                {user ? (
+                    <div className="flex items-center justify-between pt-1">
+                        <span className="text-white font-black text-sm">
+                            S/ {(product.price || product.price_retail || 0).toFixed(2)}
+                        </span>
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onAddToCart?.(product);
+                            }}
+                            className="h-10 w-10 flex items-center justify-center rounded-xl bg-brand-primary text-black active:scale-90 shadow-lg shadow-brand-primary/20"
+                        >
+                            <ShoppingCartIcon className="h-5 w-5" />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="pt-2">
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigate('/login');
+                            }}
+                            className="w-full h-9 flex items-center justify-center gap-2 rounded-xl border border-brand-orange/30 bg-brand-orange/10 text-brand-orange active:scale-95 transition-all"
+                        >
+                            <span className="text-[10px] font-black uppercase tracking-widest">TBD</span>
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* FULL SCREEN IMAGE OVERLAY (Portal-like logic) */}
