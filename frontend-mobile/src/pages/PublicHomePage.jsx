@@ -180,7 +180,9 @@ const PublicHomePage = () => {
                     </div>
                     <div>
                         <div className="flex items-center">
-                        <span className="text-lg font-black tracking-tight text-white leading-none">DIROGSA</span>
+                        <h1 className="text-lg font-black tracking-tight text-white leading-none">
+                            DIROGSA <span className="sr-only">— Importadora de Filtros Automotrices en Perú</span>
+                        </h1>
                         <VersionInfo className="ml-2" />
                     </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
