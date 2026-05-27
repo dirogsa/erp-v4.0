@@ -21,8 +21,15 @@ export default async function sitemap() {
   let dynamicPages = [];
   
   try {
+    // Timeout de 15s para evitar que el build de Next.js se cuelgue y falle (error 60s timeout en Render)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     // 1. Fetch Products
-    const prodRes = await fetch(`${API_BASE}/shop/products?limit=10000`, { next: { revalidate: 86400 } });
+    const prodRes = await fetch(`${API_BASE}/shop/products?limit=10000`, { 
+      next: { revalidate: 86400 },
+      signal: controller.signal
+    });
     if (prodRes.ok) {
       const data = await prodRes.json();
       const items = Array.isArray(data) ? data : (data.items || []);
@@ -36,7 +43,13 @@ export default async function sitemap() {
     }
 
     // 2. Fetch Vehicles (Long-Tail SEO)
-    const vehRes = await fetch(`${API_BASE}/shop/vehicles`, { next: { revalidate: 86400 } });
+    const vehRes = await fetch(`${API_BASE}/shop/vehicles`, { 
+      next: { revalidate: 86400 },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId); // Limpiar timeout si ambas peticiones terminan a tiempo
+
     if (vehRes.ok) {
       const vehicles = await vehRes.json();
       for (const v of vehicles) {
