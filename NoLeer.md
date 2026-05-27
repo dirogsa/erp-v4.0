@@ -74,3 +74,12 @@ python -m uvicorn main:app --reload
 
 ERP_Control_Tower
 rnd_U7LZ3qpIgMXqm4KR2zojFbpxI8DQ
+
+
+
+
+
+MONGODB_URI=mongodb+srv://db_user:Admin123!@erpcluster.zggrz5h.mongodb.net/?retryWrites=true&w=majority&appName=erpCluster
+MONGO_DB_NAME=setd-db
+JWT_SECRET=hard!to-guess_secret
+

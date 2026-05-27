@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────
+   DIROGSA — Design System 2026
+   Synced 1:1 with frontend-mobile/src/index.css
+───────────────────────────────────────────── */
+
+:root {
+  -webkit-tap-highlight-color: transparent;
+
+  /* Core Backgrounds */
+  --brand-bg:        #0A0A0B;
+  --brand-surface:   #141518;
+  --brand-surface-2: #1D1F25;
+  --brand-surface-3: #262932;
+
+  /* Brand Colors */
+  --brand-primary:     #10B981;
+  --brand-primary-dim: rgba(16, 185, 129, 0.12);
+  --brand-accent:      #0EA5E9;
+  --brand-accent-dim:  rgba(14, 165, 233, 0.1);
+  --brand-orange:      #F59E0B;
+
+  /* Text Hierarchy */
+  --brand-text:       #FFFFFF;
+  --brand-text-2:     #E2E8F0;
+  --brand-text-muted: #94A3B8;
+  --brand-text-dim:   #64748B;
+
+  /* Typography Scale */
+  --font-size-xs:  0.875rem;
+  --font-size-sm:  1rem;
+  --font-size-md:  1.125rem;
+  --font-size-lg:  1.375rem;
+  --font-size-xl:  1.75rem;
+  --font-size-2xl: 2.25rem;
+
+  /* Borders */
+  --brand-border:   #1F2229;
+  --brand-border-2: #2D323E;
+
+  /* Status */
+  --brand-danger:      #EF4444;
+  --brand-danger-dim:  rgba(239, 68, 68, 0.1);
+  --brand-warning:     #F59E0B;
+  --brand-warning-dim: rgba(245, 158, 11, 0.1);
+
+  /* Glass */
+  --glass-bg:     rgba(14, 14, 16, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.08);
+
+  /* Glow */
+  --glow-primary: 0 0 30px rgba(16, 185, 129, 0.1);
+  --glow-accent:  0 0 30px rgba(14, 165, 233, 0.1);
+}
+
+/* ─── Tailwind v4 Custom Tokens ─── */
+@theme {
+  --color-brand-primary:    var(--brand-primary);
+  --color-brand-accent:     var(--brand-accent);
+  --color-brand-orange:     var(--brand-orange);
+  --color-brand-bg:         var(--brand-bg);
+  --color-brand-surface:    var(--brand-surface);
+  --color-brand-surface-2:  var(--brand-surface-2);
+  --color-brand-surface-3:  var(--brand-surface-3);
+  --color-brand-text:       var(--brand-text);
+  --color-brand-text-muted: var(--brand-text-muted);
+  --color-brand-text-dim:   var(--brand-text-dim);
+  --color-brand-border:     var(--brand-border);
+  --color-brand-border-2:   var(--brand-border-2);
+  --color-brand-danger:     var(--brand-danger);
+
+  --font-size-brand-xs:  var(--font-size-xs);
+  --font-size-brand-sm:  var(--font-size-sm);
+  --font-size-brand-md:  var(--font-size-md);
+  --font-size-brand-lg:  var(--font-size-lg);
+  --font-size-brand-xl:  var(--font-size-xl);
+  --font-size-brand-2xl: var(--font-size-2xl);
+
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --animate-pulse-ring: pulse-ring 2s ease-out infinite;
+  --animate-scan:       scan 3s ease-in-out infinite;
+  --animate-float:      float 3s ease-in-out infinite;
+  --animate-shimmer:    shimmer 1.5s infinite;
+}
+
+/* ─── Base Reset ─── */
+* { font-family: 'Inter', -apple-system, sans-serif; }
+
+body {
+  background-color: var(--brand-bg);
+  color: var(--brand-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Scrollbar ─── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Keyframes ─── */
+@keyframes fadeIn       { from { opacity:0; transform:translateY(12px);  } to { opacity:1; transform:translateY(0);  } }
+@keyframes slideUp      { from { opacity:0; transform:translateY(20px);  } to { opacity:1; transform:translateY(0);  } }
+@keyframes pulse-ring   { 0% { transform:scale(1);   opacity:.6; } 50% { transform:scale(1.4); opacity:0; } 100% { transform:scale(1.4); opacity:0; } }
+@keyframes scan         { 0% { transform:translateY(-100%); opacity:.5; } 100% { transform:translateY(500%); opacity:0; } }
+@keyframes float        { 0%,100% { transform:translateY(0);    } 50% { transform:translateY(-6px); } }
+@keyframes shimmer      { from { background-position:-200% center; } to { background-position:200% center; } }
+@keyframes breathe      { 0%,100% { opacity:.4; } 50% { opacity:.8; } }
+@keyframes spin-slow    { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+
+.fade-in    { animation: fadeIn  .4s ease-out both; }
+.slide-up   { animation: slideUp .5s ease-out both; }
+.float-anim { animation: float 3s ease-in-out infinite; }
+
+/* ─── Glass Card ─── */
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* ─── Gradient Text ─── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Shimmer Skeleton ─── */
+.shimmer {
+  background: linear-gradient(90deg, #1A1D24 25%, #252932 50%, #1A1D24 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ─── Tech Input ─── */
+.tech-input {
+  background: var(--brand-surface-2);
+  border: 1.5px solid var(--brand-border-2);
+  color: var(--brand-text);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.tech-input:focus {
+  outline: none;
+  border-color: rgba(110, 231, 183, 0.5);
+  box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.08);
+}
+.tech-input::placeholder { color: var(--brand-text-dim); }
+
+/* ─── Card Premium ─── */
+.card-premium {
+  background: var(--brand-surface);
+  border-radius: 2.5rem;
+  padding: 1rem;
+  border: 1px solid var(--brand-border-2);
+  box-shadow: 0 4px 32px rgba(0,0,0,0.4);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Glow Utilities ─── */
+.glow-emerald { box-shadow: 0 0 20px rgba(110, 231, 183, 0.15); }
+.glow-amber   { box-shadow: 0 0 20px rgba(245, 158, 11, 0.15); }
+.glow-red     { box-shadow: 0 0 20px rgba(244, 63, 94, 0.15); }
