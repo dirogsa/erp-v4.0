@@ -165,6 +165,20 @@ export default function HomePage() {
         </nav>
 
       </div>
+
+      {/* ── SECCIÓN SEO SEMÁNTICA (Texto Enriquecido para Googlebot) ── */}
+      <section aria-labelledby="seo-about-heading" className="w-full mt-12 md:mt-20 pt-8 border-t border-white/5" style={{ color: 'var(--brand-text-muted)' }}>
+        <h2 id="seo-about-heading" className="text-sm font-black text-white/50 uppercase tracking-widest mb-4">DIROGSA: Importador y Distribuidor Oficial de Filtros Automotrices en Perú</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs md:text-sm leading-relaxed text-justify md:text-left">
+          <p>
+            Bienvenido al <strong>Catálogo de Repuestos y Filtros DIROGSA - Buscador Principal</strong>. Como <em>importador y distribuidor oficial en Perú</em>, nos especializamos en ofrecer la más alta calidad en soluciones de filtración vehicular e industrial. Nuestro inventario cuenta con un catálogo completo de repuestos originales y alternativos de primera línea, incluyendo <strong>filtros de aceite, filtros de aire, filtros de combustible y filtros de cabina</strong>, diseñados para garantizar el rendimiento óptimo y la protección del motor de tu vehículo en las exigentes rutas de nuestro país.
+          </p>
+          <p>
+            Entendemos que la precisión es clave en el mantenimiento automotriz. Por ello, nuestra plataforma te permite realizar búsquedas exactas por <strong>código de producto, marca del vehículo, modelo o medidas técnicas específicas</strong>. Trabajamos con las marcas más reconocidas a nivel mundial, integrando tecnología de vanguardia como Nanoflow para asegurar una eficiencia de filtrado superior al 99.7%. Ya sea para la línea ligera de pasajeros o la línea industrial pesada para maquinaria minera, DIROGSA es tu aliado estratégico para mantener tu flota siempre en movimiento con la máxima seguridad y garantía de fábrica.
+          </p>
+        </div>
+      </section>
+
     </div>
   );
 }
