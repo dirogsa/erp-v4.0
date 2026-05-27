@@ -24,7 +24,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="es" className="scroll-smooth">
+    <html lang="es" className="scroll-smooth" data-scroll-behavior="smooth">
       {/* 
         El padding inferior (pb-20) evita que el BottomNav tape el contenido.
         Se aplica a todas las pantallas ya que el BottomNav ahora es global.
