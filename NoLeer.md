@@ -83,3 +83,11 @@ MONGODB_URI=mongodb+srv://db_user:Admin123!@erpcluster.zggrz5h.mongodb.net/?retr
 MONGO_DB_NAME=setd-db
 JWT_SECRET=hard!to-guess_secret
 
+
+MONGODB_URI=mongodb+srv://db_user:Admin123!@erpcluster.zggrz5h.mongodb.net/?retryWrites=true&w=majority&appName=erpCluster
+MONGO_DB_NAME=setd-db
+JWT_SECRET=hard!to-guess_secret
+
+# Lista de orígenes permitidos para CORS, separados por comas.
+# En producción (Render), esto debería ser la URL de tu frontend.
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,https://3001-firebase-setd-erp-1779812562381.cluster-hkcruqmgzbd2aqcdnktmz6k7ba.cloudworkstations.dev

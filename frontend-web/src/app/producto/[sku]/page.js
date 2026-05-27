@@ -49,6 +49,17 @@ export default async function ProductPage({ params }) {
 
   if (!product) notFound();
 
+  // ── JSON-LD: BreadcrumbList (genera rutas verdes en resultados de Google) ──
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: 'https://dirogsa.com' },
+      { '@type': 'ListItem', position: 2, name: 'Catálogo', item: 'https://dirogsa.com/catalogo' },
+      { '@type': 'ListItem', position: 3, name: product.sku, item: `https://dirogsa.com/producto/${product.sku}` },
+    ],
+  };
+
   // ── JSON-LD Schema.org (Google Rich Snippets) ──
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -81,24 +92,27 @@ export default async function ProductPage({ params }) {
   };
 
   const hasStock = product.stock > 0;
+  
+  // TODO: Integrar con sistema de cookies/sesión real del ERP.
+  // Por defecto, asumimos que es un visitante sin autenticación (B2C/Guest)
+  const isAuthenticated = false;
 
   return (
     <div className="max-w-7xl mx-auto px-5 py-8">
 
-      {/* JSON-LD Invisible for Google */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {/* JSON-LD Schemas invisibles para Google */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 
-      {/* ─── BREADCRUMB ─── */}
-      <nav className="flex items-center gap-2 text-xs mb-8 fade-in"
-           style={{ color: 'var(--brand-text-dim)' }}>
-        <Link href="/" className="hover:text-white transition-colors">Inicio</Link>
-        <span>/</span>
-        <Link href="/catalogo" className="hover:text-white transition-colors">Catálogo</Link>
-        <span>/</span>
-        <span className="text-white font-bold">{product.sku}</span>
+      {/* ─── BREADCRUMB SEMÁNTICO (aria + schema aligned) ─── */}
+      <nav aria-label="Ruta de navegación" className="flex items-center gap-2 text-xs mb-8 fade-in" style={{ color: 'var(--brand-text-dim)' }}>
+        <ol className="flex items-center gap-2 list-none p-0 m-0">
+          <li><Link href="/" className="hover:text-white transition-colors">Inicio</Link></li>
+          <li aria-hidden="true"><span className="opacity-40">/</span></li>
+          <li><Link href="/catalogo" className="hover:text-white transition-colors">Catálogo</Link></li>
+          <li aria-hidden="true"><span className="opacity-40">/</span></li>
+          <li className="text-white font-bold" aria-current="page">{product.sku}</li>
+        </ol>
       </nav>
 
       {/* ─── MAIN GRID ─── */}
@@ -176,59 +190,100 @@ export default async function ProductPage({ params }) {
                     style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-primary)' }}>
                 {product.sku}
               </span>
-              <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase border-2 ${hasStock
-                ? 'text-green-400 bg-green-400/10 border-green-400/20'
-                : 'text-red-400 bg-red-400/10 border-red-400/20'}`}>
-                {hasStock ? `${product.stock} En Stock` : 'Agotado'}
-              </span>
-            </div>
-          </div>
-
-          {/* Price Card — B2B Gated */}
-          <div className="rounded-[2rem] p-6 relative overflow-hidden"
-               style={{ background: 'rgba(20,21,24,0.5)', border: '2px solid rgba(255,255,255,0.05)' }}>
-            <div className="absolute top-0 right-0 p-4 opacity-5">
-              <svg className="h-20 w-20" style={{ color: 'var(--brand-primary)' }} fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-[10px] font-black uppercase tracking-widest"
-                      style={{ color: 'var(--brand-text-dim)' }}>Precio Unitario</span>
-                {product.promoDiscountPct > 0 && (
-                  <span className="text-[10px] font-black px-3 py-1 rounded-full animate-pulse"
-                        style={{ background: 'rgba(245,158,11,0.2)', color: 'var(--brand-orange)', border: '1px solid rgba(245,158,11,0.3)' }}>
-                    ¡OFERTA -{product.promoDiscountPct}%!
-                  </span>
-                )}
-              </div>
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-5xl font-black text-white">
-                  {product.currency === 'PEN' ? 'S/' : '$'} {Number(product.price).toFixed(2)}
+              {isAuthenticated ? (
+                <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase border-2 ${hasStock
+                  ? 'text-green-400 bg-green-400/10 border-green-400/20'
+                  : 'text-red-400 bg-red-400/10 border-red-400/20'}`}>
+                  {hasStock ? `${product.stock} En Stock` : 'Agotado'}
                 </span>
-              </div>
-              <p className="text-xs" style={{ color: 'var(--brand-text-dim)' }}>Incl. IGV · Precio para clientes registrados</p>
+              ) : (
+                <span className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase border-2 text-gray-400 bg-gray-500/10 border-gray-500/20 flex items-center gap-1.5">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Stock Oculto
+                </span>
+              )}
             </div>
           </div>
 
-          {/* CTA B2B Login */}
-          <div className="rounded-[1.5rem] p-5 text-center space-y-3"
-               style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.2)' }}>
-            <div className="h-10 w-10 rounded-full flex items-center justify-center mx-auto"
-                 style={{ background: 'rgba(245,158,11,0.1)' }}>
-              <span className="text-xl">🔒</span>
+          {/* ─── ZONA DE PRECIO Y ACCESO B2B ─── */}
+          {isAuthenticated ? (
+            /* Usuario Autenticado: Muestra Precio y Acciones de Compra */
+            <div className="rounded-[2rem] p-6 relative overflow-hidden"
+                 style={{ background: 'rgba(20,21,24,0.5)', border: '2px solid rgba(255,255,255,0.05)' }}>
+              <div className="absolute top-0 right-0 p-4 opacity-5">
+                <svg className="h-20 w-20" style={{ color: 'var(--brand-primary)' }} fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-[10px] font-black uppercase tracking-widest"
+                        style={{ color: 'var(--brand-text-dim)' }}>Precio Unitario</span>
+                  {product.promoDiscountPct > 0 && (
+                    <span className="text-[10px] font-black px-3 py-1 rounded-full animate-pulse"
+                          style={{ background: 'rgba(245,158,11,0.2)', color: 'var(--brand-orange)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                      ¡OFERTA -{product.promoDiscountPct}%!
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-5xl font-black text-white">
+                    {product.currency === 'PEN' ? 'S/' : '$'} {Number(product.price).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs" style={{ color: 'var(--brand-text-dim)' }}>Incl. IGV · Precio para clientes registrados</p>
+                
+                <button className="mt-6 w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 text-black"
+                        style={{ background: 'var(--brand-primary)', boxShadow: '0 0 20px rgba(16,185,129,0.3)' }}>
+                  Añadir al Carrito
+                </button>
+              </div>
             </div>
-            <h3 className="text-white font-black text-base uppercase tracking-tight">Acceso B2B Requerido</h3>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--brand-text-dim)' }}>
-              Para ver precios especiales por volumen y realizar pedidos, inicia sesión con tu cuenta de distribuidor.
-            </p>
-            <Link href="/login"
-              className="mt-2 w-full block py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all hover:brightness-110 active:scale-95"
-              style={{ background: 'var(--brand-orange)', color: '#0A0A0B', boxShadow: '0 0 20px rgba(245,158,11,0.3)' }}>
-              INICIAR SESIÓN
-            </Link>
-          </div>
+          ) : (
+            /* Usuario Invitado: Tarjeta Premium de Bloqueo (Glassmorphism) */
+            <div className="relative rounded-[2rem] p-[2px] overflow-hidden group">
+              {/* Borde animado de gradiente */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[#F59E0B] via-[#0A0A0B] to-[#38BDF8] opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
+              
+              <div className="relative h-full w-full rounded-[2rem] p-6 text-center flex flex-col items-center justify-center space-y-4 backdrop-blur-xl"
+                   style={{ background: 'rgba(10,10,11,0.85)' }}>
+                
+                {/* Ícono de candado con glow */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-[#F59E0B] blur-[20px] opacity-20 rounded-full" />
+                  <div className="h-14 w-14 rounded-full flex items-center justify-center relative z-10 border border-[#F59E0B]/30"
+                       style={{ background: 'rgba(245,158,11,0.1)' }}>
+                    <svg className="h-6 w-6 text-[#F59E0B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-white font-black text-lg uppercase tracking-tight mb-1">Información B2B Privada</h3>
+                  <p className="text-[13px] leading-relaxed max-w-[280px] mx-auto" style={{ color: 'var(--brand-text-dim)' }}>
+                    Visualiza stock en tiempo real, precios al por mayor y realiza pedidos al instante.
+                  </p>
+                </div>
+
+                <div className="w-full pt-2">
+                  <Link href="/login"
+                    className="flex items-center justify-center gap-2 w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all hover:brightness-110 active:scale-95"
+                    style={{ background: 'var(--brand-orange)', color: '#0A0A0B', boxShadow: '0 0 20px rgba(245,158,11,0.2)' }}>
+                    Iniciar Sesión
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </Link>
+                  <p className="mt-4 text-[10px] uppercase font-bold tracking-widest" style={{ color: 'var(--brand-text-muted)' }}>
+                    ¿Eres distribuidor y no tienes cuenta? <a href="#" className="text-[#38BDF8] hover:underline">Solicita acceso</a>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           <div>

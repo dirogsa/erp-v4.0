@@ -1,0 +1,211 @@
+import { notFound } from 'next/navigation';
+import Link from 'next/link';
+import { ProductService } from '@/services/product.service';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const SITE_URL = 'https://dirogsa.com';
+
+// ── ISR: Revalida cada hora para capturar nuevos modelos ──
+export const revalidate = 3600;
+
+// ── Pre-genera las páginas de marca más populares en build-time ──
+export async function generateStaticParams() {
+  try {
+    const res = await fetch(`${API_BASE}/shop/vehicles`, { next: { revalidate: 86400 } });
+    if (!res.ok) return [];
+    const vehicles = await res.json();
+    return vehicles.slice(0, 50).map(v => ({
+      marca: v.make.toLowerCase().replace(/\s+/g, '-'),
+    }));
+  } catch { return []; }
+}
+
+export async function generateMetadata({ params }) {
+  const { marca } = await params;
+  const marcaDisplay = decodeURIComponent(marca).replace(/-/g, ' ').toUpperCase();
+
+  return {
+    title: `Filtros para ${marcaDisplay} | Repuestos Originales DIROGSA Perú`,
+    description: `Encuentra filtros de aceite, aire y combustible compatibles con vehículos ${marcaDisplay}. Catálogo completo con aplicaciones vehiculares verificadas. Importador oficial en Perú.`,
+    keywords: [`filtros ${marcaDisplay}`, `repuestos ${marcaDisplay} peru`, `filtro aceite ${marcaDisplay}`, `filtro aire ${marcaDisplay}`, 'dirogsa', 'peru'],
+    alternates: {
+      canonical: `${SITE_URL}/vehiculo/${marca}`,
+    },
+    openGraph: {
+      title: `Filtros para ${marcaDisplay} | DIROGSA`,
+      description: `Catálogo completo de filtros y repuestos para ${marcaDisplay} en Perú.`,
+      url: `${SITE_URL}/vehiculo/${marca}`,
+    },
+  };
+}
+
+export default async function VehiculoMarcaPage({ params }) {
+  const { marca } = await params;
+  const marcaDisplay = decodeURIComponent(marca).replace(/-/g, ' ').toUpperCase();
+
+  // Busca productos para esta marca directamente desde el backend (SSR)
+  let products = [];
+  let models = [];
+  let total = 0;
+
+  try {
+    const [prodRes, vehRes] = await Promise.all([
+      fetch(`${API_BASE}/shop/products?vehicle_brand=${encodeURIComponent(marcaDisplay)}&limit=20`, { next: { revalidate: 3600 } }),
+      fetch(`${API_BASE}/shop/vehicles`, { next: { revalidate: 86400 } }),
+    ]);
+
+    if (prodRes.ok) {
+      const data = await prodRes.json();
+      products = data.items || [];
+      total = data.total || products.length;
+    }
+
+    if (vehRes.ok) {
+      const vehicles = await vehRes.json();
+      const found = vehicles.find(v => v.make.toUpperCase() === marcaDisplay);
+      models = found?.models || [];
+    }
+  } catch (err) {
+    console.error('[VehiculoMarca] Error:', err.message);
+  }
+
+  // JSON-LD: BreadcrumbList
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Catálogo por Vehículo', item: `${SITE_URL}/vehiculo` },
+      { '@type': 'ListItem', position: 3, name: marcaDisplay, item: `${SITE_URL}/vehiculo/${marca}` },
+    ],
+  };
+
+  // JSON-LD: ItemList con los productos encontrados
+  const itemListJsonLd = products.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `Filtros para ${marcaDisplay}`,
+    description: `Catálogo de repuestos compatibles con vehículos ${marcaDisplay} en Perú`,
+    numberOfItems: total,
+    itemListElement: products.slice(0, 10).map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `${SITE_URL}/producto/${p.sku}`,
+      name: p.name,
+    })),
+  } : null;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
+
+      {/* ── JSON-LD Schemas ── */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      {itemListJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
+      )}
+
+      {/* ── BREADCRUMB ── */}
+      <nav aria-label="Ruta de navegación" className="mb-8">
+        <ol className="flex items-center gap-2 text-xs list-none p-0 m-0" style={{ color: 'var(--brand-text-dim)' }}>
+          <li><Link href="/" className="hover:text-white transition-colors">Inicio</Link></li>
+          <li aria-hidden="true"><span className="opacity-40">/</span></li>
+          <li><Link href="/buscar?type=apps" className="hover:text-white transition-colors">Vehículos</Link></li>
+          <li aria-hidden="true"><span className="opacity-40">/</span></li>
+          <li className="text-white font-bold" aria-current="page">{marcaDisplay}</li>
+        </ol>
+      </nav>
+
+      {/* ── HERO SECTION ── */}
+      <header className="mb-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#38BDF8]/10 border border-[#38BDF8]/30 mb-4">
+          <span className="text-[10px] font-black uppercase tracking-widest text-[#38BDF8]">Aplicaciones Vehiculares</span>
+        </div>
+        <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter leading-tight mb-3">
+          Filtros para <span className="text-[#38BDF8]">{marcaDisplay}</span>
+        </h1>
+        <p className="text-sm md:text-base max-w-2xl" style={{ color: 'var(--brand-text-dim)' }}>
+          Catálogo completo de filtros de aceite, aire, combustible y cabina compatibles con vehículos {marcaDisplay}. 
+          Todos los repuestos verificados por nuestros técnicos especializados. {total > 0 && `${total} productos disponibles.`}
+        </p>
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        {/* ── SIDEBAR: MODELOS ── */}
+        {models.length > 0 && (
+          <aside className="lg:col-span-3" aria-labelledby="modelos-heading">
+            <h2 id="modelos-heading" className="text-xs font-black uppercase tracking-widest mb-4 px-1" style={{ color: 'var(--brand-text-dim)' }}>
+              Filtrar por Modelo
+            </h2>
+            <nav className="flex flex-row lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0" aria-label="Modelos de vehículos">
+              {models.map(model => {
+                const modelSlug = model.toLowerCase().replace(/\s+/g, '-');
+                return (
+                  <Link
+                    key={model}
+                    href={`/vehiculo/${marca}/${modelSlug}`}
+                    className="flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all border hover:border-[#38BDF8]/50 hover:text-[#38BDF8] hover:bg-[#38BDF8]/5"
+                    style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border-2)', color: 'var(--brand-text-dim)' }}
+                  >
+                    {model}
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+        )}
+
+        {/* ── MAIN: PRODUCTS GRID ── */}
+        <main className={models.length > 0 ? 'lg:col-span-9' : 'lg:col-span-12'}>
+          {products.length > 0 ? (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-sm font-bold" style={{ color: 'var(--brand-text-dim)' }}>
+                  Mostrando <span className="text-white">{products.length}</span> de <span className="text-white">{total}</span> repuestos
+                </p>
+                <Link href={`/buscar?type=apps&make=${encodeURIComponent(marcaDisplay)}`}
+                  className="text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all"
+                  style={{ borderColor: 'rgba(56,189,248,0.3)', color: '#38BDF8', background: 'rgba(56,189,248,0.05)' }}>
+                  Ver Todos →
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+                {products.map(p => (
+                  <Link key={p.sku} href={`/producto/${p.sku}`}
+                    className="group flex flex-col p-4 rounded-2xl border transition-all hover:border-[#38BDF8]/30"
+                    style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border-2)' }}>
+                    <div className="h-32 w-full rounded-xl overflow-hidden flex items-center justify-center p-2 mb-3"
+                         style={{ background: 'var(--brand-surface-2)' }}>
+                      {p.image_url ? (
+                        <img src={p.image_url} alt={`${p.name} para ${marcaDisplay}`}
+                             className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500" />
+                      ) : (
+                        <svg className="h-10 w-10 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--brand-text-dim)' }}>{p.brand || 'DIROGSA'}</span>
+                    <h3 className="text-white font-black text-xs uppercase leading-tight line-clamp-2 mb-2">{p.name}</h3>
+                    <span className="text-[10px] font-bold mt-auto" style={{ color: '#38BDF8' }}>{p.sku}</span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="py-20 text-center space-y-4">
+              <p className="text-white font-black text-lg">Sin resultados para {marcaDisplay}</p>
+              <p className="text-sm" style={{ color: 'var(--brand-text-dim)' }}>
+                Intenta buscar directamente por código en nuestro buscador.
+              </p>
+              <Link href="/buscar" className="inline-flex px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-brand-primary text-black mt-4">
+                Ir al Buscador
+              </Link>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}

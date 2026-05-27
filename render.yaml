@@ -65,3 +65,14 @@ services:
     envVars:
       - key: VITE_API_URL
         sync: false
+
+  # Frontend Web (Next.js - B2B/B2C Catalog con SSR/SEO)
+  - type: web
+    name: erp-frontend-web
+    runtime: node
+    rootDir: frontend-web
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false

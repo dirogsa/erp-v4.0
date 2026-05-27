@@ -31,7 +31,7 @@ export const ProductService = {
    * Get a single product by SKU — SSR with 1hr cache (ISR)
    */
   async getProductBySku(sku) {
-    const data = await apiFetch(`/api/products/${encodeURIComponent(sku)}/detail`, CACHE_OPTS);
+    const data = await apiFetch(`/shop/products/${encodeURIComponent(sku)}`, CACHE_OPTS);
     if (!data) return null;
     return normalizeProduct(data);
   },
@@ -52,7 +52,7 @@ export const ProductService = {
     if (params.is_new)         qs.set('is_new', 'true');
     if (params.limit)          qs.set('limit', params.limit);
 
-    const data = await apiFetch(`/api/products/?${qs.toString()}`, SEARCH_CACHE_OPTS);
+    const data = await apiFetch(`/shop/products?${qs.toString()}`, SEARCH_CACHE_OPTS);
     if (!data) return { items: [], total: 0 };
     const items = Array.isArray(data) ? data : (data.items || []);
     return { items: items.map(normalizeProduct), total: data.total || items.length };
@@ -62,7 +62,7 @@ export const ProductService = {
    * Get vehicle brands for the search dropdowns
    */
   async getVehicleBrands() {
-    const data = await apiFetch('/api/vehicles/brands', CACHE_OPTS);
+    const data = await apiFetch('/shop/brands', CACHE_OPTS); // Asumiendo ruta correcta
     return Array.isArray(data) ? data : [];
   },
 
@@ -70,7 +70,7 @@ export const ProductService = {
    * Get product categories
    */
   async getCategories() {
-    const data = await apiFetch('/api/products/categories', CACHE_OPTS);
+    const data = await apiFetch('/categories', CACHE_OPTS); // Asumiendo ruta
     return Array.isArray(data) ? data : [];
   },
 
