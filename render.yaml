@@ -36,20 +36,7 @@ services:
       - key: VITE_API_URL
         sync: false
 
-  # Frontend Shop Static Site
-  - type: web
-    name: erp-shop
-    runtime: static
-    rootDir: frontend-shop
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        sync: false
+
 
   # Frontend Mobile Static Site
   - type: web
@@ -69,6 +56,7 @@ services:
   # Frontend Web (Next.js - B2B/B2C Catalog con SSR/SEO)
   - type: web
     name: erp-frontend-web
+    plan: free
     runtime: node
     rootDir: frontend-web
     buildCommand: npm install && npm run build
