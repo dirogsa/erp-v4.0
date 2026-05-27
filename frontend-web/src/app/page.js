@@ -96,7 +96,7 @@ export default function HomePage() {
               <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Distribución Nacional Expandida</h3>
               <p className="text-[10px] md:text-xs text-[#38BDF8]">Cobertura en Lima, Arequipa y Trujillo</p>
             </div>
-            <Link href="/noticias/distribucion" className="absolute inset-0 z-20" aria-label="Leer más sobre distribución nacional expandida" />
+            <Link href="/noticias/distribucion" prefetch={false} className="absolute inset-0 z-20" aria-label="Leer más sobre distribución nacional expandida" />
           </article>
           
           <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10 group focus-within:ring-2 focus-within:ring-brand-primary">
@@ -115,7 +115,7 @@ export default function HomePage() {
               <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Tecnología Nanoflow</h3>
               <p className="text-[10px] md:text-xs text-[#FB923C]">Eficiencia de filtrado 99.7%</p>
             </div>
-            <Link href="/tecnologia/nanoflow" className="absolute inset-0 z-20" aria-label="Leer más sobre la tecnología nanoflow" />
+            <Link href="/tecnologia/nanoflow" prefetch={false} className="absolute inset-0 z-20" aria-label="Leer más sobre la tecnología nanoflow" />
           </article>
           
           <article className="hidden md:block snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10 group focus-within:ring-2 focus-within:ring-brand-primary">

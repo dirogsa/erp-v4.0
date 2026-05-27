@@ -93,8 +93,8 @@ export default function RootLayout({ children }) {
               <p className="text-sm text-brand-text-dim mt-2 max-w-md">Soluciones integrales de filtración para el sector automotriz e industrial en todo el Perú.</p>
             </div>
             <div className="flex gap-6 text-sm text-brand-text-dim">
-              <Link href="/privacidad" className="hover:text-white">Políticas de Privacidad</Link>
-              <Link href="/terminos" className="hover:text-white">Términos y Condiciones</Link>
+              <Link href="/privacidad" prefetch={false} className="hover:text-white">Políticas de Privacidad</Link>
+              <Link href="/terminos" prefetch={false} className="hover:text-white">Términos y Condiciones</Link>
             </div>
           </div>
         </footer>
