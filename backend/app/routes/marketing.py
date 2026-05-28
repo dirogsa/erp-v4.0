@@ -79,3 +79,41 @@ async def update_loyalty_config(
     
     await config.save()
     return config.loyalty
+
+# --- REVIEWS MANAGEMENT ---
+
+@router.get("/reviews")
+async def get_all_reviews(
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    from app.models.inventory import ProductReview
+    # Devuelve pendientes primero
+    reviews = await ProductReview.find_all().sort([("is_approved", 1), ("-created_at", 1)]).to_list()
+    return reviews
+
+@router.patch("/reviews/{review_id}/approve")
+async def approve_review(
+    review_id: str,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    from app.models.inventory import ProductReview
+    review = await ProductReview.get(PydanticObjectId(review_id))
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    
+    review.is_approved = True
+    await review.save()
+    return {"message": "Reseña aprobada con éxito"}
+
+@router.delete("/reviews/{review_id}")
+async def delete_review(
+    review_id: str,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    from app.models.inventory import ProductReview
+    review = await ProductReview.get(PydanticObjectId(review_id))
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+    
+    await review.delete()
+    return {"message": "Reseña eliminada"}

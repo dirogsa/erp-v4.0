@@ -29,6 +29,7 @@ import B2BManagement from './pages/B2BManagement';
 import BrandManagement from './pages/BrandManagement';
 import PricingStrategy from './pages/PricingStrategy';
 import Marketing from './pages/Marketing';
+import ReviewsManager from './pages/marketing/ReviewsManager';
 import Audit from './pages/Audit';
 import CatalogIngestion from './pages/CatalogIngestion';
 import FinancialAudit from './pages/FinancialAudit';
@@ -101,6 +102,7 @@ function App() {
                           <Route path="/b2b" element={<B2BManagement />} />
                           <Route path="/pricing-strategy" element={<PricingStrategy />} />
                           <Route path="/marketing" element={<Marketing />} />
+                          <Route path="/marketing/reviews" element={<ReviewsManager />} />
                           <Route path="/audit" element={<Audit />} />
                           <Route path="/audit/financial" element={<FinancialAudit />} />
                           <Route path="/staff" element={<StaffManagement />} />

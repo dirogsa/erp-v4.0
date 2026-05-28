@@ -196,12 +196,22 @@ class ShopProductResponse(BaseModel):
     type: Optional[str] = "COMMERCIAL"
     matched_equivalence: Optional[str] = None
 
+class ProductReviewResponse(BaseModel):
+    user_name: str
+    rating: int
+    comment: Optional[str] = None
+    is_verified_buyer: bool
+    created_at: datetime
+
 class ShopProductDetailResponse(ShopProductResponse):
     specs: List[TechnicalSpec] = []
     equivalences: List[CrossReference] = []
     applications: List[Application] = []
     weight_g: float = 0.0
     features: List[str] = []
+    faqs: List[Dict[str, str]] = []
+    maintenance_tips: List[str] = []
+    reviews: List[ProductReviewResponse] = []
 
 
 class RedemptionRequest(BaseModel):
@@ -536,6 +546,19 @@ async def get_shop_product_detail(
     _config = await SystemConfig.find_one({})
     policy = _config.sales_policy if _config else None
 
+    # Fetch reviews
+    from app.models.inventory import ProductReview
+    reviews_db = await ProductReview.find({"product_sku": p.sku, "is_approved": True}).sort("-created_at").to_list()
+    reviews = [
+        ProductReviewResponse(
+            user_name=r.user_name,
+            rating=r.rating,
+            comment=r.comment,
+            is_verified_buyer=r.is_verified_buyer,
+            created_at=r.created_at
+        ) for r in reviews_db
+    ]
+
     return ShopProductDetailResponse(
         sku=p.sku,
         name=p.name,
@@ -557,8 +580,47 @@ async def get_shop_product_detail(
         discount_3_pct=policy.vol_3_discount_pct if policy else 0.0,
         discount_6_pct=policy.vol_6_discount_pct if policy else 0.0,
         discount_12_pct=policy.vol_12_discount_pct if policy else 0.0,
-        promo_discount_pct=p.promo_discount_pct
+        promo_discount_pct=p.promo_discount_pct,
+        faqs=p.faqs,
+        maintenance_tips=p.maintenance_tips,
+        reviews=reviews
     )
+
+class ReviewCreateRequest(BaseModel):
+    user_name: str
+    email: str # Se guarda por seguridad pero no se expone
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
+
+@router.post("/products/{sku}/reviews")
+async def create_product_review(
+    sku: str,
+    req: ReviewCreateRequest,
+    current_user: Optional[User] = Depends(get_optional_user)
+):
+    from app.models.inventory import ProductReview
+    
+    product = await Product.find_one({"sku": sku})
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    # Si está autenticado y tiene ruc_linked, podríamos marcarlo como verificado
+    is_verified = False
+    if current_user and current_user.ruc_linked:
+        is_verified = True
+        
+    review = ProductReview(
+        product_sku=sku,
+        user_id=str(current_user.id) if current_user else "GUEST",
+        user_name=req.user_name,
+        rating=req.rating,
+        comment=req.comment,
+        is_verified_buyer=is_verified,
+        is_approved=is_verified # Si es cliente verificado, auto-aprobar. Si no, a moderación.
+    )
+    await review.insert()
+    
+    return {"message": "Reseña recibida con éxito. Será publicada tras su moderación." if not is_verified else "Reseña publicada con éxito."}
 
 @router.post("/checkout")
 async def checkout(

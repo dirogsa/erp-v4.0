@@ -134,6 +134,23 @@ class Application(BaseModel):
     engine: Optional[str] = None # 1.5L
     notes: Optional[str] = None
 
+class ProductReview(Document):
+    """Reseñas de producto para User Generated Content (SEO)"""
+    product_sku: str
+    user_id: str
+    user_name: str
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
+    is_verified_buyer: bool = False
+    is_approved: bool = True # Podría requerir moderación en el futuro
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Settings:
+        name = "product_reviews"
+        indexes = [
+            pymongo.IndexModel([("product_sku", pymongo.ASCENDING)]),
+        ]
+
 class AttributeType(str, Enum):
     TEXT = "text"
     NUMBER = "number"
@@ -210,6 +227,10 @@ class Product(Document):
     specs: List[TechnicalSpec] = []
     equivalences: List[CrossReference] = []
     applications: List[Application] = []
+    
+    # Nuevos campos para SEO Avanzado (Fase 4)
+    faqs: List[Dict[str, str]] = [] # Ejemplo: [{"question": "¿Cada cuánto se cambia?", "answer": "Cada 10,000 km"}]
+    maintenance_tips: List[str] = [] # Ejemplo: ["Revisar el filtro en ambientes polvorientos"]
     
     is_new: bool = False # Manual flag for catalog "Novedades"
     is_active_in_shop: bool = False # Control visibility in frontend-shop

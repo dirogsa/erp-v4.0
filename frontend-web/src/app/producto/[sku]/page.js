@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ProductService } from '@/services/product.service';
+import ReviewForm from '@/components/product/ReviewForm';
 
 /**
  * DYNAMIC METADATA — Constitution §6 / SEO Architecture
@@ -12,26 +13,43 @@ export async function generateMetadata({ params }) {
 
   if (!product) {
     return {
-      title: 'Producto no encontrado',
-      description: 'El repuesto buscado no está disponible en el catálogo DIROGSA.',
+      title: 'Producto no encontrado | DIROGSA Perú',
+      description: 'El repuesto buscado no está disponible en el catálogo de DIROGSA Perú.',
     };
   }
 
-  const title = `${product.category} ${product.name} ${product.sku} | Marca ${product.brand}`;
-  const description = `Compra ${product.name} código ${product.sku} de la marca ${product.brand}. ` +
-    `Repuesto automotriz de alta calidad disponible en DIROGSA Perú. ` +
-    `${product.equivalences.length > 0 ? `Equivalente a: ${product.equivalences.slice(0,3).map(e => e.code || e).join(', ')}.` : ''}`;
+  // Helper para intenciones de búsqueda según categoría (Filtros vs otros repuestos)
+  const isFilter = product.category?.toLowerCase().includes('filtro');
+  const baseType = isFilter ? 'Filtro de Aire' : product.category || 'Repuesto';
+  const mainTitle = `${baseType} ${product.brand} ${product.sku} | Comprar en Perú`;
+  
+  // Construcción semántica de la descripción para máximo CTR local
+  let description = `¿Buscas ${baseType} código ${product.sku} de la marca ${product.brand} en Perú? `;
+  description += `Encuentra stock, precio y especificaciones técnicas en DIROGSA. `;
+  if (product.applications?.length > 0) {
+    const mainApps = product.applications.slice(0, 2).map(a => `${a.make} ${a.model}`).join(' y ');
+    description += `Compatible con ${mainApps}. `;
+  }
+  if (product.equivalences?.length > 0) {
+    description += `Equivalencias: ${product.equivalences.slice(0, 3).map(e => e.code || e).join(', ')}. `;
+  }
+  description += `Envíos a nivel nacional.`;
 
   return {
-    title,
+    title: mainTitle,
     description,
-    keywords: [product.sku, product.brand, product.category, 'filtros', 'repuestos', 'peru', 'dirogsa',
-                ...product.equivalences.slice(0,5).map(e => e.code || e)].join(', '),
+    keywords: [
+      product.sku, `${baseType} ${product.sku}`, `comprar ${product.sku} peru`, 
+      product.brand, `${product.brand} peru`, 'filtros automotrices peru', 'dirogsa',
+      ...product.equivalences.slice(0,3).map(e => (e.code || e))
+    ].join(', '),
     openGraph: {
-      title,
+      title: mainTitle,
       description,
-      images: product.imageUrl ? [{ url: product.imageUrl }] : [],
+      images: product.imageUrl ? [{ url: product.imageUrl, alt: mainTitle }] : [],
       type: 'website',
+      locale: 'es_PE',
+      siteName: 'DIROGSA',
     },
     alternates: {
       canonical: `https://dirogsa.com/producto/${product.sku}`,
@@ -60,12 +78,12 @@ export default async function ProductPage({ params }) {
     ],
   };
 
-  // ── JSON-LD Schema.org (Google Rich Snippets) ──
+  // ── JSON-LD Schema.org (Google Rich Snippets para Perú) ──
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: `${product.name} ${product.brand}`,
-    description: product.description,
+    name: `${product.category || 'Repuesto'} ${product.brand} ${product.sku}`,
+    description: product.description || `Filtro/Repuesto automotriz ${product.brand} ${product.sku}. Venta y distribución a nivel nacional en Perú.`,
     sku: product.sku,
     mpn: product.sku,
     image: product.imageUrl || 'https://dirogsa.com/default-product.png',
@@ -73,23 +91,78 @@ export default async function ProductPage({ params }) {
     offers: {
       '@type': 'Offer',
       url: `https://dirogsa.com/producto/${product.sku}`,
-      priceCurrency: product.currency,
+      priceCurrency: product.currency || 'PEN',
       price: product.price,
       priceValidUntil: new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0],
       itemCondition: 'https://schema.org/NewCondition',
       availability: product.stock > 0
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
-      seller: { '@type': 'Organization', name: 'DIROGSA' },
+      seller: { 
+        '@type': 'Organization', 
+        name: 'DIROGSA',
+        areaServed: 'PE' // Geolocalización crítica
+      },
+      shippingDetails: {
+        '@type': 'OfferShippingDetails',
+        shippingRate: {
+          '@type': 'MonetaryAmount',
+          value: '0',
+          currency: 'PEN'
+        },
+        shippingDestination: {
+          '@type': 'DefinedRegion',
+          addressCountry: 'PE'
+        }
+      }
     },
-    ...(product.equivalences.length > 0 && {
+    ...(product.equivalences?.length > 0 && {
       additionalProperty: product.equivalences.slice(0, 10).map(eq => ({
         '@type': 'PropertyValue',
-        name: eq.brand || 'Referencia Equivalente',
-        value: eq.code || eq,
+        name: 'Equivalencia Original/Cross-Reference',
+        value: `${eq.brand || 'OEM'} ${eq.code || eq}`,
       })),
     }),
   };
+
+  // ── JSON-LD: Reviews & Ratings ──
+  if (product.reviews?.length > 0) {
+    const totalRating = product.reviews.reduce((acc, curr) => acc + curr.rating, 0);
+    const avgRating = (totalRating / product.reviews.length).toFixed(1);
+    
+    jsonLd.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: avgRating,
+      reviewCount: product.reviews.length,
+      bestRating: "5",
+      worstRating: "1"
+    };
+
+    jsonLd.review = product.reviews.slice(0, 5).map(r => ({
+      '@type': 'Review',
+      author: { '@type': 'Person', name: r.user_name },
+      datePublished: r.created_at,
+      reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: '5' },
+      reviewBody: r.comment || ''
+    }));
+  }
+
+  // ── JSON-LD: FAQPage ──
+  let faqJsonLd = null;
+  if (product.faqs?.length > 0) {
+    faqJsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: product.faqs.map(faq => ({
+        '@type': 'Question',
+        name: faq.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: faq.answer
+        }
+      }))
+    };
+  }
 
   const hasStock = product.stock > 0;
   
@@ -103,6 +176,7 @@ export default async function ProductPage({ params }) {
       {/* JSON-LD Schemas invisibles para Google */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      {faqJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />}
 
       {/* ─── BREADCRUMB SEMÁNTICO (aria + schema aligned) ─── */}
       <nav aria-label="Ruta de navegación" className="flex items-center gap-2 text-xs mb-8 fade-in" style={{ color: 'var(--brand-text-dim)' }}>
@@ -123,11 +197,16 @@ export default async function ProductPage({ params }) {
           <div className="relative rounded-[2.5rem] overflow-hidden flex items-center justify-center p-10 group"
                style={{ background: 'var(--brand-surface)', border: '1px solid rgba(255,255,255,0.05)', minHeight: '380px' }}>
             {product.imageUrl ? (
-              <img
-                src={product.imageUrl}
-                alt={`${product.name} — Código ${product.sku} | DIROGSA`}
-                className="max-w-full max-h-[320px] object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-700"
-              />
+              <div className="relative w-full h-[320px]">
+                <Image
+                  src={product.imageUrl}
+                  alt={`${product.name} — Código ${product.sku} | DIROGSA`}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-700"
+                  priority
+                />
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-4 opacity-30">
                 <svg className="h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -375,7 +454,7 @@ export default async function ProductPage({ params }) {
         )}
 
         {/* Features */}
-        {product.features.length > 0 && (
+        {product.features?.length > 0 && (
           <section>
             <h2 className="text-lg font-black text-white mb-4 flex items-center gap-3">
               <span className="w-1 h-6 rounded-full" style={{ background: 'var(--brand-accent)' }} />
@@ -390,6 +469,75 @@ export default async function ProductPage({ params }) {
                 </span>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* Mantenimiento */}
+        {product.maintenance_tips?.length > 0 && (
+          <section>
+            <h2 className="text-lg font-black text-white mb-4 flex items-center gap-3">
+              <span className="w-1 h-6 rounded-full bg-green-500" />
+              Consejos de Mantenimiento
+            </h2>
+            <ul className="list-disc list-inside space-y-2 text-sm" style={{ color: 'var(--brand-text-dim)' }}>
+              {product.maintenance_tips.map((tip, i) => (
+                <li key={i}>{tip}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* FAQs */}
+        {product.faqs?.length > 0 && (
+          <section>
+            <h2 className="text-lg font-black text-white mb-4 flex items-center gap-3">
+              <span className="w-1 h-6 rounded-full bg-yellow-500" />
+              Preguntas Frecuentes
+            </h2>
+            <div className="space-y-4">
+              {product.faqs.map((faq, i) => (
+                <div key={i} className="p-5 rounded-2xl" style={{ background: 'var(--brand-surface)' }}>
+                  <h4 className="font-bold text-white text-sm mb-1">{faq.question}</h4>
+                  <p className="text-xs" style={{ color: 'var(--brand-text-dim)' }}>{faq.answer}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Reseñas (UGC) */}
+        {product.reviews?.length > 0 ? (
+          <section>
+            <h2 className="text-lg font-black text-white mb-4 flex items-center gap-3">
+              <span className="w-1 h-6 rounded-full bg-purple-500" />
+              Reseñas de Clientes ({product.reviews.length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {product.reviews.map((r, i) => (
+                <div key={i} className="p-5 rounded-2xl" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-sm text-white">{r.user_name}</span>
+                    <div className="flex text-yellow-400 text-xs">
+                      {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                    </div>
+                  </div>
+                  {r.is_verified_buyer && <span className="text-[10px] text-green-400 border border-green-400/20 bg-green-400/10 px-2 py-0.5 rounded uppercase tracking-wider mb-2 inline-block">Comprador Verificado</span>}
+                  {r.comment && <p className="text-sm italic" style={{ color: 'var(--brand-text-dim)' }}>"{r.comment}"</p>}
+                </div>
+              ))}
+            </div>
+            <div className="mt-8">
+              <ReviewForm sku={product.sku} />
+            </div>
+          </section>
+        ) : (
+          <section>
+            <h2 className="text-lg font-black text-white mb-4 flex items-center gap-3">
+              <span className="w-1 h-6 rounded-full bg-purple-500" />
+              Reseñas de Clientes
+            </h2>
+            <p className="text-sm mb-6" style={{ color: 'var(--brand-text-dim)' }}>Aún no hay reseñas para este producto. ¡Sé el primero en calificarlo!</p>
+            <ReviewForm sku={product.sku} />
           </section>
         )}
       </div>
