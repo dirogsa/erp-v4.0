@@ -365,14 +365,6 @@ export default async function ProductPage({ params }) {
             </div>
           )}
 
-          {/* Description */}
-          <div>
-            <h2 className="text-xs font-black uppercase tracking-widest mb-2"
-                style={{ color: 'var(--brand-text-muted)' }}>Descripción</h2>
-            <p className="text-sm leading-relaxed" style={{ color: 'var(--brand-text-muted)' }}>
-              {product.description}
-            </p>
-          </div>
         </div>
       </div>
 
