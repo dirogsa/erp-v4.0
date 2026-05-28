@@ -35,7 +35,8 @@ const Categories = () => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [formData, setFormData] = useState({
         name: '', parent_id: '', icon: 'Package', color: '#6366f1',
-        import_aliases: [], attributes_schema: []
+        import_aliases: [], attributes_schema: [],
+        seo_faqs_templates: [], seo_maintenance_templates: []
     });
 
     useEffect(() => { loadCategories(); }, []);
@@ -83,7 +84,9 @@ const Categories = () => {
             icon: category.icon || 'Package',
             color: category.color || '#6366f1',
             import_aliases: category.import_aliases || [],
-            attributes_schema: category.attributes_schema || []
+            attributes_schema: category.attributes_schema || [],
+            seo_faqs_templates: category.seo_faqs_templates || [],
+            seo_maintenance_templates: category.seo_maintenance_templates || []
         });
     };
 
@@ -219,7 +222,7 @@ const Categories = () => {
                                     {renderTree()}
                                 </div>
                                 <button 
-                                    onClick={() => { setSelectedCategoryId('NEW'); setFormData({ name: '', parent_id: '', icon: 'Package', color: '#6366f1', import_aliases: [], attributes_schema: [] }); }}
+                                    onClick={() => { setSelectedCategoryId('NEW'); setFormData({ name: '', parent_id: '', icon: 'Package', color: '#6366f1', import_aliases: [], attributes_schema: [], seo_faqs_templates: [], seo_maintenance_templates: [] }); }}
                                     style={{ marginTop: '1.5rem', width: '100%', padding: '1rem', background: 'rgba(99, 102, 241, 0.1)', border: '1px dashed #6366f1', color: '#818cf8', borderRadius: '1rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justify: 'center', gap: '0.5rem' }}
                                 >
                                     <Plus size={18} /> Nueva Raíz
@@ -233,7 +236,7 @@ const Categories = () => {
                                             <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '900', textTransform: 'uppercase' }}>{selectedCategoryId === 'NEW' ? 'Nuevo Registro' : 'Ficha de Categoría'}</div>
                                             {selectedCategoryId !== 'NEW' && (
                                                 <button 
-                                                    onClick={() => { setSelectedCategoryId('NEW'); setFormData({ ...formData, name: '', parent_id: selectedCategoryId, import_aliases: [], attributes_schema: [] }); }}
+                                                    onClick={() => { setSelectedCategoryId('NEW'); setFormData({ ...formData, name: '', parent_id: selectedCategoryId, import_aliases: [], attributes_schema: [], seo_faqs_templates: [], seo_maintenance_templates: [] }); }}
                                                     style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '0.8rem', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer' }}
                                                 >
                                                     <FolderPlus size={16} /> Agregar Sub-categoría
@@ -285,6 +288,48 @@ const Categories = () => {
                                                 <Settings2 size={32} color="#475569" style={{ marginBottom: '1rem' }} />
                                                 <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>Define los campos obligatorios para esta categoría (ej: Altura, Rosca, Voltaje).</p>
                                                 <Button variant="secondary" style={{ marginTop: '1.5rem', fontSize: '0.8rem' }}>Configurar Atributos</Button>
+                                            </div>
+                                        </div>
+
+                                        {/* SEO TEMPLATES ENGINE */}
+                                        <div style={{ background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '2rem', borderRadius: '1.5rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                                <Target size={24} color="#f59e0b" />
+                                                <div>
+                                                    <h3 style={{ margin: 0, color: 'white', fontSize: '1.2rem' }}>Motor de Plantillas SEO (Dinámicas)</h3>
+                                                    <p style={{ color: '#f59e0b', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>Usa variables como {'{{marca}}'} y {'{{codigo}}'} para autogenerar texto.</p>
+                                                </div>
+                                            </div>
+
+                                            {/* FAQS */}
+                                            <div style={{ marginBottom: '2rem' }}>
+                                                <h4 style={{ color: 'white', fontSize: '1rem', marginBottom: '1rem' }}>Preguntas Frecuentes (FAQs)</h4>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                    {formData.seo_faqs_templates.map((faq, idx) => (
+                                                        <div key={idx} style={{ background: '#0f172a', p: '1rem', borderRadius: '1rem', border: '1px solid #334155', position: 'relative', overflow: 'hidden' }}>
+                                                            <button onClick={() => setFormData({...formData, seo_faqs_templates: formData.seo_faqs_templates.filter((_, i) => i !== idx)})} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16}/></button>
+                                                            <div style={{ padding: '1.5rem' }}>
+                                                                <input value={faq.question} onChange={e => { const newFaqs = [...formData.seo_faqs_templates]; newFaqs[idx].question = e.target.value; setFormData({...formData, seo_faqs_templates: newFaqs}); }} placeholder="Pregunta (Ej: ¿Cada cuánto cambiar el {{codigo}}?)" style={{ width: '100%', background: 'transparent', border: 'none', borderBottom: '1px solid #334155', color: '#f59e0b', fontSize: '1rem', fontWeight: 'bold', outline: 'none', paddingBottom: '0.5rem', marginBottom: '1rem' }} />
+                                                                <textarea value={faq.answer} onChange={e => { const newFaqs = [...formData.seo_faqs_templates]; newFaqs[idx].answer = e.target.value; setFormData({...formData, seo_faqs_templates: newFaqs}); }} placeholder="Respuesta..." style={{ width: '100%', background: 'transparent', border: 'none', color: '#cbd5e1', fontSize: '0.9rem', outline: 'none', minHeight: '60px', resize: 'vertical' }} />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    <Button variant="secondary" onClick={(e) => { e.preventDefault(); setFormData({...formData, seo_faqs_templates: [...formData.seo_faqs_templates, {question: '', answer: ''}]}); }} style={{ alignSelf: 'flex-start', fontSize: '0.8rem' }}><Plus size={16} style={{ marginRight: '0.5rem' }}/> Agregar Pregunta</Button>
+                                                </div>
+                                            </div>
+
+                                            {/* TIPS */}
+                                            <div>
+                                                <h4 style={{ color: 'white', fontSize: '1rem', marginBottom: '1rem' }}>Tips de Mantenimiento</h4>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                    {formData.seo_maintenance_templates.map((tip, idx) => (
+                                                        <div key={idx} style={{ display: 'flex', gap: '0.5rem' }}>
+                                                            <input value={tip} onChange={e => { const newTips = [...formData.seo_maintenance_templates]; newTips[idx] = e.target.value; setFormData({...formData, seo_maintenance_templates: newTips}); }} placeholder="Ej: No sopletear el {{codigo}} con aire." style={{ flex: 1, background: '#0f172a', border: '1px solid #334155', color: '#cbd5e1', padding: '0.8rem 1rem', borderRadius: '0.75rem', fontSize: '0.9rem' }} />
+                                                            <button onClick={(e) => { e.preventDefault(); setFormData({...formData, seo_maintenance_templates: formData.seo_maintenance_templates.filter((_, i) => i !== idx)}); }} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '0 1rem', borderRadius: '0.75rem', cursor: 'pointer' }}><Trash2 size={16}/></button>
+                                                        </div>
+                                                    ))}
+                                                    <Button variant="secondary" onClick={(e) => { e.preventDefault(); setFormData({...formData, seo_maintenance_templates: [...formData.seo_maintenance_templates, '']}); }} style={{ alignSelf: 'flex-start', fontSize: '0.8rem' }}><Plus size={16} style={{ marginRight: '0.5rem' }}/> Agregar Tip</Button>
+                                                </div>
                                             </div>
                                         </div>
 

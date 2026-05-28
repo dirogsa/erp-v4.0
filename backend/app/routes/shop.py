@@ -8,7 +8,7 @@ from ..schemas.common import PaginatedResponse
 from app.models.company import Company
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from ..services.pricing_service import PricingService
 from ..services.risk_service import RiskService
 from ..models.sales import SalesInvoice
@@ -546,6 +546,36 @@ async def get_shop_product_detail(
     _config = await SystemConfig.find_one({})
     policy = _config.sales_policy if _config else None
 
+    # Motor de Plantillas Dinámicas SAP/Odoo Style
+    faqs = list(p.faqs) if p.faqs else []
+    maintenance_tips = list(p.maintenance_tips) if p.maintenance_tips else []
+
+    if p.category_id:
+        from app.models.inventory import ProductCategory
+        from beanie import PydanticObjectId
+        try:
+            category = await ProductCategory.get(PydanticObjectId(p.category_id))
+            if category:
+                # Reemplazador de variables
+                def render_template(text: str) -> str:
+                    res = text.replace("{{marca}}", p.brand or "Nuestra marca")
+                    res = res.replace("{{codigo}}", p.sku)
+                    res = res.replace("{{nombre}}", p.name)
+                    return res
+
+                if category.seo_faqs_templates:
+                    for tpl in category.seo_faqs_templates:
+                        faqs.append({
+                            "question": render_template(tpl.get("question", "")),
+                            "answer": render_template(tpl.get("answer", ""))
+                        })
+                
+                if category.seo_maintenance_templates:
+                    for tpl in category.seo_maintenance_templates:
+                        maintenance_tips.append(render_template(tpl))
+        except Exception as e:
+            print(f"[SEO ENGINE] Error parsing category templates: {e}")
+
     # Fetch reviews
     from app.models.inventory import ProductReview
     reviews_db = await ProductReview.find({"product_sku": p.sku, "is_approved": True}).sort("-created_at").to_list()
@@ -581,8 +611,8 @@ async def get_shop_product_detail(
         discount_6_pct=policy.vol_6_discount_pct if policy else 0.0,
         discount_12_pct=policy.vol_12_discount_pct if policy else 0.0,
         promo_discount_pct=p.promo_discount_pct,
-        faqs=p.faqs,
-        maintenance_tips=p.maintenance_tips,
+        faqs=faqs,
+        maintenance_tips=maintenance_tips,
         reviews=reviews
     )
 

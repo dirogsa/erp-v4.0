@@ -185,6 +185,10 @@ class ProductCategory(Document):
     features_schema: List[str] = [] # Note: We could upgrade this to objects too
     attributes_schema: List[AttributeDefinition] = []
     
+    # Motor de Plantillas SEO (Fase Avanzada)
+    seo_faqs_templates: List[Dict[str, str]] = [] # [{"question": "¿Cada cuánto cambiar el {{brand}} {{sku}}?", "answer": "El filtro {{sku}}..."}]
+    seo_maintenance_templates: List[str] = [] # ["El repuesto {{sku}} de marca {{brand}} debe ser..."]
+    
     class Settings:
         name = "product_categories"
         indexes = [
