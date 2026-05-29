@@ -3,16 +3,17 @@ import Link from 'next/link';
 import SearchModule from '@/components/SearchModule';
 import SearchSkeleton from '@/components/SearchSkeleton';
 import { Suspense } from 'react';
+import { PRODUCT_CATEGORIES, HOME_SEO_HUB_BRANDS, SITE_URL } from '@/config/seo.config';
 
 // Metadata a nivel de página (extiende el template del layout)
 export const metadata = {
   title: 'DIROGSA | Filtros y Repuestos Automotrices en Perú',
   description: 'Importador y distribuidor oficial de filtros automotrices en Perú. Encuentra filtros de aceite, aire, combustible y cabina por código, vehículo o medidas.',
   alternates: {
-    canonical: 'https://dirogsa.com',
+    canonical: SITE_URL,
   },
   openGraph: {
-    url: 'https://dirogsa.com',
+    url: SITE_URL,
     title: 'DIROGSA | Filtros y Repuestos Automotrices en Perú',
     description: 'Catálogo completo de repuestos automotrices en Perú. Distribuidor oficial con cobertura nacional.',
     images: [{ url: 'https://dirogsa.com/og-home.jpg', width: 1200, height: 630 }],
@@ -171,20 +172,14 @@ export default function HomePage() {
       <section aria-labelledby="seo-hub-heading" className="w-full mt-10 md:mt-16">
         <h2 id="seo-hub-heading" className="text-xs font-black uppercase tracking-widest mb-5" style={{ color: 'var(--brand-text-dim)' }}>Explorar por Categoría o Vehículo</h2>
         
-        {/* Categorías */}
+        {/* Categorías — driven by PRODUCT_CATEGORIES in seo.config.js */}
         <div className="mb-6">
           <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Tipo de filtro</p>
           <div className="flex flex-wrap gap-2">
-            {[
-              { label: 'Filtros de Aceite',       href: '/catalogo?category=ACEITE',      emoji: '🛢️' },
-              { label: 'Filtros de Aire',          href: '/catalogo?category=AIRE',        emoji: '💨' },
-              { label: 'Filtros de Combustible',   href: '/catalogo?category=COMBUSTIBLE', emoji: '⛽' },
-              { label: 'Filtros de Cabina',        href: '/catalogo?category=CABINA',      emoji: '🌬️' },
-              { label: 'Ver Catálogo Completo',    href: '/catalogo',                      emoji: '📦' },
-            ].map(({ label, href, emoji }) => (
+            {PRODUCT_CATEGORIES.map(({ slug, label, emoji }) => (
               <Link
-                key={href}
-                href={href}
+                key={slug}
+                href={`/catalogo?category=${slug}`}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold border transition-colors hover:border-brand-primary/40 hover:text-white"
                 style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-text-dim)' }}
               >
@@ -192,30 +187,25 @@ export default function HomePage() {
                 {label}
               </Link>
             ))}
+            <Link
+              href="/catalogo"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold border transition-colors hover:border-brand-primary/40 hover:text-white"
+              style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-text-dim)' }}
+            >
+              <span aria-hidden="true">📦</span>
+              Ver Catálogo Completo
+            </Link>
           </div>
         </div>
 
-        {/* Marcas de vehículo — Long-tail SEO de alto valor */}
+        {/* Marcas — driven by HOME_SEO_HUB_BRANDS in seo.config.js */}
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Filtros por marca de vehículo</p>
           <div className="flex flex-wrap gap-2">
-            {[
-              { label: 'Toyota',       href: '/vehiculo/toyota' },
-              { label: 'Nissan',       href: '/vehiculo/nissan' },
-              { label: 'Hyundai',      href: '/vehiculo/hyundai' },
-              { label: 'Kia',         href: '/vehiculo/kia' },
-              { label: 'Chevrolet',   href: '/vehiculo/chevrolet' },
-              { label: 'Ford',        href: '/vehiculo/ford' },
-              { label: 'Mitsubishi',  href: '/vehiculo/mitsubishi' },
-              { label: 'Suzuki',      href: '/vehiculo/suzuki' },
-              { label: 'Honda',       href: '/vehiculo/honda' },
-              { label: 'Volkswagen',  href: '/vehiculo/volkswagen' },
-              { label: 'Mazda',       href: '/vehiculo/mazda' },
-              { label: 'Subaru',      href: '/vehiculo/subaru' },
-            ].map(({ label, href }) => (
+            {HOME_SEO_HUB_BRANDS.map(({ label, slug }) => (
               <Link
-                key={href}
-                href={href}
+                key={slug}
+                href={`/vehiculo/${slug}`}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors hover:border-brand-primary/40 hover:text-white"
                 style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)', color: 'var(--brand-text-dim)' }}
               >
