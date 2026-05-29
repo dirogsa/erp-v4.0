@@ -8,14 +8,14 @@ import { PRODUCT_CATEGORIES, HOME_SEO_HUB_BRANDS, SITE_URL } from '@/config/seo.
 // Metadata a nivel de página (extiende el template del layout)
 export const metadata = {
   title: 'DIROGSA | Filtros y Repuestos Automotrices en Perú',
-  description: 'Importador y distribuidor oficial de filtros automotrices en Perú. Encuentra filtros de aceite, aire, combustible y cabina por código, vehículo o medidas.',
+  description: 'Importador oficial de filtros importados en Perú. Venta mayorista y minorista de WIX Filters, MANN-FILTER, AZUMI y TOTACHI para todo tipo de vehículos.',
   alternates: {
     canonical: SITE_URL,
   },
   openGraph: {
     url: SITE_URL,
-    title: 'DIROGSA | Filtros y Repuestos Automotrices en Perú',
-    description: 'Catálogo completo de repuestos automotrices en Perú. Distribuidor oficial con cobertura nacional.',
+    title: 'DIROGSA | Filtros Importados y Repuestos en Perú',
+    description: 'Catálogo oficial de filtros importados WIX, MANN, AZUMI y TOTACHI en Perú. Distribuidor oficial con cobertura nacional.',
     images: [{ url: 'https://dirogsa.com/og-home.jpg', width: 1200, height: 630 }],
   },
 };
@@ -227,7 +227,7 @@ export default function HomePage() {
             Entendemos que la precisión es clave en el mantenimiento automotriz preventivo y correctivo. Por ello, nuestra plataforma tecnológica de ecommerce te permite realizar búsquedas exactas por <strong>código de producto, marca del vehículo, modelo o medidas técnicas específicas</strong>. De esta forma, aseguramos la compatibilidad perfecta para tu motor, reduciendo el riesgo de desgaste prematuro de piezas y maximizando el ahorro de combustible en tu flota o vehículo particular.
           </p>
           <p>
-            Trabajamos con las marcas más reconocidas a nivel mundial, integrando tecnología de vanguardia como la micro-filtración avanzada Nanoflow para asegurar una eficiencia de filtrado superior al 99.7%. Ya sea para la línea ligera de autos de pasajeros, vehículos comerciales, o la línea industrial pesada diseñada para maquinaria minera y de construcción civil, DIROGSA es tu aliado estratégico. Nos comprometemos a mantener tu negocio siempre en movimiento con la máxima seguridad, soporte técnico especializado y garantía de fábrica en cada uno de nuestros repuestos.
+            Trabajamos con las marcas más reconocidas a nivel mundial en el rubro automotriz, siendo líderes en la venta de <strong>filtros importados</strong> de fabricantes como <strong>WIX Filters, MANN-FILTER, AZUMI y TOTACHI</strong>. Estos componentes integran tecnología de vanguardia y medios filtrantes de alta eficiencia para asegurar una protección superior al 99%. Ya sea para la línea ligera de autos de pasajeros, vehículos comerciales, o la línea industrial pesada para maquinaria minera y agrícola, DIROGSA es tu aliado estratégico. Nos comprometemos a mantener tu flota siempre en movimiento con la máxima seguridad, soporte técnico y garantía en cada repuesto.
           </p>
         </div>
       </section>

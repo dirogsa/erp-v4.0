@@ -13,8 +13,8 @@ export const metadata = {
     default: 'DIROGSA | Filtros y Repuestos Automotrices en Perú',
     template: '%s | DIROGSA Filtros',
   },
-  description: 'Importador y distribuidor oficial de filtros automotrices en Perú. Catálogo completo de filtros de aceite, aire, combustible y cabina.',
-  keywords: ['filtros automotrices', 'repuestos peru', 'filtros peru', 'dirogsa', 'filtros aceite', 'filtros aire'],
+  description: 'Importador y distribuidor oficial de filtros automotrices en Perú. Catálogo completo de filtros importados WIX, MANN-FILTER, AZUMI y TOTACHI.',
+  keywords: ['filtros importados peru', 'filtros wix peru', 'filtros mann peru', 'filtros azumi', 'filtros totachi', 'filtros automotrices', 'repuestos peru', 'dirogsa', 'filtros aceite'],
   openGraph: {
     siteName: 'DIROGSA Filtros',
     locale: 'es_PE',
