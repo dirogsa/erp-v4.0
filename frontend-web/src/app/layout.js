@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'], weight: ['400','500','600','700','800'
 
 // SEO Metadata Perfecta
 export const metadata = {
-  metadataBase: new URL('https://dirogsa.com'),
+  metadataBase: new URL('https://www.dirogsa.com'),
   title: {
     default: 'DIROGSA | Filtros y Repuestos Automotrices en Perú',
     template: '%s | DIROGSA Filtros',
@@ -19,6 +19,10 @@ export const metadata = {
     siteName: 'DIROGSA Filtros',
     locale: 'es_PE',
     type: 'website',
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
   robots: { index: true, follow: true },
 };
@@ -104,19 +108,23 @@ export default function RootLayout({ children }) {
         {/* ── BOTTOM NAV MÓVIL Y DESKTOP ── */}
         <nav className="fixed bottom-0 w-full bg-[#0D0E12]/95 backdrop-blur-xl border-t border-white/10 px-6 py-2 flex items-center justify-between md:justify-center md:gap-32 z-50 pb-safe" aria-label="Navegación principal inferior">
           <Link href="/" className="flex flex-col items-center justify-center gap-1 w-14 h-12 group" aria-label="Inicio">
+            <span className="sr-only">Inicio</span>
             <HomeIcon className="h-6 w-6 text-brand-primary transition-transform group-active:scale-90" />
             <div className="h-1 w-1 rounded-full bg-brand-primary shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
           </Link>
           
           <Link href="/buscar" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Buscar">
+            <span className="sr-only">Buscar productos</span>
             <MagnifyingGlassIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
           
           <Link href="/carrito" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Carrito">
+            <span className="sr-only">Mi carrito de compras</span>
             <ShoppingCartIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
           
           <Link href="/pedidos" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Pedidos">
+            <span className="sr-only">Mis pedidos e historial</span>
             <ClipboardDocumentListIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
         </nav>
