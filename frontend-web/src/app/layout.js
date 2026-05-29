@@ -2,6 +2,7 @@ import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
 import { HomeIcon, MagnifyingGlassIcon, ShoppingCartIcon, ClipboardDocumentListIcon, UserIcon } from '@heroicons/react/24/outline';
+import VersionWatcher from '@/components/VersionWatcher';
 
 const inter = Inter({ subsets: ['latin'], weight: ['400','500','600','700','800','900'] });
 
@@ -30,6 +31,7 @@ export default function RootLayout({ children }) {
         Se aplica a todas las pantallas ya que el BottomNav ahora es global.
       */}
       <body className={`${inter.className} bg-[#0D0E12] text-white min-h-screen flex flex-col overflow-x-hidden pb-20`}>
+        <VersionWatcher />
         
         {/* ── HEADER RESPONSIVO ── */}
         <header className="sticky top-0 z-50 bg-[#0D0E12]/90 backdrop-blur-md border-b border-white/5">

@@ -9,6 +9,30 @@ const nextConfig = {
     ],
   },
   poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        // Fuerza al navegador a consultar siempre la versión más reciente del HTML y las rutas
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          },
+        ],
+      },
+      {
+        // Imágenes y fuentes de public/ tienen un día de caché flexible
+        source: '/(.*).(png|jpg|jpeg|svg|webp|woff2|woff)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=86400',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
