@@ -1,6 +1,7 @@
 // SERVER COMPONENT — No 'use client' directiva. Permite inyectar JSON-LD sin JS en cliente.
 import Link from 'next/link';
 import SearchModule from '@/components/SearchModule';
+import SearchSkeleton from '@/components/SearchSkeleton';
 import { Suspense } from 'react';
 
 // Metadata a nivel de página (extiende el template del layout)
@@ -146,7 +147,7 @@ export default function HomePage() {
         {/* ── MÓDULO DE BÚSQUEDA (Ocupa 8 de 12 columnas en Desktop) ── */}
         <section aria-labelledby="search-heading" className="w-full md:col-span-8 mb-6 md:mb-0">
           <h2 id="search-heading" className="sr-only">Módulo de Búsqueda de Productos</h2>
-          <Suspense fallback={<div className="p-4 text-center text-brand-text-dim">Cargando buscador...</div>}>
+          <Suspense fallback={<SearchSkeleton />}>
             <SearchModule />
           </Suspense>
         </section>
@@ -166,8 +167,67 @@ export default function HomePage() {
 
       </div>
 
+      {/* ── HUB SEO PROGRAMÁTICO (Linking Interno — Carreteras para Googlebot) ── */}
+      <section aria-labelledby="seo-hub-heading" className="w-full mt-10 md:mt-16">
+        <h2 id="seo-hub-heading" className="text-xs font-black uppercase tracking-widest mb-5" style={{ color: 'var(--brand-text-dim)' }}>Explorar por Categoría o Vehículo</h2>
+        
+        {/* Categorías */}
+        <div className="mb-6">
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Tipo de filtro</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'Filtros de Aceite',       href: '/catalogo?category=ACEITE',      emoji: '🛢️' },
+              { label: 'Filtros de Aire',          href: '/catalogo?category=AIRE',        emoji: '💨' },
+              { label: 'Filtros de Combustible',   href: '/catalogo?category=COMBUSTIBLE', emoji: '⛽' },
+              { label: 'Filtros de Cabina',        href: '/catalogo?category=CABINA',      emoji: '🌬️' },
+              { label: 'Ver Catálogo Completo',    href: '/catalogo',                      emoji: '📦' },
+            ].map(({ label, href, emoji }) => (
+              <Link
+                key={href}
+                href={href}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold border transition-colors hover:border-brand-primary/40 hover:text-white"
+                style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-text-dim)' }}
+              >
+                <span aria-hidden="true">{emoji}</span>
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Marcas de vehículo — Long-tail SEO de alto valor */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Filtros por marca de vehículo</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'Toyota',       href: '/vehiculo/toyota' },
+              { label: 'Nissan',       href: '/vehiculo/nissan' },
+              { label: 'Hyundai',      href: '/vehiculo/hyundai' },
+              { label: 'Kia',         href: '/vehiculo/kia' },
+              { label: 'Chevrolet',   href: '/vehiculo/chevrolet' },
+              { label: 'Ford',        href: '/vehiculo/ford' },
+              { label: 'Mitsubishi',  href: '/vehiculo/mitsubishi' },
+              { label: 'Suzuki',      href: '/vehiculo/suzuki' },
+              { label: 'Honda',       href: '/vehiculo/honda' },
+              { label: 'Volkswagen',  href: '/vehiculo/volkswagen' },
+              { label: 'Mazda',       href: '/vehiculo/mazda' },
+              { label: 'Subaru',      href: '/vehiculo/subaru' },
+            ].map(({ label, href }) => (
+              <Link
+                key={href}
+                href={href}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors hover:border-brand-primary/40 hover:text-white"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)', color: 'var(--brand-text-dim)' }}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── SECCIÓN SEO SEMÁNTICA (Texto Enriquecido para Googlebot) ── */}
-      <section aria-labelledby="seo-about-heading" className="w-full mt-12 md:mt-20 pt-8 border-t border-white/5" style={{ color: 'var(--brand-text-muted)' }}>
+      <section aria-labelledby="seo-about-heading" className="w-full mt-10 md:mt-14 pt-8 border-t border-white/5" style={{ color: 'var(--brand-text-muted)' }}>
         <h2 id="seo-about-heading" className="text-sm font-black text-white/50 uppercase tracking-widest mb-4">DIROGSA: Importador y Distribuidor Oficial de Filtros Automotrices en Perú</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs md:text-sm leading-relaxed text-justify md:text-left">
           <p>
