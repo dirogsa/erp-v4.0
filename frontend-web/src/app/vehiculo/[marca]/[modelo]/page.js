@@ -196,6 +196,18 @@ export default async function VehiculoModeloPage({ params }) {
           </Link>
         </div>
       )}
+      {/* ── SECCIÓN SEO SEMÁNTICA (Contenido de Calidad para Googlebot) ── */}
+      <section aria-labelledby="seo-about-heading" className="w-full mt-12 md:mt-20 pt-8 border-t border-white/5" style={{ color: 'var(--brand-text-muted)' }}>
+        <h2 id="seo-about-heading" className="text-sm font-black text-white/50 uppercase tracking-widest mb-4">Repuestos y Filtros para {marcaDisplay} {modeloDisplay} en Perú</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs md:text-sm leading-relaxed text-justify md:text-left">
+          <p>
+            Bienvenido al catálogo especializado de repuestos y soluciones de filtración para <strong>{marcaDisplay} {modeloDisplay}</strong> de DIROGSA. Como importadores directos en Perú, garantizamos un inventario de alta calidad diseñado para cumplir con las especificaciones exactas del fabricante (OEM) de tu vehículo. En esta sección encontrarás {products.length > 0 ? 'nuestro portafolio de' : 'próximamente la línea de'} <strong>filtros de aceite, filtros de aire, filtros de combustible y filtros de cabina</strong> optimizados para asegurar el máximo rendimiento del motor de tu {marcaDisplay}.
+          </p>
+          <p>
+            El mantenimiento preventivo de un {marcaDisplay} {modeloDisplay} exige componentes de precisión. Por ello, trabajamos con marcas líderes a nivel mundial que emplean tecnología de micro-filtración avanzada, previniendo el desgaste prematuro de las piezas internas y optimizando el consumo de combustible. Explora nuestro catálogo y mantén tu {modeloDisplay} operando con la confiabilidad, seguridad y garantía que solo DIROGSA puede ofrecer. Envíos a nivel nacional.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }
