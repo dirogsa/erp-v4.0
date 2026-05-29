@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
-from typing import List, Optional
+from typing import List, Optional, Dict
 from ..models.inventory import Product, TechnicalSpec, CrossReference, Application, VehicleBrand, SearchLog, Notification
 from app.models.auth import User, UserRole
 from app.models.sales import SalesOrder, OrderItem, IssuerInfo, SalesQuote, OrderStatus
