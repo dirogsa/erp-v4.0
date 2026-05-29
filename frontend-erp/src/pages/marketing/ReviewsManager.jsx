@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { getToken } from '../../utils/auth';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import api from '../../services/api';
 
 export default function ReviewsManager() {
   const [reviews, setReviews] = useState([]);
@@ -11,9 +8,7 @@ export default function ReviewsManager() {
   const fetchReviews = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/marketing/reviews`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
+      const res = await api.get('/marketing/reviews');
       setReviews(res.data);
     } catch (err) {
       console.error('Failed to fetch reviews', err);
@@ -28,9 +23,7 @@ export default function ReviewsManager() {
 
   const handleApprove = async (id) => {
     try {
-      await axios.patch(`${API_URL}/marketing/reviews/${id}/approve`, {}, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
+      await api.patch(`/marketing/reviews/${id}/approve`);
       fetchReviews();
     } catch (err) {
       console.error(err);
@@ -41,9 +34,7 @@ export default function ReviewsManager() {
   const handleDelete = async (id) => {
     if (!window.confirm("¿Seguro que deseas eliminar esta reseña permanentemente?")) return;
     try {
-      await axios.delete(`${API_URL}/marketing/reviews/${id}`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
+      await api.delete(`/marketing/reviews/${id}`);
       fetchReviews();
     } catch (err) {
       console.error(err);
