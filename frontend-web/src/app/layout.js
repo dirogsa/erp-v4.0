@@ -132,6 +132,30 @@ export default function RootLayout({ children }) {
           </div>
         </footer>
 
+        {/* ── BOTÓN FLOTANTE DE WHATSAPP PREMIUM ── */}
+        <a
+          href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20deseo%20consultar%20por%20un%20repuesto."
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-20 right-6 md:bottom-8 md:right-8 z-40 flex items-center justify-center group"
+          aria-label="Contactar por WhatsApp"
+        >
+          {/* Tooltip elegante en Desktop */}
+          <span className="absolute right-14 bg-[#141518]/90 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap backdrop-blur-sm shadow-xl translate-x-2 group-hover:translate-x-0 transform">
+            ¿Necesitas ayuda? Escríbenos
+          </span>
+          
+          {/* Efecto de Onda / Pulso de Atención */}
+          <span className="absolute inline-flex h-12 w-12 md:h-14 md:w-14 rounded-full bg-[#25D366]/30 animate-ping opacity-75" />
+          
+          {/* Botón Circular */}
+          <div className="relative h-12 w-12 md:h-14 md:w-14 rounded-full bg-[#25D366] hover:bg-[#20BA5A] text-white flex items-center justify-center shadow-[0_4px_20px_rgba(37,211,102,0.4)] transition-all duration-300 group-hover:scale-110 group-active:scale-95 border border-white/10">
+            <svg className="w-6 h-6 md:w-7 md:h-7 fill-current" viewBox="0 0 24 24">
+              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.73-1.45L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.968C16.528 1.971 14.076 1.97 11.98 1.97c-5.433 0-9.863 4.374-9.867 9.806-.001 1.73.457 3.41 1.32 4.947l-1.047 3.826 3.925-1.029zm13.111-7.234c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.642.145-.19.29-.738.942-.905 1.135-.167.19-.335.21-.625.065-2.9-.145-4.814-1.924-5.59-3.267-.168-.29-.018-.447.127-.592.13-.13.29-.339.436-.508.145-.17.193-.29.29-.483.097-.19.048-.363-.024-.508-.073-.145-.642-1.547-.88-2.122-.232-.558-.468-.483-.642-.492-.166-.008-.356-.01-.546-.01-.19 0-.501.07-.763.356-.262.29-1 .977-1 2.382s1.02 2.762 1.164 2.956c.145.195 2.007 3.064 4.862 4.297.68.293 1.21.468 1.623.599.683.217 1.305.186 1.797.112.548-.08 1.716-.702 1.957-1.378.24-.678.24-1.257.17-1.378-.073-.121-.262-.19-.553-.335z"/>
+            </svg>
+          </div>
+        </a>
+
         {/* ── BOTTOM NAV MÓVIL Y DESKTOP ── */}
         <nav className="fixed bottom-0 w-full bg-[#0D0E12]/95 backdrop-blur-xl border-t border-white/10 px-6 py-2 flex items-center justify-between md:justify-center md:gap-32 z-50 pb-safe" aria-label="Navegación principal inferior">
           <Link href="/" className="flex flex-col items-center justify-center gap-1 w-14 h-12 group" aria-label="Inicio">
