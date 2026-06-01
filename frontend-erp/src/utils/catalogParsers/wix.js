@@ -88,9 +88,10 @@ const parseWixModern = (doc, domain, dbCategories = []) => {
                 const galleryData = JSON.parse(galleryEl.getAttribute('data-g-binding-gallery-items') || '[]');
                 galleryData.forEach(item => {
                     if (item.path && !foundUrls.has(item.path)) {
+                        const fullUrl = item.path.startsWith('http') ? item.path : (domain + item.path);
                         galleryItems.push({
                             label: item.label || 'Producto',
-                            url: item.path,
+                            url: fullUrl,
                             is_dim: item.path.includes('-dim') || /dim|plano/i.test(item.label)
                         });
                         foundUrls.add(item.path);
@@ -105,9 +106,10 @@ const parseWixModern = (doc, domain, dbCategories = []) => {
         gallerySection.querySelectorAll('img.cmp-product__gallery-img').forEach(img => {
             const src = img.getAttribute('src');
             if (src && !foundUrls.has(src)) {
+                const fullUrl = src.startsWith('http') ? src : (domain + src);
                 galleryItems.push({
                     label: img.getAttribute('alt') || 'Vista adicional',
-                    url: src,
+                    url: fullUrl,
                     is_dim: src.includes('-dim')
                 });
                 foundUrls.add(src);
@@ -348,7 +350,7 @@ const parseWixModern = (doc, domain, dbCategories = []) => {
  * Parser especializado para el formato Legacy/USA de WIX (PartDetails.aspx)
  * Maneja tablas con IDs gvpd, gvPa, etc.
  */
-const parseWixUSA = (doc, dbCategories = []) => {
+const parseWixUSA = (doc, domain, dbCategories = []) => {
     const data = {
         brand: 'WIX',
         sku: '',
@@ -444,7 +446,8 @@ const parseWixUSA = (doc, dbCategories = []) => {
     // 3. Imagen (Zoom o Miniatura)
     const mainImg = doc.querySelector('#zoomImage') || doc.querySelector('#image');
     if (mainImg) {
-        data.image_url = mainImg.getAttribute('src');
+        const src = mainImg.getAttribute('src');
+        data.image_url = src.startsWith('http') ? src : (domain + src);
     }
 
     // 4. Nombre Final Estándar
@@ -466,7 +469,7 @@ export const parseWix = (doc, domain, dbCategories = []) => {
     // Firma de WIX USA (ASP.NET Legacy)
     if (doc.querySelector('#gvpd') || doc.querySelector('form[action*="PartDetails.aspx"]')) {
         console.log("[Parser] Detectado formato WIX USA (Legacy)");
-        return parseWixUSA(doc, dbCategories);
+        return parseWixUSA(doc, domain, dbCategories);
     }
 
     // Fallback al formato Moderno (Global/Europe)

@@ -104,9 +104,17 @@ const ProductDetailsView = ({ product, onClose }) => {
                                 src={currentImage}
                                 alt={product.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fff' }}
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = "https://placehold.co/600x600/1e293b/94a3b8?text=Imagen+No+Disponible";
+                                }}
                             />
                         ) : (
-                            <span style={{ fontSize: '4rem', opacity: 0.2 }}>📦</span>
+                            <img
+                                src="https://placehold.co/600x600/1e293b/94a3b8?text=Imagen+No+Disponible"
+                                alt="No disponible"
+                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            />
                         )}
                         
                         {/* Tech Drawing Badge */}

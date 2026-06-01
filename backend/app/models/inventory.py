@@ -257,6 +257,29 @@ class Product(Document):
         from app.utils.norm_utils import canonical_sku
         if self.sku:
             self.sku_canonical = canonical_sku(self.sku)
+            
+        if self.image_url:
+            self.image_url = self.image_url.strip()
+            if (
+                self.image_url.startswith('/adobe/') or 
+                self.image_url.startswith('/content/') or 
+                self.image_url.startswith('/en-eu/') or 
+                self.image_url.startswith('/etc.clientlibs/')
+            ):
+                self.image_url = f"https://www.wixfilters.com{self.image_url}"
+                
+        if self.image_gallery:
+            for img in self.image_gallery:
+                url = img.get('url')
+                if url:
+                    url = url.strip()
+                    if (
+                        url.startswith('/adobe/') or 
+                        url.startswith('/content/') or 
+                        url.startswith('/en-eu/') or 
+                        url.startswith('/etc.clientlibs/')
+                    ):
+                        img['url'] = f"https://www.wixfilters.com{url}"
         return self
 
     @field_validator('cost')

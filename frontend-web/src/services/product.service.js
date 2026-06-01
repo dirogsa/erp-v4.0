@@ -96,6 +96,20 @@ export const ProductService = {
  */
 function normalizeProduct(p) {
   if (!p) return null;
+
+  let resolvedImageUrl = p.image_url || null;
+  if (resolvedImageUrl) {
+    resolvedImageUrl = resolvedImageUrl.trim();
+    if (
+      resolvedImageUrl.startsWith('/adobe/') || 
+      resolvedImageUrl.startsWith('/content/') || 
+      resolvedImageUrl.startsWith('/en-eu/') || 
+      resolvedImageUrl.startsWith('/etc.clientlibs/')
+    ) {
+      resolvedImageUrl = `https://www.wixfilters.com${resolvedImageUrl}`;
+    }
+  }
+
   return {
     id:              p.id,
     sku:             p.sku,
@@ -106,7 +120,7 @@ function normalizeProduct(p) {
     stock:           p.stock_current ?? p.stock ?? 0,
     category:        p.category || 'Repuestos',
     description:     p.description || `Repuesto automotriz de alta calidad. Código ${p.sku}.`,
-    imageUrl:        p.image_url || null,
+    imageUrl:        resolvedImageUrl,
     isNew:           p.is_new || false,
     promoDiscountPct: p.promo_discount_pct || 0,
     discount3Pct:    p.discount_3_pct || 0,

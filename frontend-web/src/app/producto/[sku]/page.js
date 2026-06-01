@@ -68,6 +68,12 @@ export default async function ProductPage({ params }) {
 
   if (!product) notFound();
 
+  const hasValidImage = product.imageUrl && 
+    product.imageUrl.trim() !== '' && 
+    product.imageUrl.toLowerCase() !== 'none' && 
+    !product.imageUrl.includes('placeholder') && 
+    !product.imageUrl.includes('default');
+
   // Fetch related products (Hub & Spoke SEO Cross-Linking)
   const relatedRes = await ProductService.getRelatedProducts(product.brand, product.category, 4);
   const relatedProducts = (relatedRes?.items || []).filter(p => p.sku !== product.sku).slice(0, 4);
@@ -201,23 +207,45 @@ export default async function ProductPage({ params }) {
         <div className="space-y-4">
           <div className="relative rounded-[2.5rem] overflow-hidden flex items-center justify-center p-10 group"
                style={{ background: 'var(--brand-surface)', border: '1px solid rgba(255,255,255,0.05)', minHeight: '380px' }}>
-            {product.imageUrl ? (
-              <div className="relative w-full h-[320px]">
-                <Image
+            {hasValidImage ? (
+              <div className="relative w-full h-[320px] flex items-center justify-center">
+                <img
                   src={product.imageUrl}
                   alt={`${product.name} — Código ${product.sku} | DIROGSA`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  className="object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-700"
-                  priority
+                  className="max-w-full max-h-full object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-700"
+                  loading="eager"
                 />
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-4 opacity-30">
-                <svg className="h-24 w-24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-sm font-bold">Imagen no disponible</span>
+              <div className="flex flex-col items-center justify-center text-center p-6 select-none">
+                <div className="relative w-40 h-40 mb-4 flex items-center justify-center text-brand-primary">
+                  <svg className="w-full h-full text-brand-primary opacity-60 hover:opacity-100 transition-opacity" viewBox="0 0 100 100" fill="none">
+                    <defs>
+                      <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="var(--brand-primary)" stopOpacity="0.15" />
+                        <stop offset="100%" stopColor="var(--brand-primary)" stopOpacity="0" />
+                      </radialGradient>
+                      <linearGradient id="pleats" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#F59E0B" />
+                        <stop offset="25%" stopColor="#D97706" />
+                        <stop offset="50%" stopColor="#F59E0B" />
+                        <stop offset="75%" stopColor="#D97706" />
+                        <stop offset="100%" stopColor="#B45309" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="45" fill="url(#glow)" />
+                    <rect x="25" y="25" width="50" height="50" rx="4" fill="url(#pleats)" />
+                    <path d="M30 25 v50 M35 25 v50 M40 25 v50 M45 25 v50 M50 25 v50 M55 25 v50 M60 25 v50 M65 25 v50 M70 25 v50" stroke="#78350F" strokeWidth="1.5" strokeOpacity="0.5" />
+                    <rect x="23" y="21" width="54" height="5" rx="1.5" fill="#1F2937" stroke="#374151" strokeWidth="1" />
+                    <rect x="23" y="74" width="54" height="5" rx="1.5" fill="#1F2937" stroke="#374151" strokeWidth="1" />
+                    <circle cx="50" cy="47" r="12" fill="#111827" stroke="var(--brand-primary)" strokeWidth="1" strokeOpacity="0.5" />
+                    <path d="M47 47 l2 2 l4 -4" stroke="var(--brand-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <h3 className="text-white font-bold text-sm uppercase tracking-wider mb-1">Ilustración Técnica</h3>
+                <p className="text-[10px] uppercase font-black tracking-widest" style={{ color: 'var(--brand-text-muted)' }}>
+                  Catálogo Oficial DIROGSA
+                </p>
               </div>
             )}
             {product.isNew && (
