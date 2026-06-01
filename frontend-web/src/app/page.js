@@ -83,11 +83,11 @@ export default function HomePage() {
         <h2 id="news-heading" className="sr-only">Últimas novedades de la empresa</h2>
         <div className="flex overflow-x-auto snap-x md:snap-none no-scrollbar gap-4 md:grid md:grid-cols-3 pb-2 md:pb-0">
           
-          <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10 group focus-within:ring-2 focus-within:ring-brand-primary">
+          <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10">
             <Image 
               src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800" 
               alt="Almacén de logística DIROGSA — Distribución Nacional"
-              className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-500"
+              className="absolute inset-0 w-full h-full object-cover opacity-40"
               priority={true}
               fill={true}
               sizes="(max-width: 768px) 100vw, 33vw"
@@ -97,17 +97,16 @@ export default function HomePage() {
               <span className="px-2 py-0.5 rounded text-[8px] md:text-[10px] font-black uppercase tracking-widest bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/40 mb-2 md:mb-3 inline-block shadow-sm">
                 LOGÍSTICA
               </span>
-              <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Distribución Nacional Expandida</h3>
-              <p className="text-[10px] md:text-xs text-[#38BDF8]">Cobertura en Lima, Arequipa y Trujillo</p>
+              <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Distribución Nacional</h3>
+              <p className="text-[10px] md:text-xs text-[#38BDF8]">Cobertura en Lima, Arequipa, Puno y todas las provincias</p>
             </div>
-            <Link href="/noticias/distribucion" prefetch={false} className="absolute inset-0 z-20" aria-label="Leer más sobre distribución nacional expandida" />
           </article>
           
-          <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10 group focus-within:ring-2 focus-within:ring-brand-primary">
+          <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10">
             <Image 
               src="https://images.unsplash.com/photo-1537462715879-360eeb61a0ad?auto=format&fit=crop&q=80&w=800" 
               alt="Tecnología Nanoflow — Filtración de alta eficiencia"
-              className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-500"
+              className="absolute inset-0 w-full h-full object-cover opacity-40"
               fill={true}
               sizes="(max-width: 768px) 100vw, 33vw"
             />
@@ -117,30 +116,28 @@ export default function HomePage() {
                 TECNOLOGÍA
               </span>
               <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Tecnología Nanoflow</h3>
-              <p className="text-[10px] md:text-xs text-[#FB923C]">Eficiencia de filtrado 99.7%</p>
+              <p className="text-[10px] md:text-xs text-[#FB923C]">Eficiencia de filtrado de hasta 99.7%</p>
             </div>
-            <Link href="/tecnologia/nanoflow" prefetch={false} className="absolute inset-0 z-20" aria-label="Leer más sobre la tecnología nanoflow" />
           </article>
           
-          <article className="hidden md:block snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10 group focus-within:ring-2 focus-within:ring-brand-primary">
+          <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10">
             <Image 
-              src="https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&q=80&w=800" 
-              alt="Línea Industrial Pesada — Filtros para maquinaria minera"
-              className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-500"
+              src="https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&q=80&w=800" 
+              alt="Línea de Carga Ligera — Filtros para SUVs y vehículos ligeros"
+              className="absolute inset-0 w-full h-full object-cover opacity-40"
               fill={true}
               sizes="(max-width: 768px) 100vw, 33vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 z-10">
               <span className="px-2 py-0.5 rounded text-[8px] md:text-[10px] font-black uppercase tracking-widest bg-brand-primary/20 text-brand-primary border border-brand-primary/40 mb-2 md:mb-3 inline-block shadow-sm">
-                LANZAMIENTO
+                NUESTRO ENFOQUE
               </span>
-              <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Línea Industrial Pesada</h3>
-              <p className="text-[10px] md:text-xs text-brand-primary">Para maquinaria minera y de construcción</p>
+              <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Especialistas en Línea Ligera</h3>
+              <p className="text-[10px] md:text-xs text-brand-primary">Máximo rendimiento y protección para tu SUV o camioneta</p>
             </div>
-            <Link href="/catalogo?category=industrial" className="absolute inset-0 z-20" aria-label="Explorar la nueva línea industrial pesada" />
           </article>
-
+          
         </div>
       </section>
 

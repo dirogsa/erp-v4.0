@@ -137,23 +137,23 @@ export default function RootLayout({ children }) {
           href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20deseo%20consultar%20por%20un%20repuesto."
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed bottom-24 right-4 md:right-8 z-[60] flex items-center gap-3 px-3.5 py-2 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
+          className="fixed bottom-24 right-4 md:right-8 z-[60] flex items-center gap-3.5 px-4 py-2.5 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
           aria-label="Contactar por WhatsApp 991717240"
         >
           {/* Onda expansiva de atención */}
-          <span className="absolute left-3.5 inline-flex h-8 w-8 rounded-full bg-[#25D366]/20 animate-ping opacity-75" />
+          <span className="absolute left-4 inline-flex h-10 w-10 rounded-full bg-[#25D366]/20 animate-ping opacity-75" />
           
           {/* Icono circular de WhatsApp */}
-          <div className="relative h-8 w-8 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-[0_2px_8px_rgba(37,211,102,0.3)]">
-            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+          <div className="relative h-10 w-10 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-[0_3px_12px_rgba(37,211,102,0.4)]">
+            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
               <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.73-1.45L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.968C16.528 1.971 14.076 1.97 11.98 1.97c-5.433 0-9.863 4.374-9.867 9.806-.001 1.73.457 3.41 1.32 4.947l-1.047 3.826 3.925-1.029zm13.111-7.234c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.642.145-.19.29-.738.942-.905 1.135-.167.19-.335.21-.625.065-2.9-.145-4.814-1.924-5.59-3.267-.168-.29-.018-.447.127-.592.13-.13.29-.339.436-.508.145-.17.193-.29.29-.483.097-.19.048-.363-.024-.508-.073-.145-.642-1.547-.88-2.122-.232-.558-.468-.483-.642-.492-.166-.008-.356-.01-.546-.01-.19 0-.501.07-.763.356-.262.29-1 .977-1 2.382s1.02 2.762 1.164 2.956c.145.195 2.007 3.064 4.862 4.297.68.293 1.21.468 1.623.599.683.217 1.305.186 1.797.112.548-.08 1.716-.702 1.957-1.378.24-.678.24-1.257.17-1.378-.073-.121-.262-.19-.553-.335z"/>
             </svg>
           </div>
           
           {/* Contenedor de Texto / Número */}
-          <div className="flex flex-col pr-1 select-none">
-            <span className="text-[8px] font-black uppercase tracking-widest text-[#25D366] leading-none">WhatsApp</span>
-            <span className="text-[11px] font-black text-white tracking-tight leading-none mt-1">991 717 240</span>
+          <div className="flex flex-col pr-1.5 select-none">
+            <span className="text-[9px] font-black uppercase tracking-widest text-[#25D366] leading-none">WhatsApp</span>
+            <span className="text-[13px] md:text-sm font-black text-white tracking-wide leading-none mt-1">991 717 240</span>
           </div>
         </a>
 
