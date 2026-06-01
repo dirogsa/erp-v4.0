@@ -68,9 +68,9 @@ export default function RootLayout({ children }) {
 
             {/* Navegación Desktop (Oculta en móvil) */}
             <nav className="hidden md:flex items-center gap-6 lg:gap-8" aria-label="Navegación principal">
-              <Link href="/catalogo" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Catálogo completo</Link>
-              <div className="h-6 w-px bg-white/10" /> {/* Divisor */}
-              
+              <Link href="/catalogo" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Catálogo</Link>
+              <Link href="/marca" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Marcas</Link>
+              <div className="h-6 w-px bg-white/10" />
               <Link href="/login" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition-colors" aria-label="Acceso B2B">
                 <UserIcon className="h-5 w-5" />
                 <span className="text-sm font-bold">Portal B2B</span>
@@ -93,14 +93,41 @@ export default function RootLayout({ children }) {
 
         {/* ── FOOTER DESKTOP ── */}
         <footer className="hidden md:block bg-[#141518] border-t border-white/5 mt-auto">
-          <div className="max-w-7xl mx-auto px-4 py-12 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div>
-              <span className="text-2xl font-black text-white">DIROGSA</span>
-              <p className="text-sm text-brand-text-dim mt-2 max-w-md">Soluciones integrales de filtración para el sector automotriz e industrial en todo el Perú.</p>
+          <div className="max-w-7xl mx-auto px-4 py-12">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+              {/* Branding */}
+              <div className="md:col-span-2">
+                <span className="text-2xl font-black text-white">DIROGSA</span>
+                <p className="text-sm text-brand-text-dim mt-2 max-w-md">Soluciones integrales de filtración para el sector automotriz e industrial en todo el Perú.</p>
+              </div>
+              {/* Marcas Hub Links */}
+              <div>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Marcas Importadas</h3>
+                <ul className="space-y-2">
+                  <li><Link href="/marca/wix" className="text-sm text-brand-text-dim hover:text-white transition-colors">WIX Filters</Link></li>
+                  <li><Link href="/marca/mann" className="text-sm text-brand-text-dim hover:text-white transition-colors">MANN-FILTER</Link></li>
+                  <li><Link href="/marca/azumi" className="text-sm text-brand-text-dim hover:text-white transition-colors">AZUMI</Link></li>
+                  <li><Link href="/marca/totachi" className="text-sm text-brand-text-dim hover:text-white transition-colors">TOTACHI</Link></li>
+                </ul>
+              </div>
+              {/* Category Hub Links */}
+              <div>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Por Tipo de Filtro</h3>
+                <ul className="space-y-2">
+                  <li><Link href="/catalogo/aceite" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aceite</Link></li>
+                  <li><Link href="/catalogo/aire" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aire</Link></li>
+                  <li><Link href="/catalogo/combustible" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Combustible</Link></li>
+                  <li><Link href="/catalogo/cabina" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Cabina</Link></li>
+                  <li><Link href="/catalogo/hidraulico" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros Hidráulicos</Link></li>
+                </ul>
+              </div>
             </div>
-            <div className="flex gap-6 text-sm text-brand-text-dim">
-              <Link href="/privacidad" prefetch={false} className="hover:text-white">Políticas de Privacidad</Link>
-              <Link href="/terminos" prefetch={false} className="hover:text-white">Términos y Condiciones</Link>
+            <div className="border-t border-white/5 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-xs text-white/20">&copy; {new Date().getFullYear()} DIROGSA. Todos los derechos reservados.</p>
+              <div className="flex gap-6 text-sm text-brand-text-dim">
+                <Link href="/privacidad" prefetch={false} className="hover:text-white text-xs">Políticas de Privacidad</Link>
+                <Link href="/terminos" prefetch={false} className="hover:text-white text-xs">Términos y Condiciones</Link>
+              </div>
             </div>
           </div>
         </footer>

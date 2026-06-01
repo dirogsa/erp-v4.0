@@ -405,7 +405,15 @@ async def get_shop_products(
             ]
     
     if category:
-        query["category_id"] = category
+        # Dual filter: try by category_id (ERP internal), fallback to category_name regex (SEO Hub slugs)
+        # Category slugs from seo.config (ACEITE, AIRE, etc.) match against category_name field.
+        query["$and"] = query.get("$and", [])
+        query["$and"].append({
+            "$or": [
+                {"category_id": category},
+                {"category_name": {"$regex": category, "$options": "i"}},
+            ]
+        })
 
     if is_new:
         query["is_new"] = True

@@ -172,14 +172,14 @@ export default function HomePage() {
       <section aria-labelledby="seo-hub-heading" className="w-full mt-10 md:mt-16">
         <h2 id="seo-hub-heading" className="text-xs font-black uppercase tracking-widest mb-5" style={{ color: 'var(--brand-text-dim)' }}>Explorar por Categoría o Vehículo</h2>
         
-        {/* Categorías — driven by PRODUCT_CATEGORIES in seo.config.js */}
+        {/* Categorías — links to /catalogo/[categoria] Hub pages */}
         <div className="mb-6">
           <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Tipo de filtro</p>
           <div className="flex flex-wrap gap-2">
             {PRODUCT_CATEGORIES.map(({ slug, label, emoji }) => (
               <Link
                 key={slug}
-                href={`/catalogo?category=${slug}`}
+                href={`/catalogo/${slug.toLowerCase()}`}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold border transition-colors hover:border-brand-primary/40 hover:text-white"
                 style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-text-dim)' }}
               >
@@ -198,7 +198,36 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Marcas — driven by HOME_SEO_HUB_BRANDS in seo.config.js */}
+        {/* Marcas de filtros — links to /marca/[brand] Hub pages */}
+        <div className="mb-5">
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Marcas importadas disponibles</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'WIX Filters', slug: 'wix', color: '#F59E0B' },
+              { label: 'MANN-FILTER', slug: 'mann', color: '#3B82F6' },
+              { label: 'AZUMI', slug: 'azumi', color: '#10B981' },
+              { label: 'TOTACHI', slug: 'totachi', color: '#8B5CF6' },
+            ].map(({ label, slug, color }) => (
+              <Link
+                key={slug}
+                href={`/marca/${slug}`}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors hover:scale-105"
+                style={{ background: `${color}10`, border: `1px solid ${color}30`, color }}
+              >
+                {label}
+              </Link>
+            ))}
+            <Link
+              href="/marca"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors hover:border-white/20 hover:text-white"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)', color: 'var(--brand-text-dim)' }}
+            >
+              Ver todas las marcas →
+            </Link>
+          </div>
+        </div>
+
+        {/* Marcas de vehículos — links to /vehiculo/[marca] Hub pages */}
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Filtros por marca de vehículo</p>
           <div className="flex flex-wrap gap-2">
