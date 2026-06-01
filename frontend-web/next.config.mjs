@@ -9,6 +9,15 @@ const nextConfig = {
     ],
   },
   poweredByHeader: false,
+  async redirects() {
+    return [
+      {
+        source: '/product/:slug*',
+        destination: '/producto/:slug*',
+        permanent: true, // 301 Redirect for SEO
+      },
+    ];
+  },
   async headers() {
     return [
       {

@@ -80,6 +80,14 @@ export const ProductService = {
   async getFeaturedProducts(limit = 6) {
     return ProductService.searchProducts({ limit });
   },
+
+  /**
+   * Get related products for SEO Hub & Spoke (Cross-Linking)
+   */
+  async getRelatedProducts(brand, category, limit = 4) {
+    // A query for the same brand helps group "WIX" filters together.
+    return ProductService.searchProducts({ search: brand, limit });
+  },
 };
 
 /**

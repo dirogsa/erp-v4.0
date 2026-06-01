@@ -68,6 +68,10 @@ export default async function ProductPage({ params }) {
 
   if (!product) notFound();
 
+  // Fetch related products (Hub & Spoke SEO Cross-Linking)
+  const relatedRes = await ProductService.getRelatedProducts(product.brand, product.category, 4);
+  const relatedProducts = (relatedRes?.items || []).filter(p => p.sku !== product.sku).slice(0, 4);
+
   // ── JSON-LD: BreadcrumbList (genera rutas verdes en resultados de Google) ──
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
@@ -370,6 +374,42 @@ export default async function ProductPage({ params }) {
 
       {/* ─── TABS: FICHA, APLICACIONES, EQUIVALENCIAS, COMUNIDAD ─── */}
       <ProductTabs product={product} />
+
+      {/* ─── HUB & SPOKE SEO: ENLAZADO INTERNO DE PRODUCTOS RELACIONADOS ─── */}
+      {relatedProducts.length > 0 && (
+        <div className="mt-20 border-t border-white/5 pt-12">
+          <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-8">
+            También te podría interesar de <span style={{ color: 'var(--brand-primary)' }}>{product.brand}</span>
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {relatedProducts.map((p, i) => (
+              <Link href={`/producto/${p.sku}`} key={i} className="group block">
+                <div className="rounded-[1.5rem] bg-[var(--brand-surface)] border border-white/5 p-4 hover:border-white/20 transition-all">
+                  <div className="relative w-full h-32 mb-4">
+                    {p.imageUrl ? (
+                      <Image
+                        src={p.imageUrl}
+                        alt={`Repuesto ${p.sku} ${p.brand}`}
+                        fill
+                        className="object-contain group-hover:scale-105 transition-transform"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-white/5 rounded-xl flex items-center justify-center">
+                        <svg className="w-8 h-8 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-[10px] font-black uppercase text-[var(--brand-primary)] tracking-widest">{p.brand}</div>
+                  <h3 className="text-white font-bold text-sm truncate mt-1">{p.sku}</h3>
+                  <div className="text-[var(--brand-text-dim)] text-xs truncate">{p.name}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   );

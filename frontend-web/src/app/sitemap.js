@@ -78,13 +78,12 @@ export default async function sitemap() {
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     // ── 1. Productos del catálogo (máxima prioridad SEO) ──
-    const prodRes = await fetch(`${API_BASE}/shop/products?limit=10000`, {
+    const prodRes = await fetch(`${API_BASE}/shop/seo/products`, {
       next: { revalidate: 86400 },
       signal: controller.signal,
     });
     if (prodRes.ok) {
-      const data = await prodRes.json();
-      const items = Array.isArray(data) ? data : (data.items || []);
+      const items = await prodRes.json();
       const productPages = items.map(p => ({
         url: `${SITE_URL}/producto/${encodeURIComponent(p.sku)}`,
         lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),

@@ -260,6 +260,13 @@ async def get_redeemable_prizes(
         size=limit
     )
 
+@router.get("/seo/products")
+async def get_seo_products():
+    """Ultra-fast endpoint specifically for Sitemap generation. Avoids N+1 pricing queries."""
+    # Projection only for SKU and updated_at
+    products = await Product.find({"is_active_in_shop": True}).project({"sku": 1, "updated_at": 1}).to_list()
+    return [{"sku": p.sku, "updated_at": p.updated_at.isoformat() if p.updated_at else None} for p in products]
+
 @router.post("/redeem")
 async def redeem_prize(
     req: RedemptionRequest,
