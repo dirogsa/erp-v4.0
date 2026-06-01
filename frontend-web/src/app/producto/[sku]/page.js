@@ -75,7 +75,7 @@ export default async function ProductPage({ params }) {
     !product.imageUrl.includes('default');
 
   // Fetch related products (Hub & Spoke SEO Cross-Linking)
-  const relatedRes = await ProductService.getRelatedProducts(product.brand, product.category, 4);
+  const relatedRes = await ProductService.getRelatedProducts(product, 4);
   const relatedProducts = (relatedRes?.items || []).filter(p => p.sku !== product.sku).slice(0, 4);
 
   // ── JSON-LD: BreadcrumbList (genera rutas verdes en resultados de Google) ──

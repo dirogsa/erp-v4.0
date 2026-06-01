@@ -137,7 +137,7 @@ export default function RootLayout({ children }) {
           href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20deseo%20consultar%20por%20un%20repuesto."
           target="_blank"
           rel="noopener noreferrer"
-          className="fixed bottom-[92px] right-4 md:bottom-8 md:right-8 z-50 flex items-center gap-3 px-3.5 py-2 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
+          className="fixed bottom-24 right-4 md:right-8 z-[60] flex items-center gap-3 px-3.5 py-2 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
           aria-label="Contactar por WhatsApp 991717240"
         >
           {/* Onda expansiva de atención */}

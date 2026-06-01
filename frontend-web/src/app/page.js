@@ -1,5 +1,6 @@
 // SERVER COMPONENT — No 'use client' directiva. Permite inyectar JSON-LD sin JS en cliente.
 import Link from 'next/link';
+import Image from 'next/image';
 import SearchModule from '@/components/SearchModule';
 import SearchSkeleton from '@/components/SearchSkeleton';
 import { Suspense } from 'react';
@@ -83,12 +84,13 @@ export default function HomePage() {
         <div className="flex overflow-x-auto snap-x md:snap-none no-scrollbar gap-4 md:grid md:grid-cols-3 pb-2 md:pb-0">
           
           <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10 group focus-within:ring-2 focus-within:ring-brand-primary">
-            <img 
+            <Image 
               src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800" 
               alt="Almacén de logística DIROGSA — Distribución Nacional"
               className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-500"
-              loading="lazy"
-              width={800} height={400}
+              priority={true}
+              fill={true}
+              sizes="(max-width: 768px) 100vw, 33vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 z-10">
@@ -102,12 +104,12 @@ export default function HomePage() {
           </article>
           
           <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10 group focus-within:ring-2 focus-within:ring-brand-primary">
-            <img 
+            <Image 
               src="https://images.unsplash.com/photo-1537462715879-360eeb61a0ad?auto=format&fit=crop&q=80&w=800" 
               alt="Tecnología Nanoflow — Filtración de alta eficiencia"
               className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-500"
-              loading="lazy"
-              width={800} height={400}
+              fill={true}
+              sizes="(max-width: 768px) 100vw, 33vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 z-10">
@@ -121,12 +123,12 @@ export default function HomePage() {
           </article>
           
           <article className="hidden md:block snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10 group focus-within:ring-2 focus-within:ring-brand-primary">
-            <img 
+            <Image 
               src="https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&q=80&w=800" 
               alt="Línea Industrial Pesada — Filtros para maquinaria minera"
               className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-50 transition-opacity duration-500"
-              loading="lazy"
-              width={800} height={400}
+              fill={true}
+              sizes="(max-width: 768px) 100vw, 33vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 z-10">

@@ -53,11 +53,11 @@ export default function SearchModule({
   return (
     <div className="w-full mb-6 md:mb-0">
       {/* TABS */}
-      <nav aria-label="Pestañas de Búsqueda" className="flex gap-2 mb-4 md:mb-6">
+      <div role="tablist" aria-label="Pestañas de Búsqueda" className="flex gap-2 mb-4 md:mb-6">
         {TABS.map(tab => {
           const isActive = activeTab === tab.id;
           const colorClass = tab.id === 'APPS' ? 'text-[#38BDF8]' : tab.id === 'DIMENSIONS' ? 'text-[#FB923C]' : 'text-brand-primary';
-          const inactiveColor = 'text-white/40';
+          const inactiveColor = 'text-white/70';
           
           return (
             <button
@@ -81,7 +81,7 @@ export default function SearchModule({
             </button>
           )
         })}
-      </nav>
+      </div>
 
       {/* FORMULARIO */}
       <form onSubmit={handleSubmit} className="bg-[#141518] border border-white/5 rounded-2xl md:rounded-3xl p-4 md:p-6 shadow-xl" role="search">

@@ -83,10 +83,70 @@ export const ProductService = {
 
   /**
    * Get related products for SEO Hub & Spoke (Cross-Linking)
+   * Highly optimized: performs EXACTLY ONE lightweight indexed query by category and ranks in memory.
    */
-  async getRelatedProducts(brand, category, limit = 4) {
-    // A query for the same brand helps group "WIX" filters together.
-    return ProductService.searchProducts({ search: brand, limit });
+  async getRelatedProducts(productOrBrand, categoryOrLimit, limit = 4) {
+    let brand = '';
+    let category = '';
+    let applications = [];
+    let queryLimit = limit;
+    let currentSku = '';
+
+    if (productOrBrand && typeof productOrBrand === 'object') {
+      brand = productOrBrand.brand;
+      category = productOrBrand.category;
+      applications = productOrBrand.applications || [];
+      currentSku = productOrBrand.sku || '';
+      queryLimit = typeof categoryOrLimit === 'number' ? categoryOrLimit : limit;
+    } else {
+      brand = productOrBrand;
+      category = categoryOrLimit;
+    }
+
+    // Single lightweight query using category index
+    const res = await ProductService.searchProducts({ 
+      category: category || undefined, 
+      limit: 12 
+    });
+
+    if (!res || !res.items || res.items.length === 0) {
+      // Fallback to brand search if category query returned nothing
+      return ProductService.searchProducts({ search: brand, limit: queryLimit });
+    }
+
+    // Rank and score candidates in memory to offload CPU-heavy logic from free-tier MongoDB
+    const scoredItems = res.items
+      .filter(item => item.sku !== currentSku)
+      .map(item => {
+        let score = 0;
+        
+        // Coincidencia por vehículo (Marca y Modelo)
+        const itemApps = item.applications || [];
+        for (const currentApp of applications) {
+          const match = itemApps.find(
+            app => app.make?.toUpperCase() === currentApp.make?.toUpperCase() &&
+                   app.model?.toUpperCase() === currentApp.model?.toUpperCase()
+          );
+          if (match) {
+            score += 10;
+            break;
+          }
+        }
+
+        // Coincidencia por marca de repuesto
+        if (item.brand?.toUpperCase() === brand?.toUpperCase()) {
+          score += 2;
+        }
+
+        return { item, score };
+      });
+
+    const sortedItems = scoredItems
+      .sort((a, b) => b.score - a.score)
+      .map(entry => entry.item)
+      .slice(0, queryLimit);
+
+    return { items: sortedItems };
   },
 };
 
