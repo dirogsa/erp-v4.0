@@ -82,22 +82,30 @@ export default function HomePage() {
           Importación y Distribución Nacional
         </span>
         <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] tracking-tighter mb-4 max-w-4xl">
-          Distribuidor al por Mayor de <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-emerald-300">Filtros Automotrices</span> en Perú
+          Plataforma Mayorista de <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-emerald-300">Filtros Automotrices</span> en Perú
         </h1>
-        <p className="text-sm md:text-base text-white/70 max-w-2xl mb-6 leading-relaxed">
-          Importación y distribución nacional de filtros <strong>WIX, Filtron, Asakashi, TOTACHI y Hengst</strong>. Atención especializada al por mayor para flotas y talleres, y <strong>venta al por menor para modelos muy exclusivos de alta gama</strong>.
+        <p className="text-base md:text-lg text-white/80 max-w-2xl mb-6 leading-relaxed">
+          Cotiza online filtros <strong>WIX, Filtron, Hengst, TOTACHI y Asakashi</strong> para vehículos livianos, pesados y líneas especiales.
         </p>
-
-        {/* ── MENSAJE EXPLÍCITO DE COTIZACIÓN WEB ── */}
-        <div className="bg-brand-primary/10 border border-brand-primary/30 rounded-xl px-5 py-3.5 mb-8 flex items-center gap-4 w-full max-w-2xl text-left shadow-[0_0_20px_rgba(16,185,129,0.05)]">
-          <div className="bg-brand-primary/20 p-2 rounded-lg shrink-0">
-            <svg className="w-6 h-6 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M12 12h.01M12 16h.01" /></svg>
-          </div>
-          <p className="text-sm md:text-base text-white/90 leading-snug">
-            <strong className="text-brand-primary font-black block mb-0.5">PLATAFORMA DE COTIZACIÓN B2B</strong>
-            Busca tus repuestos, arma tu pedido <strong className="text-white">100% online</strong> y envía tu solicitud en segundos.
-          </p>
-        </div>
+        
+        <ul className="flex flex-col gap-3 mb-8 text-sm md:text-base text-white/80 text-left max-w-2xl">
+          <li className="flex items-start gap-3">
+            <span className="text-brand-primary font-black mt-0.5">✅</span>
+            <span><strong>Cotizaciones web automatizadas</strong> con gestión en tiempo real.</span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="text-brand-primary font-black mt-0.5">✅</span>
+            <span><strong>Acceso B2B</strong> para talleres, flotas y distribuidores a nivel nacional.</span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="text-brand-primary font-black mt-0.5">✅</span>
+            <span><strong>Asesoría rápida</strong> vía WhatsApp para acompañamiento comercial.</span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="text-brand-primary font-black mt-0.5">✅</span>
+            <span><em>Disponibilidad de líneas especiales para vehículos de alta gama bajo pedido.</em></span>
+          </li>
+        </ul>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           <Link href="#search-heading" className="bg-brand-primary text-[#0A0A0B] px-6 py-3.5 md:py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] text-center flex items-center justify-center gap-2">
@@ -118,7 +126,46 @@ export default function HomePage() {
           </Suspense>
         </section>
       </div>
+      {/* ── SECCIÓN: ¿CÓMO FUNCIONA LA PLATAFORMA? (Flujo B2B) ── */}
+      <section className="w-full mb-16 md:mb-20" aria-labelledby="how-it-works-heading">
+        <div className="text-center mb-8">
+          <h2 id="how-it-works-heading" className="text-2xl md:text-3xl font-black text-white mb-2">¿Cómo funciona la plataforma?</h2>
+          <p className="text-white/60 text-sm md:text-base">Un proceso automatizado, diseñado para no detener tu operación.</p>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 relative">
+          {/* Línea conectora Desktop */}
+          <div className="hidden md:block absolute top-1/2 left-0 w-full h-[1px] bg-white/10 -z-10" />
 
+          {/* Paso 1 */}
+          <div className="bg-[#141518]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative">
+            <div className="w-12 h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-xl mb-4 shadow-[0_0_15px_rgba(16,185,129,0.2)]">1</div>
+            <h3 className="font-bold text-white mb-2">Busca tu Filtro</h3>
+            <p className="text-xs text-white/60">Encuentra por código, vehículo o medidas exactas.</p>
+          </div>
+
+          {/* Paso 2 */}
+          <div className="bg-[#141518]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative">
+            <div className="w-12 h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-xl mb-4 shadow-[0_0_15px_rgba(16,185,129,0.2)]">2</div>
+            <h3 className="font-bold text-white mb-2">Arma tu Cotización</h3>
+            <p className="text-xs text-white/60">Agrega productos a tu lista web de forma rápida.</p>
+          </div>
+
+          {/* Paso 3 */}
+          <div className="bg-[#141518]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative">
+            <div className="w-12 h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-xl mb-4 shadow-[0_0_15px_rgba(16,185,129,0.2)]">3</div>
+            <h3 className="font-bold text-white mb-2">Envía Solicitud</h3>
+            <p className="text-xs text-white/60">Manda tu lista online para recibir precios mayoristas.</p>
+          </div>
+
+          {/* Paso 4 */}
+          <div className="bg-[#141518]/90 backdrop-blur-sm border border-brand-primary/30 rounded-2xl p-6 flex flex-col items-center text-center relative shadow-[0_0_20px_rgba(16,185,129,0.05)]">
+            <div className="w-12 h-12 rounded-full bg-brand-primary text-[#0A0A0B] flex items-center justify-center font-black text-xl mb-4 shadow-[0_0_15px_rgba(16,185,129,0.4)]">4</div>
+            <h3 className="font-bold text-white mb-2">Recibe tu Pedido</h3>
+            <p className="text-xs text-white/70">Atención comercial y despacho a nivel nacional.</p>
+          </div>
+        </div>
+      </section>
 
       {/* ── CAROUSEL DE NOVEDADES (Responsive Grid on Desktop) ── */}
       <section aria-labelledby="news-heading" className="w-full mb-12 md:mb-16">
