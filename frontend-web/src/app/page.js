@@ -167,68 +167,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── CAROUSEL DE NOVEDADES (Responsive Grid on Desktop) ── */}
-      <section aria-labelledby="news-heading" className="w-full mb-12 md:mb-16">
-        <h2 id="news-heading" className="sr-only">Últimas novedades de la empresa</h2>
-        <div className="flex overflow-x-auto snap-x md:snap-none no-scrollbar gap-4 md:grid md:grid-cols-3 pb-2 md:pb-0">
 
-          <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10">
-            <Image
-              src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800"
-              alt="Almacén de logística DIROGSA — Distribución Nacional"
-              className="absolute inset-0 w-full h-full object-cover opacity-40"
-              priority={true}
-              fill={true}
-              sizes="(max-width: 768px) 100vw, 33vw"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4 z-10">
-              <span className="px-2 py-0.5 rounded text-[8px] md:text-[10px] font-black uppercase tracking-widest bg-[#38BDF8]/20 text-[#38BDF8] border border-[#38BDF8]/40 mb-2 md:mb-3 inline-block shadow-sm">
-                LOGÍSTICA
-              </span>
-              <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Distribución Nacional</h3>
-              <p className="text-[10px] md:text-xs text-[#38BDF8]">Cobertura en Lima, Arequipa, Puno y todas las provincias</p>
-            </div>
-          </article>
-
-          <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10">
-            <Image
-              src="https://images.unsplash.com/photo-1537462715879-360eeb61a0ad?auto=format&fit=crop&q=80&w=800"
-              alt="Tecnología Nanoflow — Filtración de alta eficiencia"
-              className="absolute inset-0 w-full h-full object-cover opacity-40"
-              fill={true}
-              sizes="(max-width: 768px) 100vw, 33vw"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4 z-10">
-              <span className="px-2 py-0.5 rounded text-[8px] md:text-[10px] font-black uppercase tracking-widest bg-[#FB923C]/20 text-[#FB923C] border border-[#FB923C]/40 mb-2 md:mb-3 inline-block shadow-sm">
-                TECNOLOGÍA
-              </span>
-              <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Tecnología Nanoflow</h3>
-              <p className="text-[10px] md:text-xs text-[#FB923C]">Eficiencia de filtrado de hasta 99.7%</p>
-            </div>
-          </article>
-
-          <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10">
-            <Image
-              src="https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&q=80&w=800"
-              alt="Línea de Carga Ligera — Filtros para SUVs y vehículos ligeros"
-              className="absolute inset-0 w-full h-full object-cover opacity-40"
-              fill={true}
-              sizes="(max-width: 768px) 100vw, 33vw"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] via-transparent to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4 z-10">
-              <span className="px-2 py-0.5 rounded text-[8px] md:text-[10px] font-black uppercase tracking-widest bg-brand-primary/20 text-brand-primary border border-brand-primary/40 mb-2 md:mb-3 inline-block shadow-sm">
-                NUESTRO ENFOQUE
-              </span>
-              <h3 className="text-white font-black text-lg md:text-xl leading-tight mb-1">Especialistas en Línea Ligera</h3>
-              <p className="text-[10px] md:text-xs text-brand-primary">Máximo rendimiento y protección para tu SUV o camioneta</p>
-            </div>
-          </article>
-
-        </div>
-      </section>
 
       {/* ── SECCIÓN DE AUTORIDAD LOGÍSTICA (B2B) ── */}
       <section className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-16">
@@ -239,7 +178,7 @@ export default function HomePage() {
           </div>
           <h3 className="text-xl font-black text-white mb-3">Cobertura Nacional</h3>
           <p className="text-sm text-white/60">
-            Despachos diarios a Lima y envíos rápidos y seguros a provincias a nivel nacional. Llegamos donde esté tu negocio.
+            Despachos diarios en Lima y envíos rápidos a provincias en todo el Perú.
           </p>
         </div>
 
@@ -250,7 +189,7 @@ export default function HomePage() {
           </div>
           <h3 className="text-xl font-black text-white mb-3">Stock Permanente</h3>
           <p className="text-sm text-white/60">
-            Almacenes centralizados en Lima con alta rotación. Garantizamos disponibilidad para no detener tu operación.
+            Alta disponibilidad de filtros automotrices con almacenes centralizados y rotación constante.
           </p>
         </div>
 
@@ -259,9 +198,9 @@ export default function HomePage() {
           <div className="h-16 w-16 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
             <svg className="w-8 h-8 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
           </div>
-          <h3 className="text-xl font-black text-white mb-3">Atención Integral</h3>
+          <h3 className="text-xl font-black text-white mb-3">Atención Especializada</h3>
           <p className="text-sm text-white/60">
-            Cotizaciones por volumen para clientes verificados y venta al por menor para modelos muy exclusivos de alta gama que no encuentras en tiendas convencionales.
+            Cotizaciones mayoristas para talleres, flotas y distribuidores. Disponibilidad de líneas especiales para vehículos premium y de alta gama bajo pedido.
           </p>
         </div>
       </section>
@@ -275,7 +214,7 @@ export default function HomePage() {
         <div className="mb-6">
           <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Tipo de filtro</p>
           <div className="flex flex-wrap gap-2">
-            {PRODUCT_CATEGORIES.map(({ slug, label, emoji }) => (
+            {PRODUCT_CATEGORIES.slice(0, 4).map(({ slug, label, emoji }) => (
               <Link
                 key={slug}
                 href={`/catalogo/${slug.toLowerCase()}`}
@@ -330,7 +269,7 @@ export default function HomePage() {
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Filtros por marca de vehículo</p>
           <div className="flex flex-wrap gap-2">
-            {HOME_SEO_HUB_BRANDS.map(({ label, slug }) => (
+            {HOME_SEO_HUB_BRANDS.slice(0, 6).map(({ label, slug }) => (
               <Link
                 key={slug}
                 href={`/vehiculo/${slug}`}
@@ -340,22 +279,23 @@ export default function HomePage() {
                 {label}
               </Link>
             ))}
+            <Link
+              href="/vehiculo"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors hover:border-white/20 hover:text-white"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)', color: 'var(--brand-text-dim)' }}
+            >
+              Ver más vehículos →
+            </Link>
           </div>
         </div>
       </section>
 
       {/* ── SECCIÓN SEO SEMÁNTICA (Texto Enriquecido para Googlebot) ── */}
       <section aria-labelledby="seo-about-heading" className="w-full mt-10 md:mt-14 pt-8 border-t border-white/5" style={{ color: 'var(--brand-text-muted)' }}>
-        <h2 id="seo-about-heading" className="text-sm font-black text-white/50 uppercase tracking-widest mb-4">DIROGSA: Distribuidor e Importador de Filtros Automotrices con Venta al por Mayor</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs md:text-sm leading-relaxed text-justify md:text-left">
+        <h2 id="seo-about-heading" className="sr-only">Sobre DIROGSA</h2>
+        <div className="text-xs md:text-sm leading-relaxed text-left max-w-4xl mx-auto opacity-70">
           <p>
-            Bienvenido al <strong>Catálogo de Repuestos y Filtros DIROGSA - Buscador Principal</strong>. Como <em>distribuidor e importador en Perú</em>, nos especializamos en la <strong>venta al por mayor</strong> con <strong>cobertura nacional a todo el Perú</strong>. Nuestro inventario cuenta con un catálogo completo de repuestos originales y alternativos de primera línea para talleres, lubricentros y flotas. Encuentra <strong>filtros de aceite</strong>, <strong>filtros de aire</strong>, <strong>filtros de combustible</strong> y <strong>filtros de cabina</strong> diseñados para garantizar el rendimiento óptimo del motor.
-          </p>
-          <p>
-            Entendemos que la precisión es clave en el mantenimiento automotriz preventivo. Nuestra plataforma te permite realizar búsquedas exactas por <strong>código de producto o vehículo</strong>. De esta forma, aseguramos la compatibilidad perfecta para el motor, ya sea para reducir el riesgo de desgaste en flotas corporativas, o para cuidar el motor de tu vehículo exclusivo de alta gama.
-          </p>
-          <p>
-            Somos líderes indiscutibles en <strong>Perú</strong> para la distribución al por mayor y menor de <strong>filtros importados</strong> de fabricantes premium como <strong>Wix, Filtron, Hengst, Asakashi, Totachi y Mann-Filter</strong>. DIROGSA es tu aliado estratégico comercial. <strong>Venta al por mayor para negocios, y venta al por menor para modelos muy exclusivos de alta gama con envíos inmediatos y cobertura nacional.</strong>
+            DIROGSA es un importador y distribuidor mayorista de filtros automotrices en Perú. Nuestra plataforma B2B permite cotizar online filtros WIX, Filtron, Hengst, Totachi y otras marcas premium para vehículos livianos, pesados y líneas especiales. Atendemos talleres, lubricentros, flotas y distribuidores con cobertura nacional y soporte comercial especializado.
           </p>
         </div>
       </section>
