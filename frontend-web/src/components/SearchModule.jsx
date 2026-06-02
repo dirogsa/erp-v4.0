@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { trackSearch } from '@/lib/tracking';
 
 export const TABS = [
   { id: 'CODES', label: 'CÓDIGO', iconPath: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" },
@@ -34,14 +35,24 @@ export default function SearchModule({
     const params = new URLSearchParams();
     params.set('type', activeTab.toLowerCase());
     
+    let searchString = '';
+    
     if (activeTab === 'CODES') {
       if (!searchQuery) return;
       params.set('q', searchQuery);
+      searchString = searchQuery;
     } else if (activeTab === 'APPS') {
       if (!vehicleMake) return;
       params.set('make', vehicleMake);
-      if (vehicleModel) params.set('model', vehicleModel);
+      searchString = vehicleMake;
+      if (vehicleModel) {
+        params.set('model', vehicleModel);
+        searchString += ` ${vehicleModel}`;
+      }
     }
+
+    // Tracker del evento B2B
+    trackSearch(searchString);
 
     if (onSearch) {
       onSearch(params); // Ejecuta la búsqueda local en la página /buscar

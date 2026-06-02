@@ -4,6 +4,7 @@ import './globals.css';
 import { HomeIcon, MagnifyingGlassIcon, ShoppingCartIcon, ClipboardDocumentListIcon, UserIcon } from '@heroicons/react/24/outline';
 import VersionWatcher from '@/components/VersionWatcher';
 import DiroWidget from '@/components/DiroWidget';
+import { GoogleTagManager, GoogleAnalytics } from '@next/third-parties/google';
 
 const inter = Inter({ subsets: ['latin'], weight: ['400','500','600','700','800','900'] });
 
@@ -30,12 +31,16 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="es" className="scroll-smooth" data-scroll-behavior="smooth">
+    <html lang="es" data-scroll-behavior="smooth">
+      {/* ── TRACKING B2B (No bloqueante) ── */}
+      <GoogleTagManager gtmId="GTM-XXXXXXX" />
+      <GoogleAnalytics gaId="G-XXXXXXXXXX" />
+
       {/* 
         El padding inferior (pb-20) evita que el BottomNav tape el contenido.
         Se aplica a todas las pantallas ya que el BottomNav ahora es global.
       */}
-      <body className={`${inter.className} bg-[#0D0E12] text-white min-h-screen flex flex-col overflow-x-hidden pb-20`}>
+      <body className={`${inter.className} bg-[#0D0E12] text-white min-h-screen flex flex-col pb-20`}>
         <VersionWatcher />
         
         {/* ── TOP BAR CORPORATIVO (B2B) ── */}

@@ -67,6 +67,14 @@ export default async function sitemap() {
     { url: `${SITE_URL}/catalogo`,   lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9 },
     { url: `${SITE_URL}/buscar`,     lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: `${SITE_URL}/login`,      lastModified: new Date(), changeFrequency: 'yearly',  priority: 0.4 },
+
+    // Tier 2C: Soluciones Especializadas (Marketing Long-Tail)
+    ...['filtros-para-flotas', 'equivalencias-wix', 'premium-alta-gama', 'importados-peru'].map(slug => ({
+      url: `${SITE_URL}/soluciones/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.85,
+    })),
   ];
 
   let dynamicPages = [];

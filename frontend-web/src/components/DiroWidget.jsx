@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { trackDiroInteraction } from "@/lib/tracking";
 
 export default function DiroWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -27,13 +28,18 @@ export default function DiroWidget() {
   }, []);
 
   const handleDiroClick = () => {
-    setIsOpen(!isOpen);
+    const opening = !isOpen;
+    setIsOpen(opening);
     setShowWelcome(false);
     setActiveTab(null);
+    if (opening) {
+      trackDiroInteraction("open_widget");
+    }
   };
 
   const handleOptionClick = (tabName) => {
     setActiveTab(activeTab === tabName ? null : tabName);
+    trackDiroInteraction(`view_tip_${tabName}`);
   };
 
   const getTipContent = () => {

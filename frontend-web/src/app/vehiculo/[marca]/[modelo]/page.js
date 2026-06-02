@@ -30,14 +30,16 @@ export async function generateMetadata({ params }) {
   const modeloDisplay = decodeURIComponent(modelo).replace(/-/g, ' ').toUpperCase();
 
   return {
-    title: `Filtros para ${marcaDisplay} ${modeloDisplay} | Repuestos DIROGSA Perú`,
-    description: `Compra filtros de aceite, aire, combustible y cabina para ${marcaDisplay} ${modeloDisplay}. Repuestos verificados con aplicación exacta. Importador y distribuidor oficial en Perú.`,
+    title: `Filtros para ${marcaDisplay} ${modeloDisplay} (Wix, Filtron) | DIROGSA Perú`,
+    description: `Compra filtros de aceite, aire, combustible y cabina premium para ${marcaDisplay} ${modeloDisplay}. Equivalencias exactas en marcas líderes como WIX y Filtron. Venta B2B en Perú.`,
     keywords: [
-      `filtros ${marcaDisplay} ${modeloDisplay}`,
+      `filtros wix ${marcaDisplay} ${modeloDisplay}`,
+      `filtros para ${marcaDisplay} ${modeloDisplay}`,
       `repuestos ${marcaDisplay} ${modeloDisplay} peru`,
       `filtro aceite ${marcaDisplay} ${modeloDisplay}`,
       `filtro aire ${marcaDisplay} ${modeloDisplay}`,
-      'dirogsa peru'
+      `equivalencias wix ${marcaDisplay}`,
+      'dirogsa peru mayorista'
     ],
     alternates: {
       canonical: `${SITE_URL}/vehiculo/${marca}/${modelo}`,
@@ -129,8 +131,8 @@ export default async function VehiculoModeloPage({ params }) {
           <span className="text-[#38BDF8]">{marcaDisplay} {modeloDisplay}</span>
         </h1>
         <p className="text-sm md:text-base max-w-2xl" style={{ color: 'var(--brand-text-dim)' }}>
-          Catálogo de filtros de aceite, aire, combustible y cabina con aplicación verificada para{' '}
-          {marcaDisplay} {modeloDisplay}. {total > 0 ? `${total} productos compatibles encontrados.` : ''}
+          Catálogo premium de filtros de aceite, aire, combustible y cabina (WIX, Filtron, Originales) con aplicación verificada para{' '}
+          {marcaDisplay} {modeloDisplay}. {total > 0 ? `${total} productos compatibles listos para despacho.` : ''}
         </p>
       </header>
 

@@ -109,7 +109,7 @@ export default function HomePage() {
         </ul>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          <Link href="#search-heading" className="bg-brand-primary text-[#0A0A0B] px-6 py-3.5 md:py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] text-center flex items-center justify-center gap-2">
+          <Link href="#search-heading" className="bg-brand-primary text-[#0A0A0B] px-6 py-3.5 md:py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all md:shadow-[0_0_20px_rgba(16,185,129,0.2)] text-center flex items-center justify-center gap-2">
             Acceder a Cotización Web
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
           </Link>
@@ -139,29 +139,29 @@ export default function HomePage() {
           <div className="hidden md:block absolute top-1/2 left-0 w-full h-[1px] bg-white/10 -z-10" />
 
           {/* Paso 1 */}
-          <div className="bg-[#141518]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative">
-            <div className="w-12 h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-xl mb-4 shadow-[0_0_15px_rgba(16,185,129,0.2)]">1</div>
+          <div className="bg-[#141518] md:bg-[#141518]/90 md:backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative">
+            <div className="w-12 h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-xl mb-4 md:shadow-[0_0_15px_rgba(16,185,129,0.2)]">1</div>
             <h3 className="font-bold text-white mb-2">Busca tu Filtro</h3>
             <p className="text-xs text-white/60">Encuentra por código, vehículo o medidas exactas.</p>
           </div>
 
           {/* Paso 2 */}
-          <div className="bg-[#141518]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative">
-            <div className="w-12 h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-xl mb-4 shadow-[0_0_15px_rgba(16,185,129,0.2)]">2</div>
+          <div className="bg-[#141518] md:bg-[#141518]/90 md:backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative">
+            <div className="w-12 h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-xl mb-4 md:shadow-[0_0_15px_rgba(16,185,129,0.2)]">2</div>
             <h3 className="font-bold text-white mb-2">Arma tu Cotización</h3>
             <p className="text-xs text-white/60">Agrega productos a tu lista web de forma rápida.</p>
           </div>
 
           {/* Paso 3 */}
-          <div className="bg-[#141518]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative">
-            <div className="w-12 h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-xl mb-4 shadow-[0_0_15px_rgba(16,185,129,0.2)]">3</div>
+          <div className="bg-[#141518] md:bg-[#141518]/90 md:backdrop-blur-sm border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center relative">
+            <div className="w-12 h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-xl mb-4 md:shadow-[0_0_15px_rgba(16,185,129,0.2)]">3</div>
             <h3 className="font-bold text-white mb-2">Envía Solicitud</h3>
             <p className="text-xs text-white/60">Manda tu lista online para recibir precios mayoristas.</p>
           </div>
 
           {/* Paso 4 */}
-          <div className="bg-[#141518]/90 backdrop-blur-sm border border-brand-primary/30 rounded-2xl p-6 flex flex-col items-center text-center relative shadow-[0_0_20px_rgba(16,185,129,0.05)]">
-            <div className="w-12 h-12 rounded-full bg-brand-primary text-[#0A0A0B] flex items-center justify-center font-black text-xl mb-4 shadow-[0_0_15px_rgba(16,185,129,0.4)]">4</div>
+          <div className="bg-[#141518] md:bg-[#141518]/90 md:backdrop-blur-sm border border-brand-primary/30 rounded-2xl p-6 flex flex-col items-center text-center relative md:shadow-[0_0_20px_rgba(16,185,129,0.05)]">
+            <div className="w-12 h-12 rounded-full bg-brand-primary text-[#0A0A0B] flex items-center justify-center font-black text-xl mb-4 md:shadow-[0_0_15px_rgba(16,185,129,0.4)] shadow-sm">4</div>
             <h3 className="font-bold text-white mb-2">Recibe tu Pedido</h3>
             <p className="text-xs text-white/70">Atención comercial y despacho a nivel nacional.</p>
           </div>
