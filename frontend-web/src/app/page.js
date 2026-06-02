@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import SearchModule from '@/components/SearchModule';
 import SearchSkeleton from '@/components/SearchSkeleton';
+import LogisticsSection from '@/components/LogisticsSection';
 import { Suspense } from 'react';
 import { PRODUCT_CATEGORIES, HOME_SEO_HUB_BRANDS, SITE_URL } from '@/config/seo.config';
 
@@ -211,6 +212,11 @@ export default function HomePage() {
         </div>
       </section>
 
+
+
+
+      {/* ── SECCIÓN: NUESTRA OPERACIÓN LOGÍSTICA REAL (Credibilidad B2B) ── */}
+      <LogisticsSection />
 
 
 
