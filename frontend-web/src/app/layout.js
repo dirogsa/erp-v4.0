@@ -51,8 +51,8 @@ export default function RootLayout({ children }) {
               </a>
             </div>
             <div className="flex items-center gap-3">
-              <a href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20deseo%20cotizar%20filtros%20al%20por%20mayor." target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:text-emerald-400 transition-colors flex items-center gap-1">
-                Cotiza por WhatsApp →
+              <a href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20necesito%20asistencia%20en%20l%C3%ADnea." target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:text-emerald-400 transition-colors flex items-center gap-1">
+                Asistencia en línea →
               </a>
             </div>
           </div>
@@ -155,11 +155,11 @@ export default function RootLayout({ children }) {
 
         {/* ── BOTÓN FLOTANTE DE WHATSAPP PREMIUM CON NÚMERO VISIBLE ── */}
         <a
-          href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20deseo%20cotizar%20filtros%20al%20por%20mayor."
+          href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20necesito%20asistencia%20en%20l%C3%ADnea."
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-24 right-4 md:right-8 z-[60] flex items-center gap-3.5 px-4 py-2.5 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
-          aria-label="Cotizar por WhatsApp 991717240"
+          aria-label="Asistencia por WhatsApp 991717240"
         >
           {/* Onda expansiva de atención */}
           <span className="absolute left-4 inline-flex h-10 w-10 rounded-full bg-[#25D366]/20 animate-ping opacity-75" />
@@ -190,10 +190,10 @@ export default function RootLayout({ children }) {
             <span className="sr-only">Buscar productos</span>
             <MagnifyingGlassIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
-          
+        {/* ── NAVEGACIÓN MÓVIL GLOBAL (Bottom Nav) ── */}
           <Link href="/carrito" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Cotización">
             <span className="sr-only">Mi lista de cotización</span>
-            <ShoppingCartIcon className="h-6 w-6 transition-transform group-active:scale-90" />
+            <ShoppingCartIcon className="h-6 w-6 transition-transform group-active:scale-90 text-brand-primary" />
           </Link>
           
           <Link href="/pedidos" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Pedidos">
@@ -201,7 +201,6 @@ export default function RootLayout({ children }) {
             <ClipboardDocumentListIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
         </nav>
-
       </body>
     </html>
   );
