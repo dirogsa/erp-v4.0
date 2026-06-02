@@ -82,38 +82,38 @@ export default function HomePage() {
           Importación y Distribución Nacional
         </span>
         <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] tracking-tighter mb-4 max-w-4xl">
-          Plataforma Mayorista de <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-emerald-300">Filtros Automotrices</span> en Perú
+          Plataforma B2B de <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-emerald-300">Abastecimiento de Filtros</span>
         </h1>
         <p className="text-base md:text-lg text-white/80 max-w-2xl mb-6 leading-relaxed">
-          Cotiza online filtros <strong>WIX, Filtron, Hengst, TOTACHI y Asakashi</strong> para vehículos livianos, pesados y líneas especiales.
+          Cotiza online filtros originales y certificados OEM de marcas líderes como <strong>WIX, Filtron y Hengst</strong> para vehículos livianos, SUVs, camionetas y modelos de alta gama.
         </p>
         
-        <ul className="flex flex-col gap-3 mb-8 text-sm md:text-base text-white/80 text-left max-w-2xl">
+        <ul className="flex flex-col gap-3 mb-8 text-sm md:text-base text-white/85 text-left max-w-2xl">
           <li className="flex items-start gap-3">
             <span className="text-brand-primary font-black mt-0.5">✅</span>
-            <span><strong>Cotizaciones web automatizadas</strong> con gestión en tiempo real.</span>
+            <span><strong>Cotización Web Mayorista:</strong> Precios preferenciales y disponibilidad inmediata.</span>
           </li>
           <li className="flex items-start gap-3">
             <span className="text-brand-primary font-black mt-0.5">✅</span>
-            <span><strong>Acceso B2B</strong> para talleres, flotas y distribuidores a nivel nacional.</span>
+            <span><strong>Socios de Concesionarias y Talleres:</strong> Filtros certificados que no alteran la garantía de fábrica.</span>
           </li>
           <li className="flex items-start gap-3">
             <span className="text-brand-primary font-black mt-0.5">✅</span>
-            <span><strong>Asesoría rápida</strong> vía WhatsApp para acompañamiento comercial.</span>
+            <span><strong>Líderes en Distribución Regional:</strong> Despachos y envíos rápidos diarios a provincias en todo el Perú.</span>
           </li>
           <li className="flex items-start gap-3">
             <span className="text-brand-primary font-black mt-0.5">✅</span>
-            <span><em>Disponibilidad de líneas especiales para vehículos de alta gama bajo pedido.</em></span>
+            <span><strong>Especialistas en Carga Ligera & Premium:</strong> Alta disponibilidad para SUVs, camionetas y autos de alta gama.</span>
           </li>
         </ul>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
           <Link href="#search-heading" className="bg-brand-primary text-[#0A0A0B] px-6 py-3.5 md:py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] text-center flex items-center justify-center gap-2">
-            Iniciar Cotización Web
+            Acceder a Cotización Web
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
           </Link>
           <Link href="/catalogo" className="border border-white/20 bg-[#141518]/80 text-white px-6 py-3.5 md:py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2 text-center">
-            Explorar Catálogo
+            Ver Catálogo Mayorista
           </Link>
         </div>
       </section>
@@ -169,41 +169,49 @@ export default function HomePage() {
 
 
 
-      {/* ── SECCIÓN DE AUTORIDAD LOGÍSTICA (B2B) ── */}
-      <section className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-16">
-        {/* Card 1: Cobertura Nacional */}
-        <div className="bg-[#141518]/60 backdrop-blur-md border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center group hover:border-brand-primary/50 transition-colors">
-          <div className="h-16 w-16 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <svg className="w-8 h-8 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          </div>
-          <h3 className="text-xl font-black text-white mb-3">Cobertura Nacional</h3>
-          <p className="text-sm text-white/60">
-            Despachos diarios en Lima y envíos rápidos a provincias en todo el Perú.
-          </p>
+      {/* ── SECCIÓN: CANALES DE ABASTECIMIENTO (Prueba Social & Confianza B2B) ── */}
+      <section className="w-full mb-16 md:mb-20" aria-labelledby="channels-heading">
+        <div className="text-center mb-8">
+          <h2 id="channels-heading" className="text-2xl md:text-3xl font-black text-white mb-2">Canales de Abastecimiento Especializado</h2>
+          <p className="text-white/60 text-sm md:text-base">Garantizamos disponibilidad, certificación OEM y soporte para cada segmento.</p>
         </div>
 
-        {/* Card 2: Stock Permanente */}
-        <div className="bg-[#141518]/60 backdrop-blur-md border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center group hover:border-brand-primary/50 transition-colors">
-          <div className="h-16 w-16 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <svg className="w-8 h-8 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Canal 1: Concesionarias */}
+          <div className="bg-[#141518]/40 border border-white/5 rounded-2xl p-6 hover:border-brand-primary/30 transition-all duration-300">
+            <h3 className="text-brand-primary font-black text-xs uppercase tracking-widest mb-2">Casas de Auto y Concesionarias</h3>
+            <p className="text-xs text-white/70 leading-relaxed">
+              Cumplimos los estándares internacionales exigidos por fabricantes para mantener la garantía de fábrica en vehículos nuevos de pasajeros y SUVs.
+            </p>
           </div>
-          <h3 className="text-xl font-black text-white mb-3">Stock Permanente</h3>
-          <p className="text-sm text-white/60">
-            Alta disponibilidad de filtros automotrices con almacenes centralizados y rotación constante.
-          </p>
-        </div>
 
-        {/* Card 3: Atención B2B */}
-        <div className="bg-[#141518]/60 backdrop-blur-md border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center group hover:border-brand-primary/50 transition-colors">
-          <div className="h-16 w-16 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-            <svg className="w-8 h-8 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+          {/* Canal 2: Talleres de Prestigio */}
+          <div className="bg-[#141518]/40 border border-white/5 rounded-2xl p-6 hover:border-brand-primary/30 transition-all duration-300">
+            <h3 className="text-brand-primary font-black text-xs uppercase tracking-widest mb-2">Talleres Especializados y Premium</h3>
+            <p className="text-xs text-white/70 leading-relaxed">
+              Filtros certificados para marcas europeas, americanas y líneas exclusivas de alta gama. Máximo rendimiento del motor bajo pedido.
+            </p>
           </div>
-          <h3 className="text-xl font-black text-white mb-3">Atención Especializada</h3>
-          <p className="text-sm text-white/60">
-            Cotizaciones mayoristas para talleres, flotas y distribuidores. Disponibilidad de líneas especiales para vehículos premium y de alta gama bajo pedido.
-          </p>
+
+          {/* Canal 3: Lubricentros y Multi-marcas */}
+          <div className="bg-[#141518]/40 border border-white/5 rounded-2xl p-6 hover:border-brand-primary/30 transition-all duration-300">
+            <h3 className="text-brand-primary font-black text-xs uppercase tracking-widest mb-2">Lubricentros y Mayoristas</h3>
+            <p className="text-xs text-white/70 leading-relaxed">
+              Abastecimiento constante para stock diario. Precios preferenciales y escalables por volumen en filtros de alta rotación (aceite, aire y cabina).
+            </p>
+          </div>
+
+          {/* Canal 4: Provincias */}
+          <div className="bg-[#141518]/40 border border-white/5 rounded-2xl p-6 hover:border-brand-primary/30 transition-all duration-300">
+            <h3 className="text-brand-primary font-black text-xs uppercase tracking-widest mb-2">Distribución en Provincias</h3>
+            <p className="text-xs text-white/70 leading-relaxed">
+              Consolidación logística con envíos rápidos diarios a todo el interior del país. Aseguramos disponibilidad en tu región sin retrasos.
+            </p>
+          </div>
         </div>
       </section>
+
+
 
 
       {/* ── HUB SEO PROGRAMÁTICO (Linking Interno — Carreteras para Googlebot) ── */}
@@ -295,7 +303,7 @@ export default function HomePage() {
         <h2 id="seo-about-heading" className="sr-only">Sobre DIROGSA</h2>
         <div className="text-xs md:text-sm leading-relaxed text-left max-w-4xl mx-auto opacity-70">
           <p>
-            DIROGSA es un importador y distribuidor mayorista de filtros automotrices en Perú. Nuestra plataforma B2B permite cotizar online filtros WIX, Filtron, Hengst, Totachi y otras marcas premium para vehículos livianos, pesados y líneas especiales. Atendemos talleres, lubricentros, flotas y distribuidores con cobertura nacional y soporte comercial especializado.
+            DIROGSA es un importador y distribuidor mayorista de filtros automotrices en Perú, especialista en carga ligera, SUVs, camionetas y vehículos de alta gama. Nuestra plataforma B2B permite cotizar online filtros originales y certificados OEM de marcas premium como WIX, Filtron y Hengst. Atendemos a concesionarias autorizadas, talleres especializados, lubricentros y distribuidores con cobertura y envíos rápidos a provincias a nivel nacional.
           </p>
         </div>
       </section>
