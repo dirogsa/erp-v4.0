@@ -56,19 +56,53 @@ const PRODUCT_BRANDS_CATALOG = [
   },
 ];
 
-function findBrandBySlug(slug) {
-  return PRODUCT_BRANDS_CATALOG.find(
-    (b) => b.slug === slug.toLowerCase() || b.name.toLowerCase().replace(/[\s-]+/g, '-') === slug.toLowerCase()
-  );
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+async function findBrandBySlug(slug) {
+  try {
+    const res = await fetch(`${API_BASE}/shop/seo/brands`, { next: { revalidate: 86400 } });
+    if (!res.ok) return null;
+    const brands = await res.json();
+    const dynamicBrand = brands.find(b => b.slug === slug.toLowerCase());
+    
+    if (!dynamicBrand) {
+      // Fallback a las hardcodeadas en caso de falla de sincronización
+      return PRODUCT_BRANDS_CATALOG.find(b => b.slug === slug.toLowerCase());
+    }
+    
+    const premiumData = PRODUCT_BRANDS_CATALOG.find(b => b.slug === slug.toLowerCase());
+    if (premiumData) {
+      return { ...dynamicBrand, ...premiumData };
+    }
+    
+    // Plantilla Genérica B2B para marcas nuevas ingresadas en el ERP
+    return {
+      slug: dynamicBrand.slug,
+      name: dynamicBrand.name,
+      origin: 'Importado',
+      description: `Filtros automotrices e industriales de la marca ${dynamicBrand.name}. Alta tecnología en filtración.`,
+      tags: ['Filtros de Aceite', 'Filtros de Aire', 'Filtros de Combustible'],
+      color: '#38BDF8', // Color dinámico (Sky Blue)
+    };
+  } catch (error) {
+    return PRODUCT_BRANDS_CATALOG.find(b => b.slug === slug.toLowerCase());
+  }
 }
 
 export async function generateStaticParams() {
-  return PRODUCT_BRANDS_CATALOG.map((b) => ({ brand: b.slug }));
+  try {
+    const res = await fetch(`${API_BASE}/shop/seo/brands`, { next: { revalidate: 86400 } });
+    if (!res.ok) return PRODUCT_BRANDS_CATALOG.map((b) => ({ brand: b.slug }));
+    const brands = await res.json();
+    return brands.map((b) => ({ brand: b.slug }));
+  } catch (error) {
+    return PRODUCT_BRANDS_CATALOG.map((b) => ({ brand: b.slug }));
+  }
 }
 
 export async function generateMetadata({ params }) {
   const { brand: brandSlug } = await params;
-  const brandInfo = findBrandBySlug(brandSlug);
+  const brandInfo = await findBrandBySlug(brandSlug);
   if (!brandInfo) return { title: 'Marca no encontrada | DIROGSA' };
 
   const title = `Filtros ${brandInfo.name} en Perú | DIROGSA`;
@@ -88,7 +122,7 @@ export async function generateMetadata({ params }) {
 
 export default async function MarcaHubPage({ params }) {
   const { brand: brandSlug } = await params;
-  const brandInfo = findBrandBySlug(brandSlug);
+  const brandInfo = await findBrandBySlug(brandSlug);
 
   if (!brandInfo) notFound();
 
@@ -285,6 +319,12 @@ export default async function MarcaHubPage({ params }) {
               {b.name}
             </Link>
           ))}
+          <Link
+             href="/marca"
+             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest border transition-all hover:scale-105 hover:bg-white/5 text-white/50 border-white/10"
+          >
+             Ver Todo El Catálogo →
+          </Link>
         </div>
       </section>
 

@@ -56,7 +56,7 @@ export default async function sitemap() {
       changeFrequency: 'daily',
       priority: 0.95,
     })),
-    // Tier 2B: Brand Hubs — 4 URLs que agrupan por marca de filtro (WIX, MANN, AZUMI, TOTACHI)
+    // Tier 2B: Brand Hubs — URLs dinámicas
     ...PRODUCT_BRAND_HUBS.map(brand => ({
       url: `${SITE_URL}/marca/${brand}`,
       lastModified: new Date(),
@@ -90,6 +90,24 @@ export default async function sitemap() {
       }));
       dynamicPages.push(...productPages);
       console.log(`[Sitemap] ✅ ${productPages.length} páginas de productos añadidas.`);
+    }
+
+    // ── TIER 2.5: Marcas Dinámicas (Nuevas marcas desde ERP) ──
+    const brandsRes = await fetch(`${API_BASE}/shop/seo/brands`, {
+      next: { revalidate: 86400 },
+      signal: controller.signal,
+    });
+    if (brandsRes.ok) {
+      const brands = await brandsRes.json();
+      const newBrands = brands.filter(b => !PRODUCT_BRAND_HUBS.includes(b.slug));
+      const newBrandPages = newBrands.map(b => ({
+        url: `${SITE_URL}/marca/${b.slug}`,
+        lastModified: b.updated_at ? new Date(b.updated_at) : new Date(),
+        changeFrequency: 'weekly',
+        priority: 0.95,
+      }));
+      dynamicPages.push(...newBrandPages);
+      console.log(`[Sitemap] ✅ ${newBrandPages.length} páginas de marcas dinámicas añadidas.`);
     }
 
     // ── TIER 4 & 5: Vehículos (filtrados por whitelist de calidad) ──

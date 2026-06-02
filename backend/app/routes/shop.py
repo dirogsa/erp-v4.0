@@ -267,6 +267,30 @@ async def get_seo_products():
     products = await Product.find({"is_active_in_shop": True}).project({"sku": 1, "updated_at": 1}).to_list()
     return [{"sku": p.sku, "updated_at": p.updated_at.isoformat() if p.updated_at else None} for p in products]
 
+@router.get("/seo/brands")
+async def get_seo_brands():
+    """Ultra-fast endpoint for ISR and Sitemap: Returns active filter/product brands"""
+    from app.models.inventory import ProductBrand
+    brands = await ProductBrand.find({"is_active": True}).project({"name": 1, "created_at": 1}).to_list()
+    # Normalize name to slug
+    from app.utils.norm_utils import canonical_sku # we can reuse a slugifier or just string manipulation
+    import re
+    def slugify(text: str):
+        return re.sub(r'[\W_]+', '-', text.lower()).strip('-')
+    
+    return [{"slug": slugify(b.name), "name": b.name, "updated_at": b.created_at.isoformat() if b.created_at else None} for b in brands]
+
+@router.get("/seo/categories")
+async def get_seo_categories():
+    """Ultra-fast endpoint for ISR and Sitemap: Returns active categories"""
+    from app.models.inventory import ProductCategory
+    categories = await ProductCategory.find({}).project({"name": 1}).to_list()
+    import re
+    def slugify(text: str):
+        return re.sub(r'[\W_]+', '-', text.lower()).strip('-')
+        
+    return [{"slug": slugify(c.name), "name": c.name} for c in categories]
+
 @router.post("/redeem")
 async def redeem_prize(
     req: RedemptionRequest,

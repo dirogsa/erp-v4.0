@@ -28,32 +28,61 @@ export const revalidate = 43200;
  * Normaliza un slug de URL a un name de categoría del seo.config.
  * Ejemplo: "filtros-de-aceite" → busca el slug 'ACEITE' en PRODUCT_CATEGORIES
  */
-function findCategoryBySlug(slug) {
-  return PRODUCT_CATEGORIES.find(
-    (c) => c.slug.toLowerCase() === slug.toUpperCase() || 
-           c.label.toLowerCase().replace(/\s+/g, '-') === slug.toLowerCase()
-  );
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+/**
+ * Normaliza un slug de URL y consulta el backend si no existe localmente.
+ */
+async function findCategoryBySlug(slug) {
+  try {
+    const res = await fetch(`${API_BASE}/shop/seo/categories`, { next: { revalidate: 86400 } });
+    if (!res.ok) return PRODUCT_CATEGORIES.find(c => c.slug.toLowerCase() === slug.toLowerCase());
+    const cats = await res.json();
+    const dynamicCat = cats.find(c => c.slug === slug.toLowerCase());
+    
+    if (!dynamicCat) {
+      return PRODUCT_CATEGORIES.find(c => c.slug.toLowerCase() === slug.toLowerCase());
+    }
+    
+    const premiumData = PRODUCT_CATEGORIES.find(c => c.slug.toLowerCase() === slug.toLowerCase());
+    if (premiumData) {
+      return { ...dynamicCat, ...premiumData };
+    }
+    
+    return {
+      slug: dynamicCat.slug,
+      label: dynamicCat.name,
+      emoji: '📦',
+    };
+  } catch (error) {
+    return PRODUCT_CATEGORIES.find(c => c.slug.toLowerCase() === slug.toLowerCase());
+  }
 }
 
 // Pre-genera en build-time las páginas de cada categoría (SSG puro)
 export async function generateStaticParams() {
-  return PRODUCT_CATEGORIES.map((c) => ({
-    categoria: c.slug.toLowerCase(),
-  }));
+  try {
+    const res = await fetch(`${API_BASE}/shop/seo/categories`, { next: { revalidate: 86400 } });
+    if (!res.ok) return PRODUCT_CATEGORIES.map((c) => ({ categoria: c.slug.toLowerCase() }));
+    const cats = await res.json();
+    return cats.map((c) => ({ categoria: c.slug }));
+  } catch (error) {
+    return PRODUCT_CATEGORIES.map((c) => ({ categoria: c.slug.toLowerCase() }));
+  }
 }
 
 export async function generateMetadata({ params }) {
   const { categoria } = await params;
-  const cat = findCategoryBySlug(categoria);
+  const cat = await findCategoryBySlug(categoria);
   if (!cat) return { title: 'Categoría no encontrada | DIROGSA' };
 
-  const title = `${cat.label} | Catálogo DIROGSA Perú`;
-  const description = `Catálogo completo de ${cat.label.toLowerCase()} en Perú. Marcas WIX Filters, MANN-FILTER, AZUMI y TOTACHI. Stock disponible, envíos a nivel nacional.`;
+  const title = `${cat.label} al por Mayor | Catálogo B2B DIROGSA Perú`;
+  const description = `Catálogo completo de ${cat.label.toLowerCase()} en Perú. Venta al por mayor para talleres y flotas con stock disponible y envíos a nivel nacional.`;
 
   return {
     title,
     description,
-    keywords: [cat.label, `${cat.label} peru`, `comprar ${cat.label} peru`, 'filtros automotrices peru', 'dirogsa'],
+    keywords: [cat.label, `${cat.label} peru`, `cotizar ${cat.label} peru`, 'filtros automotrices peru', 'dirogsa mayorista'],
     alternates: { canonical: `${SITE_URL}/catalogo/${categoria}` },
     openGraph: {
       title,
@@ -66,7 +95,7 @@ export async function generateMetadata({ params }) {
 
 export default async function CategoriaHubPage({ params }) {
   const { categoria } = await params;
-  const cat = findCategoryBySlug(categoria);
+  const cat = await findCategoryBySlug(categoria);
 
   if (!cat) notFound();
 
@@ -140,7 +169,7 @@ export default async function CategoriaHubPage({ params }) {
 
         {/* Sub-nav: otras categorías (Cross-Linking entre Hubs) */}
         <div className="flex flex-wrap gap-2 mt-6">
-          {PRODUCT_CATEGORIES.filter(c => c.slug !== cat.slug).map(c => (
+          {PRODUCT_CATEGORIES.filter(c => c.slug.toLowerCase() !== cat.slug.toLowerCase()).map(c => (
             <Link
               key={c.slug}
               href={`/catalogo/${c.slug.toLowerCase()}`}

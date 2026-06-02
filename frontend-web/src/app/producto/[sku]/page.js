@@ -22,7 +22,7 @@ export async function generateMetadata({ params }) {
   // Helper para intenciones de búsqueda según categoría (Filtros vs otros repuestos)
   const isFilter = product.category?.toLowerCase().includes('filtro');
   const baseType = isFilter ? 'Filtro de Aire' : product.category || 'Repuesto';
-  const mainTitle = `${baseType} ${product.brand} ${product.sku} | Comprar en Perú`;
+  const mainTitle = `${baseType} ${product.brand} ${product.sku} | Cotizar Mayorista Perú`;
   
   // Construcción semántica de la descripción para máximo CTR local
   let description = `¿Buscas ${baseType} código ${product.sku} de la marca ${product.brand} en Perú? `;
@@ -40,7 +40,7 @@ export async function generateMetadata({ params }) {
     title: mainTitle,
     description,
     keywords: [
-      product.sku, `${baseType} ${product.sku}`, `comprar ${product.sku} peru`, 
+      product.sku, `${baseType} ${product.sku}`, `cotizar ${product.sku} al por mayor peru`, 
       product.brand, `${product.brand} peru`, 'filtros automotrices peru', 'dirogsa',
       ...product.equivalences.slice(0,3).map(e => (e.code || e))
     ].join(', '),

@@ -8,15 +8,15 @@ import { PRODUCT_CATEGORIES, HOME_SEO_HUB_BRANDS, SITE_URL } from '@/config/seo.
 
 // Metadata a nivel de página (extiende el template del layout)
 export const metadata = {
-  title: 'DIROGSA | Filtros y Repuestos Automotrices en Perú',
-  description: 'Importador oficial de filtros importados en Perú. Venta mayorista y minorista de WIX Filters, MANN-FILTER, AZUMI y TOTACHI para todo tipo de vehículos.',
+  title: 'Distribuidor e Importador de Filtros Automotrices en Perú (Wix, Filtron, Hengst, Asakashi, Totachi, Mann-Filter)',
+  description: 'Catálogo oficial de venta al por mayor de filtros importados. Distribuidor B2B e importador con cobertura nacional a todo el Perú.',
   alternates: {
     canonical: SITE_URL,
   },
   openGraph: {
     url: SITE_URL,
-    title: 'DIROGSA | Filtros Importados y Repuestos en Perú',
-    description: 'Catálogo oficial de filtros importados WIX, MANN, AZUMI y TOTACHI en Perú. Distribuidor oficial con cobertura nacional.',
+    title: 'Distribuidor e Importador de Filtros Automotrices en Perú (Wix, Filtron, Hengst, Asakashi, Totachi, Mann-Filter) | DIROGSA',
+    description: 'Catálogo oficial al por mayor de filtros importados para Perú. Distribuidor "Business to Business (B2B)" con cobertura nacional.',
     images: [{ url: 'https://dirogsa.com/og-home.jpg', width: 1200, height: 630 }],
   },
 };
@@ -28,7 +28,7 @@ export default function HomePage() {
     '@type': 'WebSite',
     name: 'DIROGSA',
     url: 'https://dirogsa.com',
-    description: 'Importador y distribuidor oficial de filtros automotrices en Perú.',
+    description: 'Importador y distribuidor al por mayor de filtros automotrices en Perú.',
     potentialAction: {
       '@type': 'SearchAction',
       target: {
@@ -42,11 +42,11 @@ export default function HomePage() {
   // ── JSON-LD: Organization (Genera Knowledge Panel en Google) ──
   const organizationJsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'Organization',
+    '@type': 'WholesaleStore',
     name: 'DIROGSA',
     url: 'https://dirogsa.com',
     logo: 'https://dirogsa.com/logo.png',
-    description: 'Importador y distribuidor oficial de filtros automotrices e industriales en Perú.',
+    description: 'Importador y distribuidor al por mayor de filtros automotrices e industriales en Perú.',
     address: {
       '@type': 'PostalAddress',
       addressCountry: 'PE',
@@ -64,7 +64,7 @@ export default function HomePage() {
 
   return (
     <div className="w-full mx-auto max-w-7xl px-4 md:px-8 py-6 md:py-12 flex flex-col md:gap-12">
-      
+
       {/* ── JSON-LD SCHEMAS INVISIBLES PARA GOOGLE ── */}
       <script
         type="application/ld+json"
@@ -76,16 +76,72 @@ export default function HomePage() {
       />
 
       {/* ── SECCIÓN: TITULAR OCULTO (Solo SEO) ── */}
-      <h1 className="sr-only">Catálogo de Repuestos y Filtros DIROGSA - Buscador Principal</h1>
+      {/* ── HERO SECTION B2B PREMIUM ── */}
+      <section className="w-full text-center md:text-left pt-2 pb-8 md:pt-4 md:pb-12 flex flex-col md:items-start items-center">
+        <span className="px-3 py-1 text-[10px] md:text-xs font-black uppercase tracking-widest text-brand-primary border border-brand-primary/30 bg-brand-primary/10 rounded-full mb-4 inline-block">
+          Importación y Distribución Nacional
+        </span>
+        <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] tracking-tighter mb-4 max-w-4xl">
+          Distribuidor al por Mayor de <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-emerald-300">Filtros Automotrices</span> en Perú
+        </h1>
+        <p className="text-sm md:text-base text-white/70 max-w-2xl mb-8 leading-relaxed">
+          Importación y distribución nacional de filtros <strong>WIX, Filtron, Asakashi, TOTACHI y Hengst</strong>. Atención especializada al por mayor para flotas y talleres, y <strong>venta al por menor para modelos muy exclusivos de alta gama</strong>.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+          <a href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20deseo%20cotizar%20filtros%20al%20por%20mayor." target="_blank" rel="noopener noreferrer" className="bg-brand-primary text-[#0A0A0B] px-6 py-3.5 md:py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] text-center flex items-center justify-center gap-2">
+            Cotiza por WhatsApp
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+          </a>
+          <Link href="/catalogo" className="border border-white/20 bg-white/5 text-white px-6 py-3.5 md:py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center gap-2 text-center">
+            Ver Catálogo
+          </Link>
+        </div>
+      </section>
+
+      {/* ── SECCIÓN DE AUTORIDAD LOGÍSTICA (B2B) ── */}
+      <section className="w-full grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-16">
+        {/* Card 1: Cobertura Nacional */}
+        <div className="bg-[#141518]/60 backdrop-blur-md border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center group hover:border-brand-primary/50 transition-colors">
+          <div className="h-16 w-16 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <svg className="w-8 h-8 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <h3 className="text-xl font-black text-white mb-3">Cobertura Nacional</h3>
+          <p className="text-sm text-white/60">
+            Despachos diarios a Lima y envíos rápidos y seguros a provincias a nivel nacional. Llegamos donde esté tu negocio.
+          </p>
+        </div>
+
+        {/* Card 2: Stock Permanente */}
+        <div className="bg-[#141518]/60 backdrop-blur-md border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center group hover:border-brand-primary/50 transition-colors">
+          <div className="h-16 w-16 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <svg className="w-8 h-8 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+          </div>
+          <h3 className="text-xl font-black text-white mb-3">Stock Permanente</h3>
+          <p className="text-sm text-white/60">
+            Almacenes centralizados en Lima con alta rotación. Garantizamos disponibilidad para no detener tu operación.
+          </p>
+        </div>
+
+        {/* Card 3: Atención B2B */}
+        <div className="bg-[#141518]/60 backdrop-blur-md border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center group hover:border-brand-primary/50 transition-colors">
+          <div className="h-16 w-16 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <svg className="w-8 h-8 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+          </div>
+          <h3 className="text-xl font-black text-white mb-3">Atención Integral</h3>
+          <p className="text-sm text-white/60">
+            Cotizaciones por volumen para clientes verificados y venta al por menor para modelos muy exclusivos de alta gama que no encuentras en tiendas convencionales.
+          </p>
+        </div>
+      </section>
 
       {/* ── CAROUSEL DE NOVEDADES (Responsive Grid on Desktop) ── */}
       <section aria-labelledby="news-heading" className="w-full mb-8 md:mb-0">
         <h2 id="news-heading" className="sr-only">Últimas novedades de la empresa</h2>
         <div className="flex overflow-x-auto snap-x md:snap-none no-scrollbar gap-4 md:grid md:grid-cols-3 pb-2 md:pb-0">
-          
+
           <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10">
-            <Image 
-              src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800" 
+            <Image
+              src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=800"
               alt="Almacén de logística DIROGSA — Distribución Nacional"
               className="absolute inset-0 w-full h-full object-cover opacity-40"
               priority={true}
@@ -101,10 +157,10 @@ export default function HomePage() {
               <p className="text-[10px] md:text-xs text-[#38BDF8]">Cobertura en Lima, Arequipa, Puno y todas las provincias</p>
             </div>
           </article>
-          
+
           <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10">
-            <Image 
-              src="https://images.unsplash.com/photo-1537462715879-360eeb61a0ad?auto=format&fit=crop&q=80&w=800" 
+            <Image
+              src="https://images.unsplash.com/photo-1537462715879-360eeb61a0ad?auto=format&fit=crop&q=80&w=800"
               alt="Tecnología Nanoflow — Filtración de alta eficiencia"
               className="absolute inset-0 w-full h-full object-cover opacity-40"
               fill={true}
@@ -119,10 +175,10 @@ export default function HomePage() {
               <p className="text-[10px] md:text-xs text-[#FB923C]">Eficiencia de filtrado de hasta 99.7%</p>
             </div>
           </article>
-          
+
           <article className="min-w-[85%] md:min-w-0 snap-center relative rounded-2xl overflow-hidden h-36 md:h-48 border border-white/10">
-            <Image 
-              src="https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&q=80&w=800" 
+            <Image
+              src="https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&q=80&w=800"
               alt="Línea de Carga Ligera — Filtros para SUVs y vehículos ligeros"
               className="absolute inset-0 w-full h-full object-cover opacity-40"
               fill={true}
@@ -137,7 +193,7 @@ export default function HomePage() {
               <p className="text-[10px] md:text-xs text-brand-primary">Máximo rendimiento y protección para tu SUV o camioneta</p>
             </div>
           </article>
-          
+
         </div>
       </section>
 
@@ -154,14 +210,14 @@ export default function HomePage() {
 
         {/* ── BOTONES DE ACCIÓN RÁPIDA (Ocupa 4 de 12 columnas en Desktop) ── */}
         <nav aria-label="Accesos Rápidos" className="w-full flex md:flex-col gap-3 md:gap-4 md:col-span-4 mt-auto md:mt-0">
-          <Link href="/catalogo" className="flex-1 md:flex-none bg-brand-primary text-[#0A0A0B] py-3.5 md:py-6 rounded-xl md:rounded-3xl font-black text-xs md:text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] md:shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+          <Link href="/catalogo" className="flex-1 md:flex-none bg-[#141518] text-white py-3.5 md:py-6 rounded-xl md:rounded-3xl font-black text-xs md:text-sm uppercase tracking-widest flex items-center justify-center gap-2 border border-white/10 hover:border-brand-primary/40 hover:text-brand-primary transition-all md:shadow-xl">
             <svg className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
-            CATÁLOGO
+            VER CATÁLOGO
           </Link>
           <Link href="/carrito" className="flex-1 md:flex-none bg-[#0D0E12] md:bg-[#141518] border border-brand-primary text-brand-primary py-3.5 md:py-6 rounded-xl md:rounded-3xl font-black text-xs md:text-sm uppercase tracking-widest flex items-center justify-center hover:bg-brand-primary/10 hover:text-white transition-all md:shadow-xl">
-            MI CARRITO
+            MI COTIZACIÓN
           </Link>
         </nav>
 
@@ -170,7 +226,7 @@ export default function HomePage() {
       {/* ── HUB SEO PROGRAMÁTICO (Linking Interno — Carreteras para Googlebot) ── */}
       <section aria-labelledby="seo-hub-heading" className="w-full mt-10 md:mt-16">
         <h2 id="seo-hub-heading" className="text-xs font-black uppercase tracking-widest mb-5" style={{ color: 'var(--brand-text-dim)' }}>Explorar por Categoría o Vehículo</h2>
-        
+
         {/* Categorías — links to /catalogo/[categoria] Hub pages */}
         <div className="mb-6">
           <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--brand-text-muted)' }}>Tipo de filtro</p>
@@ -246,16 +302,16 @@ export default function HomePage() {
 
       {/* ── SECCIÓN SEO SEMÁNTICA (Texto Enriquecido para Googlebot) ── */}
       <section aria-labelledby="seo-about-heading" className="w-full mt-10 md:mt-14 pt-8 border-t border-white/5" style={{ color: 'var(--brand-text-muted)' }}>
-        <h2 id="seo-about-heading" className="text-sm font-black text-white/50 uppercase tracking-widest mb-4">DIROGSA: Importador y Distribuidor Oficial de Filtros Automotrices en Perú</h2>
+        <h2 id="seo-about-heading" className="text-sm font-black text-white/50 uppercase tracking-widest mb-4">DIROGSA: Distribuidor e Importador de Filtros Automotrices con Venta al por Mayor</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs md:text-sm leading-relaxed text-justify md:text-left">
           <p>
-            Bienvenido al <strong>Catálogo de Repuestos y Filtros DIROGSA - Buscador Principal</strong>. Como <em>importador y distribuidor oficial en Perú</em>, nos especializamos en ofrecer la más alta calidad en soluciones de filtración vehicular e industrial. Nuestro inventario cuenta con un catálogo completo de repuestos originales y alternativos de primera línea. Encuentra en nuestra tienda <strong>filtros de aceite</strong>, <strong>filtros de aire</strong>, <strong>filtros de combustible</strong> y <strong>filtros de cabina</strong>, diseñados para garantizar el rendimiento óptimo y la protección del motor de tu vehículo en las exigentes rutas de nuestro país.
+            Bienvenido al <strong>Catálogo de Repuestos y Filtros DIROGSA - Buscador Principal</strong>. Como <em>distribuidor e importador en Perú</em>, nos especializamos en la <strong>venta al por mayor</strong> con <strong>cobertura nacional a todo el Perú</strong>. Nuestro inventario cuenta con un catálogo completo de repuestos originales y alternativos de primera línea para talleres, lubricentros y flotas. Encuentra <strong>filtros de aceite</strong>, <strong>filtros de aire</strong>, <strong>filtros de combustible</strong> y <strong>filtros de cabina</strong> diseñados para garantizar el rendimiento óptimo del motor.
           </p>
           <p>
-            Entendemos que la precisión es clave en el mantenimiento automotriz preventivo y correctivo. Por ello, nuestra plataforma tecnológica de ecommerce te permite realizar búsquedas exactas por <strong>código de producto, marca del vehículo, modelo o medidas técnicas específicas</strong>. De esta forma, aseguramos la compatibilidad perfecta para tu motor, reduciendo el riesgo de desgaste prematuro de piezas y maximizando el ahorro de combustible en tu flota o vehículo particular.
+            Entendemos que la precisión es clave en el mantenimiento automotriz preventivo. Nuestra plataforma te permite realizar búsquedas exactas por <strong>código de producto o vehículo</strong>. De esta forma, aseguramos la compatibilidad perfecta para el motor, ya sea para reducir el riesgo de desgaste en flotas corporativas, o para cuidar el motor de tu vehículo exclusivo de alta gama.
           </p>
           <p>
-            Trabajamos con las marcas más reconocidas a nivel mundial en el rubro automotriz, siendo líderes indiscutibles en <strong>Perú</strong> para la venta y distribución a nivel nacional de <strong>filtros importados</strong> de fabricantes premium como <strong>WIX Filters, MANN-FILTER, AZUMI y TOTACHI</strong>. Estos componentes integran tecnología de vanguardia y medios filtrantes de alta eficiencia para asegurar una protección superior al 99%. Nuestro catálogo está especializado en la línea ligera de autos de pasajeros, SUVs, camionetas pick-up y vehículos comerciales de carga ligera que recorren las diversas rutas peruanas. DIROGSA es tu aliado estratégico, comprometiéndonos a mantener tu vehículo siempre en movimiento con la máxima seguridad, exactitud en las compatibilidades y garantía de fábrica en cada repuesto. <strong>Envíos inmediatos a todo el Perú.</strong>
+            Somos líderes indiscutibles en <strong>Perú</strong> para la distribución al por mayor y menor de <strong>filtros importados</strong> de fabricantes premium como <strong>Wix, Filtron, Hengst, Asakashi, Totachi y Mann-Filter</strong>. DIROGSA es tu aliado estratégico comercial. <strong>Venta al por mayor para negocios, y venta al por menor para modelos muy exclusivos de alta gama con envíos inmediatos y cobertura nacional.</strong>
           </p>
         </div>
       </section>

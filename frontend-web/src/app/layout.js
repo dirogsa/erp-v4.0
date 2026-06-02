@@ -6,17 +6,17 @@ import VersionWatcher from '@/components/VersionWatcher';
 
 const inter = Inter({ subsets: ['latin'], weight: ['400','500','600','700','800','900'] });
 
-// SEO Metadata Perfecta
+// SEO Metadata Perfecta (B2B SEO)
 export const metadata = {
   metadataBase: new URL('https://www.dirogsa.com'),
   title: {
-    default: 'DIROGSA | Filtros y Repuestos Automotrices en Perú',
-    template: '%s | DIROGSA Filtros',
+    default: 'Distribuidor e Importador de Filtros Automotrices en Perú (Wix, Filtron, Hengst, Asakashi, Totachi, Mann-Filter)',
+    template: '%s | DIROGSA Al por mayor',
   },
-  description: 'Importador y distribuidor oficial de filtros automotrices en Perú. Catálogo completo de filtros importados WIX, MANN-FILTER, AZUMI y TOTACHI.',
-  keywords: ['filtros importados peru', 'filtros wix peru', 'filtros mann peru', 'filtros azumi', 'filtros totachi', 'filtros automotrices', 'repuestos peru', 'dirogsa', 'filtros aceite'],
+  description: 'Catálogo oficial de venta al por mayor de filtros importados. Distribuidor e importador con cobertura nacional a todo el Perú.',
+  keywords: ['distribuidor wix peru', 'filtros automotrices al por mayor', 'importador filtros peru', 'proveedor filtros lubricentro', 'filtros para flotas', 'filtros camiones peru'],
   openGraph: {
-    siteName: 'DIROGSA Filtros',
+    siteName: 'DIROGSA Distribución',
     locale: 'es_PE',
     type: 'website',
   },
@@ -37,6 +37,27 @@ export default function RootLayout({ children }) {
       <body className={`${inter.className} bg-[#0D0E12] text-white min-h-screen flex flex-col overflow-x-hidden pb-20`}>
         <VersionWatcher />
         
+        {/* ── TOP BAR CORPORATIVO (B2B) ── */}
+        <div className="w-full bg-[#0A0A0B] border-b border-white/5 py-2 px-4 text-[10px] sm:text-xs font-bold text-white/60">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5 hidden sm:flex">
+                <svg className="w-4 h-4 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                Distribución Nacional
+              </span>
+              <a href="tel:+51991717240" className="flex items-center gap-1.5 hover:text-white transition-colors">
+                <svg className="w-4 h-4 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                +51 991 717 240
+              </a>
+            </div>
+            <div className="flex items-center gap-3">
+              <a href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20deseo%20cotizar%20filtros%20al%20por%20mayor." target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:text-emerald-400 transition-colors flex items-center gap-1">
+                Cotiza por WhatsApp →
+              </a>
+            </div>
+          </div>
+        </div>
+
         {/* ── HEADER RESPONSIVO ── */}
         <header className="sticky top-0 z-50 bg-[#0D0E12]/90 backdrop-blur-md border-b border-white/5">
           <div className="max-w-7xl mx-auto px-4 py-3 md:py-4 flex items-center justify-between">
@@ -134,11 +155,11 @@ export default function RootLayout({ children }) {
 
         {/* ── BOTÓN FLOTANTE DE WHATSAPP PREMIUM CON NÚMERO VISIBLE ── */}
         <a
-          href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20deseo%20consultar%20por%20un%20repuesto."
+          href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20deseo%20cotizar%20filtros%20al%20por%20mayor."
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-24 right-4 md:right-8 z-[60] flex items-center gap-3.5 px-4 py-2.5 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
-          aria-label="Contactar por WhatsApp 991717240"
+          aria-label="Cotizar por WhatsApp 991717240"
         >
           {/* Onda expansiva de atención */}
           <span className="absolute left-4 inline-flex h-10 w-10 rounded-full bg-[#25D366]/20 animate-ping opacity-75" />
@@ -170,8 +191,8 @@ export default function RootLayout({ children }) {
             <MagnifyingGlassIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
           
-          <Link href="/carrito" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Carrito">
-            <span className="sr-only">Mi carrito de compras</span>
+          <Link href="/carrito" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Cotización">
+            <span className="sr-only">Mi lista de cotización</span>
             <ShoppingCartIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
           
