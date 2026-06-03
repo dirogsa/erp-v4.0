@@ -49,21 +49,21 @@ export default function RootLayout({ children }) {
               t.src=v;s=b.getElementsByTagName(e)[0];
               s.parentNode.insertBefore(t,s)}(window, document,'script',
               'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', 'XXXXXXXXXXXXXXX'); /* Reemplazar con ID de Pixel */
+              fbq('init', '1908889586438025');
               fbq('track', 'PageView');
             `,
           }}
         />
       </head>
-      {/* ── TRACKING B2B (No bloqueante) ── */}
-      <GoogleTagManager gtmId="GTM-XXXXXXX" />
-      <GoogleAnalytics gaId="G-XXXXXXXXXX" />
 
       {/* 
         El padding inferior (pb-20) evita que el BottomNav tape el contenido.
         Se aplica a todas las pantallas ya que el BottomNav ahora es global.
       */}
       <body className={`${inter.className} bg-[#0D0E12] text-white min-h-screen flex flex-col pb-20`}>
+        {/* ── TRACKING B2B (No bloqueante) ── */}
+        <GoogleTagManager gtmId="GTM-5XZ6ZJQV" />
+        <GoogleAnalytics gaId="G-LEQPFX5186" />
         <VersionWatcher />
         
         {/* ── TOP BAR CORPORATIVO (B2B) ── */}
@@ -83,7 +83,7 @@ export default function RootLayout({ children }) {
               <TrackingLink 
                 external
                 href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20necesito%20asistencia%20en%20l%C3%ADnea."
-                eventName="whatsapp_click"
+                eventName="click_whatsapp"
                 payload={{ button_context: 'top_bar' }}
                 className="text-brand-primary hover:text-emerald-400 transition-colors flex items-center gap-1"
               >
@@ -191,7 +191,7 @@ export default function RootLayout({ children }) {
         {/* ── BOTÓN FLOTANTE DE WHATSAPP PREMIUM CON NÚMERO VISIBLE ── */}
         <TrackingLink
           external
-          eventName="whatsapp_click"
+          eventName="click_whatsapp"
           payload={{ button_context: 'floating_bottom' }}
           href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20necesito%20asistencia%20en%20l%C3%ADnea."
           className="fixed bottom-24 right-4 md:right-8 z-[60] flex items-center gap-3.5 px-4 py-2.5 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
@@ -230,7 +230,7 @@ export default function RootLayout({ children }) {
             <MagnifyingGlassIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
         {/* ── NAVEGACIÓN MÓVIL GLOBAL (Bottom Nav) ── */}
-          <TrackingLink href="/carrito" eventName="ver_carrito" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Cotización">
+          <TrackingLink href="/carrito" eventName="view_cart" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Cotización">
             <span className="sr-only">Mi lista de cotización</span>
             <ShoppingCartIcon className="h-6 w-6 transition-transform group-active:scale-90 text-brand-primary" />
           </TrackingLink>

@@ -35,17 +35,17 @@ export const trackEvent = (eventName, payload = {}) => {
 // ── DEFINICIÓN ESTRICTA DE EVENTOS CLAVE (Para evitar typos) ──
 
 export const trackSearch = (searchTerm) => {
-  trackEvent('busqueda_realizada', { search_term: searchTerm });
+  trackEvent('search', { search_term: searchTerm });
 };
 
 export const trackWhatsAppClick = (context = 'floating_button') => {
-  trackEvent('whatsapp_click', { button_context: context });
+  trackEvent('click_whatsapp', { button_context: context });
 };
 
 export const trackQuoteInitiated = (productCode = 'varios') => {
-  trackEvent('cotizacion_iniciada', { product_code: productCode });
+  trackEvent('begin_checkout', { product_code: productCode });
 };
 
 export const trackDiroInteraction = (action) => {
-  trackEvent('interaccion_diro', { action_type: action });
+  trackEvent('diro_interaction', { action_type: action });
 };

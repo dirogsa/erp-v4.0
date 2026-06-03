@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { ProductService } from '@/services/product.service';
 import ReviewForm from '@/components/product/ReviewForm';
 import ProductTabs from '@/components/product/ProductTabs';
+import AddToCartModule from '@/components/product/AddToCartModule';
 
 /**
  * DYNAMIC METADATA — Constitution §6 / SEO Architecture
@@ -319,83 +320,8 @@ export default async function ProductPage({ params }) {
             </div>
           </div>
 
-          {/* ─── ZONA DE PRECIO Y ACCESO B2B ─── */}
-          {isAuthenticated ? (
-            /* Usuario Autenticado: Muestra Precio y Acciones de Compra */
-            <div className="rounded-[2rem] p-6 relative overflow-hidden"
-                 style={{ background: 'rgba(20,21,24,0.5)', border: '2px solid rgba(255,255,255,0.05)' }}>
-              <div className="absolute top-0 right-0 p-4 opacity-5">
-                <svg className="h-20 w-20" style={{ color: 'var(--brand-primary)' }} fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest"
-                        style={{ color: 'var(--brand-text-dim)' }}>Precio Unitario</span>
-                  {product.promoDiscountPct > 0 && (
-                    <span className="text-[10px] font-black px-3 py-1 rounded-full animate-pulse"
-                          style={{ background: 'rgba(245,158,11,0.2)', color: 'var(--brand-orange)', border: '1px solid rgba(245,158,11,0.3)' }}>
-                      ¡OFERTA -{product.promoDiscountPct}%!
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-5xl font-black text-white">
-                    {product.currency === 'PEN' ? 'S/' : '$'} {Number(product.price).toFixed(2)}
-                  </span>
-                </div>
-                <p className="text-xs" style={{ color: 'var(--brand-text-dim)' }}>Incl. IGV · Precio para clientes registrados</p>
-                
-                <button className="mt-6 w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 text-black"
-                        style={{ background: 'var(--brand-primary)', boxShadow: '0 0 20px rgba(16,185,129,0.3)' }}>
-                  Añadir al Carrito
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Usuario Invitado: Tarjeta Premium de Bloqueo (Glassmorphism) */
-            <div className="relative rounded-[2rem] p-[2px] overflow-hidden group">
-              {/* Borde animado de gradiente */}
-              <div className="absolute inset-0 bg-gradient-to-br from-[#F59E0B] via-[#0A0A0B] to-[#38BDF8] opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
-              
-              <div className="relative h-full w-full rounded-[2rem] p-6 text-center flex flex-col items-center justify-center space-y-4 backdrop-blur-xl"
-                   style={{ background: 'rgba(10,10,11,0.85)' }}>
-                
-                {/* Ícono de candado con glow */}
-                <div className="relative">
-                  <div className="absolute inset-0 bg-[#F59E0B] blur-[20px] opacity-20 rounded-full" />
-                  <div className="h-14 w-14 rounded-full flex items-center justify-center relative z-10 border border-[#F59E0B]/30"
-                       style={{ background: 'rgba(245,158,11,0.1)' }}>
-                    <svg className="h-6 w-6 text-[#F59E0B]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-white font-black text-lg uppercase tracking-tight mb-1">Información B2B Privada</h3>
-                  <p className="text-[13px] leading-relaxed max-w-[280px] mx-auto" style={{ color: 'var(--brand-text-dim)' }}>
-                    Visualiza stock en tiempo real, precios al por mayor y realiza pedidos al instante.
-                  </p>
-                </div>
-
-                <div className="w-full pt-2">
-                  <Link href="/login"
-                    className="flex items-center justify-center gap-2 w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all hover:brightness-110 active:scale-95"
-                    style={{ background: 'var(--brand-orange)', color: '#0A0A0B', boxShadow: '0 0 20px rgba(245,158,11,0.2)' }}>
-                    Iniciar Sesión
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
-                  </Link>
-                  <p className="mt-4 text-[10px] uppercase font-bold tracking-widest" style={{ color: 'var(--brand-text-muted)' }}>
-                    ¿Eres distribuidor y no tienes cuenta? <a href="#" className="text-[#38BDF8] hover:underline">Solicita acceso</a>
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* ─── ZONA DE PRECIO Y ACCESO B2B (MÓDULO INTERACTIVO) ─── */}
+          <AddToCartModule product={product} isAuthenticated={isAuthenticated} />
 
         </div>
       </div>
