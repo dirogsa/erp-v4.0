@@ -4,6 +4,8 @@ import './globals.css';
 import { HomeIcon, MagnifyingGlassIcon, ShoppingCartIcon, ClipboardDocumentListIcon, UserIcon } from '@heroicons/react/24/outline';
 import VersionWatcher from '@/components/VersionWatcher';
 import DiroWidget from '@/components/DiroWidget';
+import TrackingLink from '@/components/TrackingLink';
+import Script from 'next/script';
 import { GoogleTagManager, GoogleAnalytics } from '@next/third-parties/google';
 
 const inter = Inter({ subsets: ['latin'], weight: ['400','500','600','700','800','900'] });
@@ -32,6 +34,27 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="es" data-scroll-behavior="smooth">
+      <head>
+        {/* ── META PIXEL (Base Code) ── */}
+        <Script
+          id="meta-pixel"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              !function(f,b,e,v,n,t,s)
+              {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+              n.queue=[];t=b.createElement(e);t.async=!0;
+              t.src=v;s=b.getElementsByTagName(e)[0];
+              s.parentNode.insertBefore(t,s)}(window, document,'script',
+              'https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', 'XXXXXXXXXXXXXXX'); /* Reemplazar con ID de Pixel */
+              fbq('track', 'PageView');
+            `,
+          }}
+        />
+      </head>
       {/* ── TRACKING B2B (No bloqueante) ── */}
       <GoogleTagManager gtmId="GTM-XXXXXXX" />
       <GoogleAnalytics gaId="G-XXXXXXXXXX" />
@@ -57,9 +80,15 @@ export default function RootLayout({ children }) {
               </a>
             </div>
             <div className="flex items-center gap-3">
-              <a href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20necesito%20asistencia%20en%20l%C3%ADnea." target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:text-emerald-400 transition-colors flex items-center gap-1">
+              <TrackingLink 
+                external
+                href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20necesito%20asistencia%20en%20l%C3%ADnea."
+                eventName="whatsapp_click"
+                payload={{ button_context: 'top_bar' }}
+                className="text-brand-primary hover:text-emerald-400 transition-colors flex items-center gap-1"
+              >
                 Asistencia en línea →
-              </a>
+              </TrackingLink>
             </div>
           </div>
         </div>
@@ -160,10 +189,11 @@ export default function RootLayout({ children }) {
         </footer>
 
         {/* ── BOTÓN FLOTANTE DE WHATSAPP PREMIUM CON NÚMERO VISIBLE ── */}
-        <a
+        <TrackingLink
+          external
+          eventName="whatsapp_click"
+          payload={{ button_context: 'floating_bottom' }}
           href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20necesito%20asistencia%20en%20l%C3%ADnea."
-          target="_blank"
-          rel="noopener noreferrer"
           className="fixed bottom-24 right-4 md:right-8 z-[60] flex items-center gap-3.5 px-4 py-2.5 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
           aria-label="Asistencia por WhatsApp 991717240"
         >
@@ -182,7 +212,7 @@ export default function RootLayout({ children }) {
             <span className="text-[9px] font-black uppercase tracking-widest text-[#25D366] leading-none">WhatsApp</span>
             <span className="text-[13px] md:text-sm font-black text-white tracking-wide leading-none mt-1">991 717 240</span>
           </div>
-        </a>
+        </TrackingLink>
 
         {/* ── WIDGET INTERACTIVO DE DIRO ASISTENTE ── */}
         <DiroWidget />
@@ -200,10 +230,10 @@ export default function RootLayout({ children }) {
             <MagnifyingGlassIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
         {/* ── NAVEGACIÓN MÓVIL GLOBAL (Bottom Nav) ── */}
-          <Link href="/carrito" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Cotización">
+          <TrackingLink href="/carrito" eventName="ver_carrito" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Cotización">
             <span className="sr-only">Mi lista de cotización</span>
             <ShoppingCartIcon className="h-6 w-6 transition-transform group-active:scale-90 text-brand-primary" />
-          </Link>
+          </TrackingLink>
           
           <Link href="/pedidos" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Pedidos">
             <span className="sr-only">Mis pedidos e historial</span>
