@@ -15,11 +15,19 @@ export const IS_PRODUCTION = process.env.NODE_ENV === 'production';
  */
 export const trackEvent = (eventName, payload = {}) => {
   try {
-    if (typeof window !== "undefined" && window.dataLayer) {
-      window.dataLayer.push({
-        event: eventName,
-        ...payload,
-      });
+    if (typeof window !== "undefined") {
+      // 1. Google Analytics 4 Nativo (Google Ads)
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', eventName, payload);
+      }
+
+      // 2. Google Tag Manager (DataLayer)
+      if (window.dataLayer) {
+        window.dataLayer.push({
+          event: eventName,
+          ...payload,
+        });
+      }
 
       if (!IS_PRODUCTION) {
         console.log(`[Tracking Event] ${eventName}`, payload);
