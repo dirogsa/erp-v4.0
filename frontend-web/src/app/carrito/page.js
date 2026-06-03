@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
 
 export default function CarritoPage() {
   const router = useRouter();
@@ -20,19 +21,45 @@ export default function CarritoPage() {
     ruc: '',
   });
 
-  const isAuthenticated = false; // TODO: Conectar con auth store real.
+  const { isAuthenticated, user, token } = useAuthStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCheckout = (e) => {
+  const handleCheckout = async (e) => {
     e.preventDefault();
     if (items.length === 0) return;
+    setIsSubmitting(true);
 
-    // Guardar datos en sessionStorage para usarlos en /gracias
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('diro_checkout_data', JSON.stringify(clientData));
+    try {
+      if (isAuthenticated) {
+        // FLUJO 2: Cliente Autenticado -> Mandar directo al ERP
+        // Se hace un fetch al backend Python (endpoint placeholder por ahora)
+        console.log("Enviando orden B2B al ERP para el cliente:", user);
+        
+        // Simulación de llamada a API
+        // const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sales/quotes`, { ... });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Pasamos data por sessionStorage para la página de gracias
+        sessionStorage.setItem('diro_checkout_data', JSON.stringify({
+          name: user?.name || 'Cliente B2B',
+          company: user?.company || 'Empresa Logueada',
+          is_erp_synced: true // Flag importante
+        }));
+      } else {
+        // FLUJO 1: Invitado -> Flujo WhatsApp (No toca el ERP)
+        sessionStorage.setItem('diro_checkout_data', JSON.stringify({
+          name: clientData.name,
+          company: clientData.company,
+          is_erp_synced: false
+        }));
+      }
+
+      // Navegar a /gracias para disparar Pixels (Ambos flujos terminan aquí)
+      router.push('/gracias');
+    } catch (error) {
+      console.error("Error procesando checkout:", error);
+      setIsSubmitting(false);
     }
-
-    // Navegar a la página de gracias donde se disparará la conversión
-    router.push('/gracias');
   };
 
   if (!mounted) return <div className="min-h-[50vh] flex items-center justify-center"><div className="animate-spin h-8 w-8 border-t-2 border-brand-primary rounded-full" /></div>;
@@ -170,11 +197,13 @@ export default function CarritoPage() {
               </div>
             )}
 
-            <button type="submit" className="w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 text-[#0A0A0B] flex items-center justify-center gap-2" style={{ background: 'var(--brand-primary)', boxShadow: '0 0 20px rgba(16,185,129,0.2)' }}>
-              Enviar Cotización 
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+            <button type="submit" disabled={isSubmitting} className="w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 text-[#0A0A0B] flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: 'var(--brand-primary)', boxShadow: '0 0 20px rgba(16,185,129,0.2)' }}>
+              {isSubmitting ? 'Procesando...' : (isAuthenticated ? 'Confirmar Pedido ERP' : 'Enviar Cotización')}
+              {!isSubmitting && <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>}
             </button>
-            <p className="text-center text-[9px] text-white/40 mt-4 uppercase tracking-widest">Te contactaremos por WhatsApp</p>
+            <p className="text-center text-[9px] text-white/40 mt-4 uppercase tracking-widest">
+              {isAuthenticated ? 'Sincronizado con sistema ERP central' : 'Te contactaremos por WhatsApp'}
+            </p>
           </form>
         </div>
       </div>
