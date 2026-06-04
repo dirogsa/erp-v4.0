@@ -27,6 +27,8 @@ class BulkImportResponse(BaseModel):
     orphans_count: int = 0
     errors: List[str] = []
 
+from typing import Any
+
 class ProductLean(BaseModel):
     sku: str
     name: str
@@ -37,6 +39,10 @@ class ProductLean(BaseModel):
     cost: float = 0.0
     is_active_in_shop: bool = True
     is_new: bool = False
+    image_url: Optional[str] = None
+    equivalences: Optional[List[Any]] = []
+    applications: Optional[List[Any]] = []
+    specs: Optional[List[Any]] = []
 
 class ProductLeanWithPrice(ProductLean):
     price_list: float = 0.0

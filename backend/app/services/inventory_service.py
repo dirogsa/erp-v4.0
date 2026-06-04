@@ -126,7 +126,8 @@ async def get_products(
         "sku": 1, "name": 1, "brand": 1, "type": 1, 
         "category_id": 1, "stock_current": 1, 
         "is_active_in_shop": 1, "is_new": 1, "company_data": 1,
-        "cost": 1, "promo_discount_pct": 1
+        "cost": 1, "promo_discount_pct": 1,
+        "image_url": 1, "equivalences": 1, "applications": 1, "specs": 1
     }
     
     cursor = Product.get_motor_collection().find(query, projection).sort("sku", 1).skip(skip).limit(limit)
