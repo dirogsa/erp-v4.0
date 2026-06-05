@@ -1,0 +1,561 @@
+/* PrintEnvironment - Background de la app (no se imprime) */
+.print-environment {
+  background-color: #525659;
+  min-height: 100vh;
+  padding: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+/* Floating Controls (no se imprime) */
+.floating-controls {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 1rem;
+  z-index: 100;
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.floating-controls button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-back {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-print {
+  background: #2563eb;
+  color: white;
+}
+
+/* 
+ * ----------------------------------------------------
+ * A4 CSS PURE ENGINE
+ * ---------------------------------------------------- 
+ */
+.a4-sheet {
+  background: white;
+  width: 210mm;
+  height: 297mm;
+  margin: 0;
+  padding: 10mm;
+  box-sizing: border-box;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3); /* Solo para visualización web */
+  page-break-after: always;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  
+  /* CRÍTICO: Obliga al navegador a imprimir los fondos oscuros y colores neón */
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Landscape Mode override */
+.print-environment.landscape .a4-sheet {
+  width: 297mm;
+  height: 210mm;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 3px solid #0f172a; /* Línea gruesa y moderna */
+  padding-bottom: 3mm;
+  margin-bottom: 4mm;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 26pt;
+  font-weight: 900; /* Bold industrial */
+  font-family: 'Inter', Arial, sans-serif;
+  text-transform: uppercase;
+  color: #0f172a;
+  letter-spacing: -1px;
+}
+
+.page-number {
+  font-size: 10pt;
+  font-family: Arial, sans-serif;
+}
+
+/* Grid de Productos */
+.products-grid {
+  display: grid;
+  /* 2 columnas y 4 filas matemáticas (8 ítems) */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 3mm; /* Reducido de 5mm a 3mm para ganar espacio vertical */
+  flex: 1; /* Ocupa el espacio restante de la hoja */
+}
+
+.print-environment.landscape .products-grid {
+  /* En horizontal: 4 columnas x 2 filas (Siguen siendo 8 ítems) */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.product-card {
+  border-radius: 8px;
+  padding: 1.5mm;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', Arial, sans-serif;
+  overflow: hidden; /* Cero desbordes */
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0; /* CRÍTICO */
+  position: relative;
+}
+
+.product-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.product-id-block {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid #f1f5f9; /* Línea súper sutil */
+  padding-bottom: 0.5mm;
+  margin-bottom: 1mm;
+}
+
+.product-brand-subtitle {
+  font-size: 6pt;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.product-ref {
+  font-size: 12pt; /* SKU más protagonista */
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.5px; /* Estilo técnico/condensado */
+}
+
+/* Fila 1: Imagen y Specs */
+.product-row-1 {
+  display: flex;
+  gap: 2.5mm;
+  flex-shrink: 0;
+  height: 27mm; /* La imagen gana 5mm al eliminar el header independiente */
+  margin-bottom: 1.5mm;
+}
+
+.product-image {
+  width: 27mm; /* Cuadrado perfecto más grande */
+  height: 27mm;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: white; /* Blanco limpio para fotos profesionales */
+  border: 1px solid #f1f5f9; /* Marco ultra sutil para no flotar */
+  border-radius: 4px; /* Suavidad en la imagen */
+}
+
+.product-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.product-specs-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.product-price-badge {
+  font-size: 10pt;
+  font-weight: 900;
+  color: #2563eb; /* Azul haciendo juego con la barra lateral */
+  text-align: right;
+  margin-top: auto;
+  background: #eff6ff; /* Badge light mode */
+  padding: 0.5mm 1.5mm;
+  border-radius: 4px;
+  align-self: flex-end; /* Alineado a la derecha como un chip */
+  display: inline-block;
+}
+
+/* Fila 2 y 3 */
+.product-row-2,
+.product-row-3 {
+  flex: 1; /* Se reparten el espacio vertical equitativamente */
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 1.5mm;
+  margin-bottom: 0.5mm;
+}
+
+.product-info-block {
+  font-size: 6.5pt;
+  line-height: 1.2;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.product-info-block strong {
+  display: block;
+  text-transform: uppercase;
+  font-size: 5pt;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5mm;
+}
+
+.product-info-block p {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 
+ * ----------------------------------------------------
+ * THEME: VENDEDOR (Ahorro de Tinta, Simple, Limpio)
+ * ---------------------------------------------------- 
+ */
+.theme-seller .a4-sheet {
+  background: white;
+  color: black;
+}
+.theme-seller .page-header {
+  border-bottom: 2px solid #000;
+}
+.theme-seller .brand-title {
+  color: #000;
+}
+.theme-seller .product-card {
+  border: 1px solid #ccc;
+}
+.theme-seller .product-id-block {
+  border-bottom: 1px solid #eee;
+}
+.theme-seller .product-brand-subtitle {
+  color: #666;
+}
+.theme-seller .product-ref {
+  color: #000;
+}
+.theme-seller .product-image {
+  background: white;
+  border: 1px solid #eee;
+}
+.theme-seller .product-price-badge {
+  color: #000;
+  background: transparent;
+  padding: 0;
+}
+.theme-seller .product-row-2,
+.theme-seller .product-row-3 {
+  border-top: 1px dotted #ccc;
+}
+.theme-seller .product-info-block strong {
+  color: #444;
+}
+.theme-seller .product-info-block p {
+  color: #111;
+}
+
+/* 
+ * ----------------------------------------------------
+ * THEME: CLIENTE (Premium Dark Mode B2B)
+ * ---------------------------------------------------- 
+ */
+.theme-client .a4-sheet {
+  background-color: #1a1a1a; /* Negro cálido */
+  color: #e5e7eb;
+}
+.theme-client .page-header {
+  border-bottom: 3px solid #ff5e00; /* Naranja automotriz */
+}
+.theme-client .brand-title {
+  color: #ffffff;
+}
+.theme-client .page-number {
+  color: #9ca3af;
+}
+.theme-client .product-card {
+  border: 1px solid #333;
+  background-color: #262626;
+}
+.theme-client .product-id-block {
+  border-bottom: 1px solid #404040;
+}
+.theme-client .product-brand-subtitle {
+  color: #9ca3af;
+}
+.theme-client .product-ref {
+  color: #39ff14; /* Verde neón para resaltar el SKU */
+  text-shadow: 0 0 2px rgba(57, 255, 20, 0.3);
+}
+.theme-client .product-image {
+  background: #ffffff; /* La imagen de producto siempre necesita fondo blanco para verse bien, o gris claro */
+  border: 1px solid #404040;
+}
+.theme-client .product-price-badge {
+  color: #ff5e00; /* Naranja neón */
+  background: rgba(255, 94, 0, 0.1);
+  border: 1px solid rgba(255, 94, 0, 0.2);
+}
+.theme-client .product-row-2,
+.theme-client .product-row-3 {
+  border-top: 1px solid #404040;
+}
+.theme-client .product-info-block strong {
+  color: #9ca3af;
+}
+.theme-client .product-info-block p {
+  color: #d1d5db;
+}
+
+
+
+/* Portadas de Jerarquía (Dependen del tema) */
+.theme-seller .brand-cover {
+  background-color: white;
+  color: black;
+}
+.theme-seller .brand-cover h1 {
+  color: black;
+}
+.theme-seller .category-cover {
+  background-color: white;
+  border: 4px solid black;
+}
+.theme-seller .category-cover h2 {
+  color: black;
+}
+
+.theme-client .brand-cover {
+  background-color: #111111;
+  color: #39ff14;
+}
+.theme-client .brand-cover h1 {
+  text-shadow: 0 0 10px rgba(57, 255, 20, 0.4);
+}
+.theme-client .category-cover {
+  background-color: #1a1a1a;
+  border: 2px solid #ff5e00;
+}
+.theme-client .cover-brand-tag {
+  color: #ff5e00;
+}
+.theme-client .category-cover h2 {
+  color: white;
+}
+.theme-client .cover-desc {
+  color: #d1d5db;
+}
+
+.brand-cover {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.brand-cover h1 {
+  font-size: 64pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+  font-family: 'Inter', Arial, sans-serif;
+}
+
+.category-cover {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20mm;
+}
+
+.cover-brand-tag {
+  font-size: 16pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 5mm;
+  letter-spacing: 4px;
+}
+
+.category-cover h2 {
+  font-size: 42pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin: 0 0 10mm 0;
+  line-height: 1.1;
+}
+
+.cover-desc {
+  font-size: 16pt;
+  max-width: 80%;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* 
+ * ----------------------------------------------------
+ * PORTADA MAESTRA DIROGSA
+ * ---------------------------------------------------- 
+ */
+.master-cover {
+  background-color: #111111; /* Negro cálido corporativo */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  padding: 0 !important; /* La portada controla su propio padding */
+  position: relative;
+  overflow: hidden;
+}
+
+/* Franja neón de acento superior */
+.master-cover::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8mm;
+  background: linear-gradient(90deg, #39ff14, #ff5e00);
+}
+
+/* Franja neón de acento inferior */
+.master-cover::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 8mm;
+  background: linear-gradient(90deg, #ff5e00, #39ff14);
+}
+
+.master-cover-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20mm;
+}
+
+.master-cover-logo {
+  font-size: 88pt;
+  font-weight: 900;
+  font-family: 'Inter', Arial, sans-serif;
+  color: #ffffff;
+  letter-spacing: -4px;
+  line-height: 1;
+  /* Sutil glow en blanco para el nombre */
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.15);
+}
+
+.master-cover-divider {
+  width: 60mm;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #39ff14, transparent);
+  margin: 10mm auto;
+}
+
+.master-cover-subtitle {
+  font-size: 14pt;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  font-family: 'Inter', Arial, sans-serif;
+  margin-bottom: 6mm;
+}
+
+.master-cover-date {
+  font-size: 20pt;
+  font-weight: 700;
+  color: #ff5e00; /* Naranja neón para la fecha */
+  font-family: 'Inter', Arial, sans-serif;
+  letter-spacing: 2px;
+}
+
+.master-cover-footer {
+  text-align: center;
+  padding: 14mm 20mm; /* Espacio para no pisar la franja inferior */
+  font-size: 9pt;
+  color: #4b5563;
+  font-family: 'Inter', Arial, sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* 
+ * ----------------------------------------------------
+ * @media print: LA MAGIA PARA IMPRESIÓN EXACTA
+ * ---------------------------------------------------- 
+ */
+@media print {
+  /* Ocultar TODO el body excepto el entorno de impresión si esto estuviera inyectado, 
+     pero como es una SPA con React Router, solo veremos esto */
+  
+  .no-print {
+    display: none !important;
+  }
+
+  /* Resetear el entorno para que no haya scroll ni fondos grises */
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .print-environment {
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  /* La regla maestra que le dice al navegador Chrome el tamaño real */
+  @page {
+    size: A4 portrait;
+    margin: 0; /* Importantísimo para anular márgenes del user */
+  }
+
+  .print-environment.landscape @page {
+    size: A4 landscape;
+  }
+
+  /* Quitar box-shadows en la impresión real */
+  .a4-sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+}

@@ -25,6 +25,7 @@ import Warehouses from './pages/Warehouses';
 import Categories from './pages/Categories';
 import CatalogConfig from './pages/CatalogConfig';
 import CatalogView from './pages/CatalogView';
+import CatalogTest from './pages/CatalogTest';
 import B2BManagement from './pages/B2BManagement';
 import BrandManagement from './pages/BrandManagement';
 import PricingStrategy from './pages/PricingStrategy';
@@ -75,6 +76,11 @@ function App() {
                 {/* ... existing routes ... */}
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/catalog-test" element={
+                    <ProtectedRoute>
+                      <CatalogTest />
+                    </ProtectedRoute>
+                  } />
                   <Route path="*" element={
                     <ProtectedRoute>
                       <Layout>

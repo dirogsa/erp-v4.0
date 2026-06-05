@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { inventoryService, companyService, categoryService } from '../services/api';
+import { inventoryService, categoryService } from '../services/api';
 import { useCompany } from '../context/CompanyContext';
 import { useLocation } from 'react-router-dom';
-import Loading from '../components/common/Loading';
-import Button from '../components/common/Button';
-import '../styles/catalog.css';
 
-const CatalogView = () => {
+const CatalogTest = () => {
     const { activeCompany } = useCompany();
     const location = useLocation();
 
@@ -30,46 +27,6 @@ const CatalogView = () => {
         fetchData();
     }, []);
 
-    // ===== [DEBUG TEMPORAL - BORRAR DESPUÉS] =====
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            const pageEl = document.querySelector('.catalog-page');
-            const wrapperEl = document.querySelector('.page-content-wrapper');
-            const containerEl = document.querySelector('.catalog-container');
-            const appContainerEl = document.querySelector('.app-container') || document.querySelector('#root');
-
-            console.log('=== CATALOG DEBUG ===');
-            console.log('[RECT] .catalog-page:', pageEl ? JSON.stringify(pageEl.getBoundingClientRect()) : 'NOT FOUND');
-            console.log('[RECT] .page-content-wrapper:', wrapperEl ? JSON.stringify(wrapperEl.getBoundingClientRect()) : 'NOT FOUND');
-            if (containerEl) {
-                const cs = window.getComputedStyle(containerEl);
-                console.log('[STYLE] .catalog-container → width:', cs.width, '| maxWidth:', cs.maxWidth, '| display:', cs.display, '| padding:', cs.padding);
-            }
-            if (appContainerEl) {
-                const cs = window.getComputedStyle(appContainerEl);
-                console.log('[STYLE] .app-container → width:', cs.width, '| maxWidth:', cs.maxWidth, '| display:', cs.display);
-            }
-            console.log('=== END DEBUG ===');
-        }, 10000);
-        return () => clearTimeout(timer);
-    }, []);
-    // ===== [FIN DEBUG] =====
-
-    useEffect(() => {
-        // Set document title for PDF saving (e.g. "Dirogsa-June-2026-Catalog")
-        const companyName = activeCompany?.name ? activeCompany.name.split(' ')[0].replace(/[^a-zA-Z0-9]/g, '') : 'Company';
-        const date = new Date();
-        const month = date.toLocaleString('en-US', { month: 'long' });
-        const year = date.getFullYear();
-        
-        const originalTitle = document.title;
-        document.title = `${companyName}-${month}-${year}-Catalog`;
-
-        return () => {
-            document.title = originalTitle;
-        };
-    }, [activeCompany]);
-
     const fetchData = async () => {
         try {
             setLoading(true);
@@ -80,59 +37,29 @@ const CatalogView = () => {
 
             let filteredProducts = prodRes.data.items || [];
 
-            // Apply Filters from Config
             if (config.brands.length > 0) {
                 filteredProducts = filteredProducts.filter(p => config.brands.includes(p.brand));
             }
             if (config.stock) {
                 filteredProducts = filteredProducts.filter(p => p.stock_current > 0);
             }
-            // Category filter is applied during grouping
 
             setProducts(filteredProducts);
             setCategories(catRes.data || []);
         } catch (err) {
             console.error("Error fetching catalog data", err);
-            setError("No se pudo cargar la información del catálogo.");
+            setError("No se pudo cargar la información.");
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading) return <Loading fullScreen text="Generando catálogo profesional..." />;
-
-    if (error) return <div style={{ color: 'white', padding: '2rem' }}>{error}</div>;
-
-    // Group products by category AND then by brand
-    const groupedProducts = categories
-        .filter(cat => config.cats.length === 0 || config.cats.includes(cat._id))
-        .map(cat => {
-            const catItems = products.filter(p => p.category_id === cat._id);
-            const brands = Array.from(new Set(catItems.map(p => p.brand || 'Otras Marcas'))).sort();
-            
-            const groupedBrands = brands.map(brandName => ({
-                name: brandName,
-                items: catItems.filter(p => (p.brand || 'Otras Marcas') === brandName)
-            }));
-
-            return {
-                ...cat,
-                brands: groupedBrands
-            };
-        })
-        .filter(cat => cat.brands.length > 0);
-
-    const isNew = (product) => {
-        return !!product.is_new;
-    };
-
-    const newArrivals = products.filter(p => isNew(p));
+    if (loading) return <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>Generando catálogo puro...</div>;
+    if (error) return <div style={{ padding: '2rem', textAlign: 'center', color: 'red', fontFamily: 'sans-serif' }}>{error}</div>;
 
     const ProductCard = ({ product }) => {
-        // Uso estricto de la base de datos para la imagen del producto
         const displayImageUrl = product.image_url;
 
-        // Normalizador de etiquetas para ajustarse a la nomenclatura estándar del diagrama (A, B, C, D, G, H)
         const normalizeSpecLabel = (label) => {
             if (!label) return '';
             const l = label.toUpperCase().trim();
@@ -149,14 +76,12 @@ const CatalogView = () => {
 
         return (
             <div className="product-card no-break">
-                {/* Header with SKU and Novedad badge */}
                 <div className="card-header">
                     <span className="sku-text">{product.sku}</span>
                     {product.is_new && <span className="novedad-badge">Novedad</span>}
                 </div>
 
                 <div className="card-body-top">
-                    {/* Image Area */}
                     <div className="product-image-container">
                         {displayImageUrl ? (
                             <img 
@@ -168,21 +93,18 @@ const CatalogView = () => {
                                     e.target.style.display = 'none';
                                     e.target.parentElement.innerHTML = `
                                         <div style="background: #f1f5f9; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; gap: 0.5rem; border-radius: 4px;">
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                                             <span style="font-size: 9px; font-weight: bold;">Sin foto</span>
                                         </div>
                                     `;
                                 }}
                             />
                         ) : (
-                            <div style={{ background: '#f1f5f9', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '0.5rem', borderRadius: '4px' }}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                            <div style={{ background: '#f1f5f9', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItem: 'center', justifyContent: 'center', color: '#94a3b8', gap: '0.5rem', borderRadius: '4px' }}>
                                 <span style={{ fontSize: '9px', fontWeight: 'bold' }}>Sin foto</span>
                             </div>
                         )}
                     </div>
 
-                    {/* Specs Area (Moved next to image) */}
                     <div className="specs-column">
                         <div className="info-section-title" style={{ marginBottom: '1.5mm', color: '#1e293b' }}>Medidas (mm):</div>
                         <div className="specs-grid">
@@ -200,7 +122,6 @@ const CatalogView = () => {
                     </div>
                 </div>
 
-                {/* Full Width Text Area (Refs & Apps) */}
                 <div className="full-width-info">
                     <div className="info-block" style={{ WebkitLineClamp: 2 }}>
                         <span className="info-section-title">Ref. Cruzadas:</span>
@@ -220,17 +141,27 @@ const CatalogView = () => {
         );
     };
 
-    const currentDate = new Date();
-    const currentMonth = currentDate.toLocaleString('es-PE', { month: 'long' });
-    const currentYear = currentDate.getFullYear();
-    const dateStr = `${currentMonth.toUpperCase()} ${currentYear}`;
+    const groupedProducts = categories
+        .filter(cat => config.cats.length === 0 || config.cats.includes(cat._id))
+        .map(cat => {
+            const catItems = products.filter(p => p.category_id === cat._id);
+            const brands = Array.from(new Set(catItems.map(p => p.brand || 'Otras Marcas'))).sort();
+            
+            const groupedBrands = brands.map(brandName => ({
+                name: brandName,
+                items: catItems.filter(p => (p.brand || 'Otras Marcas') === brandName)
+            }));
 
-    // === LECTURA DE PARÁMETROS ===
+            return {
+                ...cat,
+                brands: groupedBrands
+            };
+        })
+        .filter(cat => cat.brands.length > 0);
+
     const orientation = query.get('orientation') || 'portrait';
     const gridColumns = orientation === 'landscape' ? '1fr 1fr 1fr' : '1fr 1fr';
     const gridItemsPerPage = orientation === 'landscape' ? 9 : 6;
-    
-    // Dimensiones en pantalla (preview)
     const pageWidth = orientation === 'landscape' ? '297mm' : '210mm';
     const pageHeight = orientation === 'landscape' ? '210mm' : '297mm';
 
@@ -238,32 +169,24 @@ const CatalogView = () => {
         const pages = [];
         let pageNumber = 1;
 
-        // 1. PÁGINA 1: PORTADA PRINCIPAL (Intro)
+        // PÁGINA 1: PORTADA
         pages.push(
-            <div key="intro" className="catalog-page intro-page" style={{ display: 'block', position: 'relative', overflow: 'hidden' }}>
+            <div key="intro" className="catalog-page intro-page">
                 <div className="page-content-wrapper">
-                    {/* Contenido Principal (Bloque centrado con padding) */}
-                    <div style={{ position: 'relative', zIndex: 1, display: 'block', textAlign: 'center', paddingTop: '40mm' }}>
-                        <img src="/shared-images/logo-company.webp" alt="Logo" className="intro-logo" style={{ display: 'inline-block', margin: '0 auto' }} onError={(e) => {
+                    <div style={{ position: 'relative', zIndex: 1, display: 'block', textAlign: 'center', paddingTop: '20mm' }}>
+                        <img src="/shared-images/logo-company.webp" alt="Logo" className="intro-logo" style={{ display: 'inline-block', margin: '0 auto', maxWidth: '350px', marginBottom: '3rem' }} onError={(e) => {
                             e.target.onerror = null;
                             if(activeCompany?.logo_url) e.target.src = activeCompany.logo_url;
                             else e.target.style.display = 'none';
                         }} />
-                        <h1 className="intro-title" style={{ marginTop: '2rem' }}>{config.title}</h1>
+                        <h1 style={{ fontSize: '3rem', fontWeight: '800', marginBottom: '1rem', color: '#1e293b' }}>{config.title}</h1>
                         <h2 style={{ color: '#64748b', fontSize: '1.8rem', marginTop: '1rem', margin: '1rem auto' }}>{activeCompany?.name || 'DIROGSA B2B'}</h2>
-                        <h3 style={{ color: '#3b82f6', marginTop: '1.5rem', letterSpacing: '4px', fontSize: '1.2rem', textTransform: 'uppercase' }}>{dateStr}</h3>
-
+                        
                         {config.watermark && (
                             <div style={{ marginTop: '3rem', display: 'inline-block', padding: '1.5rem 3rem', border: '2px dashed #e2e8f0', borderRadius: '1rem', color: '#64748b', fontSize: '1.2rem' }}>
                                 PREPARADO PARA: <strong>{config.watermark.toUpperCase()}</strong>
                             </div>
                         )}
-                    </div>
-
-                    {/* Footer al fondo siempre (Posición absoluta) */}
-                    <div style={{ position: 'absolute', bottom: '15mm', left: '15mm', right: '15mm', textAlign: 'center', borderTop: '2px solid #e2e8f0', paddingTop: '15mm' }}>
-                        <p style={{ margin: 0, color: '#475569', fontWeight: 'bold', fontSize: '1.1rem' }}>{activeCompany?.address}</p>
-                        <p style={{ margin: '0.5rem 0 0 0', color: '#475569', fontSize: '1.1rem' }}>{activeCompany?.phone}</p>
                     </div>
                 </div>
             </div>
@@ -271,7 +194,7 @@ const CatalogView = () => {
 
         // 2. CATEGORÍAS Y MARCAS
         groupedProducts.forEach(category => {
-            // PÁGINA 2: PORTADA DE LA CATEGORÍA (Ej. Filtro de Aceite)
+            // PÁGINA 2: PORTADA DE LA CATEGORÍA
             pageNumber++;
             pages.push(
                 <div key={`sep-${category._id}`} className="catalog-page type-separator" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -290,7 +213,7 @@ const CatalogView = () => {
 
             // RECORREMOS CADA MARCA DENTRO DE ESTA CATEGORÍA
             category.brands.forEach(brand => {
-                // PÁGINA 3: PORTADA DE LA MARCA (Ej. WIX)
+                // PÁGINA 3: PORTADA DE LA MARCA
                 pageNumber++;
                 pages.push(
                     <div key={`brand-sep-${category._id}-${brand.name}`} className="catalog-page brand-separator" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
@@ -311,7 +234,7 @@ const CatalogView = () => {
                     </div>
                 );
 
-                // PÁGINA 4+: GRILLA DE PRODUCTOS DE ESTA MARCA Y CATEGORÍA (6 o 9 por página)
+                // PÁGINA 4+: GRILLA DE PRODUCTOS DE ESTA MARCA Y CATEGORÍA
                 const items = brand.items;
                 for (let i = 0; i < items.length; i += gridItemsPerPage) {
                     pageNumber++;
@@ -350,50 +273,164 @@ const CatalogView = () => {
     };
 
     return (
-        <div className={`catalog-container format-${orientation}`}>
-            {/* INYECCIÓN ARQUITECTÓNICA DE CSS PARA EL MOTOR DE IMPRESIÓN */}
+        <React.Fragment>
+            {/* CSS 100% AISLADO Y PURO - NO DEPENDE DE NINGÚN ARCHIVO EXTERNO */}
             <style type="text/css">
                 {`
-                    @media print {
-                        @page { 
-                            size: ${orientation === 'landscape' ? '297mm 210mm' : '210mm 297mm'}; 
-                            margin: 0mm;
-                        }
+                    /* RESET UNIVERSAL ESTRICTO */
+                    * {
+                        box-sizing: border-box !important;
+                        margin: 0;
+                        padding: 0;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        font-family: 'Inter', system-ui, sans-serif;
                     }
+
+                    html, body, #root {
+                        width: 100% !important;
+                        min-width: 0 !important;
+                        max-width: 100% !important;
+                        background: #e2e8f0;
+                    }
+
+                    /* VISTA EN PANTALLA (PREVIEW) */
+                    .catalog-container {
+                        padding: 2rem;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 2rem;
+                        background: #0f172a;
+                        min-height: 100vh;
+                    }
+
                     .catalog-page {
+                        background: white;
+                        color: black;
                         width: ${pageWidth} !important;
                         height: ${pageHeight} !important;
                         max-height: ${pageHeight} !important;
+                        position: relative;
+                        overflow: hidden;
+                        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
                     }
+
+                    .page-content-wrapper {
+                        width: 100% !important;
+                        height: 100% !important;
+                        padding: 15mm !important;
+                        position: relative;
+                    }
+
+                    /* REGLA DE PAPEL (NIVEL RAÍZ OBLIGATORIO) */
+                    @page { 
+                        size: A4 ${orientation === 'landscape' ? 'landscape' : 'portrait'}; 
+                        margin: 0mm;
+                    }
+
+                    /* REGLAS ESTRICTAS DE IMPRESIÓN */
                     @media print {
-                        /* Reset global para evitar heurística de Landscape de Chrome */
-                        html, body, #root, .app-container {
+                        html, body, #root, .catalog-container {
+                            background: white !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
+                            display: block !important;
+                            width: auto !important;
+                            max-width: none !important;
                             min-width: 0 !important;
-                            max-width: 100% !important;
+                            height: auto !important;
                             overflow: visible !important;
                         }
-                        * {
-                            overflow-wrap: break-word !important;
-                            word-wrap: break-word !important;
-                            white-space: normal !important;
+
+                        .catalog-page {
+                            width: auto !important;
+                            height: auto !important;
+                            min-height: 0 !important;
+                            box-shadow: none !important;
+                            page-break-after: always !important;
+                            page-break-inside: avoid !important;
+                            margin: 0 !important;
+                            border: none !important;
+                        }
+
+                        .page-content-wrapper {
+                            width: 100% !important;
+                            height: auto !important;
+                            padding: 15mm !important;
+                        }
+
+                        .no-print {
+                            display: none !important;
                         }
                     }
+
+                    /* ESTILOS DE ELEMENTOS INTERNOS */
+                    .intro-page { text-align: center; }
+                    .type-separator {
+                        background: #1e293b !important;
+                        color: white !important;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .type-title {
+                        font-size: 4rem;
+                        text-transform: uppercase;
+                        border-bottom: 5px solid #3b82f6;
+                        padding-bottom: 2rem;
+                    }
+                    .product-grid {
+                        display: grid;
+                        gap: 10mm;
+                    }
+                    .product-card {
+                        height: 78mm;
+                        border: 1px solid #e2e8f0;
+                        padding: 3.5mm;
+                        border-radius: 1.5mm;
+                        background: #fff;
+                        display: flex;
+                        flex-direction: column;
+                        position: relative;
+                        overflow: hidden;
+                        margin-bottom: 2mm;
+                    }
+                    .card-header {
+                        background: #f1f5f9;
+                        padding: 1.5mm 3mm;
+                        margin-bottom: 2mm;
+                        border-radius: 1mm;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .sku-text { font-size: 14pt; font-weight: 900; color: #0f172a; letter-spacing: -0.5px; }
+                    .novedad-badge { background: #059669; color: white; font-size: 6pt; padding: 0.5mm 1.5mm; border-radius: 0.5mm; text-transform: uppercase; font-weight: bold; }
+                    .card-body-top { display: flex; gap: 4mm; margin-bottom: 2mm; }
+                    .product-image-container { width: 35mm; height: 35mm; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+                    .product-image-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+                    .specs-column { flex: 1; font-size: 8pt; color: #334155; display: flex; flex-direction: column; justify-content: center; }
+                    .specs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1mm 2mm; }
+                    .spec-item-inline { display: flex; gap: 1mm; white-space: nowrap; }
+                    .spec-label { font-weight: 800; color: #0f172a; }
+                    .spec-value { color: #475569; }
+                    .full-width-info { flex: 1; font-size: 7.5pt; line-height: 1.2; color: #475569; border-top: 0.5px solid #e2e8f0; padding-top: 2mm; display: flex; flex-direction: column; gap: 1.5mm; }
+                    .info-block { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+                    .info-section-title { font-weight: 800; color: #0f172a; margin-right: 1mm; }
+                    .no-break { page-break-inside: avoid !important; }
                 `}
             </style>
-            <div className="no-print" style={{
-                position: 'fixed', top: '1rem', right: '1rem', zIndex: 1000,
-                background: 'rgba(30, 41, 59, 0.9)', padding: '1rem', borderRadius: '0.5rem',
-                border: '1px solid #334155', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-            }}>
-                <h4 style={{ margin: '0 0 1rem 0' }}>Opciones de Catálogo</h4>
-                <Button onClick={() => window.print()} variant="primary">🖨️ Imprimir / Guardar PDF</Button>
-                <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#94a3b8' }}>
-                    Tip: Ajusta el zoom del navegador si las hojas no se ven completas.
+
+            <div className="catalog-container">
+                <div className="no-print" style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 1000, background: '#1e293b', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #334155', color: 'white' }}>
+                    <h4 style={{ margin: '0 0 1rem 0' }}>Modo Aislado (TEST)</h4>
+                    <button onClick={() => window.print()} style={{ padding: '0.5rem 1rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.25rem', cursor: 'pointer' }}>🖨️ Imprimir</button>
                 </div>
+                {renderPages()}
             </div>
-            {renderPages()}
-        </div>
+        </React.Fragment>
     );
 };
 
-export default CatalogView;
+export default CatalogTest;

@@ -58,9 +58,6 @@
     }
 
     .catalog-page {
-        width: 100% !important;
-        height: 100vh !important;
-        max-height: 100vh !important;
         padding: 0 !important;
         margin: 0 !important;
         border: none !important;
@@ -76,7 +73,7 @@
     .catalog-page > div.page-content-wrapper {
         padding: 15mm !important;
         width: 100% !important;
-        height: 100% !important;
+        height: auto !important;
         box-sizing: border-box !important;
         position: relative !important;
     }

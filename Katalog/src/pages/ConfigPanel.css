@@ -1,0 +1,192 @@
+.config-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #e2e8f0;
+  background-color: #0f172a; /* Fondo oscuro premium */
+  min-height: 100vh;
+}
+
+.config-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.icon-large {
+  width: 48px;
+  height: 48px;
+  color: #3b82f6; /* Azul brillante SaaS */
+  margin-bottom: 1rem;
+}
+
+.config-header h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #f8fafc;
+  margin: 0;
+  letter-spacing: -1px;
+}
+
+.config-header p {
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .config-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.config-card {
+  background: #1e293b; /* Tarjeta oscura pero elevada */
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  border: 1px solid #334155;
+}
+
+.config-card h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #f1f5f9;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  color: #3b82f6;
+}
+
+/* Toggles */
+.toggle-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.toggle-group button {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #94a3b8;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.toggle-group button:hover {
+  border-color: #64748b;
+  color: #f8fafc;
+}
+
+.toggle-group button.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+}
+
+/* Brands Grid */
+.brands-grid, .fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.brand-label, .switch-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch-label input, .brand-label input {
+  width: 18px;
+  height: 18px;
+  accent-color: #2563eb;
+}
+
+/* Categorías Anidadas */
+.category-group {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #334155;
+}
+
+.category-group:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.category-section-title {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.subcats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.brand-label.root-only-label {
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+/* Footer */
+.config-footer {
+  margin-top: 3rem;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #3b82f6;
+  color: white;
+  padding: 1.2rem 2.5rem;
+  border: none;
+  border-radius: 999px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+}
+
+.btn-primary:disabled {
+  background: #334155;
+  color: #64748b;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
