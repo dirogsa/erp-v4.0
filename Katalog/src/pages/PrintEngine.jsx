@@ -84,22 +84,28 @@ export default function PrintEngine() {
   };
 
 
-  // Redirigir si no hay marcas seleccionadas
+  // Redirigir si no hay datos seleccionados en ninguno de los dos modos
   useEffect(() => {
-    if (config.selectedBrands.length === 0) {
+    const isSKUMode = config.inputMode === 'skus';
+    const hasData = isSKUMode
+      ? config.validatedSkus.length > 0
+      : config.selectedBrands.length > 0;
+
+    if (!hasData) {
       navigate('/');
       return;
     }
+
+    const generateBody = config.inputMode === 'skus'
+      ? { skus: config.validatedSkus }
+      : { brands: config.selectedBrands, categories: config.selectedCategories };
 
     Promise.all([
       fetch('http://localhost:8000/katalog/categories').then(r => r.json()),
       fetch('http://localhost:8000/katalog/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          brands: config.selectedBrands,
-          categories: config.selectedCategories
-        })
+        body: JSON.stringify(generateBody)
       }).then(r => r.json())
     ])
       .then(([cats, prods]) => {

@@ -4,8 +4,12 @@ export const useCatalogStore = create((set) => ({
   config: {
     orientation: 'portrait',
     audience: 'client', // 'client' o 'seller'
+    // --- Modo Filtros (por defecto) ---
     selectedBrands: [],
     selectedCategories: [],
+    // --- Modo SKU (override del universo de datos) ---
+    inputMode: 'filters', // 'filters' | 'skus'
+    validatedSkus: [],    // SKUs confirmados por el validador
     displayFields: {
       image: false,
       reference: false,
@@ -14,8 +18,8 @@ export const useCatalogStore = create((set) => ({
       price: false
     }
   },
-  setConfig: (newConfig) => set((state) => ({ 
-    config: { ...state.config, ...newConfig } 
+  setConfig: (newConfig) => set((state) => ({
+    config: { ...state.config, ...newConfig }
   })),
   toggleField: (field) => set((state) => ({
     config: {
@@ -25,5 +29,13 @@ export const useCatalogStore = create((set) => ({
         [field]: !state.config.displayFields[field]
       }
     }
-  }))
+  })),
+  // Activa el modo SKU con la lista validada
+  activateSkuMode: (skus) => set((state) => ({
+    config: { ...state.config, inputMode: 'skus', validatedSkus: skus }
+  })),
+  // Vuelve al modo filtros y limpia los SKUs
+  clearSkuMode: () => set((state) => ({
+    config: { ...state.config, inputMode: 'filters', validatedSkus: [] }
+  })),
 }))

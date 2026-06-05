@@ -43,6 +43,10 @@
   .config-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  /* Tarjeta que ocupa ancho completo en modo 2 columnas */
+  .config-card-full {
+    grid-column: 1 / -1;
+  }
 }
 
 .config-card {
@@ -152,6 +156,120 @@
 .brand-label.root-only-label {
   font-weight: 600;
   color: #f1f5f9;
+}
+
+/* --- Modo SKU --- */
+.sku-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(57, 255, 20, 0.06);
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  gap: 1rem;
+}
+
+.sku-mode-banner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sku-mode-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #39ff14;
+  letter-spacing: 0.1em;
+  font-family: 'Inter', sans-serif;
+}
+
+.sku-mode-count {
+  font-size: 1rem;
+  color: #e2e8f0;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+}
+
+.sku-mode-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sku-mode-btn-change {
+  background: none;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+}
+
+.sku-mode-btn-change:hover {
+  border-color: #64748b;
+  color: #e2e8f0;
+}
+
+.sku-mode-btn-clear {
+  background: none;
+  border: 1px solid #334155;
+  color: #64748b;
+  padding: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.sku-mode-btn-clear:hover {
+  border-color: #f87171;
+  color: #f87171;
+}
+
+.sku-mode-inactive {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sku-mode-inactive p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+}
+
+.sku-mode-inactive strong {
+  color: #94a3b8;
+}
+
+.sku-mode-btn-activate {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  padding: 0.6rem 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.sku-mode-btn-activate:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
 }
 
 /* Footer */
