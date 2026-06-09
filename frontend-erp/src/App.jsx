@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NotificationProvider } from './context/NotificationContext';
@@ -7,62 +7,79 @@ import { AuthProvider } from './context/AuthContext';
 import { LoadingProvider } from './context/LoadingContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import LoadingScreen from './components/common/LoadingScreen';
+
+// ─── Eager (pequeños, siempre necesarios) ────────────────────────────────────
 import LoginPage from './pages/LoginPage';
-import Inventory from './pages/Inventory';
-import MarketingInventory from './pages/MarketingInventory';
-import Purchasing from './pages/Purchasing';
-import Sales from './pages/Sales';
-import Suppliers from './pages/Suppliers';
-import Customers from './pages/Customers';
-import ImportExport from './pages/ImportExport';
-import Losses from './pages/Losses';
-import Transfers from './pages/Transfers';
-import Dashboard from './pages/Dashboard';
-import Reports from './pages/Reports';
-import BrandsManager from './pages/BrandsManager';
-import Companies from './pages/Companies';
-import Warehouses from './pages/Warehouses';
-import Categories from './pages/Categories';
-import B2BManagement from './pages/B2BManagement';
-import BrandManagement from './pages/BrandManagement';
-import PricingStrategy from './pages/PricingStrategy';
-import Marketing from './pages/Marketing';
-import ReviewsManager from './pages/marketing/ReviewsManager';
-import Audit from './pages/Audit';
-import FinancialAudit from './pages/FinancialAudit';
-import StaffManagement from './pages/StaffManagement';
-import ExchangeRates from './pages/ExchangeRates';
-import SystemConfigPage from './pages/SystemConfigPage';
-import ReconciliationPage from './pages/ReconciliationPage';
-import ImportPlanning from './pages/ImportPlanning';
-import SystemStatus from './pages/SystemStatus';
-import FinancialSincerityInbox from './pages/FinancialSincerityInbox';
-import GovernanceDashboard from './pages/GovernanceDashboard';
-import Treasury from './pages/Treasury';
-import KatalogConfigPanel from './pages/katalog/ConfigPanel';
-import KatalogPrintEngine from './pages/katalog/PrintEngine';
 
+// ─── Lazy: cada página = chunk separado en producción ────────────────────────
+// Core
+const Dashboard            = lazy(() => import('./pages/Dashboard'));
+const Companies            = lazy(() => import('./pages/Companies'));
+const Reports              = lazy(() => import('./pages/Reports'));
+const Warehouses           = lazy(() => import('./pages/Warehouses'));
 
+// Inventario
+const Inventory            = lazy(() => import('./pages/Inventory'));
+const MarketingInventory   = lazy(() => import('./pages/MarketingInventory'));
+const Categories           = lazy(() => import('./pages/Categories'));
+const BrandsManager        = lazy(() => import('./pages/BrandsManager'));
+const BrandManagement      = lazy(() => import('./pages/BrandManagement'));
+const Losses               = lazy(() => import('./pages/Losses'));
+const Transfers            = lazy(() => import('./pages/Transfers'));
 
+// Compras / Proveedores
+const Suppliers            = lazy(() => import('./pages/Suppliers'));
+const Purchasing           = lazy(() => import('./pages/Purchasing'));
+const ImportExport         = lazy(() => import('./pages/ImportExport'));
+const ImportPlanning       = lazy(() => import('./pages/ImportPlanning'));
+
+// Ventas / Clientes / B2B
+const Sales                = lazy(() => import('./pages/Sales'));
+const Customers            = lazy(() => import('./pages/Customers'));
+const B2BManagement        = lazy(() => import('./pages/B2BManagement'));
+
+// Precios
+const PricingStrategy      = lazy(() => import('./pages/PricingStrategy'));
+
+// Marketing
+const Marketing            = lazy(() => import('./pages/Marketing'));
+const ReviewsManager       = lazy(() => import('./pages/marketing/ReviewsManager'));
+
+// Finanzas / Auditoría
+const Audit                = lazy(() => import('./pages/Audit'));
+const FinancialAudit       = lazy(() => import('./pages/FinancialAudit'));
+const FinancialSincerityInbox = lazy(() => import('./pages/FinancialSincerityInbox'));
+const ReconciliationPage   = lazy(() => import('./pages/ReconciliationPage'));
+const Treasury             = lazy(() => import('./pages/Treasury'));
+const ExchangeRates        = lazy(() => import('./pages/ExchangeRates'));
+const GovernanceDashboard  = lazy(() => import('./pages/GovernanceDashboard'));
+
+// Sistema
+const StaffManagement      = lazy(() => import('./pages/StaffManagement'));
+const SystemConfigPage     = lazy(() => import('./pages/SystemConfigPage'));
+const SystemStatus         = lazy(() => import('./pages/SystemStatus'));
+
+// Katalog (pantalla completa, fuera de Layout)
+const KatalogConfigPanel   = lazy(() => import('./pages/katalog/ConfigPanel'));
+const KatalogPrintEngine   = lazy(() => import('./pages/katalog/PrintEngine'));
+
+// ─── React Query ─────────────────────────────────────────────────────────────
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 0, // Disable retries to see errors immediately
+      retry: 0,
       staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-      onError: (error) => {
-        console.error('React Query Global Error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          response: error.response?.data,
-          status: error.response?.status
-        });
-      },
+      gcTime: 10 * 60 * 1000, // v5: cacheTime → gcTime
     },
   },
 });
 
+// ─── Fallback de carga ───────────────────────────────────────────────────────
+const PageLoader = () => <LoadingScreen />;
+
+// ─── App ─────────────────────────────────────────────────────────────────────
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -71,57 +88,66 @@ function App() {
           <NotificationProvider>
             <CompanyProvider>
               <BrowserRouter>
-                {/* ... existing routes ... */}
                 <Routes>
+                  {/* Pública */}
                   <Route path="/login" element={<LoginPage />} />
-                  {/* Katalog Premium — fuera del Layout para pantalla completa */}
+
+                  {/* Katalog — pantalla completa, lazy */}
                   <Route path="/catalog" element={
                     <ProtectedRoute>
-                      <KatalogConfigPanel />
+                      <Suspense fallback={<PageLoader />}>
+                        <KatalogConfigPanel />
+                      </Suspense>
                     </ProtectedRoute>
                   } />
                   <Route path="/catalog/print" element={
                     <ProtectedRoute>
-                      <KatalogPrintEngine />
+                      <Suspense fallback={<PageLoader />}>
+                        <KatalogPrintEngine />
+                      </Suspense>
                     </ProtectedRoute>
                   } />
+
+                  {/* ERP — Layout compartido, Suspense envuelve el router interno */}
                   <Route path="*" element={
                     <ProtectedRoute>
                       <Layout>
-                        <Routes>
-                          <Route path="/" element={<Dashboard />} />
-                          <Route path="/dashboard" element={<Dashboard />} />
-                          <Route path="/companies" element={<Companies />} />
-                          <Route path="/reports" element={<Reports />} />
-                          <Route path="/inventory" element={<Inventory />} />
-                          <Route path="/inventory/marketing" element={<MarketingInventory />} />
-                          <Route path="/categories" element={<Categories />} />
-                          <Route path="/suppliers" element={<Suppliers />} />
-                          <Route path="/purchasing" element={<Purchasing />} />
-                          <Route path="/warehouses" element={<Warehouses />} />
-                          <Route path="/sales" element={<Sales />} />
-                          <Route path="/customers" element={<Customers />} />
-                          <Route path="/import-export" element={<ImportExport />} />
-                          <Route path="/losses" element={<Losses />} />
-                          <Route path="/transfers" element={<Transfers />} />
-                          <Route path="/brands" element={<BrandManagement />} />
-                          <Route path="/inventory/brands-master" element={<BrandsManager />} />
-                          <Route path="/b2b" element={<B2BManagement />} />
-                          <Route path="/pricing-strategy" element={<PricingStrategy />} />
-                          <Route path="/marketing" element={<Marketing />} />
-                          <Route path="/marketing/reviews" element={<ReviewsManager />} />
-                          <Route path="/audit" element={<Audit />} />
-                          <Route path="/audit/financial" element={<FinancialAudit />} />
-                          <Route path="/staff" element={<StaffManagement />} />
-                          <Route path="/exchange-rates" element={<ExchangeRates />} />
-                          <Route path="/system-config" element={<SystemConfigPage />} />
-                          <Route path="/system-status" element={<SystemStatus />} />
-                          <Route path="/reconciliation" element={<ReconciliationPage />} />
-                          <Route path="/import-planning" element={<ImportPlanning />} />
-                          <Route path="/financial-sincerity" element={<FinancialSincerityInbox />} />
-                          <Route path="/governance" element={<GovernanceDashboard />} />
-                          <Route path="/treasury" element={<Treasury />} />
-                        </Routes>
+                        <Suspense fallback={<PageLoader />}>
+                          <Routes>
+                            <Route path="/"                         element={<Dashboard />} />
+                            <Route path="/dashboard"               element={<Dashboard />} />
+                            <Route path="/companies"               element={<Companies />} />
+                            <Route path="/reports"                 element={<Reports />} />
+                            <Route path="/inventory"               element={<Inventory />} />
+                            <Route path="/inventory/marketing"     element={<MarketingInventory />} />
+                            <Route path="/inventory/brands-master" element={<BrandsManager />} />
+                            <Route path="/categories"              element={<Categories />} />
+                            <Route path="/suppliers"               element={<Suppliers />} />
+                            <Route path="/purchasing"              element={<Purchasing />} />
+                            <Route path="/warehouses"              element={<Warehouses />} />
+                            <Route path="/sales"                   element={<Sales />} />
+                            <Route path="/customers"               element={<Customers />} />
+                            <Route path="/import-export"           element={<ImportExport />} />
+                            <Route path="/import-planning"         element={<ImportPlanning />} />
+                            <Route path="/losses"                  element={<Losses />} />
+                            <Route path="/transfers"               element={<Transfers />} />
+                            <Route path="/brands"                  element={<BrandManagement />} />
+                            <Route path="/b2b"                     element={<B2BManagement />} />
+                            <Route path="/pricing-strategy"        element={<PricingStrategy />} />
+                            <Route path="/marketing"               element={<Marketing />} />
+                            <Route path="/marketing/reviews"       element={<ReviewsManager />} />
+                            <Route path="/audit"                   element={<Audit />} />
+                            <Route path="/audit/financial"         element={<FinancialAudit />} />
+                            <Route path="/financial-sincerity"     element={<FinancialSincerityInbox />} />
+                            <Route path="/reconciliation"          element={<ReconciliationPage />} />
+                            <Route path="/treasury"                element={<Treasury />} />
+                            <Route path="/exchange-rates"          element={<ExchangeRates />} />
+                            <Route path="/governance"              element={<GovernanceDashboard />} />
+                            <Route path="/staff"                   element={<StaffManagement />} />
+                            <Route path="/system-config"           element={<SystemConfigPage />} />
+                            <Route path="/system-status"           element={<SystemStatus />} />
+                          </Routes>
+                        </Suspense>
                       </Layout>
                     </ProtectedRoute>
                   } />
