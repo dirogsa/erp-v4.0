@@ -1,36 +1,47 @@
+/**
+ * /vehiculo/[marca]/page.js — Hub SEO de Marca de Vehículo
+ * CONSTITUTION §3: Lógica en lib, esta página es solo un mensajero.
+ *
+ * Usa el endpoint /shop/seo/vehicles que devuelve datos pre-slugificados,
+ * garantizando coherencia total entre el sitemap y las páginas renderizadas.
+ */
+
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ProductService } from '@/services/product.service';
+import { SITE_URL } from '@/config/seo.config';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const SITE_URL = 'https://dirogsa.com';
 
-// ── ISR: Revalida cada hora para capturar nuevos modelos ──
 export const revalidate = 3600;
 
-// ── Pre-genera las páginas de marca más populares en build-time ──
+/**
+ * Pre-genera las páginas de marca de vehículo en build-time usando
+ * el mismo endpoint que el sitemap — garantía de coherencia.
+ */
 export async function generateStaticParams() {
   try {
-    const res = await fetch(`${API_BASE}/shop/vehicles`, { next: { revalidate: 86400 } });
+    const res = await fetch(`${API_BASE}/shop/seo/vehicles`, { next: { revalidate: 86400 } });
     if (!res.ok) return [];
     const vehicles = await res.json();
-    return vehicles.slice(0, 50).map(v => ({
-      marca: v.make.toLowerCase().replace(/\s+/g, '-'),
-    }));
-  } catch { return []; }
+    return vehicles.map(v => ({ marca: v.make_slug }));
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }) {
   const { marca } = await params;
-  const marcaDisplay = decodeURIComponent(marca).replace(/-/g, ' ').toUpperCase();
+  const marcaDisplay = marca.replace(/-/g, ' ').toUpperCase();
 
   return {
     title: `Filtros para ${marcaDisplay} | Repuestos Originales DIROGSA Perú`,
     description: `Encuentra filtros de aceite, aire y combustible compatibles con vehículos ${marcaDisplay}. Catálogo completo con aplicaciones vehiculares verificadas. Importador oficial en Perú.`,
-    keywords: [`filtros ${marcaDisplay}`, `repuestos ${marcaDisplay} peru`, `filtro aceite ${marcaDisplay}`, `filtro aire ${marcaDisplay}`, 'dirogsa', 'peru'],
-    alternates: {
-      canonical: `${SITE_URL}/vehiculo/${marca}`,
-    },
+    keywords: [
+      `filtros ${marcaDisplay}`, `repuestos ${marcaDisplay} peru`,
+      `filtro aceite ${marcaDisplay}`, `filtro aire ${marcaDisplay}`,
+      'dirogsa', 'peru'
+    ],
+    alternates: { canonical: `${SITE_URL}/vehiculo/${marca}` },
     openGraph: {
       title: `Filtros para ${marcaDisplay} | DIROGSA`,
       description: `Catálogo completo de filtros y repuestos para ${marcaDisplay} en Perú.`,
@@ -41,17 +52,21 @@ export async function generateMetadata({ params }) {
 
 export default async function VehiculoMarcaPage({ params }) {
   const { marca } = await params;
-  const marcaDisplay = decodeURIComponent(marca).replace(/-/g, ' ').toUpperCase();
+  const marcaDisplay = marca.replace(/-/g, ' ').toUpperCase();
 
-  // Busca productos para esta marca directamente desde el backend (SSR)
   let products = [];
   let models = [];
   let total = 0;
 
   try {
+    // El backend acepta la marca como regex flexible, por lo que
+    // marcaDisplay (ej: "MERCEDES BENZ") matchea "MERCEDES-BENZ" en la BD.
     const [prodRes, vehRes] = await Promise.all([
-      fetch(`${API_BASE}/shop/products?vehicle_brand=${encodeURIComponent(marcaDisplay)}&limit=20`, { next: { revalidate: 3600 } }),
-      fetch(`${API_BASE}/shop/vehicles`, { next: { revalidate: 86400 } }),
+      fetch(
+        `${API_BASE}/shop/products?vehicle_brand=${encodeURIComponent(marcaDisplay)}&limit=20`,
+        { next: { revalidate: 3600 } }
+      ),
+      fetch(`${API_BASE}/shop/seo/vehicles`, { next: { revalidate: 86400 } }),
     ]);
 
     if (prodRes.ok) {
@@ -62,7 +77,9 @@ export default async function VehiculoMarcaPage({ params }) {
 
     if (vehRes.ok) {
       const vehicles = await vehRes.json();
-      const found = vehicles.find(v => v.make.toUpperCase() === marcaDisplay);
+      // Busca por make_slug (garantiza coincidencia exacta con la URL)
+      const found = vehicles.find(v => v.make_slug === marca);
+      // models ya vienen pre-slugificados: [{ model_raw, model_slug }]
       models = found?.models || [];
     }
   } catch (err) {
@@ -80,7 +97,6 @@ export default async function VehiculoMarcaPage({ params }) {
     ],
   };
 
-  // JSON-LD: ItemList con los productos encontrados
   const itemListJsonLd = products.length > 0 ? {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
@@ -109,7 +125,7 @@ export default async function VehiculoMarcaPage({ params }) {
         <ol className="flex items-center gap-2 text-xs list-none p-0 m-0" style={{ color: 'var(--brand-text-dim)' }}>
           <li><Link href="/" className="hover:text-white transition-colors">Inicio</Link></li>
           <li aria-hidden="true"><span className="opacity-40">/</span></li>
-          <li><Link href="/buscar?type=apps" className="hover:text-white transition-colors">Vehículos</Link></li>
+          <li><Link href="/catalogo" className="hover:text-white transition-colors">Catálogo</Link></li>
           <li aria-hidden="true"><span className="opacity-40">/</span></li>
           <li className="text-white font-bold" aria-current="page">{marcaDisplay}</li>
         </ol>
@@ -124,8 +140,9 @@ export default async function VehiculoMarcaPage({ params }) {
           Filtros para <span className="text-[#38BDF8]">{marcaDisplay}</span>
         </h1>
         <p className="text-sm md:text-base max-w-2xl" style={{ color: 'var(--brand-text-dim)' }}>
-          Catálogo completo de filtros de aceite, aire, combustible y cabina compatibles con vehículos {marcaDisplay}. 
-          Todos los repuestos verificados por nuestros técnicos especializados. {total > 0 && `${total} productos disponibles.`}
+          Catálogo completo de filtros de aceite, aire, combustible y cabina compatibles con vehículos {marcaDisplay}.
+          Todos los repuestos verificados por nuestros técnicos especializados.
+          {total > 0 && ` ${total} productos disponibles.`}
         </p>
       </header>
 
@@ -138,19 +155,16 @@ export default async function VehiculoMarcaPage({ params }) {
               Filtrar por Modelo
             </h2>
             <nav className="flex flex-row lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0" aria-label="Modelos de vehículos">
-              {models.map(model => {
-                const modelSlug = model.toLowerCase().replace(/\s+/g, '-');
-                return (
-                  <Link
-                    key={model}
-                    href={`/vehiculo/${marca}/${modelSlug}`}
-                    className="flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all border hover:border-[#38BDF8]/50 hover:text-[#38BDF8] hover:bg-[#38BDF8]/5"
-                    style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border-2)', color: 'var(--brand-text-dim)' }}
-                  >
-                    {model}
-                  </Link>
-                );
-              })}
+              {models.map(m => (
+                <Link
+                  key={m.model_slug}
+                  href={`/vehiculo/${marca}/${m.model_slug}`}
+                  className="flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all border hover:border-[#38BDF8]/50 hover:text-[#38BDF8] hover:bg-[#38BDF8]/5"
+                  style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border-2)', color: 'var(--brand-text-dim)' }}
+                >
+                  {m.model_raw}
+                </Link>
+              ))}
             </nav>
           </aside>
         )}
@@ -163,9 +177,11 @@ export default async function VehiculoMarcaPage({ params }) {
                 <p className="text-sm font-bold" style={{ color: 'var(--brand-text-dim)' }}>
                   Mostrando <span className="text-white">{products.length}</span> de <span className="text-white">{total}</span> repuestos
                 </p>
-                <Link href={`/buscar?type=apps&make=${encodeURIComponent(marcaDisplay)}`}
+                <Link
+                  href={`/catalogo?make=${encodeURIComponent(marcaDisplay)}`}
                   className="text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all"
-                  style={{ borderColor: 'rgba(56,189,248,0.3)', color: '#38BDF8', background: 'rgba(56,189,248,0.05)' }}>
+                  style={{ borderColor: 'rgba(56,189,248,0.3)', color: '#38BDF8', background: 'rgba(56,189,248,0.05)' }}
+                >
                   Ver Todos →
                 </Link>
               </div>
@@ -186,7 +202,9 @@ export default async function VehiculoMarcaPage({ params }) {
                         </svg>
                       )}
                     </div>
-                    <span className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--brand-text-dim)' }}>{p.brand || 'DIROGSA'}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--brand-text-dim)' }}>
+                      {p.brand || 'DIROGSA'}
+                    </span>
                     <h3 className="text-white font-black text-xs uppercase leading-tight line-clamp-2 mb-2">{p.name}</h3>
                     <span className="text-[10px] font-bold mt-auto" style={{ color: '#38BDF8' }}>{p.sku}</span>
                   </Link>
@@ -197,25 +215,29 @@ export default async function VehiculoMarcaPage({ params }) {
             <div className="py-20 text-center space-y-4">
               <p className="text-white font-black text-lg">Sin resultados para {marcaDisplay}</p>
               <p className="text-sm" style={{ color: 'var(--brand-text-dim)' }}>
-                Intenta buscar directamente por código en nuestro buscador.
+                Intenta buscar directamente por código en nuestro catálogo.
               </p>
-              <Link href="/buscar" className="inline-flex px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest bg-brand-primary text-black mt-4">
-                Ir al Buscador
+              <Link href="/catalogo"
+                className="inline-flex px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest mt-4"
+                style={{ background: '#38BDF8', color: '#0A0A0B' }}>
+                Ir al Catálogo
               </Link>
             </div>
           )}
         </main>
       </div>
 
-      {/* ── SECCIÓN SEO SEMÁNTICA (Contenido de Calidad para Googlebot) ── */}
+      {/* ── SECCIÓN SEO SEMÁNTICA ── */}
       <section aria-labelledby="seo-about-heading" className="w-full mt-12 md:mt-20 pt-8 border-t border-white/5" style={{ color: 'var(--brand-text-muted)' }}>
-        <h2 id="seo-about-heading" className="text-sm font-black text-white/50 uppercase tracking-widest mb-4">Catálogo Oficial de Filtros Automotrices para {marcaDisplay} en Perú</h2>
+        <h2 id="seo-about-heading" className="text-sm font-black text-white/50 uppercase tracking-widest mb-4">
+          Catálogo Oficial de Filtros Automotrices para {marcaDisplay} en Perú
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs md:text-sm leading-relaxed text-justify md:text-left">
           <p>
             En DIROGSA, somos especialistas en la importación y distribución de repuestos de alta gama para toda la línea de vehículos <strong>{marcaDisplay}</strong>. Sabemos que esta marca requiere componentes que soporten las exigentes condiciones del parque automotor peruano. Por eso, nuestro inventario incluye <strong>filtros de aceite, filtros de aire, filtros de combustible y filtros de cabina (A/C)</strong> fabricados bajo estrictos estándares internacionales que igualan o superan la calidad original (OEM).
           </p>
           <p>
-            Ya sea que busques repuestos para el mantenimiento preventivo de un auto compacto, una SUV o una flota comercial de {marcaDisplay}, nuestra plataforma de comercio electrónico te permite ubicar exactamente la pieza que necesitas mediante referencias cruzadas precisas. Trabajamos con fabricantes globales de primer nivel para ofrecerte tecnología de filtración de vanguardia, maximizando la protección del motor y prolongando la vida útil de tu inversión. Realizamos despachos seguros y rápidos a nivel nacional.
+            Ya sea que busques repuestos para el mantenimiento preventivo de un auto compacto, una SUV o una flota comercial de {marcaDisplay}, nuestra plataforma te permite ubicar exactamente la pieza que necesitas mediante referencias cruzadas precisas. Trabajamos con fabricantes globales de primer nivel. Realizamos despachos seguros y rápidos a nivel nacional.
           </p>
         </div>
       </section>

@@ -262,34 +262,91 @@ async def get_redeemable_prizes(
 
 @router.get("/seo/products")
 async def get_seo_products():
-    """Ultra-fast endpoint specifically for Sitemap generation. Avoids N+1 pricing queries."""
-    # Projection only for SKU and updated_at
+    """Ultra-fast endpoint for Sitemap generation. Avoids N+1 pricing queries."""
     products = await Product.find({"is_active_in_shop": True}).project({"sku": 1, "updated_at": 1}).to_list()
     return [{"sku": p.sku, "updated_at": p.updated_at.isoformat() if p.updated_at else None} for p in products]
 
 @router.get("/seo/brands")
 async def get_seo_brands():
-    """Ultra-fast endpoint for ISR and Sitemap: Returns active filter/product brands"""
+    """Ultra-fast endpoint for ISR and Sitemap. Uses canonical slug_utils for URL coherence."""
     from app.models.inventory import ProductBrand
+    from app.utils.slug_utils import to_slug
     brands = await ProductBrand.find({"is_active": True}).project({"name": 1, "created_at": 1}).to_list()
-    # Normalize name to slug
-    from app.utils.norm_utils import canonical_sku # we can reuse a slugifier or just string manipulation
-    import re
-    def slugify(text: str):
-        return re.sub(r'[\W_]+', '-', text.lower()).strip('-')
-    
-    return [{"slug": slugify(b.name), "name": b.name, "updated_at": b.created_at.isoformat() if b.created_at else None} for b in brands]
+    return [
+        {
+            "slug": to_slug(b.name),
+            "name": b.name,
+            "updated_at": b.created_at.isoformat() if b.created_at else None
+        }
+        for b in brands
+    ]
 
 @router.get("/seo/categories")
 async def get_seo_categories():
-    """Ultra-fast endpoint for ISR and Sitemap: Returns active categories"""
+    """Ultra-fast endpoint for ISR and Sitemap. Uses canonical slug_utils for URL coherence."""
     from app.models.inventory import ProductCategory
+    from app.utils.slug_utils import to_slug
     categories = await ProductCategory.find({}).project({"name": 1}).to_list()
-    import re
-    def slugify(text: str):
-        return re.sub(r'[\W_]+', '-', text.lower()).strip('-')
-        
-    return [{"slug": slugify(c.name), "name": c.name} for c in categories]
+    return [{"slug": to_slug(c.name), "name": c.name} for c in categories]
+
+@router.get("/seo/vehicles")
+async def get_seo_vehicles():
+    """
+    Ultra-fast endpoint for Sitemap and Vehicle pages.
+    Returns all vehicle makes/models pre-slugified using the canonical slug_utils algorithm,
+    which is IDENTICAL to the frontend's src/lib/slug.js.
+
+    This endpoint is the Single Source of Truth for vehicle URL generation,
+    eliminating the slug mismatch that caused ~1,000 pages to redirect in Google Search Console.
+
+    Response shape: [{ make_raw, make_slug, models: [{ model_raw, model_slug }] }]
+    """
+    from app.utils.slug_utils import to_slug
+    from app.utils.seo_config import VEHICLE_BRANDS_WHITELIST
+
+    pipeline = [
+        {"$match": {
+            "is_active_in_shop": True,
+            "applications": {"$exists": True, "$not": {"$size": 0}}
+        }},
+        {"$unwind": "$applications"},
+        {"$group": {
+            "_id": {"$toUpper": "$applications.make"},
+            "models": {"$addToSet": {"$toUpper": "$applications.model"}}
+        }},
+        {"$sort": {"_id": 1}}
+    ]
+
+    results = await Product.get_motor_collection().aggregate(pipeline).to_list(length=None)
+
+    output = []
+    for r in results:
+        make_raw = r["_id"]
+        if not make_raw:
+            continue
+
+        make_slug = to_slug(make_raw)
+
+        # Apply whitelist filter (same logic as seo.config.js VEHICLE_BRANDS_WHITELIST)
+        if make_slug not in VEHICLE_BRANDS_WHITELIST:
+            continue
+
+        models = []
+        for model_raw in sorted(r.get("models", [])):
+            if not model_raw or model_raw.lower() == "none":
+                continue
+            model_slug = to_slug(model_raw)
+            if not model_slug:
+                continue
+            models.append({"model_raw": model_raw, "model_slug": model_slug})
+
+        output.append({
+            "make_raw": make_raw,
+            "make_slug": make_slug,
+            "models": models,
+        })
+
+    return output
 
 @router.post("/redeem")
 async def redeem_prize(

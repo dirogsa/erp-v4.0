@@ -3,7 +3,8 @@ import SearchModule from '@/components/SearchModule';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
-const SITE_URL = 'https://dirogsa.com';
+import { SITE_URL } from '@/config/seo.config';
+
 
 /**
  * DYNAMIC METADATA con URL Canónica — Previene penalización por contenido duplicado.
@@ -27,7 +28,7 @@ export async function generateMetadata({ searchParams }) {
     title: `Buscar ${titleQuery.toUpperCase()} | Repuestos y Filtros DIROGSA Perú`,
     description: `Resultados de búsqueda para "${titleQuery}" en el catálogo de filtros automotrices DIROGSA Perú.`,
     alternates: { canonical },
-    robots: { index: !!query, follow: true }, // Solo indexar si hay query real
+    robots: { index: false, follow: false }, // Disallowed en robots.txt — SPA interactiva, sin valor SEO independiente
   };
 }
 
