@@ -104,7 +104,6 @@ export const MENU_CONFIG = [
             { id: 'system-status', label: 'Salud del Ecosistema', path: '/system-status', icon: '📡' },
             { id: 'system-config', label: 'Configuración de la Suite', path: '/system-config', icon: '⚙️' },
             { id: 'data-center', label: 'Central de Datos (Datahub)', path: '/import-export', icon: '📤' },
-            { id: 'catalog-ingestion', label: 'Ingesta masiva Catálogo', path: '/catalog-ingestion', icon: '🌐' },
             { id: 'brands-master', label: 'Maestro de Marcas (MDM)', path: '/inventory/brands-master', icon: '🏷️' },
             { id: 'users', label: 'Seguridad y Accesos', path: '/users', icon: '🔐' }
         ]

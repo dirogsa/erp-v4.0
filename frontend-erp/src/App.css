@@ -1,9 +1,8 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
-}
+/* App.css — ERP Global Overrides
+ * Nota: El layout raíz está definido en index.css (.app-container)
+ * Este archivo solo contiene overrides de animaciones y utilidades globales.
+ */
+
 
 .logo {
   height: 6em;

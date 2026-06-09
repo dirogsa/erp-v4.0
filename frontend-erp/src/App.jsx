@@ -23,16 +23,12 @@ import BrandsManager from './pages/BrandsManager';
 import Companies from './pages/Companies';
 import Warehouses from './pages/Warehouses';
 import Categories from './pages/Categories';
-import CatalogConfig from './pages/CatalogConfig';
-import CatalogView from './pages/CatalogView';
-import CatalogTest from './pages/CatalogTest';
 import B2BManagement from './pages/B2BManagement';
 import BrandManagement from './pages/BrandManagement';
 import PricingStrategy from './pages/PricingStrategy';
 import Marketing from './pages/Marketing';
 import ReviewsManager from './pages/marketing/ReviewsManager';
 import Audit from './pages/Audit';
-import CatalogIngestion from './pages/CatalogIngestion';
 import FinancialAudit from './pages/FinancialAudit';
 import StaffManagement from './pages/StaffManagement';
 import ExchangeRates from './pages/ExchangeRates';
@@ -43,6 +39,8 @@ import SystemStatus from './pages/SystemStatus';
 import FinancialSincerityInbox from './pages/FinancialSincerityInbox';
 import GovernanceDashboard from './pages/GovernanceDashboard';
 import Treasury from './pages/Treasury';
+import KatalogConfigPanel from './pages/katalog/ConfigPanel';
+import KatalogPrintEngine from './pages/katalog/PrintEngine';
 
 
 
@@ -76,9 +74,15 @@ function App() {
                 {/* ... existing routes ... */}
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
-                  <Route path="/catalog-test" element={
+                  {/* Katalog Premium — fuera del Layout para pantalla completa */}
+                  <Route path="/catalog" element={
                     <ProtectedRoute>
-                      <CatalogTest />
+                      <KatalogConfigPanel />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/catalog/print" element={
+                    <ProtectedRoute>
+                      <KatalogPrintEngine />
                     </ProtectedRoute>
                   } />
                   <Route path="*" element={
@@ -91,7 +95,6 @@ function App() {
                           <Route path="/reports" element={<Reports />} />
                           <Route path="/inventory" element={<Inventory />} />
                           <Route path="/inventory/marketing" element={<MarketingInventory />} />
-                          <Route path="/catalog-ingestion" element={<CatalogIngestion />} />
                           <Route path="/categories" element={<Categories />} />
                           <Route path="/suppliers" element={<Suppliers />} />
                           <Route path="/purchasing" element={<Purchasing />} />
@@ -101,8 +104,6 @@ function App() {
                           <Route path="/import-export" element={<ImportExport />} />
                           <Route path="/losses" element={<Losses />} />
                           <Route path="/transfers" element={<Transfers />} />
-                          <Route path="/catalog" element={<CatalogConfig />} />
-                          <Route path="/catalog/view" element={<CatalogView />} />
                           <Route path="/brands" element={<BrandManagement />} />
                           <Route path="/inventory/brands-master" element={<BrandsManager />} />
                           <Route path="/b2b" element={<B2BManagement />} />
