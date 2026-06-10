@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ProductService } from '@/services/product.service';
+import ImageWithFallback from '@/components/ImageWithFallback';
 
 export const metadata = {
   title: 'Catálogo de Repuestos | DIROGSA',
@@ -84,11 +85,11 @@ export default async function CatalogoPage({ searchParams }) {
         <section className="relative w-full h-screen flex items-center justify-center bg-[#0D0E12] border-b border-white/5">
           <div className="max-w-5xl mx-auto px-5 text-center flex flex-col items-center">
             <div className="w-40 h-40 md:w-56 md:h-56 mb-12 opacity-90 drop-shadow-[0_0_40px_rgba(255,255,255,0.1)]">
-              <img 
+              <ImageWithFallback 
                 src={`/api/images/category-${category.toLowerCase()}.webp`} 
                 alt={`Filtros de ${category}`} 
                 className="w-full h-full object-contain" 
-                onError={(e) => e.target.style.display = 'none'} 
+                fallbackType="hide"
               />
             </div>
             <h2 className="text-5xl md:text-8xl font-black text-white uppercase tracking-tighter mb-8">
@@ -134,14 +135,12 @@ export default async function CatalogoPage({ searchParams }) {
                 <div className="md:w-1/2 w-full flex justify-center md:justify-end">
                   <div className="w-full max-w-lg aspect-square md:aspect-video bg-[#141518]/50 rounded-[3rem] border border-white/5 p-16 flex items-center justify-center backdrop-blur-2xl shadow-2xl relative group">
                     <div className="absolute inset-0 bg-brand-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-[3rem]"></div>
-                    <img 
+                    <ImageWithFallback 
                       src={`/api/images/logo-${brandName.toLowerCase()}.webp`} 
                       alt={`Logo ${brandName}`} 
                       className="w-full h-full object-contain filter grayscale group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700 relative z-10"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.parentElement.innerHTML = `<span class="text-5xl md:text-7xl font-black text-white/20 tracking-tighter">${brandName}</span>`;
-                      }}
+                      fallbackType="text"
+                      fallbackText={brandName}
                     />
                   </div>
                 </div>
