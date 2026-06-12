@@ -10,8 +10,8 @@ export const useCatalogStore = create(
     // --- Modo Filtros (por defecto) ---
     selectedBrands: [],
     selectedCategories: [],
-    // --- Estrategia de Agrupación ---
-    groupingMode: 'by_product', // 'by_product' | 'by_vehicle'
+    // --- Estrategia de Construcción ---
+    catalogStrategy: 'by_category', // 'by_category' | 'by_vehicle'
     selectedVehicleMakes: [],   // Lista de marcas de vehículos si el modo es 'by_vehicle'
     // --- Modo SKU (override del universo de datos) ---
     inputMode: 'filters', // 'filters' | 'skus'

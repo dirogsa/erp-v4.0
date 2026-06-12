@@ -89,7 +89,7 @@ export default function PrintEngine() {
     const isSKUMode = config.inputMode === 'skus';
     const hasData = isSKUMode
       ? config.validatedSkus.length > 0
-      : (config.selectedBrands.length > 0 || config.selectedVehicleMakes.length > 0);
+      : true; // En modo filtros, vacío significa traer todo
 
     if (!hasData) {
       navigate('/');
@@ -99,9 +99,9 @@ export default function PrintEngine() {
     const generateBody = config.inputMode === 'skus'
       ? { skus: config.validatedSkus }
       : { 
-          brands: config.selectedBrands, 
-          categories: config.selectedCategories,
-          vehicle_makes: config.groupingMode === 'by_vehicle' ? config.selectedVehicleMakes : []
+          strategy: config.catalogStrategy,
+          categories: config.catalogStrategy === 'by_category' ? config.selectedCategories : [],
+          vehicle_makes: config.catalogStrategy === 'by_vehicle' ? config.selectedVehicleMakes : []
         };
 
     Promise.all([
@@ -127,7 +127,7 @@ export default function PrintEngine() {
         // 0. Portada Maestra DIROGSA — siempre la primera página
         newHierarchy.push({ type: 'master_cover' });
         
-        if (config.groupingMode === 'by_vehicle') {
+        if (config.catalogStrategy === 'by_vehicle') {
           // --- MODO: AGRUPAR POR VEHÍCULO ---
           const byVehicleMake = {};
           

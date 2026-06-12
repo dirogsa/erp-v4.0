@@ -11,6 +11,7 @@ class KatalogGenerateRequest(BaseModel):
     categories: List[str] = []  # category_ids
     vehicle_makes: List[str] = [] # filter by vehicle make
     skus: List[str] = []        # Si se provee, es el universo de datos. Ignora brands/categories/vehicle_makes.
+    strategy: str = None        # 'by_category' o 'by_vehicle'
 
 class SkuValidationRequest(BaseModel):
     skus: List[str]
@@ -72,9 +73,6 @@ async def generate_katalog(req: KatalogGenerateRequest):
         products = await Product.find(In(Product.sku, normalized_skus)).to_list()
     else:
         # --- Modo filtros (Marca + Categoría o Vehículo) ---
-        if not req.brands and not req.vehicle_makes:
-            return []
-        
         query_conditions = []
         
         if req.brands:
@@ -96,7 +94,8 @@ async def generate_katalog(req: KatalogGenerateRequest):
                 query = query_conditions[0]
             products = await Product.find(query).to_list()
         else:
-            products = []
+            # Traer todo si no hay filtros (requerimiento de negocio)
+            products = await Product.find_all().to_list()
 
     # Filtrar aplicaciones de marcas de vehículos inactivas (aplica a ambos modos)
     inactive_vehicle_brands = await VehicleBrand.find(VehicleBrand.show_in_catalog == False).to_list()

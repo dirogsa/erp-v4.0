@@ -82,10 +82,11 @@ export default function ConfigPanel() {
     }
   });
 
-  // El botón de generar se habilita si hay marcas (de repuesto o de vehículo) seleccionadas O si el modo SKU está activo
+  // El botón de generar se habilita siempre en modo filtros (si está vacío trae todo),
+  // y en modo SKU requiere SKUs válidos.
   const canGenerate = config.inputMode === 'skus'
     ? config.validatedSkus.length > 0
-    : (config.selectedBrands.length > 0 || config.selectedVehicleMakes.length > 0);
+    : true;
 
   return (
     <div className="config-container">
@@ -135,21 +136,21 @@ export default function ConfigPanel() {
           </div>
         </section>
 
-        {/* --- Estrategia de Agrupación --- */}
+        {/* --- Estrategia de Construcción --- */}
         <section className="config-card config-card-full">
-          <h2>Estrategia de Agrupación Visual</h2>
+          <h2>Estrategia de Construcción del Catálogo</h2>
           <div className="toggle-group">
             <button
-              className={config.groupingMode === 'by_product' ? 'active' : ''}
-              onClick={() => setConfig({ groupingMode: 'by_product' })}
+              className={config.catalogStrategy === 'by_category' ? 'active' : ''}
+              onClick={() => setConfig({ catalogStrategy: 'by_category', selectedVehicleMakes: [] })}
             >
-              Agrupar por Tipo de Repuesto
+              Catálogo por Tipo de Producto
             </button>
             <button
-              className={config.groupingMode === 'by_vehicle' ? 'active' : ''}
-              onClick={() => setConfig({ groupingMode: 'by_vehicle' })}
+              className={config.catalogStrategy === 'by_vehicle' ? 'active' : ''}
+              onClick={() => setConfig({ catalogStrategy: 'by_vehicle', selectedCategories: [] })}
             >
-              Agrupar por Marca de Vehículo
+              Catálogo por Marca de Vehículo
             </button>
           </div>
         </section>
@@ -189,7 +190,7 @@ export default function ConfigPanel() {
         </section>
 
         {/* --- Marcas de Vehículo a Incluir (Autocomplete) --- */}
-        {config.inputMode === 'filters' && (
+        {config.inputMode === 'filters' && config.catalogStrategy === 'by_vehicle' && (
           <section className="config-card">
             <h2>Marcas de Vehículo a Incluir</h2>
             
@@ -265,7 +266,7 @@ export default function ConfigPanel() {
         )}
 
         {/* --- Categorías o Vehículos dependiendo del modo --- */}
-        {config.inputMode === 'filters' && config.groupingMode === 'by_product' && (
+        {config.inputMode === 'filters' && config.catalogStrategy === 'by_category' && (
           <section className="config-card">
             <h2>Tipos de Producto</h2>
             <div className="categories-grouped-grid">
