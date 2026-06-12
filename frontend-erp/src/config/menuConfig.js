@@ -75,7 +75,8 @@ export const MENU_CONFIG = [
         isGroup: true,
         children: [
             { id: 'marketing', label: 'Marketing y Fidelización', path: '/marketing', icon: '🎁' },
-            { id: 'market-intel', label: 'Inteligencia Competitiva', path: '/brands', icon: '🏎️' },
+            { id: 'market-intel', label: 'Marcas de Vehículo (Catálogo)', path: '/brands', icon: '🏎️' },
+            { id: 'brands-product', label: 'Marcas de Repuesto (Catálogo)', path: '/product-brands', icon: '🏷️' },
             { id: 'reviews-moderation', label: 'Moderación de Reseñas', path: '/marketing/reviews', icon: '⭐' }
         ]
     },

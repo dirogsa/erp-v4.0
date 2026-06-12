@@ -36,7 +36,7 @@ const BrandManagement = () => {
         origin: 'OTHER',
         logo_url: '',
         is_popular: false,
-        is_active: true
+        show_in_catalog: true
     });
 
     useEffect(() => {
@@ -57,24 +57,24 @@ const BrandManagement = () => {
     };
 
     const handleToggleVisibility = async (brand) => {
-        const newStatus = !brand.is_active;
+        const newStatus = brand.show_in_catalog === false ? true : false;
         
         // Affected names includes the parent and all its children
         const affectedNames = [brand.name, ...(brand.children ? brand.children.map(c => c.name) : [])];
         
         // Optimistic UI Update
-        setBrands(prev => prev.map(b => affectedNames.includes(b.name) ? { ...b, is_active: newStatus } : b));
+        setBrands(prev => prev.map(b => affectedNames.includes(b.name) ? { ...b, show_in_catalog: newStatus } : b));
         
         try {
             if (affectedNames.length === 1) {
-                await brandService.updateBrand(brand.name, { ...brand, is_active: newStatus });
+                await brandService.updateBrand(brand.name, { ...brand, show_in_catalog: newStatus });
             } else {
-                await brandService.bulkUpdateBrands(affectedNames, { is_active: newStatus });
+                await brandService.bulkUpdateBrands(affectedNames, { show_in_catalog: newStatus });
             }
         } catch (error) {
-            showNotification('Error al cambiar visibilidad', 'error');
+            showNotification('Error al cambiar visibilidad de impresión', 'error');
             // Rollback
-            setBrands(prev => prev.map(b => affectedNames.includes(b.name) ? { ...b, is_active: !newStatus } : b));
+            setBrands(prev => prev.map(b => affectedNames.includes(b.name) ? { ...b, show_in_catalog: !newStatus } : b));
         }
     };
 
@@ -124,7 +124,7 @@ const BrandManagement = () => {
             origin: brand.origin,
             logo_url: brand.logo_url || '',
             is_popular: brand.is_popular || false,
-            is_active: brand.is_active !== undefined ? brand.is_active : true
+            show_in_catalog: brand.show_in_catalog !== undefined ? brand.show_in_catalog : true
         });
         setModalVisible(true);
     };
@@ -146,8 +146,8 @@ const BrandManagement = () => {
     const [filterStatus, setFilterStatus] = useState('all'); // all, active, hidden
 
     const rootsCount = brands.filter(b => !b.parent_name).length;
-    const activeCount = brands.filter(b => !b.parent_name && b.is_active === true).length;
-    const hiddenCount = brands.filter(b => !b.parent_name && b.is_active !== true).length;
+    const activeCount = brands.filter(b => !b.parent_name && b.show_in_catalog !== false).length;
+    const hiddenCount = brands.filter(b => !b.parent_name && b.show_in_catalog === false).length;
 
     // Hierarchy Logic for Admin UI: Group Variants under Root Brands
     const groupedBrands = React.useMemo(() => {
@@ -172,8 +172,8 @@ const BrandManagement = () => {
             
             // Status filter
             let matchStatus = true;
-            if (filterStatus === 'active') matchStatus = root.is_active === true;
-            if (filterStatus === 'hidden') matchStatus = root.is_active !== true;
+            if (filterStatus === 'active') matchStatus = root.show_in_catalog !== false;
+            if (filterStatus === 'hidden') matchStatus = root.show_in_catalog === false;
 
             return matchSearch && matchStatus;
         }).sort((a, b) => a.name.localeCompare(b.name));
@@ -275,10 +275,16 @@ const BrandManagement = () => {
                     
                     <div style={{ display: 'flex', gap: '1rem' }}>
                         <button 
-                            onClick={() => handleBulkAction('is_active', true)}
+                            onClick={() => handleBulkAction('show_in_catalog', true)}
                             style={{ background: 'white', color: '#6366f1', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '50px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                         >
-                            <Settings style={{ height: '1rem' }} /> ACTIVAR
+                            <Settings style={{ height: '1rem' }} /> INCLUIR EN CATÁLOGO
+                        </button>
+                        <button 
+                            onClick={() => handleBulkAction('show_in_catalog', false)}
+                            style={{ background: '#ef4444', color: 'white', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '50px', fontSize: '0.85rem', fontWeight: '900', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        >
+                            <EyeOff style={{ height: '1rem' }} /> EXCLUIR
                         </button>
                         <button 
                             onClick={() => handleBulkAction('is_popular', true)}
@@ -300,8 +306,8 @@ const BrandManagement = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '3rem' }}>
                 {[
                     { id: 'all', label: 'Total Marcas', count: rootsCount, color: '#6366f1', icon: Tag, desc: 'Catálogo completo sincronizado' },
-                    { id: 'active', label: 'Visibles en Tienda', count: activeCount, color: '#10b981', icon: Settings, desc: 'Disponibles para el cliente' },
-                    { id: 'hidden', label: 'Marcas Inactivas', count: hiddenCount, color: '#94a3b8', icon: EyeOff, desc: 'Restringidas del buscador' }
+                    { id: 'active', label: 'Impresión Habilitada', count: activeCount, color: '#10b981', icon: Settings, desc: 'Se imprimirán en físico' },
+                    { id: 'hidden', label: 'Excluidas de Impresión', count: hiddenCount, color: '#94a3b8', icon: EyeOff, desc: 'Omitidas para ahorrar espacio' }
                 ].map(stat => (
                     <div 
                         key={stat.id}
@@ -336,9 +342,9 @@ const BrandManagement = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3rem', alignItems: 'flex-start' }}>
                 <div>
                     <h1 style={{ color: 'white', fontSize: '2.5rem', fontWeight: '900', margin: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <Layout style={{ height: '2.5rem', color: '#6366f1' }} /> Centro de Control
+                        <Layout style={{ height: '2.5rem', color: '#6366f1' }} /> Gestor de Catálogo Impreso
                     </h1>
-                    <p style={{ color: '#64748b', fontSize: '1.1rem', marginTop: '0.5rem' }}>Administra la visibilidad y prioridad del catálogo comercial.</p>
+                    <p style={{ color: '#64748b', fontSize: '1.1rem', marginTop: '0.5rem' }}>Administra qué marcas vehiculares se imprimirán en el catálogo físico (Katalog) para optimizar el papel.</p>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
                     <div style={{ display: 'flex', gap: '1rem' }}>
@@ -507,8 +513,8 @@ const BrandManagement = () => {
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleToggleVisibility(brand); }}
                                                 style={{ 
-                                                    background: brand.is_active ? '#10b98122' : '#ef444422', 
-                                                    color: brand.is_active ? '#10b981' : '#ef4444',
+                                                    background: brand.show_in_catalog !== false ? '#10b98122' : '#ef444422', 
+                                                    color: brand.show_in_catalog !== false ? '#10b981' : '#ef4444',
                                                     border: 'none',
                                                     padding: '4px',
                                                     borderRadius: '6px',
@@ -518,13 +524,13 @@ const BrandManagement = () => {
                                                     justifyContent: 'center',
                                                     transition: 'all 0.2s'
                                                 }}
-                                                title={brand.is_active ? "Ocultar en tienda" : "Mostrar en tienda"}
+                                                title={brand.show_in_catalog !== false ? "Excluir de catálogo impreso" : "Incluir en catálogo impreso"}
                                                 className="hover-bright"
                                             >
-                                                {brand.is_active ? <Eye style={{ height: '1.2rem' }} /> : <EyeOff style={{ height: '1.2rem' }} />}
+                                                {brand.show_in_catalog !== false ? <Eye style={{ height: '1.2rem' }} /> : <EyeOff style={{ height: '1.2rem' }} />}
                                             </button>
                                             {brand.is_popular && <span style={{ background: '#f59e0b', color: 'black', padding: '2px 8px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: '900' }}>⭐ TOP</span>}
-                                            {!brand.is_active && <span style={{ background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: '900' }}>OCULTO</span>}
+                                            {brand.show_in_catalog === false && <span style={{ background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '0.65rem', fontWeight: '900' }}>NO IMPRIMIR</span>}
                                         </div>
                                     </div>
                                     
@@ -686,15 +692,15 @@ const BrandManagement = () => {
                         <label htmlFor="is_popular" style={{ color: 'white', fontWeight: '900', fontSize: '0.9rem' }}>Marcar como Marca Popular (Filtros rápidos)</label>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#0f172a', padding: '1rem', borderRadius: '12px', border: '1px solid #334155' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#0f172a', padding: '1rem', borderRadius: '12px', border: '1px solid #38bdf844' }}>
                         <input
                             type="checkbox"
-                            id="is_active"
-                            checked={formData.is_active}
-                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                            id="show_in_catalog"
+                            checked={formData.show_in_catalog}
+                            onChange={(e) => setFormData({ ...formData, show_in_catalog: e.target.checked })}
                             style={{ width: '22px', height: '22px' }}
                         />
-                        <label htmlFor="is_active" style={{ color: 'white', fontWeight: '900', fontSize: '0.9rem' }}>Activo en la Tienda (Visible en buscador)</label>
+                        <label htmlFor="show_in_catalog" style={{ color: '#38bdf8', fontWeight: '900', fontSize: '0.9rem' }}>Imprimir en Catálogo Físico (Ahorra espacio si desmarcas)</label>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid #334155', paddingTop: '1.5rem' }}>

@@ -9,7 +9,8 @@ router = APIRouter(prefix="/katalog", tags=["Katalog Premium"])
 class KatalogGenerateRequest(BaseModel):
     brands: List[str] = []
     categories: List[str] = []  # category_ids
-    skus: List[str] = []        # Si se provee, es el universo de datos. Ignora brands/categories.
+    vehicle_makes: List[str] = [] # filter by vehicle make
+    skus: List[str] = []        # Si se provee, es el universo de datos. Ignora brands/categories/vehicle_makes.
 
 class SkuValidationRequest(BaseModel):
     skus: List[str]
@@ -17,8 +18,14 @@ class SkuValidationRequest(BaseModel):
 @router.get("/brands")
 async def get_katalog_brands():
     """Returns active brands from Master Brands for the Katalog config panel"""
-    brands = await ProductBrand.find(ProductBrand.is_active == True).sort(+ProductBrand.name).to_list()
+    brands = await ProductBrand.find(ProductBrand.show_in_catalog == True).sort(+ProductBrand.name).to_list()
     # We just need the names to display and filter
+    return [b.name for b in brands]
+
+@router.get("/vehicle-brands")
+async def get_katalog_vehicle_brands():
+    """Returns active vehicle makes for the Katalog config panel"""
+    brands = await VehicleBrand.find(VehicleBrand.show_in_catalog != False).sort(+VehicleBrand.name).to_list()
     return [b.name for b in brands]
 
 @router.get("/categories")
@@ -64,16 +71,35 @@ async def generate_katalog(req: KatalogGenerateRequest):
         normalized_skus = [s.strip().upper() for s in req.skus if s.strip()]
         products = await Product.find(In(Product.sku, normalized_skus)).to_list()
     else:
-        # --- Modo filtros (Marca + Categoría) ---
-        if not req.brands:
+        # --- Modo filtros (Marca + Categoría o Vehículo) ---
+        if not req.brands and not req.vehicle_makes:
             return []
-        query = In(Product.brand, req.brands)
+        
+        query_conditions = []
+        
+        if req.brands:
+            query_conditions.append(In(Product.brand, req.brands))
+            
         if req.categories:
-            query = And(query, In(Product.category_id, req.categories))
-        products = await Product.find(query).to_list()
+            query_conditions.append(In(Product.category_id, req.categories))
+            
+        if req.vehicle_makes:
+            requested_makes = [m.strip().upper() for m in req.vehicle_makes if m.strip()]
+            if requested_makes:
+                # Filtrado nativo de MongoDB en el array de objetos applications
+                query_conditions.append({"applications.make": {"$in": requested_makes}})
+
+        if query_conditions:
+            if len(query_conditions) > 1:
+                query = And(*query_conditions)
+            else:
+                query = query_conditions[0]
+            products = await Product.find(query).to_list()
+        else:
+            products = []
 
     # Filtrar aplicaciones de marcas de vehículos inactivas (aplica a ambos modos)
-    inactive_vehicle_brands = await VehicleBrand.find(VehicleBrand.is_active == False).to_list()
+    inactive_vehicle_brands = await VehicleBrand.find(VehicleBrand.show_in_catalog == False).to_list()
     inactive_makes = {vb.name.upper() for vb in inactive_vehicle_brands}
 
     for p in products:

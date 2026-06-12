@@ -1,12 +1,18 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
-export const useCatalogStore = create((set) => ({
+export const useCatalogStore = create(
+  persist(
+    (set) => ({
   config: {
     orientation: 'portrait',
     audience: 'client', // 'client' o 'seller'
     // --- Modo Filtros (por defecto) ---
     selectedBrands: [],
     selectedCategories: [],
+    // --- Estrategia de Agrupación ---
+    groupingMode: 'by_product', // 'by_product' | 'by_vehicle'
+    selectedVehicleMakes: [],   // Lista de marcas de vehículos si el modo es 'by_vehicle'
     // --- Modo SKU (override del universo de datos) ---
     inputMode: 'filters', // 'filters' | 'skus'
     validatedSkus: [],    // SKUs confirmados por el validador
@@ -38,4 +44,8 @@ export const useCatalogStore = create((set) => ({
   clearSkuMode: () => set((state) => ({
     config: { ...state.config, inputMode: 'filters', validatedSkus: [] }
   })),
-}))
+}),
+{
+  name: 'katalog-storage', // name of the item in the storage (must be unique)
+}
+))

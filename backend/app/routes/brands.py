@@ -44,7 +44,7 @@ async def bulk_update_brands(
         raise HTTPException(status_code=403, detail="Not authorized")
     
     # Allowed fields for bulk update
-    allowed_fields = ["is_active", "is_popular", "origin"]
+    allowed_fields = ["is_active", "is_popular", "origin", "show_in_catalog"]
     filtered_update = {k: v for k, v in update_data.items() if k in allowed_fields}
     
     if not filtered_update:
@@ -56,7 +56,7 @@ async def bulk_update_brands(
     )
     return {"message": f"Updated {len(brand_names)} brands"}
 
-@router.put("/{name}")
+@router.put("/{name:path}")
 async def update_brand(name: str, brand_data: VehicleBrand, current_user: User = Depends(get_current_user)):
     if current_user.role not in [UserRole.ADMIN, UserRole.SUPERADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -69,11 +69,13 @@ async def update_brand(name: str, brand_data: VehicleBrand, current_user: User =
     brand.logo_url = brand_data.logo_url
     brand.is_popular = brand_data.is_popular
     brand.is_active = brand_data.is_active
+    if hasattr(brand_data, 'show_in_catalog'):
+        brand.show_in_catalog = brand_data.show_in_catalog
     brand.parent_name = brand_data.parent_name
     await brand.save()
     return brand
 
-@router.delete("/{name}")
+@router.delete("/{name:path}")
 async def delete_brand(name: str, current_user: User = Depends(get_current_user)):
     if current_user.role not in [UserRole.ADMIN, UserRole.SUPERADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized")

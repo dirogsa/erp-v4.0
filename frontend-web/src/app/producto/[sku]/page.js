@@ -5,6 +5,9 @@ import ReviewForm from '@/components/product/ReviewForm';
 import ProductTabs from '@/components/product/ProductTabs';
 import AddToCartModule from '@/components/product/AddToCartModule';
 
+export const revalidate = 86400; // ISR: Regenerar máximo 1 vez al día (24h)
+export const dynamicParams = true; // Permite renderizar nuevos SKUs on-demand
+
 /**
  * DYNAMIC METADATA — Constitution §6 / SEO Architecture
  * Next.js calls this BEFORE rendering. Google sees the exact title+description on arrival.

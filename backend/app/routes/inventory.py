@@ -208,6 +208,32 @@ async def delete_product(
     await inventory_service.delete_product(sku, user=current_user)
     return {"message": "Product deleted successfully"}
 
+from app.services.tecdoc_merge import enrich_product_with_tecdoc, sync_product_brands_from_product
+
+@router.post("/products/{sku}/enrich")
+async def enrich_product(
+    sku: str,
+    tecdoc_data: Dict[str, Any],
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN])),
+    company_id: str = Depends(get_current_company_id)
+):
+    """
+    Enriquece un producto existente con datos técnicos de TecDoc (JSON).
+    El merge es acumulativo (no borra lo existente).
+    """
+    product = await inventory_service.find_product_robustly(sku, company_id=company_id)
+    if not product:
+        raise HTTPException(status_code=404, detail=f"Producto con SKU {sku} no encontrado.")
+
+    # 1. Merge inteligente
+    updated_product = await enrich_product_with_tecdoc(product, tecdoc_data)
+    await updated_product.save()
+
+    # 2. Sincronizar marcas de repuesto a la colección ProductBrands
+    await sync_product_brands_from_product(updated_product)
+
+    return {"message": "Producto enriquecido con éxito", "sku": updated_product.sku}
+
 @router.get("/warehouses", response_model=List[Warehouse])
 async def get_warehouses(company_id: str = Depends(get_current_company_id)):
     return await inventory_service.get_warehouses(company_id=company_id)

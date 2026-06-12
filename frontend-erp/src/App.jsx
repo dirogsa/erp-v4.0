@@ -25,6 +25,7 @@ const MarketingInventory   = lazy(() => import('./pages/MarketingInventory'));
 const Categories           = lazy(() => import('./pages/Categories'));
 const BrandsManager        = lazy(() => import('./pages/BrandsManager'));
 const BrandManagement      = lazy(() => import('./pages/BrandManagement'));
+const ProductBrandManagement = lazy(() => import('./pages/ProductBrandManagement'));
 const Losses               = lazy(() => import('./pages/Losses'));
 const Transfers            = lazy(() => import('./pages/Transfers'));
 
@@ -132,6 +133,7 @@ function App() {
                             <Route path="/losses"                  element={<Losses />} />
                             <Route path="/transfers"               element={<Transfers />} />
                             <Route path="/brands"                  element={<BrandManagement />} />
+                            <Route path="/product-brands"          element={<ProductBrandManagement />} />
                             <Route path="/b2b"                     element={<B2BManagement />} />
                             <Route path="/pricing-strategy"        element={<PricingStrategy />} />
                             <Route path="/marketing"               element={<Marketing />} />

@@ -100,7 +100,7 @@ export default function PrintEngine() {
     const isSKUMode = config.inputMode === 'skus';
     const hasData = isSKUMode
       ? config.validatedSkus.length > 0
-      : config.selectedBrands.length > 0;
+      : (config.selectedBrands.length > 0 || config.selectedVehicleMakes.length > 0);
 
     if (!hasData) {
       navigate('/catalog');
@@ -109,7 +109,11 @@ export default function PrintEngine() {
 
     const generateBody = config.inputMode === 'skus'
       ? { skus: config.validatedSkus }
-      : { brands: config.selectedBrands, categories: config.selectedCategories };
+      : { 
+          brands: config.selectedBrands, 
+          categories: config.selectedCategories,
+          vehicle_makes: config.groupingMode === 'by_vehicle' ? config.selectedVehicleMakes : []
+        };
 
     Promise.all([
       fetch('http://localhost:8000/katalog/categories').then(r => r.json()),
@@ -134,55 +138,108 @@ export default function PrintEngine() {
         // 0. Portada Maestra DIROGSA — siempre la primera página
         newHierarchy.push({ type: 'master_cover' });
         
-        // 1. Agrupar productos por Marca
-        const byBrand = {};
-        safeProds.forEach(p => {
-          const brandName = p.brand || 'Otras Marcas';
-          if (!byBrand[brandName]) byBrand[brandName] = [];
-          byBrand[brandName].push(p);
-        });
-
-        const sortedBrands = Object.keys(byBrand).sort();
-
-        sortedBrands.forEach(brand => {
-          // Generar Portada de Marca
-          newHierarchy.push({ type: 'brand_cover', brand });
-
-          const brandProducts = byBrand[brand];
+        if (config.groupingMode === 'by_vehicle') {
+          // --- MODO: AGRUPAR POR VEHÍCULO ---
+          const byVehicleMake = {};
           
-          // 2. Agrupar productos por Categoría dentro de la Marca
-          const byCategory = {};
-          brandProducts.forEach(p => {
-            const catId = p.category_id || 'uncategorized';
-            if (!byCategory[catId]) byCategory[catId] = [];
-            byCategory[catId].push(p);
+          safeProds.forEach(p => {
+             if (!p.applications || p.applications.length === 0) return;
+             
+             const uniqueMakes = new Set();
+             p.applications.forEach(app => {
+                 if (app.make) uniqueMakes.add(app.make.trim().toUpperCase());
+             });
+
+             uniqueMakes.forEach(make => {
+                 // Si seleccionaron marcas específicas, ignoramos las demás
+                 if (config.selectedVehicleMakes.length > 0 && 
+                     !config.selectedVehicleMakes.map(m=>m.toUpperCase()).includes(make)) {
+                    return;
+                 }
+                 if (!byVehicleMake[make]) byVehicleMake[make] = [];
+                 // Clonamos agregando el sufijo para evitar claves duplicadas en React si un producto aplica a varias marcas
+                 byVehicleMake[make].push({...p, unique_key: `${p._id || p.sku}_${make}`}); 
+             });
           });
 
-          const sortedCatIds = Object.keys(byCategory).sort();
+          const sortedMakes = Object.keys(byVehicleMake).sort();
+          sortedMakes.forEach(make => {
+             newHierarchy.push({ type: 'brand_cover', brand: make });
+             
+             const byCategory = {};
+             byVehicleMake[make].forEach(p => {
+                const catId = p.category_id || 'uncategorized';
+                if (!byCategory[catId]) byCategory[catId] = [];
+                byCategory[catId].push(p);
+             });
 
-          sortedCatIds.forEach(catId => {
-            const catInfo = cDict[catId] || { 
-              name: catId === 'uncategorized' ? 'Otros Productos' : catId, 
-              description: '' 
-            };
+             const sortedCatIds = Object.keys(byCategory).sort();
+             sortedCatIds.forEach(catId => {
+                const catInfo = cDict[catId] || { name: catId === 'uncategorized' ? 'Otros Productos' : catId, description: '' };
+                newHierarchy.push({ type: 'category_cover', brand: make, category: catInfo });
+
+                const catProducts = byCategory[catId];
+                const productsPerPage = 8;
+                for (let i = 0; i < catProducts.length; i += productsPerPage) {
+                  newHierarchy.push({ 
+                    type: 'product_page', 
+                    products: catProducts.slice(i, i + productsPerPage),
+                    brand: make,
+                    categoryName: catInfo.name,
+                    pageIndex: Math.floor(i / productsPerPage) + 1
+                  });
+                }
+             });
+          });
+
+        } else {
+          // --- MODO ACTUAL: AGRUPAR POR REPUESTO (MARCA DEL PRODUCTO) ---
+          const byBrand = {};
+          safeProds.forEach(p => {
+            const brandName = p.brand || 'Otras Marcas';
+            if (!byBrand[brandName]) byBrand[brandName] = [];
+            p.unique_key = p._id || p.sku;
+            byBrand[brandName].push(p);
+          });
+
+          const sortedBrands = Object.keys(byBrand).sort();
+
+          sortedBrands.forEach(brand => {
+            newHierarchy.push({ type: 'brand_cover', brand });
+
+            const brandProducts = byBrand[brand];
             
-            // Generar Subportada de Categoría
-            newHierarchy.push({ type: 'category_cover', brand, category: catInfo });
+            const byCategory = {};
+            brandProducts.forEach(p => {
+              const catId = p.category_id || 'uncategorized';
+              if (!byCategory[catId]) byCategory[catId] = [];
+              byCategory[catId].push(p);
+            });
 
-            // 3. Paginación Matemática Estricta de 8 para los productos de esta categoría
-            const catProducts = byCategory[catId];
-            const productsPerPage = 8;
-            for (let i = 0; i < catProducts.length; i += productsPerPage) {
-              newHierarchy.push({ 
-                type: 'product_page', 
-                products: catProducts.slice(i, i + productsPerPage),
-                brand,
-                categoryName: catInfo.name,
-                pageIndex: Math.floor(i / productsPerPage) + 1
-              });
-            }
+            const sortedCatIds = Object.keys(byCategory).sort();
+
+            sortedCatIds.forEach(catId => {
+              const catInfo = cDict[catId] || { 
+                name: catId === 'uncategorized' ? 'Otros Productos' : catId, 
+                description: '' 
+              };
+              
+              newHierarchy.push({ type: 'category_cover', brand, category: catInfo });
+
+              const catProducts = byCategory[catId];
+              const productsPerPage = 8;
+              for (let i = 0; i < catProducts.length; i += productsPerPage) {
+                newHierarchy.push({ 
+                  type: 'product_page', 
+                  products: catProducts.slice(i, i + productsPerPage),
+                  brand,
+                  categoryName: catInfo.name,
+                  pageIndex: Math.floor(i / productsPerPage) + 1
+                });
+              }
+            });
           });
-        });
+        }
 
         setHierarchy(newHierarchy);
         setLoading(false);
@@ -287,7 +344,7 @@ export default function PrintEngine() {
               
               <div className="products-grid">
                 {page.products.map(product => (
-                  <div key={product._id || product.sku} className="product-card">
+                  <div key={product.unique_key} className="product-card">
                     <div className="product-body">
                       <div className="product-row-1">
                         {config.displayFields.image && (

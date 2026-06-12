@@ -362,16 +362,16 @@ export const brandService = {
   getBrands: (origin = '') => api.get('/brands', { params: { origin: origin || undefined } }),
   syncBrands: () => api.post('/brands/sync'),
   getSyncStatus: () => api.get('/brands/sync/status'),
-  updateBrand: (name, data) => api.put(`/brands/${name}`, data),
+  updateBrand: (name, data) => api.put(`/brands/${encodeURIComponent(name)}`, data),
   bulkUpdateBrands: (names, data) => api.patch('/brands/bulk', { brand_names: names, update_data: data }),
-  deleteBrand: (name) => api.delete(`/brands/${name}`),
+  deleteBrand: (name) => api.delete(`/brands/${encodeURIComponent(name)}`),
 };
 
 export const productBrandService = {
-  getBrands: (full = false) => api.get('/inventory/brands', { params: { full } }),
-  createBrand: (brand) => api.post('/inventory/brands', brand),
-  updateBrand: (id, brand) => api.put(`/inventory/brands/${id}`, brand),
-  deleteBrand: (id) => api.delete(`/inventory/brands/${id}`),
+  getBrands: () => api.get('/product-brands'),
+  syncBrands: () => api.post('/product-brands/sync'),
+  updateBrand: (name, data) => api.put(`/product-brands/${encodeURIComponent(name)}`, data),
+  bulkUpdateBrands: (names, data) => api.patch('/product-brands/bulk', { brand_names: names, update_data: data }),
 };
 
 export const pricingService = {

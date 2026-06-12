@@ -86,6 +86,7 @@ class VehicleBrand(Document):
     logo_url: Optional[str] = None
     is_popular: bool = False
     is_active: bool = True # Control visibility in shop dropdowns
+    show_in_catalog: bool = True # Control visibility in physical print Katalog
     models: List[str] = [] # Cache of associated models for performance
     product_count: int = 0  # Pre-calculated during sync — zero DB cost at query time
     
@@ -437,6 +438,7 @@ class ProductBrand(Document):
     name: Indexed(str, unique=True)  # Official name, normalized (e.g., "AZUMI")
     aliases: List[str] = []         # Sunat/XML variations (e.g., ["AZUMI FILTERS", "AZUMI JAPAN"])
     is_active: bool = True
+    show_in_catalog: bool = True    # Control visibility in physical print Katalog ONLY
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
