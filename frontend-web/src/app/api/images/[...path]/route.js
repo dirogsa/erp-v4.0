@@ -8,7 +8,22 @@ export async function GET(request, { params }) {
   if (!imagePathArray) return new NextResponse('Not Found', { status: 404 });
   
   const imagePath = imagePathArray.join('/');
-  const externalImagesDir = path.resolve(process.cwd(), '../images'); 
+  
+  // Resolve images directory dynamically to support running from both root and subfolders
+  let externalImagesDir = path.resolve(process.cwd(), '../images');
+  if (!fs.existsSync(externalImagesDir)) {
+    const alternativePaths = [
+      path.resolve(process.cwd(), 'images'),
+      path.resolve(process.cwd(), '../../images'),
+      path.resolve(process.cwd(), './frontend-web/images')
+    ];
+    for (const altPath of alternativePaths) {
+      if (fs.existsSync(altPath)) {
+        externalImagesDir = altPath;
+        break;
+      }
+    }
+  }
   
   const absolutePath = path.join(externalImagesDir, imagePath);
   

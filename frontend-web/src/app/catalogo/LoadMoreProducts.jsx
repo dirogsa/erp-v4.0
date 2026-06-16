@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ProductService } from '@/services/product.service';
 
-export default function LoadMoreProducts({ category, initialSkip, total, limit = 48 }) {
+export default function LoadMoreProducts({ category, search = '', initialSkip, total, limit = 48 }) {
   const [products, setProducts] = useState([]);
   const [skip, setSkip] = useState(initialSkip);
   const [loading, setLoading] = useState(false);
@@ -15,13 +15,9 @@ export default function LoadMoreProducts({ category, initialSkip, total, limit =
     if (loading || remaining <= 0) return;
     setLoading(true);
     try {
-      // In a real Server Action this would be cleaner, but we can just use the service if it's isomorphic or hit an API route.
-      // Wait, ProductService.searchProducts might try to hit the absolute API_BASE from the client. Let's hit the internal API or use a Server Action.
-      // Since Next.js 15, we can pass a Server Action down, or just use fetch to an internal route.
-      // Let's create an internal route or assume ProductService works on client if NEXT_PUBLIC_API_URL is set.
-      // Assuming NEXT_PUBLIC_API_URL is set, ProductService works on client.
       const res = await ProductService.searchProducts({
         category,
+        search: search || undefined,
         limit,
         skip
       });

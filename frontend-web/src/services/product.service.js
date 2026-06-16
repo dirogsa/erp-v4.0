@@ -74,6 +74,14 @@ export const ProductService = {
   },
 
   /**
+   * Get product brands from /product-brands endpoint
+   */
+  async getProductBrands() {
+    const data = await apiFetch('/product-brands', CACHE_OPTS);
+    return Array.isArray(data) ? data : [];
+  },
+
+  /**
    * Get product categories
    */
   async getCategories() {
