@@ -439,6 +439,13 @@ class ProductBrand(Document):
     aliases: List[str] = []         # Sunat/XML variations (e.g., ["AZUMI FILTERS", "AZUMI JAPAN"])
     is_active: bool = True
     show_in_catalog: bool = True    # Control visibility in physical print Katalog ONLY
+    
+    # New commercial metadata fields
+    origin: Optional[str] = "Importado"
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    theme_color: Optional[str] = None
+    
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

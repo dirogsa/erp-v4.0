@@ -3,99 +3,61 @@ import { ProductService } from '@/services/product.service';
 import LoadMoreProducts from '../LoadMoreProducts';
 import { slugToDisplay } from '@/lib/slug';
 
-const BRAND_METADATA = {
-  wix: {
-    name: 'WIX Filters',
-    origin: 'Estados Unidos / Europa',
-    description: 'Líder mundial en filtración automotriz y pesada con tecnología Spin-On de alta durabilidad.',
+function getBrandStyles(brandName) {
+  const cleanName = brandName.trim();
+  const lowerName = cleanName.toLowerCase();
+  
+  if (lowerName.includes('wix')) return {
     gradient: 'from-[#FFDD00]/10 to-transparent',
     borderColor: 'hover:border-[#FFDD00]/30',
     shadowColor: 'hover:shadow-[#FFDD00]/5',
     tagColor: 'text-[#FFDD00] bg-[#FFDD00]/5 border-[#FFDD00]/20',
     logo: 'WIX'
-  },
-  mann: {
-    name: 'MANN-FILTER',
-    origin: 'Alemania',
-    description: 'Equipos originales y filtración de alta gama para vehículos comerciales y europeos.',
+  };
+  if (lowerName.includes('mann')) return {
     gradient: 'from-[#009E49]/10 to-transparent',
     borderColor: 'hover:border-[#009E49]/30',
     shadowColor: 'hover:shadow-[#009E49]/5',
     tagColor: 'text-[#009E49] bg-[#009E49]/5 border-[#009E49]/20',
     logo: 'MANN'
-  },
-  azumi: {
-    name: 'AZUMI',
-    origin: 'Japón',
-    description: 'Filtración de precisión de estándar OEM optimizada para el parque automotor japonés y coreano.',
+  };
+  if (lowerName.includes('azumi')) return {
     gradient: 'from-[#E31E24]/10 to-transparent',
     borderColor: 'hover:border-[#E31E24]/30',
     shadowColor: 'hover:shadow-[#E31E24]/5',
     tagColor: 'text-[#E31E24] bg-[#E31E24]/5 border-[#E31E24]/20',
     logo: 'AZUMI'
-  },
-  totachi: {
-    name: 'TOTACHI',
-    origin: 'Japón',
-    description: 'Soluciones integrales de lubricación y filtración industrial de alta tecnología.',
+  };
+  if (lowerName.includes('totachi')) return {
     gradient: 'from-[#004A97]/10 to-transparent',
     borderColor: 'hover:border-[#004A97]/30',
     shadowColor: 'hover:shadow-[#004A97]/5',
     tagColor: 'text-[#004A97] bg-[#004A97]/5 border-[#004A97]/20',
     logo: 'TOTACHI'
-  },
-  filtron: {
-    name: 'FILTRON',
-    origin: 'Polonia / Europa',
-    description: 'Filtros de calidad OEM para turismos y furgonetas, parte de la red de filtración global.',
+  };
+  if (lowerName.includes('filtron')) return {
     gradient: 'from-[#E2001A]/10 to-transparent',
     borderColor: 'hover:border-[#E2001A]/30',
     shadowColor: 'hover:shadow-[#E2001A]/5',
     tagColor: 'text-[#E2001A] bg-[#E2001A]/5 border-[#E2001A]/20',
     logo: 'FILTRON'
-  },
-  mahle: {
-    name: 'MAHLE',
-    origin: 'Alemania / Europa',
-    description: 'Socio de desarrollo internacional y proveedor líder del sector de la automoción.',
+  };
+  if (lowerName.includes('mahle')) return {
     gradient: 'from-[#00A5DF]/10 to-transparent',
     borderColor: 'hover:border-[#00A5DF]/30',
     shadowColor: 'hover:shadow-[#00A5DF]/5',
     tagColor: 'text-[#00A5DF] bg-[#00A5DF]/5 border-[#00A5DF]/20',
     logo: 'MAHLE'
-  },
-  asakashi: {
-    name: 'ASAKASHI',
-    origin: 'Japón',
-    description: 'Filtros de calidad de equipo original para automóviles, maquinaria y camiones.',
+  };
+  if (lowerName.includes('asakashi')) return {
     gradient: 'from-[#C41230]/10 to-transparent',
     borderColor: 'hover:border-[#C41230]/30',
     shadowColor: 'hover:shadow-[#C41230]/5',
     tagColor: 'text-[#C41230] bg-[#C41230]/5 border-[#C41230]/20',
     logo: 'JS'
-  }
-};
-
-function getBrandProfile(brandName) {
-  const cleanName = brandName.trim();
-  const lowerName = cleanName.toLowerCase();
-  
-  if (lowerName.includes('wix')) return BRAND_METADATA.wix;
-  if (lowerName.includes('mann')) return BRAND_METADATA.mann;
-  if (lowerName.includes('azumi')) return BRAND_METADATA.azumi;
-  if (lowerName.includes('totachi')) return BRAND_METADATA.totachi;
-  if (lowerName.includes('filtron')) return BRAND_METADATA.filtron;
-  if (lowerName.includes('mahle')) return BRAND_METADATA.mahle;
-  if (lowerName.includes('asakashi')) return BRAND_METADATA.asakashi;
-  
-  if (BRAND_METADATA[lowerName]) {
-    return BRAND_METADATA[lowerName];
-  }
+  };
   
   return {
-    name: cleanName,
-    origin: 'Importado',
-    description: `Línea de repuestos y filtros de calidad superior marca ${cleanName} con garantía certificada de DIROGSA.`,
     gradient: 'from-brand-primary/5 to-transparent',
     borderColor: 'hover:border-brand-primary/30',
     shadowColor: 'hover:shadow-brand-primary/5',
@@ -138,13 +100,15 @@ export default async function CategoryPage({ params, searchParams }) {
   // 2. Filter active and allowed to be shown in catalog
   const activeDbBrands = dbBrands.filter(b => b.is_active !== false && b.show_in_catalog !== false);
   
-  // 3. Build enriched BRANDS array
+  // 3. Build enriched BRANDS array using ONLY DB data for business fields
   const BRANDS = activeDbBrands.map(b => {
-    const profile = getBrandProfile(b.name);
+    const styles = getBrandStyles(b.name);
     return {
       id: b.name.toLowerCase(),
       name: b.name,
-      ...profile
+      origin: b.origin || '',
+      description: b.description || `Línea de repuestos y filtros de calidad superior marca ${b.name} con garantía certificada de DIROGSA.`,
+      ...styles
     };
   });
 
@@ -225,9 +189,11 @@ export default async function CategoryPage({ params, searchParams }) {
                   <div className="relative z-10 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
-                        <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${brand.tagColor}`}>
-                          Origen: {brand.origin}
-                        </span>
+                        {brand.origin && (
+                          <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${brand.tagColor}`}>
+                            Origen: {brand.origin}
+                          </span>
+                        )}
                       </div>
                       <span className="text-2xl font-black text-white/20 group-hover:text-white/40 transition-colors uppercase tracking-widest font-mono">
                         {brand.logo}
