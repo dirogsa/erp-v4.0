@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import ActionLink from '@/components/ActionLink';
 import { ProductService } from '@/services/product.service';
 import LoadMoreProducts from '../LoadMoreProducts';
 import { slugToDisplay } from '@/lib/slug';
@@ -149,15 +150,15 @@ export default async function CategoryPage({ params, searchParams }) {
             }
           </p>
           <div className="mt-8 flex gap-4">
-            <Link href="/catalogo" className="text-xs text-white/50 hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2">
+            <ActionLink href="/catalogo" className="text-xs text-white/50 hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2" loadingMessage="Cargando categorías...">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
               Volver a Categorías
-            </Link>
+            </ActionLink>
             {activeBrandObj && (
-              <Link href={`/catalogo/${slug}`} className="text-xs text-brand-primary hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2">
+              <ActionLink href={`/catalogo/${slug}`} className="text-xs text-brand-primary hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2" loadingMessage="Limpiando filtro...">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 Cambiar de Marca
-              </Link>
+              </ActionLink>
             )}
           </div>
         </div>
@@ -178,10 +179,11 @@ export default async function CategoryPage({ params, searchParams }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {BRANDS.map((brand) => (
-                <Link 
+                <ActionLink 
                   key={brand.id}
                   href={`/catalogo/${slug}?brand=${brand.id}`}
                   className={`group relative overflow-hidden bg-[#141518]/60 backdrop-blur-md border border-white/5 rounded-3xl p-8 flex flex-col justify-between transition-all duration-500 hover:-translate-y-1.5 ${brand.borderColor} ${brand.shadowColor} hover:shadow-2xl`}
+                  loadingMessage={`Consultando base de datos ${brand.name}...`}
                 >
                   {/* Decorative background gradient */}
                   <div className={`absolute inset-0 bg-gradient-to-br ${brand.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
@@ -220,7 +222,7 @@ export default async function CategoryPage({ params, searchParams }) {
                       </svg>
                     </div>
                   </div>
-                </Link>
+                </ActionLink>
               ))}
             </div>
           </div>
@@ -238,9 +240,10 @@ export default async function CategoryPage({ params, searchParams }) {
               {/* Brand selection switcher pills */}
               <div className="flex flex-wrap gap-2 justify-center">
                 {BRANDS.map(b => (
-                  <Link
+                  <ActionLink
                     key={b.id}
                     href={`/catalogo/${slug}?brand=${b.id}`}
+                    loadingMessage={`Cargando ${b.name}...`}
                     className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${
                       b.id === brandParam.toLowerCase()
                         ? 'bg-brand-primary text-black border-transparent shadow-[0_0_15px_rgba(16,185,129,0.3)]'
@@ -248,14 +251,15 @@ export default async function CategoryPage({ params, searchParams }) {
                     }`}
                   >
                     {b.name}
-                  </Link>
+                  </ActionLink>
                 ))}
-                <Link
+                <ActionLink
                   href={`/catalogo/${slug}`}
+                  loadingMessage="Limpiando filtro..."
                   className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
                 >
                   Limpiar Filtro ×
-                </Link>
+                </ActionLink>
               </div>
             </div>
 
