@@ -51,6 +51,7 @@ export const ProductService = {
     if (params.category)       qs.set('category', params.category);
     if (params.is_new)         qs.set('is_new', 'true');
     if (params.limit)          qs.set('limit', params.limit);
+    if (params.skip !== undefined) qs.set('skip', params.skip);
 
     const data = await apiFetch(`/shop/products?${qs.toString()}`, SEARCH_CACHE_OPTS);
     if (!data) return { items: [], total: 0 };

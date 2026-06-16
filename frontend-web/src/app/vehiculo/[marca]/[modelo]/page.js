@@ -193,7 +193,7 @@ export default async function VehiculoModeloPage({ params }) {
               <span className="text-white">{total}</span> repuestos compatibles
             </p>
             <Link
-              href={`/catalogo?make=${encodeURIComponent(resolved?.makeRaw ?? marcaDisplay)}&model=${encodeURIComponent(resolved?.modelRaw ?? modeloDisplay)}`}
+              href={`/vehiculo/${marca}`}
               className="text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all"
               style={{ borderColor: 'rgba(56,189,248,0.3)', color: '#38BDF8', background: 'rgba(56,189,248,0.05)' }}
             >

@@ -57,6 +57,7 @@ export default async function VehiculoMarcaPage({ params }) {
   let products = [];
   let models = [];
   let total = 0;
+  let isValidBrand = false;
 
   try {
     // El backend acepta la marca como regex flexible, por lo que
@@ -79,11 +80,21 @@ export default async function VehiculoMarcaPage({ params }) {
       const vehicles = await vehRes.json();
       // Busca por make_slug (garantiza coincidencia exacta con la URL)
       const found = vehicles.find(v => v.make_slug === marca);
-      // models ya vienen pre-slugificados: [{ model_raw, model_slug }]
-      models = found?.models || [];
+      if (found) {
+        isValidBrand = true;
+        // models ya vienen pre-slugificados: [{ model_raw, model_slug }]
+        models = found?.models || [];
+      }
     }
   } catch (err) {
     console.error('[VehiculoMarca] Error:', err.message);
+  }
+
+  // ── GUARDIA SEO: Si la marca no existe en la whitelist, 404 limpio ──
+  // Esto evita que Google indexe páginas vacías para marcas como
+  // "talbot", "veb (ifa) fahrzeugwerke", "renault trucks (rvi)", etc.
+  if (!isValidBrand) {
+    notFound();
   }
 
   // JSON-LD: BreadcrumbList
@@ -178,7 +189,7 @@ export default async function VehiculoMarcaPage({ params }) {
                   Mostrando <span className="text-white">{products.length}</span> de <span className="text-white">{total}</span> repuestos
                 </p>
                 <Link
-                  href={`/catalogo?make=${encodeURIComponent(marcaDisplay)}`}
+                  href="/catalogo"
                   className="text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all"
                   style={{ borderColor: 'rgba(56,189,248,0.3)', color: '#38BDF8', background: 'rgba(56,189,248,0.05)' }}
                 >

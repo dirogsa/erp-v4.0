@@ -32,14 +32,6 @@ export default async function sitemap() {
     // Tier 1 — Home
     { url: SITE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
 
-    // Tier 2A — Category Hubs
-    ...PRODUCT_CATEGORIES.map(cat => ({
-      url: `${SITE_URL}/catalogo/${cat.slug.toLowerCase()}`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.95,
-    })),
-
     // Tier 2B — Product Brand Hubs (estáticos)
     ...PRODUCT_BRAND_HUBS.map(brand => ({
       url: `${SITE_URL}/marca/${brand}`,
@@ -82,7 +74,7 @@ export default async function sitemap() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-    const [prodRes, brandsRes, vehiclesRes] = await Promise.all([
+    const [prodRes, brandsRes, vehiclesRes, catRes] = await Promise.all([
       // Tier 3: Productos
       fetch(`${API_BASE}/shop/seo/products`, {
         next: { revalidate: 86400 },
@@ -98,9 +90,28 @@ export default async function sitemap() {
         next: { revalidate: 86400 },
         signal: controller.signal,
       }),
+      // Tier 2A dinámica: Categorías desde BD
+      fetch(`${API_BASE}/categories`, {
+        next: { revalidate: 86400 },
+        signal: controller.signal,
+      }),
     ]);
 
     clearTimeout(timeoutId);
+
+    // ── Tier 2A dinámica: Categorías ──
+    if (catRes.ok) {
+      const categories = await catRes.json();
+      const { toSlug } = await import('@/lib/slug'); // Import dinámico para evitar error en el scope
+      const categoryPages = categories.map(c => ({
+        url: `${SITE_URL}/catalogo/${toSlug(c.name)}`,
+        lastModified: new Date(),
+        changeFrequency: 'daily',
+        priority: 0.95,
+      }));
+      dynamicPages.push(...categoryPages);
+      console.log(`[Sitemap] ✅ ${categoryPages.length} páginas de categorías añadidas.`);
+    }
 
     // ── Tier 3: Páginas de productos ──
     if (prodRes.ok) {

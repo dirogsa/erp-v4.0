@@ -6,6 +6,8 @@ import SearchSkeleton from '@/components/SearchSkeleton';
 import LogisticsSection from '@/components/LogisticsSection';
 import { Suspense } from 'react';
 import { PRODUCT_CATEGORIES, HOME_SEO_HUB_BRANDS, SITE_URL } from '@/config/seo.config';
+import { ProductService } from '@/services/product.service';
+import { toSlug } from '@/lib/slug';
 
 // Metadata a nivel de página (extiende el template del layout)
 export const metadata = {
@@ -22,7 +24,29 @@ export const metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const categoriesRaw = await ProductService.getCategories();
+  let homeCategories = [];
+  try {
+    const parentFiltros = categoriesRaw.find(c => c.name.toUpperCase().includes('FILTRO') && !c.parent_id);
+    const parentFiltrosId = parentFiltros ? parentFiltros._id : null;
+    const childCategories = categoriesRaw.filter(c => c.parent_id === parentFiltrosId);
+    
+    homeCategories = childCategories.slice(0, 4).map(c => ({
+      slug: toSlug(c.name),
+      label: c.name
+    }));
+  } catch (err) {
+    console.error('[HomePage] Error processing dynamic categories:', err.message);
+  }
+
+  if (homeCategories.length === 0) {
+    homeCategories = PRODUCT_CATEGORIES.slice(0, 4).map(c => ({
+      slug: c.slug.toLowerCase(),
+      label: c.label
+    }));
+  }
+
   // ── JSON-LD: WebSite con SearchAction (Habilita Sitelinks Search Box en Google) ──
   const websiteJsonLd = {
     '@context': 'https://schema.org',
@@ -174,12 +198,11 @@ export default function HomePage() {
           <h2 id="seo-hub-heading" className="text-[10px] font-black uppercase tracking-widest mb-5 text-white/40">Explorar Directorio</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Categorías */}
             <div>
               <p className="text-[9px] font-bold uppercase tracking-widest mb-3 text-white/30">Tipo de filtro</p>
               <div className="flex flex-wrap gap-2">
-                {PRODUCT_CATEGORIES.slice(0, 4).map(({ slug, label }) => (
-                  <Link key={slug} href={`/catalogo/${slug.toLowerCase()}`} className="px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-[#141518]/50 text-white/60 hover:text-white transition-colors">
+                {homeCategories.map(({ slug, label }) => (
+                  <Link key={slug} href={`/catalogo/${slug}`} className="px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-[#141518]/50 text-white/60 hover:text-white transition-colors">
                     {label}
                   </Link>
                 ))}

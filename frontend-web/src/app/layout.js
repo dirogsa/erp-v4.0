@@ -170,11 +170,11 @@ export default function RootLayout({ children }) {
               <div>
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Por Tipo de Filtro</h3>
                 <ul className="space-y-2">
-                  <li><Link href="/catalogo/aceite" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aceite</Link></li>
-                  <li><Link href="/catalogo/aire" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aire</Link></li>
-                  <li><Link href="/catalogo/combustible" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Combustible</Link></li>
-                  <li><Link href="/catalogo/cabina" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Cabina</Link></li>
-                  <li><Link href="/catalogo/hidraulico" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros Hidráulicos</Link></li>
+                  <li><Link href="/catalogo/filtro-de-aceite" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aceite</Link></li>
+                  <li><Link href="/catalogo/filtro-de-aire" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aire</Link></li>
+                  <li><Link href="/catalogo/filtro-de-combustible" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Combustible</Link></li>
+                  <li><Link href="/catalogo/filtro-de-cabina" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Cabina</Link></li>
+                  <li><Link href="/catalogo/filtro-hidraulico" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros Hidráulicos</Link></li>
                 </ul>
               </div>
             </div>

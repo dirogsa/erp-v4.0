@@ -3,7 +3,8 @@ import fs from 'fs';
 import path from 'path';
 
 export async function GET(request, { params }) {
-  const { path: imagePathArray } = params;
+  const resolvedParams = await params;
+  const { path: imagePathArray } = resolvedParams;
   if (!imagePathArray) return new NextResponse('Not Found', { status: 404 });
   
   const imagePath = imagePathArray.join('/');
