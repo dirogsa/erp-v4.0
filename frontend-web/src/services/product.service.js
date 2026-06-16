@@ -12,18 +12,24 @@ const CACHE_OPTS = { next: { revalidate: 3600 } };
 // Short cache for search/catalogue listing (5 min)
 const SEARCH_CACHE_OPTS = { next: { revalidate: 300 } };
 
-async function apiFetch(path, opts = {}) {
-  try {
-    const res = await fetch(`${API_BASE}${path}`, opts);
-    if (!res.ok) {
-      if (res.status === 404) return null;
-      throw new Error(`API error ${res.status} on ${path}`);
+async function apiFetch(path, opts = {}, retries = 3, delay = 3000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(`${API_BASE}${path}`, opts);
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error(`API error ${res.status} on ${path}`);
+      }
+      return await res.json();
+    } catch (err) {
+      const isLast = i === retries - 1;
+      console.warn(`[ProductService] Attempt ${i + 1} failed for ${path}: ${err.message}. ${isLast ? 'Returning null.' : `Retrying in ${delay}ms...`}`);
+      if (isLast) return null;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay = Math.round(delay * 1.8);
     }
-    return res.json();
-  } catch (err) {
-    console.error(`[ProductService] ${path}:`, err.message);
-    return null;
   }
+  return null;
 }
 
 export const ProductService = {
