@@ -12,10 +12,17 @@ const CACHE_OPTS = { next: { revalidate: 3600 } };
 // Short cache for search/catalogue listing (5 min)
 const SEARCH_CACHE_OPTS = { next: { revalidate: 300 } };
 
-async function apiFetch(path, opts = {}, retries = 3, delay = 3000) {
+async function apiFetch(path, opts = {}, retries = 5, delay = 5000) {
   for (let i = 0; i < retries; i++) {
     try {
-      const res = await fetch(`${API_BASE}${path}`, opts);
+      // Internal timeout to prevent Next.js fetch from hanging indefinitely on Cold Starts
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s max per attempt
+      
+      const fetchOpts = { ...opts, signal: controller.signal };
+      const res = await fetch(`${API_BASE}${path}`, fetchOpts);
+      clearTimeout(timeoutId);
+
       if (!res.ok) {
         if (res.status === 404) return null;
         throw new Error(`API error ${res.status} on ${path}`);
@@ -23,10 +30,10 @@ async function apiFetch(path, opts = {}, retries = 3, delay = 3000) {
       return await res.json();
     } catch (err) {
       const isLast = i === retries - 1;
-      console.warn(`[ProductService] Attempt ${i + 1} failed for ${path}: ${err.message}. ${isLast ? 'Returning null.' : `Retrying in ${delay}ms...`}`);
+      console.warn(`[ProductService] Attempt ${i + 1} failed for ${path}: ${err.name === 'AbortError' ? 'Timeout' : err.message}. ${isLast ? 'Returning null.' : `Retrying in ${delay}ms...`}`);
       if (isLast) return null;
       await new Promise(resolve => setTimeout(resolve, delay));
-      delay = Math.round(delay * 1.8);
+      delay = Math.round(delay * 1.5); // Exponential backoff: 5s -> 7.5s -> 11.2s -> 16.8s
     }
   }
   return null;
