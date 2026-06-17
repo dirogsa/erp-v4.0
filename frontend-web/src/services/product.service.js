@@ -12,29 +12,72 @@ const CACHE_OPTS = { next: { revalidate: 3600 } };
 // Short cache for search/catalogue listing (5 min)
 const SEARCH_CACHE_OPTS = { next: { revalidate: 300 } };
 
-async function apiFetch(path, opts = {}, retries = 5, delay = 5000) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      // Internal timeout to prevent Next.js fetch from hanging indefinitely on Cold Starts
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s max per attempt
-      
-      const fetchOpts = { ...opts, signal: controller.signal };
-      const res = await fetch(`${API_BASE}${path}`, fetchOpts);
-      clearTimeout(timeoutId);
+// Simple Semaphore to prevent Next.js SSG workers from hammering the API and triggering 429
+const MAX_CONCURRENT_REQUESTS = 5;
+let activeRequests = 0;
+const requestQueue = [];
 
-      if (!res.ok) {
-        if (res.status === 404) return null;
-        throw new Error(`API error ${res.status} on ${path}`);
+async function acquireSemaphore() {
+  if (activeRequests < MAX_CONCURRENT_REQUESTS) {
+    activeRequests++;
+    return;
+  }
+  return new Promise(resolve => requestQueue.push(resolve));
+}
+
+function releaseSemaphore() {
+  activeRequests--;
+  if (requestQueue.length > 0) {
+    activeRequests++;
+    const nextResolve = requestQueue.shift();
+    nextResolve();
+  }
+}
+
+async function apiFetch(path, opts = {}, retries = 5, delay = 5000) {
+  await acquireSemaphore();
+  
+  try {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000); 
+        
+        const fetchOpts = { ...opts, signal: controller.signal };
+        const res = await fetch(`${API_BASE}${path}`, fetchOpts);
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          if (res.status === 404) return null;
+          // If Rate Limited (429), respect it heavily
+          if (res.status === 429) {
+            const retryAfter = res.headers.get('Retry-After');
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : delay * 2;
+            throw new Error(`RateLimited_429_${waitTime}`);
+          }
+          throw new Error(`API error ${res.status} on ${path}`);
+        }
+        return await res.json();
+      } catch (err) {
+        const isLast = i === retries - 1;
+        
+        // Custom 429 handling extraction
+        let currentDelay = delay;
+        let errMsg = err.name === 'AbortError' ? 'Timeout' : err.message;
+        if (err.message && err.message.startsWith('RateLimited_429_')) {
+            currentDelay = parseInt(err.message.split('_')[2]);
+            errMsg = '429 Too Many Requests';
+        }
+        
+        console.warn(`[ProductService] Attempt ${i + 1} failed for ${path}: ${errMsg}. ${isLast ? 'Returning null.' : `Retrying in ${currentDelay}ms...`}`);
+        if (isLast) return null;
+        
+        await new Promise(resolve => setTimeout(resolve, currentDelay));
+        delay = Math.round(delay * 1.5); 
       }
-      return await res.json();
-    } catch (err) {
-      const isLast = i === retries - 1;
-      console.warn(`[ProductService] Attempt ${i + 1} failed for ${path}: ${err.name === 'AbortError' ? 'Timeout' : err.message}. ${isLast ? 'Returning null.' : `Retrying in ${delay}ms...`}`);
-      if (isLast) return null;
-      await new Promise(resolve => setTimeout(resolve, delay));
-      delay = Math.round(delay * 1.5); // Exponential backoff: 5s -> 7.5s -> 11.2s -> 16.8s
     }
+  } finally {
+    releaseSemaphore();
   }
   return null;
 }

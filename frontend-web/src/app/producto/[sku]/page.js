@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { notFound } from 'next/navigation';
 import { ProductService } from '@/services/product.service';
 import ReviewForm from '@/components/product/ReviewForm';
 import ProductTabs from '@/components/product/ProductTabs';
