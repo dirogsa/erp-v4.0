@@ -6,8 +6,8 @@ import ReviewForm from '@/components/product/ReviewForm';
 import ProductTabs from '@/components/product/ProductTabs';
 import AddToCartModule from '@/components/product/AddToCartModule';
 
-export const revalidate = 86400; // ISR: Regenerar máximo 1 vez al día (24h)
-export const dynamicParams = true; // Permite renderizar nuevos SKUs on-demand
+export const dynamic = 'force-dynamic'; // On-demand SSR: no build-time bombardment of the free-tier API
+export const revalidate = false;        // ISR disabled: each request is served by SSR cache headers
 
 /**
  * DYNAMIC METADATA — Constitution §6 / SEO Architecture
@@ -15,6 +15,8 @@ export const dynamicParams = true; // Permite renderizar nuevos SKUs on-demand
  */
 export async function generateMetadata({ params }) {
   const { sku } = await params;
+  // NOTE: Next.js 14+ automatically deduplicates fetch() calls with same URL+opts within a request.
+  // ProductService.getProductBySku uses the same path so this is free — no extra DB round-trip.
   const product = await ProductService.getProductBySku(sku);
 
   if (!product) {

@@ -19,14 +19,9 @@ export const revalidate = 3600;
  * el mismo endpoint que el sitemap — garantía de coherencia.
  */
 export async function generateStaticParams() {
-  try {
-    const res = await fetch(`${API_BASE}/shop/seo/vehicles`, { next: { revalidate: 86400 } });
-    if (!res.ok) return [];
-    const vehicles = await res.json();
-    return vehicles.map(v => ({ marca: v.make_slug }));
-  } catch {
-    return [];
-  }
+  // Free Tier Protection: Do not pre-build thousands of pages during build-time.
+  // Generate them dynamically on the first visit (ISR) to avoid triggering Render 429 Too Many Requests.
+  return [];
 }
 
 export async function generateMetadata({ params }) {

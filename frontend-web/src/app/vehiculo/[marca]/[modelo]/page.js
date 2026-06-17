@@ -21,20 +21,9 @@ export const revalidate = 3600;
  * Los slugs del backend son idénticos a los del sitemap.
  */
 export async function generateStaticParams() {
-  try {
-    const res = await fetch(`${API_BASE}/shop/seo/vehicles`, { next: { revalidate: 86400 } });
-    if (!res.ok) return [];
-    const vehicles = await res.json();
-    const params = [];
-    for (const v of vehicles) {
-      for (const m of v.models) {
-        params.push({ marca: v.make_slug, modelo: m.model_slug });
-      }
-    }
-    return params;
-  } catch {
-    return [];
-  }
+  // Free Tier Protection: Do not pre-build thousands of pages during build-time.
+  // Generate them dynamically on the first visit (ISR) to avoid triggering Render 429 Too Many Requests.
+  return [];
 }
 
 /**
