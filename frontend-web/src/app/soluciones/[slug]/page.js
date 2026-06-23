@@ -102,7 +102,7 @@ export default async function SolucionesSeoPage({ params }) {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {products.map(p => (
-              <Link key={p.sku} href={`/producto/${p.sku}`} className="group p-4 rounded-2xl border border-white/5 bg-[#141518] hover:border-brand-primary/40 transition-all">
+              <Link key={p.sku} href={`/product/${p.sku}`} className="group p-4 rounded-2xl border border-white/5 bg-[#141518] hover:border-brand-primary/40 transition-all">
                 <span className="text-[10px] text-brand-primary font-bold uppercase">{p.brand || 'DIROGSA'}</span>
                 <p className="text-xs text-white font-black mt-1 truncate">{p.name}</p>
                 <p className="text-[10px] text-white/40 mt-2">SKU: {p.sku}</p>

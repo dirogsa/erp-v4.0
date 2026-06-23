@@ -15,10 +15,10 @@ const nextConfig = {
   poweredByHeader: false,
   async redirects() {
     return [
-      // ── LEGACY: /product/ → /producto/ (English → Spanish) ──
+      // ── LEGACY: /producto/ → /product/ (Spanish → English) ──
       {
-        source: '/product/:slug*',
-        destination: '/producto/:slug*',
+        source: '/producto/:slug*',
+        destination: '/product/:slug*',
         permanent: true,
       },
 
@@ -47,6 +47,18 @@ const nextConfig = {
         source: '/catalogo',
         has: [{ type: 'query', key: 'parent' }],
         destination: '/catalogo',
+        permanent: true,
+      },
+      // ── CONSOLIDACIÓN SEO: Redirigir modelos específicos a su marca padre ──
+      // GSC reporta demasiados 404s en modelos detallados. Centramos autoridad en la marca.
+      {
+        source: '/vehiculo/:marca/:modelo',
+        destination: '/vehiculo/:marca',
+        permanent: true,
+      },
+      {
+        source: '/vehiculo/aplicaciones/:slug*',
+        destination: '/vehiculo',
         permanent: true,
       },
     ];

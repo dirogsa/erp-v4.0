@@ -112,7 +112,7 @@ export default async function VehiculoMarcaPage({ params }) {
     itemListElement: products.slice(0, 10).map((p, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: `${SITE_URL}/producto/${p.sku}`,
+      url: `${SITE_URL}/product/${p.sku}`,
       name: p.name,
     })),
   } : null;
@@ -194,7 +194,7 @@ export default async function VehiculoMarcaPage({ params }) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
                 {products.map(p => (
-                  <Link key={p.sku} href={`/producto/${p.sku}`}
+                  <Link key={p.sku} href={`/product/${p.sku}`}
                     className="group flex flex-col p-4 rounded-2xl border transition-all hover:border-[#38BDF8]/30"
                     style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border-2)' }}>
                     <div className="h-32 w-full rounded-xl overflow-hidden flex items-center justify-center p-2 mb-3"

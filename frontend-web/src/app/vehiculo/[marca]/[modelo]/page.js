@@ -131,7 +131,7 @@ export default async function VehiculoModeloPage({ params }) {
     itemListElement: products.slice(0, 10).map((p, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: `${SITE_URL}/producto/${p.sku}`,
+      url: `${SITE_URL}/product/${p.sku}`,
       name: p.name,
     })),
   };
@@ -193,7 +193,7 @@ export default async function VehiculoModeloPage({ params }) {
           <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 list-none p-0">
             {products.map(p => (
               <li key={p.sku}>
-                <Link href={`/producto/${p.sku}`}
+                <Link href={`/product/${p.sku}`}
                   className="group flex flex-col h-full p-4 rounded-2xl border transition-all hover:border-[#38BDF8]/40 hover:shadow-[0_0_24px_rgba(56,189,248,0.1)]"
                   style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border-2)' }}>
                   <div className="h-28 w-full rounded-xl flex items-center justify-center p-2 mb-3"

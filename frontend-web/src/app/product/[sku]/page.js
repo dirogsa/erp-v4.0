@@ -60,7 +60,7 @@ export async function generateMetadata({ params }) {
       siteName: 'DIROGSA',
     },
     alternates: {
-      canonical: `https://dirogsa.com/producto/${product.sku}`,
+      canonical: `https://dirogsa.com/product/${product.sku}`,
     },
   };
 }
@@ -92,7 +92,7 @@ export default async function ProductPage({ params }) {
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inicio', item: 'https://dirogsa.com' },
       { '@type': 'ListItem', position: 2, name: 'Catálogo', item: 'https://dirogsa.com/catalogo' },
-      { '@type': 'ListItem', position: 3, name: product.sku, item: `https://dirogsa.com/producto/${product.sku}` },
+      { '@type': 'ListItem', position: 3, name: product.sku, item: `https://dirogsa.com/product/${product.sku}` },
     ],
   };
 
@@ -108,7 +108,7 @@ export default async function ProductPage({ params }) {
     brand: { '@type': 'Brand', name: product.brand },
     offers: {
       '@type': 'Offer',
-      url: `https://dirogsa.com/producto/${product.sku}`,
+      url: `https://dirogsa.com/product/${product.sku}`,
       priceCurrency: product.currency || 'PEN',
       price: product.price,
       priceValidUntil: new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0],
@@ -343,7 +343,7 @@ export default async function ProductPage({ params }) {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {relatedProducts.map((p, i) => (
-              <Link href={`/producto/${p.sku}`} key={i} className="group block">
+              <Link href={`/product/${p.sku}`} key={i} className="group block">
                 <div className="rounded-[1.5rem] bg-[var(--brand-surface)] border border-white/5 p-4 hover:border-white/20 transition-all">
                   <div className="relative w-full h-32 mb-4 flex items-center justify-center bg-white/5 rounded-xl p-2 overflow-hidden">
                     {p.imageUrl ? (

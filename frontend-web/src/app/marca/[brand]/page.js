@@ -159,7 +159,7 @@ export default async function MarcaHubPage({ params }) {
     itemListElement: products.slice(0, 10).map((p, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: `${SITE_URL}/producto/${p.sku}`,
+      url: `${SITE_URL}/product/${p.sku}`,
       name: `${brandInfo.name} ${p.sku} — ${p.name}`,
     })),
   } : null;
@@ -241,7 +241,7 @@ export default async function MarcaHubPage({ params }) {
             {products.map((p) => (
               <Link
                 key={p.sku}
-                href={`/producto/${p.sku}`}
+                href={`/product/${p.sku}`}
                 className="group flex flex-col p-4 rounded-2xl border transition-all"
                 style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}
               >

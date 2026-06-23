@@ -38,7 +38,7 @@ export default function LoadMoreProducts({ category, search = '', initialSkip, t
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
         {products.map(product => (
-          <Link key={product.sku} href={`/producto/${product.sku}`}
+          <Link key={product.sku} href={`/product/${product.sku}`}
             className="group bg-[#141518]/60 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden flex flex-col hover:border-brand-primary/40 hover:shadow-[0_10px_40px_rgba(16,185,129,0.1)] transition-all duration-500 hover:-translate-y-2 relative">
             
             {product.isNew && (

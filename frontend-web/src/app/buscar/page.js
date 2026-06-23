@@ -166,7 +166,7 @@ function Section({ title, count, color, results }) {
 
 function ProductCard({ product }) {
   return (
-    <Link href={`/producto/${product.sku}`} className="card-premium flex items-center md:flex-col md:items-start gap-4 hover:border-brand-primary/30 transition-all group h-full">
+    <Link href={`/product/${product.sku}`} className="card-premium flex items-center md:flex-col md:items-start gap-4 hover:border-brand-primary/30 transition-all group h-full">
       {/* Imagen */}
       <div className="h-20 w-20 md:w-full md:h-40 flex-shrink-0 rounded-2xl overflow-hidden flex items-center justify-center p-2 bg-brand-surface-2 relative">
         {product.imageUrl ? (

@@ -9,7 +9,7 @@
  * Arquitectura de Crawl Budget (Tiers):
  *   Tier 1 (1.0):  Home
  *   Tier 2 (0.95): Category Hubs + Product Brand Hubs + Soluciones
- *   Tier 3 (0.9):  Productos (/producto/[sku])
+ *   Tier 3 (0.9):  Productos (/product/[sku])
  *   Tier 4 (0.8):  Vehicle Brand Hubs (/vehiculo/[marca])
  *   Tier 5 (0.75): Vehicle Model Pages (/vehiculo/[marca]/[modelo])
  *
@@ -117,7 +117,7 @@ export default async function sitemap() {
     if (prodRes.ok) {
       const items = await prodRes.json();
       const productPages = items.map(p => ({
-        url: `${SITE_URL}/producto/${encodeURIComponent(p.sku)}`,
+        url: `${SITE_URL}/product/${encodeURIComponent(p.sku)}`,
         lastModified: p.updated_at ? new Date(p.updated_at) : new Date(),
         changeFrequency: 'weekly',
         priority: 0.9,
@@ -155,20 +155,9 @@ export default async function sitemap() {
           priority: 0.8,
         });
         brandCount++;
-
-        // Tier 5: Páginas de modelo
-        for (const m of v.models) {
-          dynamicPages.push({
-            url: `${SITE_URL}/vehiculo/${v.make_slug}/${m.model_slug}`,
-            lastModified: new Date(),
-            changeFrequency: 'weekly',
-            priority: 0.75,
-          });
-          modelCount++;
-        }
       }
 
-      console.log(`[Sitemap] ✅ Vehículos: ${brandCount} marcas, ${modelCount} modelos añadidos.`);
+      console.log(`[Sitemap] ✅ Vehículos: ${brandCount} marcas añadidas. (Modelos omitidos por estrategia SEO)`);
     }
 
   } catch (err) {
