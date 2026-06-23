@@ -125,7 +125,7 @@ export default function RootLayout({ children }) {
             {/* Navegación Desktop (Oculta en móvil) */}
             <nav className="hidden md:flex items-center gap-6 lg:gap-8" aria-label="Navegación principal">
               <Link href="/catalog" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Catálogo</Link>
-              <Link href="/marca" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Marcas</Link>
+              <Link href="/brand" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Marcas</Link>
               <div className="h-6 w-px bg-white/10" />
               <Link href="/login" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition-colors" aria-label="Acceso B2B">
                 <UserIcon className="h-5 w-5" />

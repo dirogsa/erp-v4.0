@@ -72,18 +72,26 @@ export default async function HomePage() {
     url: 'https://dirogsa.com',
     logo: 'https://dirogsa.com/logo.png',
     description: 'Importador y distribuidor al por mayor de filtros automotrices e industriales en Perú.',
+    telephone: '+51991717240',
+    email: 'ventas@dirogsa.com',
     address: {
       '@type': 'PostalAddress',
-      addressCountry: 'PE',
+      streetAddress: 'Lima', // Dirección principal
+      addressLocality: 'Lima',
       addressRegion: 'Lima',
+      postalCode: '15001',
+      addressCountry: 'PE',
     },
     contactPoint: {
       '@type': 'ContactPoint',
+      telephone: '+51991717240',
       contactType: 'customer service',
       availableLanguage: 'Spanish',
     },
     sameAs: [
       'https://www.facebook.com/dirogsa',
+      'https://www.instagram.com/dirogsa',
+      'https://pe.linkedin.com/company/dirogsa'
     ],
   };
 

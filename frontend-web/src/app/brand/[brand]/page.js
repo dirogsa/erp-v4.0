@@ -138,7 +138,7 @@ export default async function MarcaHubPage({ params }) {
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inicio', item: SITE_URL },
-      { '@type': 'ListItem', position: 2, name: 'Marcas', item: `${SITE_URL}/marca` },
+      { '@type': 'ListItem', position: 2, name: 'Marcas', item: `${SITE_URL}/brand` },
       { '@type': 'ListItem', position: 3, name: brandInfo.name, item: `${SITE_URL}/brand/${brandSlug}` },
     ],
   };
@@ -320,7 +320,7 @@ export default async function MarcaHubPage({ params }) {
             </Link>
           ))}
           <Link
-             href="/marca"
+             href="/brand"
              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest border transition-all hover:scale-105 hover:bg-white/5 text-white/50 border-white/10"
           >
              Ver Todo El Catálogo →

@@ -82,7 +82,7 @@ export async function generateMetadata({ params, searchParams }) {
     title,
     description: `Explora nuestro catálogo completo de ${categoryName.toLowerCase()} ${brand ? `de la marca ${brand.toUpperCase()}` : ''}. Compra repuestos automotrices con calidad certificada.`,
     alternates: {
-      canonical: `https://www.dirogsa.com/catalog/${slug}${brand ? `?brand=${brand}` : ''}`,
+      canonical: `https://www.dirogsa.com/catalog/${slug}`,
     },
   };
 }

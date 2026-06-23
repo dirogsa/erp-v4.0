@@ -98,7 +98,7 @@ export default async function VehiculoMarcaPage({ params }) {
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inicio', item: SITE_URL },
-      { '@type': 'ListItem', position: 2, name: 'Catálogo por Vehículo', item: `${SITE_URL}/vehiculo` },
+      { '@type': 'ListItem', position: 2, name: 'Catálogo por Vehículo', item: `${SITE_URL}/vehicle` },
       { '@type': 'ListItem', position: 3, name: marcaDisplay, item: `${SITE_URL}/vehicle/${marca}` },
     ],
   };

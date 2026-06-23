@@ -111,8 +111,8 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // Fuerza al navegador a consultar siempre la versión más reciente del HTML y las rutas
-        source: '/(.*)',
+        // Fuerza al navegador a no cachear rutas privadas
+        source: '/(cart|orders|login|thank-you)(/.*)?',
         headers: [
           {
             key: 'Cache-Control',

@@ -22,7 +22,7 @@ export default function robots() {
           '/thank-you',   // Página de confirmación temporal
           '/search',    // SPA interactiva — no indexable por Google
           '/orders',   // Historial de pedidos — privado del usuario
-          '/_next/',    // Assets internos de Next.js
+          '/_next/static/chunks/',    // Assets internos de Next.js (js/lógica)
 
           // ── LEGACY: Bloquear rastreo de URLs con query params ──
           // Google no debe gastar Crawl Budget en variantes con filtros
