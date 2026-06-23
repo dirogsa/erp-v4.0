@@ -124,7 +124,7 @@ export default function RootLayout({ children }) {
 
             {/* Navegación Desktop (Oculta en móvil) */}
             <nav className="hidden md:flex items-center gap-6 lg:gap-8" aria-label="Navegación principal">
-              <Link href="/catalogo" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Catálogo</Link>
+              <Link href="/catalog" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Catálogo</Link>
               <Link href="/marca" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Marcas</Link>
               <div className="h-6 w-px bg-white/10" />
               <Link href="/login" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition-colors" aria-label="Acceso B2B">
@@ -160,21 +160,21 @@ export default function RootLayout({ children }) {
               <div>
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Marcas Importadas</h3>
                 <ul className="space-y-2">
-                  <li><Link href="/marca/wix" className="text-sm text-brand-text-dim hover:text-white transition-colors">WIX Filters</Link></li>
-                  <li><Link href="/marca/mann" className="text-sm text-brand-text-dim hover:text-white transition-colors">MANN-FILTER</Link></li>
-                  <li><Link href="/marca/azumi" className="text-sm text-brand-text-dim hover:text-white transition-colors">AZUMI</Link></li>
-                  <li><Link href="/marca/totachi" className="text-sm text-brand-text-dim hover:text-white transition-colors">TOTACHI</Link></li>
+                  <li><Link href="/brand/wix" className="text-sm text-brand-text-dim hover:text-white transition-colors">WIX Filters</Link></li>
+                  <li><Link href="/brand/mann" className="text-sm text-brand-text-dim hover:text-white transition-colors">MANN-FILTER</Link></li>
+                  <li><Link href="/brand/azumi" className="text-sm text-brand-text-dim hover:text-white transition-colors">AZUMI</Link></li>
+                  <li><Link href="/brand/totachi" className="text-sm text-brand-text-dim hover:text-white transition-colors">TOTACHI</Link></li>
                 </ul>
               </div>
               {/* Category Hub Links */}
               <div>
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Por Tipo de Filtro</h3>
                 <ul className="space-y-2">
-                  <li><Link href="/catalogo/filtro-de-aceite" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aceite</Link></li>
-                  <li><Link href="/catalogo/filtro-de-aire" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aire</Link></li>
-                  <li><Link href="/catalogo/filtro-de-combustible" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Combustible</Link></li>
-                  <li><Link href="/catalogo/filtro-de-cabina" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Cabina</Link></li>
-                  <li><Link href="/catalogo/filtro-hidraulico" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros Hidráulicos</Link></li>
+                  <li><Link href="/catalog/filtro-de-aceite" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aceite</Link></li>
+                  <li><Link href="/catalog/filtro-de-aire" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Aire</Link></li>
+                  <li><Link href="/catalog/filtro-de-combustible" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Combustible</Link></li>
+                  <li><Link href="/catalog/filtro-de-cabina" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros de Cabina</Link></li>
+                  <li><Link href="/catalog/filtro-hidraulico" className="text-sm text-brand-text-dim hover:text-white transition-colors">Filtros Hidráulicos</Link></li>
                 </ul>
               </div>
             </div>
@@ -225,17 +225,17 @@ export default function RootLayout({ children }) {
             <div className="h-1 w-1 rounded-full bg-brand-primary shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
           </Link>
           
-          <Link href="/buscar" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Buscar">
+          <Link href="/search" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Buscar">
             <span className="sr-only">Buscar productos</span>
             <MagnifyingGlassIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
         {/* ── NAVEGACIÓN MÓVIL GLOBAL (Bottom Nav) ── */}
-          <TrackingLink href="/carrito" eventName="view_cart" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Cotización">
+          <TrackingLink href="/cart" eventName="view_cart" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Cotización">
             <span className="sr-only">Mi lista de cotización</span>
             <ShoppingCartIcon className="h-6 w-6 transition-transform group-active:scale-90 text-brand-primary" />
           </TrackingLink>
           
-          <Link href="/pedidos" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Pedidos">
+          <Link href="/orders" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Pedidos">
             <span className="sr-only">Mis pedidos e historial</span>
             <ClipboardDocumentListIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>

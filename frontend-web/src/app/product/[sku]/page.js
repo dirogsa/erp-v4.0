@@ -17,7 +17,12 @@ export async function generateMetadata({ params }) {
   const { sku } = await params;
   // NOTE: Next.js 14+ automatically deduplicates fetch() calls with same URL+opts within a request.
   // ProductService.getProductBySku uses the same path so this is free — no extra DB round-trip.
-  const product = await ProductService.getProductBySku(sku);
+  let product = null;
+  try {
+    product = await ProductService.getProductBySku(sku);
+  } catch (error) {
+    console.error(`[Metadata] Error fetching product ${sku}:`, error);
+  }
 
   if (!product) {
     return {
@@ -71,7 +76,12 @@ export async function generateMetadata({ params }) {
  */
 export default async function ProductPage({ params }) {
   const { sku } = await params;
-  const product = await ProductService.getProductBySku(sku);
+  let product = null;
+  try {
+    product = await ProductService.getProductBySku(sku);
+  } catch (error) {
+    console.error(`[Page] Error fetching product ${sku}:`, error);
+  }
 
   if (!product) notFound();
 
@@ -91,7 +101,7 @@ export default async function ProductPage({ params }) {
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inicio', item: 'https://dirogsa.com' },
-      { '@type': 'ListItem', position: 2, name: 'Catálogo', item: 'https://dirogsa.com/catalogo' },
+      { '@type': 'ListItem', position: 2, name: 'Catálogo', item: 'https://dirogsa.com/catalog' },
       { '@type': 'ListItem', position: 3, name: product.sku, item: `https://dirogsa.com/product/${product.sku}` },
     ],
   };
@@ -201,7 +211,7 @@ export default async function ProductPage({ params }) {
         <ol className="flex items-center gap-2 list-none p-0 m-0">
           <li><Link href="/" className="hover:text-white transition-colors">Inicio</Link></li>
           <li aria-hidden="true"><span className="opacity-40">/</span></li>
-          <li><Link href="/catalogo" className="hover:text-white transition-colors">Catálogo</Link></li>
+          <li><Link href="/catalog" className="hover:text-white transition-colors">Catálogo</Link></li>
           <li aria-hidden="true"><span className="opacity-40">/</span></li>
           <li className="text-white font-bold" aria-current="page">{product.sku}</li>
         </ol>

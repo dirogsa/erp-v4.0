@@ -18,15 +18,15 @@ export default function robots() {
           '/api/',      // Endpoints de API interna
           '/admin/',    // Panel de administración
           '/login',     // Autenticación — sin valor SEO
-          '/carrito',   // Carrito de compra — estado privado del usuario
-          '/gracias',   // Página de confirmación temporal
-          '/buscar',    // SPA interactiva — no indexable por Google
-          '/pedidos',   // Historial de pedidos — privado del usuario
+          '/cart',   // Carrito de compra — estado privado del usuario
+          '/thank-you',   // Página de confirmación temporal
+          '/search',    // SPA interactiva — no indexable por Google
+          '/orders',   // Historial de pedidos — privado del usuario
           '/_next/',    // Assets internos de Next.js
 
           // ── LEGACY: Bloquear rastreo de URLs con query params ──
           // Google no debe gastar Crawl Budget en variantes con filtros
-          '/catalogo?',  // /catalogo?make=X, ?category=Y, ?parent=Z
+          '/catalog?',  // /catalog?make=X, ?category=Y, ?parent=Z
         ],
       },
     ],

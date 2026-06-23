@@ -112,7 +112,7 @@ export default async function BlogPost({ params }) {
            style={{ background: 'rgba(56,189,248,0.05)', border: '1px solid rgba(56,189,248,0.15)' }}>
         <p className="text-white font-black text-lg mb-2">¿Necesitas los repuestos correctos?</p>
         <p className="text-sm text-gray-400 mb-6">Encuentra filtros compatibles con tu vehículo en nuestro catálogo verificado.</p>
-        <Link href="/catalogo"
+        <Link href="/catalog"
           className="inline-flex px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:brightness-110"
           style={{ background: '#38BDF8', color: '#0A0A0B' }}>
           Ver Catálogo →

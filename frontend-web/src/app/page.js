@@ -58,7 +58,7 @@ export default async function HomePage() {
       '@type': 'SearchAction',
       target: {
         '@type': 'EntryPoint',
-        urlTemplate: 'https://dirogsa.com/buscar?q={search_term_string}&type=codes',
+        urlTemplate: 'https://dirogsa.com/search?q={search_term_string}&type=codes',
       },
       'query-input': 'required name=search_term_string',
     },
@@ -202,7 +202,7 @@ export default async function HomePage() {
               <p className="text-[9px] font-bold uppercase tracking-widest mb-3 text-white/30">Tipo de filtro</p>
               <div className="flex flex-wrap gap-2">
                 {homeCategories.map(({ slug, label }) => (
-                  <Link key={slug} href={`/catalogo/${slug}`} className="px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-[#141518]/50 text-white/60 hover:text-white transition-colors">
+                  <Link key={slug} href={`/catalog/${slug}`} className="px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 bg-[#141518]/50 text-white/60 hover:text-white transition-colors">
                     {label}
                   </Link>
                 ))}
@@ -214,7 +214,7 @@ export default async function HomePage() {
               <p className="text-[9px] font-bold uppercase tracking-widest mb-3 text-white/30">Marcas importadas</p>
               <div className="flex flex-wrap gap-2">
                 {['wix', 'mann', 'azumi', 'totachi'].map((slug) => (
-                  <Link key={slug} href={`/marca/${slug}`} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border border-white/10 bg-[#141518]/50 text-white/60 hover:text-white transition-colors">
+                  <Link key={slug} href={`/brand/${slug}`} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border border-white/10 bg-[#141518]/50 text-white/60 hover:text-white transition-colors">
                     {slug}
                   </Link>
                 ))}
@@ -226,7 +226,7 @@ export default async function HomePage() {
               <p className="text-[9px] font-bold uppercase tracking-widest mb-3 text-white/30">Filtros por vehículo</p>
               <div className="flex flex-wrap gap-2">
                 {HOME_SEO_HUB_BRANDS.slice(0, 6).map(({ label, slug }) => (
-                  <Link key={slug} href={`/vehiculo/${slug}`} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border border-white/10 bg-[#141518]/50 text-white/60 hover:text-white transition-colors">
+                  <Link key={slug} href={`/vehicle/${slug}`} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border border-white/10 bg-[#141518]/50 text-white/60 hover:text-white transition-colors">
                     {label}
                   </Link>
                 ))}

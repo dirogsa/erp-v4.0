@@ -54,8 +54,8 @@ export default function CarritoPage() {
         }));
       }
 
-      // Navegar a /gracias para disparar Pixels (Ambos flujos terminan aquí)
-      router.push('/gracias');
+      // Navegar a /thank-you para disparar Pixels (Ambos flujos terminan aquí)
+      router.push('/thank-you');
     } catch (error) {
       console.error("Error procesando checkout:", error);
       setIsSubmitting(false);
@@ -76,7 +76,7 @@ export default function CarritoPage() {
         <p className="text-white/50 mb-8 max-w-md mx-auto">
           Busca los filtros por código o vehículo y agrégalos aquí para generar una cotización B2B.
         </p>
-        <Link href="/buscar" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest bg-brand-primary text-[#0A0A0B] hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+        <Link href="/search" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest bg-brand-primary text-[#0A0A0B] hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           Empezar a buscar
         </Link>

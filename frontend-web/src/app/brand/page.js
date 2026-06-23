@@ -4,7 +4,7 @@
  *
  * Esta página sirve como nodo raíz del árbol de Marcas en el Hub & Spoke.
  * Captura búsquedas como: "marcas de filtros peru", "distribuidores wix peru".
- * Enlaza hacia cada /marca/[brand] Hub page.
+ * Enlaza hacia cada /brand/[brand] Hub page.
  */
 
 import Link from 'next/link';
@@ -63,7 +63,7 @@ const brandJsonLd = {
   itemListElement: BRANDS.map((b, i) => ({
     '@type': 'ListItem',
     position: i + 1,
-    url: `${SITE_URL}/marca/${b.slug}`,
+    url: `${SITE_URL}/brand/${b.slug}`,
     name: b.name,
   })),
 };
@@ -106,7 +106,7 @@ export default function MarcasIndexPage() {
         {BRANDS.map((brand) => (
           <Link
             key={brand.slug}
-            href={`/marca/${brand.slug}`}
+            href={`/brand/${brand.slug}`}
             className="group relative overflow-hidden rounded-[2rem] p-8 transition-all hover:scale-[1.02]"
             style={{
               background: `linear-gradient(135deg, ${brand.color}08, transparent)`,

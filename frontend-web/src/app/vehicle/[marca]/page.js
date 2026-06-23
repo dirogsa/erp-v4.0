@@ -1,5 +1,5 @@
 /**
- * /vehiculo/[marca]/page.js — Hub SEO de Marca de Vehículo
+ * /vehicle/[marca]/page.js — Hub SEO de Marca de Vehículo
  * CONSTITUTION §3: Lógica en lib, esta página es solo un mensajero.
  *
  * Usa el endpoint /shop/seo/vehicles que devuelve datos pre-slugificados,
@@ -36,11 +36,11 @@ export async function generateMetadata({ params }) {
       `filtro aceite ${marcaDisplay}`, `filtro aire ${marcaDisplay}`,
       'dirogsa', 'peru'
     ],
-    alternates: { canonical: `${SITE_URL}/vehiculo/${marca}` },
+    alternates: { canonical: `${SITE_URL}/vehicle/${marca}` },
     openGraph: {
       title: `Filtros para ${marcaDisplay} | DIROGSA`,
       description: `Catálogo completo de filtros y repuestos para ${marcaDisplay} en Perú.`,
-      url: `${SITE_URL}/vehiculo/${marca}`,
+      url: `${SITE_URL}/vehicle/${marca}`,
     },
   };
 }
@@ -99,7 +99,7 @@ export default async function VehiculoMarcaPage({ params }) {
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inicio', item: SITE_URL },
       { '@type': 'ListItem', position: 2, name: 'Catálogo por Vehículo', item: `${SITE_URL}/vehiculo` },
-      { '@type': 'ListItem', position: 3, name: marcaDisplay, item: `${SITE_URL}/vehiculo/${marca}` },
+      { '@type': 'ListItem', position: 3, name: marcaDisplay, item: `${SITE_URL}/vehicle/${marca}` },
     ],
   };
 
@@ -131,7 +131,7 @@ export default async function VehiculoMarcaPage({ params }) {
         <ol className="flex items-center gap-2 text-xs list-none p-0 m-0" style={{ color: 'var(--brand-text-dim)' }}>
           <li><Link href="/" className="hover:text-white transition-colors">Inicio</Link></li>
           <li aria-hidden="true"><span className="opacity-40">/</span></li>
-          <li><Link href="/catalogo" className="hover:text-white transition-colors">Catálogo</Link></li>
+          <li><Link href="/catalog" className="hover:text-white transition-colors">Catálogo</Link></li>
           <li aria-hidden="true"><span className="opacity-40">/</span></li>
           <li className="text-white font-bold" aria-current="page">{marcaDisplay}</li>
         </ol>
@@ -164,7 +164,7 @@ export default async function VehiculoMarcaPage({ params }) {
               {models.map(m => (
                 <Link
                   key={m.model_slug}
-                  href={`/vehiculo/${marca}/${m.model_slug}`}
+                  href={`/vehicle/${marca}/${m.model_slug}`}
                   className="flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all border hover:border-[#38BDF8]/50 hover:text-[#38BDF8] hover:bg-[#38BDF8]/5"
                   style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border-2)', color: 'var(--brand-text-dim)' }}
                 >
@@ -184,7 +184,7 @@ export default async function VehiculoMarcaPage({ params }) {
                   Mostrando <span className="text-white">{products.length}</span> de <span className="text-white">{total}</span> repuestos
                 </p>
                 <Link
-                  href="/catalogo"
+                  href="/catalog"
                   className="text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all"
                   style={{ borderColor: 'rgba(56,189,248,0.3)', color: '#38BDF8', background: 'rgba(56,189,248,0.05)' }}
                 >
@@ -223,7 +223,7 @@ export default async function VehiculoMarcaPage({ params }) {
               <p className="text-sm" style={{ color: 'var(--brand-text-dim)' }}>
                 Intenta buscar directamente por código en nuestro catálogo.
               </p>
-              <Link href="/catalogo"
+              <Link href="/catalog"
                 className="inline-flex px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest mt-4"
                 style={{ background: '#38BDF8', color: '#0A0A0B' }}>
                 Ir al Catálogo

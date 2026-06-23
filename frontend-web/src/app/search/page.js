@@ -8,7 +8,7 @@ import { SITE_URL } from '@/config/seo.config';
 
 /**
  * DYNAMIC METADATA con URL Canónica — Previene penalización por contenido duplicado.
- * Google indexará /buscar?q=WA6004 como la URL autoritativa, ignorando variaciones.
+ * Google indexará /search?q=WA6004 como la URL autoritativa, ignorando variaciones.
  */
 export async function generateMetadata({ searchParams }) {
   const sp = await searchParams;
@@ -21,7 +21,7 @@ export async function generateMetadata({ searchParams }) {
   canonicalParams.set('type', type);
   if (query) canonicalParams.set('q', query.toUpperCase());
   if (make)  canonicalParams.set('make', make.toUpperCase());
-  const canonical = `${SITE_URL}/buscar?${canonicalParams.toString()}`;
+  const canonical = `${SITE_URL}/search?${canonicalParams.toString()}`;
 
   const titleQuery = query || make || 'repuestos';
   return {

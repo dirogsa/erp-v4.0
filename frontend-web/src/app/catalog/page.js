@@ -7,6 +7,9 @@ import { toSlug } from '@/lib/slug';
 export const metadata = {
   title: 'Catálogo de Repuestos | DIROGSA',
   description: 'Explora nuestro catálogo completo de repuestos y filtros automotrices. Todos los modelos y marcas con calidad certificada.',
+  alternates: {
+    canonical: 'https://www.dirogsa.com/catalog',
+  },
 };
 
 export default async function CatalogoPage({ searchParams }) {
@@ -91,7 +94,7 @@ export default async function CatalogoPage({ searchParams }) {
           </p>
           {parentParam && (
              <div className="mt-8">
-               <Link href="/catalogo" className="text-xs text-white/50 hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2">
+               <Link href="/catalog" className="text-xs text-white/50 hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2">
                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                  Volver al Inicio
                </Link>
@@ -113,7 +116,7 @@ export default async function CatalogoPage({ searchParams }) {
                 return (
                   <Link 
                     key={idx} 
-                    href={`/catalogo/${slug}`}
+                    href={`/catalog/${slug}`}
                     className="group bg-[#141518]/80 backdrop-blur-md border border-white/5 rounded-2xl p-8 flex flex-col items-center justify-center hover:bg-brand-primary hover:border-transparent transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:-translate-y-1 text-center"
                   >
                     <h4 className="text-lg font-black text-white uppercase tracking-wider group-hover:text-black transition-colors">

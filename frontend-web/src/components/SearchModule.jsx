@@ -62,11 +62,11 @@ export default function SearchModule({
     trackSearch(searchString);
 
     if (onSearch) {
-      onSearch(params); // Ejecuta la búsqueda local en la página /buscar
+      onSearch(params); // Ejecuta la búsqueda local en la página /search
       // Nota: Si onSearch no provoca un cambio en searchParams, 
       // podría ser necesario resetear setIsSearching(false) dentro de onSearch.
     } else {
-      router.push(`/buscar?${params.toString()}`); // Navega a la página de búsqueda
+      router.push(`/search?${params.toString()}`); // Navega a la página de búsqueda
     }
   };
 

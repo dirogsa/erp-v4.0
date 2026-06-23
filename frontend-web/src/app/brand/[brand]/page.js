@@ -4,9 +4,9 @@
  * CONSTITUTION §6 (Premium UI): UI de clase mundial.
  *
  * Esta página captura búsquedas de alto valor como:
- *   "filtros WIX peru" → /marca/wix
- *   "filtros MANN peru" → /marca/mann-filter
- *   "repuestos AZUMI peru" → /marca/azumi
+ *   "filtros WIX peru" → /brand/wix
+ *   "filtros MANN peru" → /brand/mann-filter
+ *   "repuestos AZUMI peru" → /brand/azumi
  *
  * Hub & Spoke: Este nodo enlaza hacia cada producto de la marca,
  * distribuyendo autoridad SEO a los 5,000 productos del catálogo.
@@ -115,8 +115,8 @@ export async function generateMetadata({ params }) {
       `filtros ${brandInfo.name}`, `${brandInfo.name} peru`, `comprar ${brandInfo.name} peru`,
       `distribuidor ${brandInfo.name}`, 'filtros automotrices peru', 'dirogsa'
     ],
-    alternates: { canonical: `${SITE_URL}/marca/${brandSlug}` },
-    openGraph: { title, description, url: `${SITE_URL}/marca/${brandSlug}`, siteName: 'DIROGSA' },
+    alternates: { canonical: `${SITE_URL}/brand/${brandSlug}` },
+    openGraph: { title, description, url: `${SITE_URL}/brand/${brandSlug}`, siteName: 'DIROGSA' },
   };
 }
 
@@ -139,7 +139,7 @@ export default async function MarcaHubPage({ params }) {
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inicio', item: SITE_URL },
       { '@type': 'ListItem', position: 2, name: 'Marcas', item: `${SITE_URL}/marca` },
-      { '@type': 'ListItem', position: 3, name: brandInfo.name, item: `${SITE_URL}/marca/${brandSlug}` },
+      { '@type': 'ListItem', position: 3, name: brandInfo.name, item: `${SITE_URL}/brand/${brandSlug}` },
     ],
   };
 
@@ -148,7 +148,7 @@ export default async function MarcaHubPage({ params }) {
     '@type': 'Brand',
     name: brandInfo.name,
     description: brandInfo.description,
-    url: `${SITE_URL}/marca/${brandSlug}`,
+    url: `${SITE_URL}/brand/${brandSlug}`,
   };
 
   const itemListJsonLd = products.length > 0 ? {
@@ -177,7 +177,7 @@ export default async function MarcaHubPage({ params }) {
         <ol className="flex items-center gap-2 text-xs list-none p-0 m-0" style={{ color: 'var(--brand-text-dim)' }}>
           <li><Link href="/" className="hover:text-white transition-colors">Inicio</Link></li>
           <li aria-hidden="true"><span className="opacity-40">/</span></li>
-          <li><Link href="/catalogo" className="hover:text-white transition-colors">Catálogo</Link></li>
+          <li><Link href="/catalog" className="hover:text-white transition-colors">Catálogo</Link></li>
           <li aria-hidden="true"><span className="opacity-40">/</span></li>
           <li className="text-white font-bold" aria-current="page">{brandInfo.name}</li>
         </ol>
@@ -229,7 +229,7 @@ export default async function MarcaHubPage({ params }) {
               <span className="text-white font-bold">{total}</span> productos {brandInfo.name}
             </p>
             <Link
-              href={`/buscar?q=${encodeURIComponent(brandInfo.name)}`}
+              href={`/search?q=${encodeURIComponent(brandInfo.name)}`}
               className="text-xs font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all"
               style={{ borderColor: `${brandInfo.color}50`, color: brandInfo.color, background: `${brandInfo.color}08` }}
             >
@@ -285,7 +285,7 @@ export default async function MarcaHubPage({ params }) {
           {total > 24 && (
             <div className="mt-10 text-center">
               <Link
-                href={`/buscar?q=${encodeURIComponent(brandInfo.name)}`}
+                href={`/search?q=${encodeURIComponent(brandInfo.name)}`}
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all hover:brightness-110"
                 style={{ background: brandInfo.color, color: '#0A0A0B', boxShadow: `0 0 30px ${brandInfo.color}30` }}
               >
@@ -312,7 +312,7 @@ export default async function MarcaHubPage({ params }) {
           {PRODUCT_BRANDS_CATALOG.filter(b => b.slug !== brandSlug).map(b => (
             <Link
               key={b.slug}
-              href={`/marca/${b.slug}`}
+              href={`/brand/${b.slug}`}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest border transition-all hover:scale-105"
               style={{ background: `${b.color}10`, borderColor: `${b.color}30`, color: b.color }}
             >

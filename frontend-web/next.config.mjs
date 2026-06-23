@@ -21,6 +21,51 @@ const nextConfig = {
         destination: '/product/:slug*',
         permanent: true,
       },
+      {
+        source: '/catalogo/:slug*',
+        destination: '/catalog/:slug*',
+        permanent: true,
+      },
+      {
+        source: '/catalogo',
+        destination: '/catalog',
+        permanent: true,
+      },
+      {
+        source: '/buscar/:slug*',
+        destination: '/search/:slug*',
+        permanent: true,
+      },
+      {
+        source: '/carrito/:slug*',
+        destination: '/cart/:slug*',
+        permanent: true,
+      },
+      {
+        source: '/gracias/:slug*',
+        destination: '/thank-you/:slug*',
+        permanent: true,
+      },
+      {
+        source: '/marca/:slug*',
+        destination: '/brand/:slug*',
+        permanent: true,
+      },
+      {
+        source: '/pedidos/:slug*',
+        destination: '/orders/:slug*',
+        permanent: true,
+      },
+      {
+        source: '/soluciones/:slug*',
+        destination: '/solutions/:slug*',
+        permanent: true,
+      },
+      {
+        source: '/vehiculo/:slug*',
+        destination: '/vehicle/:slug*',
+        permanent: true,
+      },
 
       // ── LEGACY: Catálogo con query params (?make=, ?model=, ?category=) ──
       // Google indexó URLs como /catalogo?make=KIA&model=CEE'D
@@ -28,37 +73,37 @@ const nextConfig = {
       {
         source: '/catalogo',
         has: [{ type: 'query', key: 'make' }],
-        destination: '/catalogo',
+        destination: '/catalog',
         permanent: true,
       },
       {
         source: '/catalogo',
         has: [{ type: 'query', key: 'model' }],
-        destination: '/catalogo',
+        destination: '/catalog',
         permanent: true,
       },
       {
         source: '/catalogo',
         has: [{ type: 'query', key: 'category' }],
-        destination: '/catalogo',
+        destination: '/catalog',
         permanent: true,
       },
       {
         source: '/catalogo',
         has: [{ type: 'query', key: 'parent' }],
-        destination: '/catalogo',
+        destination: '/catalog',
         permanent: true,
       },
       // ── CONSOLIDACIÓN SEO: Redirigir modelos específicos a su marca padre ──
       // GSC reporta demasiados 404s en modelos detallados. Centramos autoridad en la marca.
       {
-        source: '/vehiculo/:marca/:modelo',
-        destination: '/vehiculo/:marca',
+        source: '/vehicle/:marca/:modelo',
+        destination: '/vehicle/:marca',
         permanent: true,
       },
       {
-        source: '/vehiculo/aplicaciones/:slug*',
-        destination: '/vehiculo',
+        source: '/vehicle/aplicaciones/:slug*',
+        destination: '/vehicle',
         permanent: true,
       },
     ];

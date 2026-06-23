@@ -51,11 +51,11 @@ export async function generateMetadata({ params }) {
     title: `${solucion.title} | DIROGSA Perú`,
     description: solucion.desc,
     keywords: solucion.keywords,
-    alternates: { canonical: `${SITE_URL}/soluciones/${slug}` },
+    alternates: { canonical: `${SITE_URL}/solutions/${slug}` },
     openGraph: {
       title: `${solucion.title} | DIROGSA`,
       description: solucion.desc,
-      url: `${SITE_URL}/soluciones/${slug}`,
+      url: `${SITE_URL}/solutions/${slug}`,
     },
   };
 }
@@ -87,10 +87,10 @@ export default async function SolucionesSeoPage({ params }) {
 
       {/* Cross-linking to categories for maximum SEO juice */}
       <div className="flex flex-wrap justify-center gap-3 mb-16">
-        <Link href="/catalogo" className="px-5 py-2 rounded-xl text-xs font-bold bg-brand-primary text-[#0A0A0B] uppercase tracking-widest hover:bg-brand-primary/80 transition-colors">
+        <Link href="/catalog" className="px-5 py-2 rounded-xl text-xs font-bold bg-brand-primary text-[#0A0A0B] uppercase tracking-widest hover:bg-brand-primary/80 transition-colors">
           Ver Catálogo Completo
         </Link>
-        <Link href="/buscar" className="px-5 py-2 rounded-xl text-xs font-bold border border-white/20 text-white hover:bg-white/5 transition-colors uppercase tracking-widest">
+        <Link href="/search" className="px-5 py-2 rounded-xl text-xs font-bold border border-white/20 text-white hover:bg-white/5 transition-colors uppercase tracking-widest">
           Buscador Avanzado
         </Link>
       </div>

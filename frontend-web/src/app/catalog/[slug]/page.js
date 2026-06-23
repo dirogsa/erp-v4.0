@@ -82,7 +82,7 @@ export async function generateMetadata({ params, searchParams }) {
     title,
     description: `Explora nuestro catálogo completo de ${categoryName.toLowerCase()} ${brand ? `de la marca ${brand.toUpperCase()}` : ''}. Compra repuestos automotrices con calidad certificada.`,
     alternates: {
-      canonical: `https://www.dirogsa.com/catalogo/${slug}${brand ? `?brand=${brand}` : ''}`,
+      canonical: `https://www.dirogsa.com/catalog/${slug}${brand ? `?brand=${brand}` : ''}`,
     },
   };
 }
@@ -150,12 +150,12 @@ export default async function CategoryPage({ params, searchParams }) {
             }
           </p>
           <div className="mt-8 flex gap-4">
-            <ActionLink href="/catalogo" className="text-xs text-white/50 hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2" loadingMessage="Cargando categorías...">
+            <ActionLink href="/catalog" className="text-xs text-white/50 hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2" loadingMessage="Cargando categorías...">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
               Volver a Categorías
             </ActionLink>
             {activeBrandObj && (
-              <ActionLink href={`/catalogo/${slug}`} className="text-xs text-brand-primary hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2" loadingMessage="Limpiando filtro...">
+              <ActionLink href={`/catalog/${slug}`} className="text-xs text-brand-primary hover:text-white uppercase font-bold tracking-widest transition-colors flex items-center gap-2" loadingMessage="Limpiando filtro...">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 Cambiar de Marca
               </ActionLink>
@@ -181,7 +181,7 @@ export default async function CategoryPage({ params, searchParams }) {
               {BRANDS.map((brand) => (
                 <ActionLink 
                   key={brand.id}
-                  href={`/catalogo/${slug}?brand=${brand.id}`}
+                  href={`/catalog/${slug}?brand=${brand.id}`}
                   className={`group relative overflow-hidden bg-[#141518]/60 backdrop-blur-md border border-white/5 rounded-3xl p-8 flex flex-col justify-between transition-all duration-500 hover:-translate-y-1.5 ${brand.borderColor} ${brand.shadowColor} hover:shadow-2xl`}
                   loadingMessage={`Consultando base de datos ${brand.name}...`}
                 >
@@ -242,7 +242,7 @@ export default async function CategoryPage({ params, searchParams }) {
                 {BRANDS.map(b => (
                   <ActionLink
                     key={b.id}
-                    href={`/catalogo/${slug}?brand=${b.id}`}
+                    href={`/catalog/${slug}?brand=${b.id}`}
                     loadingMessage={`Cargando ${b.name}...`}
                     className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${
                       b.id === brandParam.toLowerCase()
@@ -254,7 +254,7 @@ export default async function CategoryPage({ params, searchParams }) {
                   </ActionLink>
                 ))}
                 <ActionLink
-                  href={`/catalogo/${slug}`}
+                  href={`/catalog/${slug}`}
                   loadingMessage="Limpiando filtro..."
                   className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
                 >

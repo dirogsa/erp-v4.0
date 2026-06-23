@@ -10,8 +10,8 @@
  *   Tier 1 (1.0):  Home
  *   Tier 2 (0.95): Category Hubs + Product Brand Hubs + Soluciones
  *   Tier 3 (0.9):  Productos (/product/[sku])
- *   Tier 4 (0.8):  Vehicle Brand Hubs (/vehiculo/[marca])
- *   Tier 5 (0.75): Vehicle Model Pages (/vehiculo/[marca]/[modelo])
+ *   Tier 4 (0.8):  Vehicle Brand Hubs (/vehicle/[marca])
+ *   Tier 5 (0.75): Vehicle Model Pages (/vehicle/[marca]/[modelo])
  *
  * ISR: Revalida cada 24h para reflejar nuevos productos y vehículos.
  */
@@ -23,7 +23,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const revalidate = 86400; // 24 horas
 
-// Marcas de filtros con página Hub propia — sincronizado con /marca/[brand]/page.js
+// Marcas de filtros con página Hub propia — sincronizado con /brand/[brand]/page.js
 const PRODUCT_BRAND_HUBS = ['wix', 'mann', 'azumi', 'totachi'];
 
 export default async function sitemap() {
@@ -34,14 +34,14 @@ export default async function sitemap() {
 
     // Tier 2B — Product Brand Hubs (estáticos)
     ...PRODUCT_BRAND_HUBS.map(brand => ({
-      url: `${SITE_URL}/marca/${brand}`,
+      url: `${SITE_URL}/brand/${brand}`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.95,
     })),
 
     // Tier 2C — Navegación principal (solo páginas indexables)
-    { url: `${SITE_URL}/catalogo`,  lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9 },
+    { url: `${SITE_URL}/catalog`,  lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9 },
     { url: `${SITE_URL}/blog`,      lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.85 },
 
     // Tier 2D — Artículos del Blog (fuente: lib/blog-posts.js)
@@ -54,18 +54,18 @@ export default async function sitemap() {
 
     // Tier 2E — Soluciones Especializadas (Marketing Long-Tail)
     ...['filtros-para-flotas', 'equivalencias-wix', 'premium-alta-gama', 'importados-peru'].map(slug => ({
-      url: `${SITE_URL}/soluciones/${slug}`,
+      url: `${SITE_URL}/solutions/${slug}`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.85,
     })),
 
     // EXCLUIDAS INTENCIONALMENTE (noindex):
-    // /buscar   — SPA interactiva, no indexable
+    // /search   — SPA interactiva, no indexable
     // /login    — Privada, sin valor SEO
-    // /carrito  — Privada, sin valor SEO
-    // /pedidos  — Privada, sin valor SEO
-    // /gracias  — Página de confirmación temporal
+    // /cart  — Privada, sin valor SEO
+    // /orders  — Privada, sin valor SEO
+    // /thank-you  — Página de confirmación temporal
   ];
 
   let dynamicPages = [];
@@ -104,7 +104,7 @@ export default async function sitemap() {
       const categories = await catRes.json();
       const { toSlug } = await import('@/lib/slug'); // Import dinámico para evitar error en el scope
       const categoryPages = categories.map(c => ({
-        url: `${SITE_URL}/catalogo/${toSlug(c.name)}`,
+        url: `${SITE_URL}/catalog/${toSlug(c.name)}`,
         lastModified: new Date(),
         changeFrequency: 'daily',
         priority: 0.95,
@@ -131,7 +131,7 @@ export default async function sitemap() {
       const brands = await brandsRes.json();
       const newBrands = brands.filter(b => !PRODUCT_BRAND_HUBS.includes(b.slug));
       const newBrandPages = newBrands.map(b => ({
-        url: `${SITE_URL}/marca/${b.slug}`,
+        url: `${SITE_URL}/brand/${b.slug}`,
         lastModified: b.updated_at ? new Date(b.updated_at) : new Date(),
         changeFrequency: 'weekly',
         priority: 0.95,
@@ -149,7 +149,7 @@ export default async function sitemap() {
       for (const v of vehicles) {
         // Tier 4: Hub de marca
         dynamicPages.push({
-          url: `${SITE_URL}/vehiculo/${v.make_slug}`,
+          url: `${SITE_URL}/vehicle/${v.make_slug}`,
           lastModified: new Date(),
           changeFrequency: 'weekly',
           priority: 0.8,

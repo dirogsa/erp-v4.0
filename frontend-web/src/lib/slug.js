@@ -34,7 +34,7 @@ export function toSlug(str) {
 
 /**
  * Convierte un slug de vuelta a un patrón de regex para buscar en la BD.
- * Esto permite que /vehiculo/hyundai/kona-ii-sx4 encuentre "KONA II (SX4)" en MongoDB.
+ * Esto permite que /vehicle/hyundai/kona-ii-sx4 encuentre "KONA II (SX4)" en MongoDB.
  *
  * Estrategia: cada guion en el slug puede representar un espacio, guion, o
  * un caracter eliminado (paréntesis, etc.). El regex hace match flexible.
