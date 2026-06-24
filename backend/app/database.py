@@ -11,11 +11,14 @@ async def init_db():
         return
 
     # Add timeouts to avoid hanging infinitely, but give it enough time for SSL handshake
+    # Optimización Free Tier: maxPoolSize=10 reduce drásticamente el consumo de RAM de las conexiones ociosas
     client = AsyncIOMotorClient(
         mongo_uri,
         serverSelectionTimeoutMS=30000,
         connectTimeoutMS=30000,
-        socketTimeoutMS=30000
+        socketTimeoutMS=30000,
+        maxPoolSize=10,
+        minPoolSize=1
     )
     db_name = settings.MONGO_DB_NAME
     
