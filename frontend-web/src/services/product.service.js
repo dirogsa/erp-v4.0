@@ -49,6 +49,10 @@ async function apiFetch(path, opts = {}, retries = 5, delay = 5000) {
 
         if (!res.ok) {
           if (res.status === 404) return null;
+          // Si el API de Render está suspendido (503), no tiene sentido reintentar 5 veces. Falla rápido.
+          if (res.status === 503) {
+            throw new Error(`ServiceUnavailable_503`);
+          }
           // If Rate Limited (429), respect it heavily
           if (res.status === 429) {
             const retryAfter = res.headers.get('Retry-After');
@@ -61,12 +65,17 @@ async function apiFetch(path, opts = {}, retries = 5, delay = 5000) {
       } catch (err) {
         const isLast = i === retries - 1;
         
-        // Custom 429 handling extraction
         let currentDelay = delay;
         let errMsg = err.name === 'AbortError' ? 'Timeout' : err.message;
         if (err.message && err.message.startsWith('RateLimited_429_')) {
             currentDelay = parseInt(err.message.split('_')[2]);
             errMsg = '429 Too Many Requests';
+        }
+        
+        // Si el servidor está suspendido (503), no reintentar. Rompe el ciclo for.
+        if (err.message === 'ServiceUnavailable_503') {
+           console.warn(`[ProductService] API Offline (503) for ${path}. Failing fast to trigger Graceful Degradation.`);
+           return null;
         }
         
         console.warn(`[ProductService] Attempt ${i + 1} failed for ${path}: ${errMsg}. ${isLast ? 'Returning null.' : `Retrying in ${currentDelay}ms...`}`);
@@ -110,9 +119,9 @@ export const ProductService = {
     if (params.skip !== undefined) qs.set('skip', params.skip);
 
     const data = await apiFetch(`/shop/products?${qs.toString()}`, SEARCH_CACHE_OPTS);
-    if (!data) return { items: [], total: 0 };
+    if (!data) return { items: [], total: 0, api_status: "offline" };
     const items = Array.isArray(data) ? data : (data.items || []);
-    return { items: items.map(normalizeProduct), total: data.total || items.length };
+    return { items: items.map(normalizeProduct), total: data.total || items.length, api_status: "online" };
   },
 
   /**

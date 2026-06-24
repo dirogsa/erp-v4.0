@@ -14,6 +14,7 @@ export default function robots() {
       {
         userAgent: '*',
         allow: '/',
+        crawlDelay: 10, // Pausa obligatoria de 10 segundos entre peticiones para no colapsar el Free Tier
         disallow: [
           '/api/',      // Endpoints de API interna
           '/admin/',    // Panel de administración

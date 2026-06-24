@@ -127,7 +127,7 @@ export default async function MarcaHubPage({ params }) {
   if (!brandInfo) notFound();
 
   // Fetch productos de esta marca — SSR con caché ISR
-  const { items: products, total } = await ProductService.searchProducts({
+  const { items: products, total, api_status } = await ProductService.searchProducts({
     search: brandInfo.name,
     limit: 24,
   });
@@ -221,7 +221,26 @@ export default async function MarcaHubPage({ params }) {
       </header>
 
       {/* ─── PRODUCT GRID ─── */}
-      {products.length > 0 ? (
+      {api_status === "offline" ? (
+        <div className="text-center py-20 px-4 border border-brand-primary/20 rounded-3xl bg-[#141518]/40 backdrop-blur-md relative overflow-hidden my-10">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-primary to-transparent opacity-50" />
+          <div className="w-16 h-16 mx-auto bg-brand-primary/10 rounded-full flex items-center justify-center mb-6 border border-brand-primary/30 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+            <svg className="w-8 h-8 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-wide mb-3">Catálogo en Mantenimiento</h3>
+          <p className="text-brand-text-dim text-sm md:text-base max-w-lg mx-auto mb-8 leading-relaxed">
+            Estamos sincronizando la lista de precios oficial de <strong>{brandInfo.name}</strong> para este mes.
+            Por favor, contáctanos directamente para solicitar tu cotización.
+          </p>
+          <a href="https://wa.me/51991717240" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-[#25D366] text-black font-black uppercase text-sm tracking-widest hover:bg-[#25D366]/90 transition-all hover:scale-105 shadow-[0_0_20px_rgba(37,211,102,0.3)]">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.73-1.45L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.968C16.528 1.971 14.076 1.97 11.98 1.97c-5.433 0-9.863 4.374-9.867 9.806-.001 1.73.457 3.41 1.32 4.947l-1.047 3.826 3.925-1.029zm13.111-7.234c-.29-.145-1.716-.847-1.978-.942-.262-.096-.453-.145-.642.145-.19.29-.738.942-.905 1.135-.167.19-.335.21-.625.065-2.9-.145-4.814-1.924-5.59-3.267-.168-.29-.018-.447.127-.592.13-.13.29-.339.436-.508.145-.17.193-.29.29-.483.097-.19.048-.363-.024-.508-.073-.145-.642-1.547-.88-2.122-.232-.558-.468-.483-.642-.492-.166-.008-.356-.01-.546-.01-.19 0-.501.07-.763.356-.262.29-1 .977-1 2.382s1.02 2.762 1.164 2.956c.145.195 2.007 3.064 4.862 4.297.68.293 1.21.468 1.623.599.683.217 1.305.186 1.797.112.548-.08 1.716-.702 1.957-1.378.24-.678.24-1.257.17-1.378-.073-.121-.262-.19-.553-.335z"/></svg>
+            Cotizar repuestos por WhatsApp
+          </a>
+        </div>
+      ) : products.length > 0 ? (
         <>
           <div className="flex items-center justify-between mb-6">
             <p className="text-sm" style={{ color: 'var(--brand-text-dim)' }}>

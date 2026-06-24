@@ -6,8 +6,9 @@ import ReviewForm from '@/components/product/ReviewForm';
 import ProductTabs from '@/components/product/ProductTabs';
 import AddToCartModule from '@/components/product/AddToCartModule';
 
-export const dynamic = 'force-dynamic'; // On-demand SSR: no build-time bombardment of the free-tier API
-export const revalidate = false;        // ISR disabled: each request is served by SSR cache headers
+// ISR Activado: El primer request despierta al API y guarda el HTML. 
+// Las visitas de las próximas 24h usan el caché sin gastar horas de servidor.
+export const revalidate = 86400; 
 
 /**
  * DYNAMIC METADATA — Constitution §6 / SEO Architecture
