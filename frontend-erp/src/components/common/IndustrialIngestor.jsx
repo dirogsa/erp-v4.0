@@ -91,6 +91,9 @@ const IndustrialIngestor = forwardRef(({
                 showNotification(`Error procesando archivos: ${err.message}`, 'error');
             } finally {
                 setIsProcessing(false);
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
             }
         }
     };
@@ -419,7 +422,7 @@ const IndustrialIngestor = forwardRef(({
                                 </div>
                                 {selectedItem.image_url ? (
                                     <div style={{ background: '#1e293b', borderRadius: '1rem', border: '1px solid #334155', padding: '1rem', textAlign: 'center' }}>
-                                        <img src={selectedItem.image_url} alt={selectedItem.sku} style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'contain', borderRadius: '0.5rem' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                                        <img src={selectedItem.image_url} alt={selectedItem.sku} referrerPolicy="no-referrer" style={{ maxWidth: '100%', maxHeight: '220px', objectFit: 'contain', borderRadius: '0.5rem' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
                                         <div style={{ display: 'none', color: '#ef4444', fontSize: '0.85rem', padding: '1rem' }}>⚠ Imagen no disponible en origen</div>
                                         <div style={{ fontSize: '0.7rem', color: '#475569', marginTop: '0.5rem', wordBreak: 'break-all' }}>{selectedItem.image_url}</div>
                                     </div>

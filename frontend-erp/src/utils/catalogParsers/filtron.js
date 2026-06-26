@@ -12,7 +12,7 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
         ean: '',
         type: 'COMMERCIAL',        // <--- Forzamos el tipo solicitado
         is_active_in_shop: false,  // <--- Forzamos el estado inactivo por defecto
-        status: '',
+        status: 'AVAILABLE',
         category_name: '',
         description: '',
         image_url: '',
@@ -103,7 +103,14 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
 
         if (galleryItems.length > 0) {
             data.image_gallery = galleryItems;
-            const mainImg = galleryItems.find(i => !i.url.includes('box') && !i.is_dim) || galleryItems[0];
+            
+            // Prioridad 1: Imagen con caja comercial (más estable y pública en Scene7)
+            // Prioridad 2: Imagen del filtro solo (que no sea plano técnico)
+            // Prioridad 3: La primera imagen disponible en la galería
+            const mainImg = galleryItems.find(i => i.url.includes('box') && !i.is_dim) || 
+                            galleryItems.find(i => !i.is_dim) || 
+                            galleryItems[0];
+                            
             if (mainImg) data.image_url = mainImg.url;
             const dimImg = galleryItems.find(i => i.is_dim);
             if (dimImg) data.tech_drawing_url = dimImg.url;

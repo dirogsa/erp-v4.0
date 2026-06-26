@@ -6,6 +6,7 @@ import ProductsTable from '../components/features/inventory/ProductsTable';
 import ProductForm from '../components/features/inventory/ProductForm';
 import TransfersSection from '../components/features/inventory/TransfersSection';
 import LossesSection from '../components/features/inventory/LossesSection';
+import BulkProductIngestor from '../components/features/inventory/BulkProductIngestor';
 
 import LoyaltyManagement from '../components/features/inventory/LoyaltyManagement';
 import Pagination from '../components/common/Table/Pagination';
@@ -265,6 +266,20 @@ const Inventory = ({ forcedType = null }) => {
                         🔎 Búsqueda Inteligente
                     </button>
                     <button
+                        onClick={() => { setActiveTab('bulk-ingest'); setSelectedIds([]); }}
+                        style={{
+                            padding: '1rem 2rem',
+                            background: 'none',
+                            border: 'none',
+                            borderBottom: activeTab === 'bulk-ingest' ? '2px solid #a855f7' : 'none',
+                            color: activeTab === 'bulk-ingest' ? '#a855f7' : '#94a3b8',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                        }}
+                    >
+                        🚀 Ingesta HTML
+                    </button>
+                    <button
                         onClick={() => setActiveTab('transfers')}
                         style={{
                             padding: '1rem 2rem',
@@ -502,7 +517,7 @@ const Inventory = ({ forcedType = null }) => {
 
             {activeTab === 'losses' && <LossesSection />}
 
-
+            {activeTab === 'bulk-ingest' && <BulkProductIngestor onComplete={() => refetch && refetch()} />}
 
             {activeTab === 'loyalty' && <LoyaltyManagement />}
 

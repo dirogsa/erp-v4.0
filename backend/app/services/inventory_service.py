@@ -306,7 +306,7 @@ async def create_product(product_data: Product, initial_stock: int = 0, user: Op
     existing = await Product.find_one(Product.sku == product_data.sku, Product.brand == product_data.brand)
     
     if existing:
-        raise DuplicateEntityException(f"Producto con SKU {product_data.sku} y marca {product_data.brand} ya existe en el catálogo maestro.")
+        raise DuplicateEntityException("Product", "sku", f"{product_data.brand} - {product_data.sku}")
     
     # Asegurar que las marcas vehiculares existan si vienen en aplicaciones
     if product_data.applications:
@@ -496,7 +496,7 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
         "errors": []
     }
 
-async def update_product(sku: str, update_data: Product, new_stock: int = None, user: Optional[User] = None) -> Product:
+async def update_product(sku: str, update_data: Product, new_stock: int = None, user: Optional[User] = None, company_id: Optional[str] = None) -> Product:
     product = await get_product_by_sku(sku)
     
     # Update all editable fields from update_data
@@ -550,7 +550,7 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None, 
         await ensure_brands_exist([app.make for app in product.applications])
     
     if new_stock is not None and new_stock != product.stock_current:
-        product = await adjust_stock(sku, new_stock, "Ajuste desde edición de producto", company_id=update_data.company_id)
+        product = await adjust_stock(sku, new_stock, "Ajuste desde edición de producto", company_id=company_id)
         
     return product
 
@@ -787,7 +787,8 @@ async def register_movement(
     product_id: Optional[str] = None,
     company_id: Optional[str] = None,
     legal_owner_id: Optional[str] = None,
-    is_reservation_release: bool = False # New: releases from stock_reserved
+    is_reservation_release: bool = False, # New: releases from stock_reserved
+    notes: Optional[str] = None
 ) -> Any:
     """
     Registra un movimiento de inventario y actualiza el stock del producto.
@@ -837,7 +838,8 @@ async def register_movement(
         company_id=company_id,
         legal_owner_id=actual_owner_id,
         date=date or datetime.utcnow(),
-        warehouse_id="MAIN"
+        warehouse_id="MAIN",
+        notes=notes
     )
     await movement.insert()
 

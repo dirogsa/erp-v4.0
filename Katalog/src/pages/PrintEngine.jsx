@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer } from 'lucide-react';
 import './PrintEngine.css';
 
+const FALLBACK_IMAGE = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTUwIDE1MCI+PHJlY3Qgd2lkdGg9IjE1MCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiNmMWY1ZjkiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlNpbiBJbWFnZW48L3RleHQ+PC9zdmc+";
+
 export default function PrintEngine() {
   const { config } = useCatalogStore();
   const navigate = useNavigate();
@@ -38,12 +40,13 @@ export default function PrintEngine() {
       return `${make} (${modelsText})`;
     });
 
-    // 3. Limitar a máximo 4 marcas en total para no desbordar el A4
-    const displayedMakes = makeStrings.slice(0, 4);
+    // 3. Limitar según si hay espacio (equivalencias activas o no)
+    const maxMakes = config.displayFields.reference ? 4 : 8;
+    const displayedMakes = makeStrings.slice(0, maxMakes);
     let result = displayedMakes.join(' | ');
     
-    if (makeStrings.length > 4) {
-      result += ` ... (+${makeStrings.length - 4} marcas)`;
+    if (makeStrings.length > maxMakes) {
+      result += ` ... (+${makeStrings.length - maxMakes} marcas)`;
     }
     
     return result;
@@ -337,11 +340,12 @@ export default function PrintEngine() {
                         {config.displayFields.image && (
                           <div className="product-image">
                             <img 
-                              src={product.image_url || 'https://via.placeholder.com/150?text=Sin+Imagen'} 
-                              alt={`Filtro ${product.sku}`} 
+                              src={product.image_url || FALLBACK_IMAGE} 
+                              alt={`Filtro ${product.sku}`}
+                              referrerPolicy="no-referrer"
                               onError={(e) => {
                                 e.target.onerror = null; // Previene loops infinitos
-                                e.target.src = 'https://via.placeholder.com/150?text=Sin+Imagen';
+                                e.target.src = FALLBACK_IMAGE;
                               }}
                             />
                           </div>
@@ -349,9 +353,7 @@ export default function PrintEngine() {
                         
                         <div className="product-specs-container">
                           <div className="product-id-block">
-                            {config.displayFields.reference && (
-                              <span className="product-ref">{product.sku}</span>
-                            )}
+                            <span className="product-ref">{product.sku}</span>
                             <span className="product-brand-subtitle">{product.brand}</span>
                           </div>
 
@@ -373,7 +375,7 @@ export default function PrintEngine() {
                       {/* Fila 2: Aplicaciones */}
                       {config.displayFields.applications && (
                         <div className="product-row-2">
-                          <div className="product-info-block">
+                          <div className={`product-info-block ${!config.displayFields.reference ? 'clamp-expanded' : ''}`}>
                             <strong>Aplicaciones</strong>
                             <p>{formatApplications(product.applications)}</p>
                           </div>

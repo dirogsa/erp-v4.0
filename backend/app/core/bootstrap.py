@@ -30,10 +30,10 @@ async def bootstrap_system():
         await setup_initial_data()
         
         # 3. Sincronización estructural de marcas de productos con metadatos comerciales
+        import asyncio
         from app.routes.product_brands import perform_full_product_brand_sync
-        logger.info("BOOTSTRAP: [INFO] Sincronizando catálogo maestro de marcas...")
-        await perform_full_product_brand_sync()
-        logger.info("BOOTSTRAP: [SUCCESS] Sincronización de marcas completada.")
+        logger.info("BOOTSTRAP: [INFO] Sincronizando catálogo maestro de marcas (ejecutando en background)...")
+        asyncio.create_task(perform_full_product_brand_sync())
         
     except Exception as e:
         logger.error(f"BOOTSTRAP: [CRITICAL] Fallo en la inicialización del sistema: {str(e)}")

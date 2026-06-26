@@ -12,7 +12,7 @@ const parseWixModern = (doc, domain, dbCategories = []) => {
         ean: '',
         type: 'COMMERCIAL',        // <--- Forzamos el tipo solicitado
         is_active_in_shop: false,  // <--- Forzamos el estado inactivo por defecto
-        status: '',
+        status: 'AVAILABLE',
         category_name: '',
         description: '',
         image_url: '',
@@ -119,8 +119,12 @@ const parseWixModern = (doc, domain, dbCategories = []) => {
         if (galleryItems.length > 0) {
             data.image_gallery = galleryItems;
             
-            // Priorizamos la imagen principal (evitamos caja o plano técnico como main)
-            const mainImg = galleryItems.find(i => !i.url.includes('box') && !i.is_dim) || galleryItems[0];
+            // Prioridad 1: Imagen con caja (más estable)
+            // Prioridad 2: Imagen normal que no sea plano técnico
+            // Prioridad 3: La primera imagen
+            const mainImg = galleryItems.find(i => i.url.includes('box') && !i.is_dim) || 
+                            galleryItems.find(i => !i.is_dim) || 
+                            galleryItems[0];
             if (mainImg) data.image_url = mainImg.url;
 
             // Extraer plano técnico si existe

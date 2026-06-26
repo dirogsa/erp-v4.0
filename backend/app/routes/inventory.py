@@ -197,8 +197,7 @@ async def update_product(
     current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN])),
     company_id: str = Depends(get_current_company_id)
 ):
-    product_data.company_id = company_id
-    return await inventory_service.update_product(sku, product_data, new_stock, user=current_user)
+    return await inventory_service.update_product(sku, product_data, new_stock, user=current_user, company_id=company_id)
 
 @router.delete("/products/{sku}")
 async def delete_product(

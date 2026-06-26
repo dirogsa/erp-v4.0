@@ -202,7 +202,7 @@ const ProductsTable = ({
                 key: 'image_url',
                 align: 'center',
                 render: (val) => val ? (
-                    <img src={val} alt="tb" style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }} />
+                    <img src={val} alt="tb" referrerPolicy="no-referrer" style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px' }} />
                 ) : '-'
             }
         ] : [

@@ -238,6 +238,10 @@
   overflow: hidden;
 }
 
+.product-info-block.clamp-expanded p {
+  -webkit-line-clamp: 5;
+}
+
 /* 
  * ----------------------------------------------------
  * THEME: VENDEDOR (Ahorro de Tinta, Simple, Limpio)

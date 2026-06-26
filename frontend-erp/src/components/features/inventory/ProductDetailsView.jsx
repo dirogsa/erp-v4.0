@@ -103,6 +103,7 @@ const ProductDetailsView = ({ product, onClose }) => {
                             <img
                                 src={currentImage}
                                 alt={product.name}
+                                referrerPolicy="no-referrer"
                                 style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fff' }}
                                 onError={(e) => {
                                     e.target.onerror = null;
@@ -113,6 +114,7 @@ const ProductDetailsView = ({ product, onClose }) => {
                             <img
                                 src="https://placehold.co/600x600/1e293b/94a3b8?text=Imagen+No+Disponible"
                                 alt="No disponible"
+                                referrerPolicy="no-referrer"
                                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                             />
                         )}
@@ -167,7 +169,7 @@ const ProductDetailsView = ({ product, onClose }) => {
                                             boxShadow: currentImage === img.url ? '0 0 8px rgba(59, 130, 246, 0.5)' : 'none'
                                         }}
                                     >
-                                        <img src={img.url} alt={img.label} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                        <img src={img.url} alt={img.label} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                     </div>
                                 ))}
                             </div>

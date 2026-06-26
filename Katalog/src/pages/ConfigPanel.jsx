@@ -7,7 +7,7 @@ import './ConfigPanel.css';
 
 const FIELD_LABELS = {
   image: 'Imagen',
-  reference: 'Referencia / SKU',
+  reference: 'Referencia (Equivalencias)',
   dimensions: 'Medidas',
   applications: 'Aplicaciones',
   price: 'Precio',
