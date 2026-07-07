@@ -111,13 +111,13 @@ export default async function HomePage() {
       {/* ── ZONA 1: HIGH CONVERSION (Above the Fold) ── */}
       <section className="w-full text-center md:text-left pt-2 pb-6 flex flex-col md:items-start items-center">
         <span className="px-3 py-1 text-[10px] md:text-xs font-black uppercase tracking-widest text-brand-primary border border-brand-primary/30 bg-brand-primary/10 rounded-full mb-4 inline-block">
-          Importación y Distribución Nacional
+          Importación y Venta Mayorista a Nivel Nacional
         </span>
         <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] tracking-tighter mb-4 max-w-4xl">
-          Plataforma B2B de <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-emerald-300">Abastecimiento</span>
+          Distribuidor Mayorista de <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-emerald-300">Filtros Automotrices</span>
         </h1>
         <p className="text-sm md:text-lg text-white/80 max-w-2xl mb-8 leading-relaxed">
-          Cotiza online filtros originales y certificados OEM (WIX, Filtron) al por mayor. Despacho diario a nivel nacional.
+          Encuentra el filtro exacto para autos, SUVs y camionetas. Cotiza al por mayor y abastece tu negocio o taller con repuestos originales.
         </p>
 
         {/* ── BUSCADOR INMEDIATO (Prioridad Absoluta UX) ── */}
@@ -159,7 +159,7 @@ export default async function HomePage() {
           <div className="bg-[#141518] md:bg-[#141518]/90 md:backdrop-blur-sm border border-white/10 rounded-2xl p-4 md:p-6 flex flex-col items-center text-center relative">
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#0A0A0B] border-2 border-brand-primary/50 text-brand-primary flex items-center justify-center font-black text-lg md:text-xl mb-3 md:shadow-[0_0_15px_rgba(16,185,129,0.2)]">3</div>
             <h3 className="font-bold text-white text-sm md:text-base mb-1">Envía</h3>
-            <p className="text-[10px] md:text-xs text-white/60">Recibe precios B2B.</p>
+            <p className="text-[10px] md:text-xs text-white/60">Recibe precios de mayorista.</p>
           </div>
 
           <div className="bg-[#141518] md:bg-[#141518]/90 md:backdrop-blur-sm border border-brand-primary/30 rounded-2xl p-4 md:p-6 flex flex-col items-center text-center relative md:shadow-[0_0_20px_rgba(16,185,129,0.05)]">
@@ -221,7 +221,7 @@ export default async function HomePage() {
             <div>
               <p className="text-[9px] font-bold uppercase tracking-widest mb-3 text-white/30">Marcas importadas</p>
               <div className="flex flex-wrap gap-2">
-                {['wix', 'mann', 'azumi', 'totachi'].map((slug) => (
+                {['wix', 'filtron', 'totachi', 'asakashi', 'azumi'].map((slug) => (
                   <Link key={slug} href={`/brand/${slug}`} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase border border-white/10 bg-[#141518]/50 text-white/60 hover:text-white transition-colors">
                     {slug}
                   </Link>
@@ -248,7 +248,7 @@ export default async function HomePage() {
           <h2 id="seo-about-heading" className="sr-only">Sobre DIROGSA</h2>
           <div className="text-[10px] leading-relaxed text-justify text-white/40">
             <p>
-              DIROGSA es un importador y distribuidor mayorista de filtros automotrices en Perú, especialista en carga ligera, SUVs, camionetas y vehículos de alta gama. Nuestra plataforma B2B permite cotizar online filtros originales y certificados OEM de marcas premium como WIX, Filtron y Hengst. Atendemos a concesionarias autorizadas, talleres especializados, lubricentros y distribuidores con cobertura y envíos rápidos a provincias a nivel nacional.
+              DIROGSA es un importador y distribuidor mayorista de filtros automotrices en Perú, especialista en autos de uso diario, SUVs y camionetas. Nuestra plataforma web permite a lubricentros, talleres y tiendas de repuestos cotizar online filtros originales de marcas globales como WIX, Filtron, Totachi, Asakashi y Azumi. Atendemos a negocios de repuestos con cobertura y envíos rápidos a provincias a nivel nacional.
             </p>
           </div>
         </section>

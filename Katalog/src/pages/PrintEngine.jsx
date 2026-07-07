@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useCatalogStore } from '../store';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer } from 'lucide-react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { generateCatalogTitle } from '../utils/catalogTitleGenerator';
 import './PrintEngine.css';
 
 const FALLBACK_IMAGE = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTUwIDE1MCI+PHJlY3Qgd2lkdGg9IjE1MCIgaGVpZ2h0PSIxNTAiIGZpbGw9IiNmMWY1ZjkiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzk0YTNiOCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPlNpbiBJbWFnZW48L3RleHQ+PC9zdmc+";
@@ -12,6 +14,10 @@ export default function PrintEngine() {
   const [hierarchy, setHierarchy] = useState([]);
   const [loading, setLoading] = useState("Iniciando...");
   const [error, setError] = useState(null);
+
+  // --- Manejo Dinámico del Título para Guardar como PDF ---
+  const documentTitle = generateCatalogTitle(config);
+  useDocumentTitle(documentTitle);
 
   // --- Formatters de Libro de Texto para A4 ---
   const formatApplications = (applications) => {
@@ -41,49 +47,34 @@ export default function PrintEngine() {
     });
 
     // 3. Limitar según si hay espacio (equivalencias activas o no)
-    const maxMakes = config.displayFields.reference ? 4 : 8;
+    const maxMakes = config.displayFields.reference ? 3 : 5;
     const displayedMakes = makeStrings.slice(0, maxMakes);
     let result = displayedMakes.join(' | ');
     
     if (makeStrings.length > maxMakes) {
-      result += ` ... (+${makeStrings.length - maxMakes} marcas)`;
+      result += ` ...\u00A0(+${makeStrings.length - maxMakes}\u00A0marcas)`;
     }
     
     return result;
   };
 
-  const formatSpecs = (specs) => {
-    if (!specs || !Array.isArray(specs) || specs.length === 0) return "N/A";
+  const formatSpecsTable = (specs) => {
+    if (!specs || !Array.isArray(specs) || specs.length === 0) return [];
     
-    const dimensionMap = {
-      "altura": "H",
-      "height": "H",
-      "diámetro exterior": "OD",
-      "diametro exterior": "OD",
-      "outer diameter": "OD",
-      "diámetro interior 1": "A",
-      "diametro interior 1": "A",
-      "diámetro interior 2": "B",
-      "diametro interior 2": "B",
-      "diámetro interior": "A",
-      "diametro interior": "A",
-      "rosca": "F",
-      "largo": "L",
-      "ancho": "W"
-    };
-
+    // Por petición estricta: NO usar conversores ni diccionarios.
+    // Mostrar la etiqueta EXACTAMENTE como viene de la base de datos (ingestada desde HTML).
     return specs.map(s => {
       if (!s || !s.label) return null;
-      // Intentar mapear la etiqueta a su equivalente en letra
-      const rawLabel = s.label.toLowerCase().trim();
-      // Si existe en el mapa, usamos la letra. Si no, usamos la etiqueta original pero asegurando primera en mayúscula.
-      const displayLabel = dimensionMap[rawLabel] || s.label;
-
+      
+      const displayLabel = s.label.trim();
+      
+      // Si el measure_type es válido, lo concatenamos al valor
       const measure = (s.measure_type && s.measure_type !== 'other' && !s.measure_type.includes('OTHER')) 
         ? s.measure_type.replace('MeasureType.', '').toLowerCase() 
         : '';
-      return `${displayLabel}: ${s.value || ''}${measure}`;
-    }).filter(Boolean).join(' • ');
+        
+      return { label: displayLabel, value: `${s.value || ''}${measure}` };
+    }).filter(Boolean);
   };
 
 
@@ -103,7 +94,7 @@ export default function PrintEngine() {
       ? { skus: config.validatedSkus }
       : { 
           strategy: config.catalogStrategy,
-          categories: config.catalogStrategy === 'by_category' ? config.selectedCategories : [],
+          brand_filters: config.brandCategoryFilters || {},
           vehicle_makes: config.catalogStrategy === 'by_vehicle' ? config.selectedVehicleMakes : []
         };
 
@@ -335,65 +326,89 @@ export default function PrintEngine() {
               <div className="products-grid">
                 {page.products.map(product => (
                   <div key={product.unique_key} className="product-card">
+                    {/* Fila 0: Bloque Negro SKU */}
+                    <div className="product-sku-header">
+                      <span className="product-ref">{product.sku}</span>
+                      {config.displayFields.price && (
+                        <span className="product-price">
+                          {product.cost ? `S/ ${(product.cost * 1.3).toFixed(2)}` : "Cons."}
+                        </span>
+                      )}
+                    </div>
+
                     <div className="product-body">
-                      <div className="product-row-1">
+                      {/* Fila 1: Imagen (Izquierda) + Medidas (Derecha) */}
+                      <div className="product-top-row">
                         {config.displayFields.image && (
-                          <div className="product-image">
-                            <img 
-                              src={product.image_url || FALLBACK_IMAGE} 
-                              alt={`Filtro ${product.sku}`}
-                              referrerPolicy="no-referrer"
-                              onError={(e) => {
-                                e.target.onerror = null; // Previene loops infinitos
-                                e.target.src = FALLBACK_IMAGE;
-                              }}
-                            />
+                          <div className="product-image-container">
+                            {config.displayFields.packaging && (
+                              <div className="product-badge">Uds. x Caja: {product.box_quantity || '-'}</div>
+                            )}
+                            <div className="product-image">
+                              <img 
+                                src={product.image_url || FALLBACK_IMAGE} 
+                                alt={`Filtro ${product.sku}`}
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = FALLBACK_IMAGE;
+                                }}
+                              />
+                            </div>
                           </div>
                         )}
                         
-                        <div className="product-specs-container">
-                          <div className="product-id-block">
-                            <span className="product-ref">{product.sku}</span>
-                            <span className="product-brand-subtitle">{product.brand}</span>
+                        {config.displayFields.dimensions && (
+                          <div className="product-measures-table">
+                            <div className="table-header">MEDIDAS</div>
+                            <div className="table-body">
+                              {formatSpecsTable(product.specs).length > 0 ? (
+                                formatSpecsTable(product.specs).map((spec, i) => (
+                                  <div key={i} className="table-row">
+                                    <span className="measure-label">{spec.label}</span>
+                                    <span className="measure-value">{spec.value}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="table-row"><span className="measure-label">No data</span></div>
+                              )}
+                            </div>
                           </div>
-
-                          {config.displayFields.dimensions && (
-                            <div className="product-info-block">
-                              <strong>Medidas</strong>
-                              <p>{formatSpecs(product.specs)}</p>
-                            </div>
-                          )}
-
-                          {config.displayFields.price && (
-                            <div className="product-price-badge">
-                              {product.cost ? `S/ ${(product.cost * 1.3).toFixed(2)}` : "Consultar"}
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
 
-                      {/* Fila 2: Aplicaciones */}
-                      {config.displayFields.applications && (
-                        <div className="product-row-2">
-                          <div className={`product-info-block ${!config.displayFields.reference ? 'clamp-expanded' : ''}`}>
-                            <strong>Aplicaciones</strong>
-                            <p>{formatApplications(product.applications)}</p>
+                      {/* Fila 2: Equivalencia (Izquierda) + Aplicación (Derecha) */}
+                      <div className="product-bottom-row">
+                        {config.displayFields.reference && (
+                          <div className="data-column">
+                            <div className="table-header">EQUIVALENCIA</div>
+                            <div className="data-content equivalences-content">
+                              {Array.isArray(product.equivalences) && product.equivalences.length > 0 
+                                ? (
+                                  <div className="equiv-grid">
+                                    {product.equivalences.slice(0, 5).map((e, i) => (
+                                      <div key={i} className="equiv-row">
+                                        <span>{e.brand}</span>
+                                        <span className="equiv-code">{e.code}</span>
+                                      </div>
+                                    ))}
+                                    {product.equivalences.length > 5 && <div className="equiv-row"><span>...</span></div>}
+                                  </div>
+                                )
+                                : "N/A"
+                              }
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      
-                      {/* Fila 3: Equivalencias */}
-                      {config.displayFields.reference && Array.isArray(product.equivalences) && product.equivalences.length > 0 && (
-                        <div className="product-row-3">
-                          <div className="product-info-block">
-                            <strong>Equivalencias</strong>
-                            <p>
-                              {product.equivalences.slice(0, 5).map(e => `${e?.brand || ''} ${e?.code || ''}`).join(', ')}
-                              {product.equivalences.length > 5 ? ' ...' : ''}
-                            </p>
+                        )}
+                        {config.displayFields.applications && (
+                          <div className="data-column">
+                            <div className="table-header">APLICACIÓN</div>
+                            <div className="data-content applications-content">
+                              {formatApplications(product.applications)}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

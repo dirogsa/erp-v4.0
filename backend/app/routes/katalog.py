@@ -1,12 +1,13 @@
 from fastapi import APIRouter
-from typing import List
+from typing import List, Dict
 from pydantic import BaseModel
 from app.models.inventory import Product, ProductBrand, VehicleBrand, ProductCategory
-from beanie.operators import In, And
+from beanie.operators import In, And, Or
 
 router = APIRouter(prefix="/katalog", tags=["Katalog Premium"])
 
 class KatalogGenerateRequest(BaseModel):
+    brand_filters: Dict[str, List[str]] = {}
     brands: List[str] = []
     categories: List[str] = []  # category_ids
     vehicle_makes: List[str] = [] # filter by vehicle make
@@ -34,6 +35,44 @@ async def get_katalog_categories():
     """Returns all product categories for the Katalog config panel"""
     categories = await ProductCategory.find().sort(+ProductCategory.name).to_list()
     return [{"id": str(c.id), "name": c.name, "description": c.description, "parent_id": c.parent_id} for c in categories]
+
+@router.get("/filter-tree")
+async def get_katalog_filter_tree():
+    """Returns a tree of Brands and their associated Categories based on existing products in MongoDB"""
+    pipeline = [
+        {"$group": {
+            "_id": "$brand",
+            "category_ids": {"$addToSet": "$category_id"}
+        }}
+    ]
+    
+    # Get all categories to map IDs to names
+    categories = await ProductCategory.find().to_list()
+    cat_dict = {str(c.id): c.name for c in categories}
+    
+    results = await Product.aggregate(pipeline).to_list()
+    
+    tree = []
+    for r in results:
+        brand_name = r.get("_id")
+        if not brand_name:
+            continue
+            
+        brand_cats = []
+        for cid in r.get("category_ids", []):
+            if cid and cid in cat_dict:
+                brand_cats.append({"id": cid, "name": cat_dict[cid]})
+        
+        # Solo agregar marcas que tengan categorías válidas para no ensuciar la UI
+        if brand_cats:
+            brand_cats.sort(key=lambda x: x["name"])
+            tree.append({
+                "brand": brand_name,
+                "categories": brand_cats
+            })
+            
+    tree.sort(key=lambda x: x["brand"])
+    return tree
 
 @router.post("/validate-skus")
 async def validate_skus(req: SkuValidationRequest):
@@ -75,12 +114,27 @@ async def generate_katalog(req: KatalogGenerateRequest):
         # --- Modo filtros (Marca + Categoría o Vehículo) ---
         query_conditions = []
         
-        if req.brands:
-            query_conditions.append(In(Product.brand, req.brands))
+        if req.brand_filters:
+            brand_conditions = []
+            for brand_name, cat_ids in req.brand_filters.items():
+                if cat_ids:
+                    brand_conditions.append(And(Product.brand == brand_name, In(Product.category_id, cat_ids)))
+                else:
+                    brand_conditions.append(Product.brand == brand_name)
             
-        if req.categories:
-            query_conditions.append(In(Product.category_id, req.categories))
-            
+            if brand_conditions:
+                if len(brand_conditions) > 1:
+                    query_conditions.append(Or(*brand_conditions))
+                else:
+                    query_conditions.append(brand_conditions[0])
+        else:
+            # Fallback legacy para soportar `brands` y `categories` planas
+            if req.brands:
+                query_conditions.append(In(Product.brand, req.brands))
+                
+            if req.categories:
+                query_conditions.append(In(Product.category_id, req.categories))
+                
         if req.vehicle_makes:
             requested_makes = [m.strip().upper() for m in req.vehicle_makes if m.strip()]
             if requested_makes:

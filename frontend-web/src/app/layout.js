@@ -72,7 +72,7 @@ export default function RootLayout({ children }) {
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5 hidden sm:flex">
                 <svg className="w-4 h-4 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                Plataforma B2B para Concesionarias, Talleres y Lubricentros
+                Venta Mayorista para Talleres, Lubricentros y Repuesteras
               </span>
               <a href="tel:+51991717240" className="flex items-center gap-1.5 hover:text-white transition-colors">
                 <svg className="w-4 h-4 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
@@ -127,15 +127,15 @@ export default function RootLayout({ children }) {
               <Link href="/catalog" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Catálogo</Link>
               <Link href="/brand" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Marcas</Link>
               <div className="h-6 w-px bg-white/10" />
-              <Link href="/login" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition-colors" aria-label="Acceso B2B">
+              <Link href="/login" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition-colors" aria-label="Acceso Mayorista">
                 <UserIcon className="h-5 w-5" />
-                <span className="text-sm font-bold">Portal B2B</span>
+                <span className="text-sm font-bold">Portal Mayorista</span>
               </Link>
             </nav>
 
             {/* Acciones Rápidas Móvil (Visibles solo en móvil) */}
             <div className="flex md:hidden items-center gap-2">
-              <Link href="/login" className="h-10 w-10 rounded-full bg-white/5 border border-brand-primary/30 flex items-center justify-center text-brand-primary active:bg-brand-primary/10 transition-colors" aria-label="Portal B2B">
+              <Link href="/login" className="h-10 w-10 rounded-full bg-white/5 border border-brand-primary/30 flex items-center justify-center text-brand-primary active:bg-brand-primary/10 transition-colors" aria-label="Portal Mayorista">
                 <UserIcon className="h-5 w-5" />
               </Link>
             </div>
@@ -161,9 +161,10 @@ export default function RootLayout({ children }) {
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">Marcas Importadas</h3>
                 <ul className="space-y-2">
                   <li><Link href="/brand/wix" className="text-sm text-brand-text-dim hover:text-white transition-colors">WIX Filters</Link></li>
-                  <li><Link href="/brand/mann" className="text-sm text-brand-text-dim hover:text-white transition-colors">MANN-FILTER</Link></li>
+                  <li><Link href="/brand/filtron" className="text-sm text-brand-text-dim hover:text-white transition-colors">FILTRON</Link></li>
                   <li><Link href="/brand/azumi" className="text-sm text-brand-text-dim hover:text-white transition-colors">AZUMI</Link></li>
                   <li><Link href="/brand/totachi" className="text-sm text-brand-text-dim hover:text-white transition-colors">TOTACHI</Link></li>
+                  <li><Link href="/brand/asakashi" className="text-sm text-brand-text-dim hover:text-white transition-colors">JS ASAKASHI</Link></li>
                 </ul>
               </div>
               {/* Category Hub Links */}
@@ -214,8 +215,8 @@ export default function RootLayout({ children }) {
           </div>
         </TrackingLink>
 
-        {/* ── WIDGET INTERACTIVO DE DIRO ASISTENTE ── */}
-        <DiroWidget />
+        {/* ── WIDGET INTERACTIVO DE DIRO ASISTENTE (Desactivado para CRO) ── */}
+        {/* <DiroWidget /> */}
 
         {/* ── BOTTOM NAV MÓVIL Y DESKTOP ── */}
         <nav className="fixed bottom-0 w-full bg-[#0D0E12]/95 backdrop-blur-xl border-t border-white/10 px-6 py-2 flex items-center justify-between md:justify-center md:gap-32 z-50 pb-safe" aria-label="Navegación principal inferior">

@@ -11,20 +11,9 @@ export default function DiroWidget() {
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
-    // Mostrar burbuja de bienvenida automáticamente después de 1.5s
-    const timerShow = setTimeout(() => {
-      setShowWelcome(true);
-    }, 1500);
-
-    // Ocultar burbuja automáticamente después de 8s si el usuario no interactúa
-    const timerHide = setTimeout(() => {
-      setShowWelcome(false);
-    }, 9500);
-
-    return () => {
-      clearTimeout(timerShow);
-      clearTimeout(timerHide);
-    };
+    // El popup automático de bienvenida ha sido desactivado (SEO/CRO Strategy).
+    // Diro ahora es 100% pasivo y silencioso hasta que el usuario lo clica intencionalmente,
+    // garantizando que no robe la atención visual del buscador principal (la zona de conversión).
   }, []);
 
   const handleDiroClick = () => {

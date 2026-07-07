@@ -50,12 +50,8 @@ const BulkProductIngestor = ({ onComplete, onCancel }) => {
 
     // Motor de Persistencia
     const handlePersist = async (items, strategy) => {
-        let success = 0;
-        let errors = 0;
-        
-        for (const entity of items) {
-            try {
-                // Preparar payload básico
+        try {
+            const payloads = items.map(entity => {
                 const payload = {
                     ...entity,
                     type: 'COMMERCIAL',
@@ -71,28 +67,29 @@ const BulkProductIngestor = ({ onComplete, onCancel }) => {
                     if (match) payload.category_id = match._id;
                 }
                 
-                // Tratar de crear. Si falla por duplicado y es OVERWRITE, actualizar.
-                try {
-                    await inventoryService.createProduct(payload, 0);
-                    success++;
-                } catch (err) {
-                    if (strategy === 'OVERWRITE' || (err.response && err.response.status === 409)) {
-                        await inventoryService.updateProduct(payload.sku, payload, 0);
-                        success++;
-                    } else {
-                        errors++;
-                        console.error(`Error procesando ${payload.sku}`, err);
-                    }
-                }
-            } catch (e) {
-                errors++;
+                return payload;
+            });
+
+            const updateExisting = strategy === 'OVERWRITE';
+            
+            // Inyección Masiva (Bulk Upsert)
+            // Esto delega la lógica de existencia al backend (MongoDB) y evita los "falsos errores 409" en la consola del navegador.
+            const response = await inventoryService.bulkCreateProducts(payloads, updateExisting);
+            
+            // response.data es típicamente { imported: X, updated: Y, errors: Z }
+            const resData = response.data || {};
+            const created = resData.imported || resData.created_count || 0;
+            const updated = resData.updated || resData.updated_count || 0;
+            
+            if (updateExisting) {
+                showNotification(`Proceso exitoso: Se crearon ${created} nuevos y se actualizaron/sobrescribieron ${updated} productos.`, 'success');
+            } else {
+                showNotification(`Proceso exitoso: Se inyectaron ${created} productos nuevos (ignorando existentes).`, 'success');
             }
-        }
-        
-        if (errors > 0) {
-            showNotification(`Se importaron ${success} productos con éxito. ${errors} fallaron.`, 'warning');
-        } else {
-            showNotification(`Se importaron ${success} productos exitosamente.`, 'success');
+            
+        } catch (error) {
+            console.error("Error crítico durante la inyección masiva:", error);
+            showNotification("Hubo un error al inyectar el lote de productos al maestro.", "error");
         }
         
         if (onComplete) onComplete();

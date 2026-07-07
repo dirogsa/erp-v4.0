@@ -11,76 +11,48 @@ const FIELD_LABELS = {
   dimensions: 'Medidas',
   applications: 'Aplicaciones',
   price: 'Precio',
+  packaging: 'Empaque (Uds. x Caja)',
 };
 
 export default function ConfigPanel() {
-  const { config, setConfig, toggleField, clearSkuMode } = useCatalogStore();
+  const { config, setConfig, toggleField, clearSkuMode, toggleBrandFilter, toggleCategoryFilter, setAllBrandsFilter } = useCatalogStore();
   const navigate = useNavigate();
-  const [availableBrands, setAvailableBrands] = useState([]);
-  const [availableCategories, setAvailableCategories] = useState([]);
-  const [availableVehicleMakes, setAvailableVehicleMakes] = useState([]);
-  const [vehicleSearchTerm, setVehicleSearchTerm] = useState('');
-  const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
+  const [filterTree, setFilterTree] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showSkuModal, setShowSkuModal] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      fetch('http://localhost:8000/katalog/brands').then(res => res.json()),
-      fetch('http://localhost:8000/katalog/categories').then(res => res.json()),
-      fetch('http://localhost:8000/katalog/vehicle-brands').then(res => res.json())
-    ]).then(([brandsData, catsData, vehicleMakesData]) => {
-      setAvailableBrands(Array.isArray(brandsData) ? brandsData : []);
-      setAvailableCategories(Array.isArray(catsData) ? catsData : []);
-      setAvailableVehicleMakes(Array.isArray(vehicleMakesData) ? vehicleMakesData : []);
-      setLoading(false);
-    }).catch(err => {
-      console.error("Error fetching data:", err);
-      setLoading(false);
-    });
+    fetch('http://localhost:8000/katalog/filter-tree')
+      .then(res => res.json())
+      .then(data => {
+        setFilterTree(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Error fetching filter tree:", err);
+        setLoading(false);
+      });
   }, []);
 
-  const handleBrandToggle = (brand) => {
-    const brands = config.selectedBrands.includes(brand)
-      ? config.selectedBrands.filter(b => b !== brand)
-      : [...config.selectedBrands, brand];
-    setConfig({ selectedBrands: brands });
+  const handleBrandToggle = (brand, allCategoryIds) => {
+    toggleBrandFilter(brand, allCategoryIds);
   };
 
-  const handleCategoryToggle = (catId) => {
-    const cats = config.selectedCategories.includes(catId)
-      ? config.selectedCategories.filter(id => id !== catId)
-      : [...config.selectedCategories, catId];
-    setConfig({ selectedCategories: cats });
+  const handleCategoryToggle = (brand, catId) => {
+    toggleCategoryFilter(brand, catId);
   };
 
-  const handleVehicleMakeToggle = (make) => {
-    const makes = config.selectedVehicleMakes.includes(make)
-      ? config.selectedVehicleMakes.filter(m => m !== make)
-      : [...config.selectedVehicleMakes, make];
-    setConfig({ selectedVehicleMakes: makes });
-    setVehicleSearchTerm('');
-    setShowVehicleDropdown(false);
+  const handleSelectAllBrands = () => {
+    // Si todas están seleccionadas, deseleccionamos. Si no, seleccionamos todas.
+    const allSelected = filterTree.length > 0 && filterTree.every(node => config.brandCategoryFilters && config.brandCategoryFilters[node.brand] !== undefined);
+    setAllBrandsFilter(filterTree, !allSelected);
   };
 
-  const filteredVehicleMakes = availableVehicleMakes.filter(make => 
-    make.toLowerCase().includes(vehicleSearchTerm.toLowerCase()) &&
-    !config.selectedVehicleMakes.includes(make)
-  ).slice(0, 10); // Sugerir solo los 10 mejores resultados
+
 
   const handlePrint = () => navigate('/print');
 
-  // Agrupación de categorías por parent_id
-  const groupedCategories = {};
-  const rootCategories = [];
-  availableCategories.forEach(cat => {
-    if (cat.parent_id) {
-      if (!groupedCategories[cat.parent_id]) groupedCategories[cat.parent_id] = [];
-      groupedCategories[cat.parent_id].push(cat);
-    } else {
-      rootCategories.push(cat);
-    }
-  });
+
 
   // El botón de generar se habilita siempre en modo filtros (si está vacío trae todo),
   // y en modo SKU requiere SKUs válidos.
@@ -136,177 +108,96 @@ export default function ConfigPanel() {
           </div>
         </section>
 
-        {/* --- Estrategia de Construcción --- */}
-        <section className="config-card config-card-full">
-          <h2>Estrategia de Construcción del Catálogo</h2>
-          <div className="toggle-group">
-            <button
-              className={config.catalogStrategy === 'by_category' ? 'active' : ''}
-              onClick={() => setConfig({ catalogStrategy: 'by_category', selectedVehicleMakes: [] })}
-            >
-              Catálogo por Tipo de Producto
-            </button>
-            <button
-              className={config.catalogStrategy === 'by_vehicle' ? 'active' : ''}
-              onClick={() => setConfig({ catalogStrategy: 'by_vehicle', selectedCategories: [] })}
-            >
-              Catálogo por Marca de Vehículo
-            </button>
-          </div>
-        </section>
-
-        {/* --- Origen de Datos: Modo SKU vs Filtros --- */}
-        <section className="config-card config-card-full">
-          <h2><ClipboardPaste className="icon" /> Origen de Datos</h2>
-
-          {config.inputMode === 'skus' ? (
-            /* Banner activo del Modo SKU */
-            <div className="sku-mode-banner">
-              <div className="sku-mode-banner-info">
-                <span className="sku-mode-badge">MODO SKU ACTIVO</span>
-                <span className="sku-mode-count">
-                  {config.validatedSkus.length} productos cargados desde Excel
-                </span>
+        {/* --- Filtros de Catálogo Jerárquicos --- */}
+        {config.inputMode === 'filters' && (
+          <section className="config-card config-card-full">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2><BookOpen className="icon" /> Marcas del Producto</h2>
+                <p style={{ color: '#94a3b8', margin: 0 }}>
+                  Selecciona la marca y los tipos de producto específicos que deseas incluir en tu catálogo.
+                </p>
               </div>
-              <div className="sku-mode-banner-actions">
-                <button className="sku-mode-btn-change" onClick={() => setShowSkuModal(true)}>
-                  Cambiar SKUs
-                </button>
-                <button className="sku-mode-btn-clear" onClick={clearSkuMode} title="Volver al modo filtros">
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Modo filtros: muestra el botón para abrir el validador */
-            <div className="sku-mode-inactive">
-              <p>Usando <strong>filtros por Marca y Categoría</strong> como fuente de datos.</p>
-              <button className="sku-mode-btn-activate" onClick={() => setShowSkuModal(true)}>
+              <button 
+                onClick={handleSelectAllBrands}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #475569',
+                  color: '#cbd5e1',
+                  padding: '0.6rem 1.2rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.background = '#334155'; e.currentTarget.style.color = '#fff'; }}
+                onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#cbd5e1'; }}
+              >
                 <ClipboardPaste size={16} />
-                Importar SKUs desde Excel
+                {filterTree.length > 0 && filterTree.every(node => config.brandCategoryFilters && config.brandCategoryFilters[node.brand] !== undefined) 
+                  ? 'Limpiar Selección' 
+                  : 'Seleccionar Todo'}
               </button>
             </div>
-          )}
-        </section>
-
-        {/* --- Marcas de Vehículo a Incluir (Autocomplete) --- */}
-        {config.inputMode === 'filters' && config.catalogStrategy === 'by_vehicle' && (
-          <section className="config-card">
-            <h2>Marcas de Vehículo a Incluir</h2>
             
-            <div className="autocomplete-container" style={{ position: 'relative', marginBottom: '1.5rem' }}>
-              <input
-                type="text"
-                placeholder="Escribe para buscar marca (ej. Toyota)..."
-                value={vehicleSearchTerm}
-                onChange={(e) => {
-                  setVehicleSearchTerm(e.target.value);
-                  setShowVehicleDropdown(true);
-                }}
-                onFocus={() => setShowVehicleDropdown(true)}
-                style={{
-                  width: '100%',
-                  padding: '1rem',
-                  borderRadius: '12px',
-                  border: '1px solid #334155',
-                  background: '#0f172a',
-                  color: 'white',
-                  fontSize: '1rem'
-                }}
-              />
-              {showVehicleDropdown && vehicleSearchTerm && (
-                <div style={{
-                  position: 'absolute', top: '100%', left: 0, right: 0,
-                  background: '#1e293b', border: '1px solid #334155', borderRadius: '12px',
-                  marginTop: '4px', zIndex: 10, maxHeight: '200px', overflowY: 'auto',
-                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
-                }}>
-                  {filteredVehicleMakes.length > 0 ? (
-                    filteredVehicleMakes.map(make => (
-                      <div 
-                        key={make}
-                        onClick={() => handleVehicleMakeToggle(make)}
-                        style={{ padding: '0.8rem 1rem', cursor: 'pointer', borderBottom: '1px solid #334155', transition: 'background 0.2s' }}
-                        onMouseOver={(e) => e.target.style.background = '#334155'}
-                        onMouseOut={(e) => e.target.style.background = 'transparent'}
-                      >
-                        {make}
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ padding: '0.8rem 1rem', color: '#64748b' }}>No se encontraron marcas similares</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="selected-tags" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem' }}>
-              {config.selectedVehicleMakes.length === 0 ? (
-                <p style={{ color: '#64748b', fontSize: '0.9rem', fontStyle: 'italic' }}>No hay marcas seleccionadas. Usa el buscador de arriba.</p>
-              ) : (
-                config.selectedVehicleMakes.map(make => (
-                  <div key={make} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    background: '#6366f1', color: 'white', padding: '0.4rem 1rem',
-                    borderRadius: '50px', fontSize: '0.9rem', fontWeight: 'bold'
-                  }}>
-                    {make}
-                    <X 
-                      size={14} 
-                      style={{ cursor: 'pointer', opacity: 0.8 }} 
-                      onClick={() => handleVehicleMakeToggle(make)}
-                      onMouseOver={(e) => e.target.style.opacity = 1}
-                      onMouseOut={(e) => e.target.style.opacity = 0.8}
-                    />
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* --- Categorías o Vehículos dependiendo del modo --- */}
-        {config.inputMode === 'filters' && config.catalogStrategy === 'by_category' && (
-          <section className="config-card">
-            <h2>Tipos de Producto</h2>
-            <div className="categories-grouped-grid">
+            <div className="filter-tree-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '2rem' }}>
               {loading ? (
-                <p>Cargando...</p>
-              ) : rootCategories.length === 0 ? (
-                <p>No se encontraron categorías.</p>
+                <p>Cargando marcas desde la base de datos...</p>
+              ) : filterTree.length === 0 ? (
+                <p>No se encontraron marcas con productos.</p>
               ) : (
-                rootCategories.map(rootCat => {
-                  const subCats = groupedCategories[rootCat.id] || [];
-                  const hasSubCats = subCats.length > 0;
+                filterTree.map(node => {
+                  const isBrandSelected = config.brandCategoryFilters && config.brandCategoryFilters[node.brand] !== undefined;
+                  const selectedBrandCategories = isBrandSelected ? config.brandCategoryFilters[node.brand] : [];
+                  const allCategoryIds = node.categories.map(c => c.id);
+
                   return (
-                    <div key={rootCat.id} className="category-group">
-                      {hasSubCats ? (
-                        <>
-                          <h3 className="category-section-title">{rootCat.name}</h3>
-                          <div className="subcats-grid">
-                            {subCats.map(subCat => (
-                              <label key={subCat.id} className="brand-label">
-                                <input
-                                  type="checkbox"
-                                  checked={config.selectedCategories.includes(subCat.id)}
-                                  onChange={() => handleCategoryToggle(subCat.id)}
-                                />
-                                {subCat.name}
-                              </label>
-                            ))}
-                          </div>
-                        </>
-                      ) : (
-                        <label className="brand-label root-only-label">
+                  <div key={node.brand} className="brand-group" style={{ 
+                    background: isBrandSelected ? 'rgba(99, 102, 241, 0.05)' : '#0f172a', 
+                    padding: '1.5rem', 
+                    borderRadius: '12px', 
+                    border: isBrandSelected ? '1px solid #6366f1' : '1px solid #1e293b',
+                    transition: 'all 0.3s'
+                  }}>
+                    <h3 style={{ 
+                      color: isBrandSelected ? '#818cf8' : '#e2e8f0', 
+                      marginBottom: '1rem', 
+                      borderBottom: '1px solid #334155', 
+                      paddingBottom: '0.8rem' 
+                    }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={isBrandSelected}
+                          onChange={() => handleBrandToggle(node.brand, allCategoryIds)}
+                          style={{ transform: 'scale(1.2)' }}
+                        />
+                        {node.brand}
+                      </label>
+                    </h3>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', paddingLeft: '0.5rem' }}>
+                      {node.categories.map(cat => (
+                        <label key={cat.id} className="brand-label" style={{ 
+                          display: 'flex', alignItems: 'center', gap: '0.8rem', cursor: 'pointer',
+                          color: selectedBrandCategories.includes(cat.id) ? '#fff' : '#94a3b8',
+                          opacity: isBrandSelected ? 1 : 0.6
+                        }}>
                           <input
                             type="checkbox"
-                            checked={config.selectedCategories.includes(rootCat.id)}
-                            onChange={() => handleCategoryToggle(rootCat.id)}
+                            checked={selectedBrandCategories.includes(cat.id)}
+                            onChange={() => handleCategoryToggle(node.brand, cat.id)}
+                            disabled={!isBrandSelected}
                           />
-                          {rootCat.name}
+                          {cat.name}
                         </label>
-                      )}
+                      ))}
                     </div>
+                  </div>
                   );
                 })
               )}

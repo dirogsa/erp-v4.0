@@ -111,7 +111,7 @@ export default function AddToCartModule({ product, isAuthenticated }) {
             className="flex-1 h-14 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 text-[#0A0A0B] flex items-center justify-center gap-2"
             style={{ background: 'var(--brand-primary)', boxShadow: '0 0 20px rgba(16,185,129,0.3)' }}
           >
-            {showToast ? '¡Agregado!' : 'Añadir a la lista'}
+            {showToast ? '¡Agregado!' : 'Añadir a Cotización'}
             {!showToast && (
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />

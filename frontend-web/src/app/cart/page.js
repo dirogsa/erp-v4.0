@@ -41,7 +41,7 @@ export default function CarritoPage() {
         
         // Pasamos data por sessionStorage para la página de gracias
         sessionStorage.setItem('diro_checkout_data', JSON.stringify({
-          name: user?.name || 'Cliente B2B',
+          name: user?.name || 'Cliente Mayorista',
           company: user?.company || 'Empresa Logueada',
           is_erp_synced: true // Flag importante
         }));
@@ -74,7 +74,7 @@ export default function CarritoPage() {
         </div>
         <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight mb-2">Tu lista está vacía</h1>
         <p className="text-white/50 mb-8 max-w-md mx-auto">
-          Busca los filtros por código o vehículo y agrégalos aquí para generar una cotización B2B.
+          Busca los filtros por código o vehículo y agrégalos aquí para generar una cotización mayorista.
         </p>
         <Link href="/search" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest bg-brand-primary text-[#0A0A0B] hover:brightness-110 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -87,7 +87,7 @@ export default function CarritoPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
       <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tighter mb-8">
-        Cotización B2B
+        Cotización Mayorista
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
