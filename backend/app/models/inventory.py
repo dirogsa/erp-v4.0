@@ -117,7 +117,8 @@ class Notification(Document):
 
 class TechnicalSpec(BaseModel):
     """Especificación técnica unitaria (Ej: A, mm, 120)"""
-    label: str  # A, B, C, H, OD, F, G
+    label: str  # Clave técnica interna: A, B, C, H, OD, F, G
+    display_label: Optional[str] = None # Nombre legible para el frontend: "Diámetro exterior / Longitud"
     measure_type: MeasureType
     value: str  # "120", "3/4-16", "M20x1.5"
 
@@ -443,7 +444,15 @@ class ProductBrand(Document):
     # New commercial metadata fields
     origin: Optional[str] = "Importado"
     description: Optional[str] = None
-    logo_url: Optional[str] = None
+    
+    # Cloudinary Integration (dirogsa/brands/...)
+    logo_public_id: Optional[str] = None
+    banner_public_id: Optional[str] = None # Imagen Hero/Fondo para catálogos
+    
+    # Textos educativos / de venta
+    tagline: Optional[str] = None # Ej: "Protección de Grado OEM"
+    marketing_bullets: List[str] = [] # Viñetas informativas
+    
     theme_color: Optional[str] = None
     
     created_at: datetime = Field(default_factory=datetime.utcnow)

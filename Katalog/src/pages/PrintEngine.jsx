@@ -100,13 +100,14 @@ export default function PrintEngine() {
 
     Promise.all([
       fetch('http://localhost:8000/katalog/categories').then(r => r.json()),
+      fetch('http://localhost:8000/katalog/brand-metadata').then(r => r.json()),
       fetch('http://localhost:8000/katalog/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(generateBody)
       }).then(r => r.json())
     ])
-      .then(([cats, prods]) => {
+      .then(([cats, brandMeta, prods]) => {
         setLoading("Procesando datos del servidor...");
 
         const safeCats = Array.isArray(cats) ? cats : [];
@@ -145,7 +146,7 @@ export default function PrintEngine() {
 
           const sortedMakes = Object.keys(byVehicleMake).sort();
           sortedMakes.forEach(make => {
-             newHierarchy.push({ type: 'brand_cover', brand: make });
+             newHierarchy.push({ type: 'brand_cover', brand: make, meta: brandMeta[make] || null });
              
              const byCategory = {};
              byVehicleMake[make].forEach(p => {
@@ -186,7 +187,7 @@ export default function PrintEngine() {
           const sortedBrands = Object.keys(byBrand).sort();
 
           sortedBrands.forEach(brand => {
-            newHierarchy.push({ type: 'brand_cover', brand });
+            newHierarchy.push({ type: 'brand_cover', brand, meta: brandMeta[brand] || null });
 
             const brandProducts = byBrand[brand];
             
@@ -283,6 +284,9 @@ export default function PrintEngine() {
           return (
             <div key="master_cover" className="a4-sheet master-cover">
               <div className="master-cover-inner">
+                <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'center' }}>
+                  <img src="https://res.cloudinary.com/dhgxr7cp1/image/upload/f_auto,q_auto/dirogsa-logo-placeholder.webp" alt="Logo DIROGSA" style={{ maxWidth: '80%', maxHeight: '180px' }} />
+                </div>
                 <div className="master-cover-logo">DIROGSA</div>
                 <div className="master-cover-divider"></div>
                 <div className="master-cover-subtitle">CATÁLOGO DE PRODUCTOS</div>
@@ -296,9 +300,34 @@ export default function PrintEngine() {
         }
 
         if (page.type === 'brand_cover') {
+          const meta = page.meta || {};
+          const bgStyle = meta.hero_image ? { 
+            backgroundImage: `url(${meta.hero_image})`, 
+            backgroundSize: 'cover', 
+            backgroundPosition: 'center' 
+          } : {};
+          
           return (
-            <div key={index} className="a4-sheet brand-cover">
-              <h1>{page.brand}</h1>
+            <div key={index} className="a4-sheet brand-cover" style={bgStyle}>
+              <div className="brand-cover-overlay">
+                {meta.logo_url ? (
+                  <img src={meta.logo_url} alt={page.brand} className="brand-cover-logo" style={{ maxWidth: '80%', maxHeight: '150px' }} />
+                ) : (
+                  <h1>{page.brand}</h1>
+                )}
+                {meta.tagline && <h3 style={{ marginTop: '1rem', color: '#ff5e00', textTransform: 'uppercase', letterSpacing: '2px' }}>{meta.tagline}</h3>}
+                {meta.description && <p className="brand-description" style={{ maxWidth: '80%', margin: '1rem auto', fontSize: '1.2rem', lineHeight: '1.6' }}>{meta.description}</p>}
+                
+                {meta.marketing_bullets && meta.marketing_bullets.length > 0 && (
+                  <ul style={{ listStyleType: 'none', padding: 0, marginTop: '2rem', textAlign: 'left', display: 'inline-block' }}>
+                    {meta.marketing_bullets.map((b, i) => (
+                      <li key={i} style={{ fontSize: '1.1rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ color: '#39ff14' }}>✓</span> {b}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           );
         }
@@ -346,7 +375,7 @@ export default function PrintEngine() {
                             )}
                             <div className="product-image">
                               <img 
-                                src={product.image_url || FALLBACK_IMAGE} 
+                                src={product.image_url || `https://res.cloudinary.com/dhgxr7cp1/image/upload/f_auto,q_auto/ERP/products/${product.sku.trim()}`} 
                                 alt={`Filtro ${product.sku}`}
                                 referrerPolicy="no-referrer"
                                 onError={(e) => {

@@ -1,5 +1,6 @@
 import { ProductService } from '@/services/product.service';
 import SearchModule from '@/components/SearchModule';
+import DimensionalSection from '@/components/DimensionalSection';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -107,11 +108,22 @@ export default async function BuscarPage({ searchParams }) {
                 </span>
               </div>
 
-              {/* Vista para CÓDIGOS (Exactos vs Equivalentes) */}
               {type === 'CODES' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-                  <Section title="Código Exacto" count={exactMatches.length} color="var(--brand-primary)" results={exactMatches} />
-                  <Section title="Equivalentes" count={equivalentMatches.length} color="#F59E0B" results={equivalentMatches} />
+                <div className="flex flex-col gap-8 md:gap-12">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+                    <Section title="Código Exacto" count={exactMatches.length} color="var(--brand-primary)" results={exactMatches} />
+                    <Section title="Equivalentes" count={equivalentMatches.length} color="#F59E0B" results={equivalentMatches} />
+                  </div>
+                  
+                  {/* Bloque 3: Alternativas Dimensionales (Similares por medida) */}
+                  <div className="pt-8 border-t border-white/10">
+                    <DimensionalSection 
+                      key={exactMatches.length > 0 ? exactMatches[0].sku : query}
+                      title="Alternativas Dimensionales" 
+                      color="#10B981" 
+                      exactSku={exactMatches.length > 0 ? exactMatches[0].sku : query} 
+                    />
+                  </div>
                 </div>
               ) : (
                 /* Vista para VEHÍCULOS / OTROS */
@@ -164,6 +176,7 @@ function Section({ title, count, color, results }) {
   );
 }
 
+
 function ProductCard({ product }) {
   return (
     <Link href={`/product/${product.sku}`} className="card-premium flex items-center md:flex-col md:items-start gap-4 hover:border-brand-primary/30 transition-all group h-full">
@@ -174,7 +187,7 @@ function ProductCard({ product }) {
                className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500" />
         ) : (
           <svg className="h-8 w-8 md:h-12 md:w-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         )}
         {product.isNew && (

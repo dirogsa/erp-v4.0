@@ -185,7 +185,7 @@ export default function SearchModule({
             {isSearching && (
               <div className="mt-4 p-4 rounded-xl md:rounded-2xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-xs font-bold text-center animate-pulse flex flex-col items-center gap-1.5">
                 <span className="text-sm font-black">Conectando al catálogo de DIROGSA...</span>
-                <span className="opacity-80 font-normal">Si es la primera consulta del día, el servidor gratuito de Render puede tomar hasta 40 segundos en activarse. Por favor, no recargue la página.</span>
+                <span className="opacity-80 font-normal">Estableciendo conexión segura y sincronizando inventario en tiempo real con el núcleo ERP. Esta validación puede tomar unos segundos.</span>
               </div>
             )}
           </>

@@ -12,7 +12,7 @@ export default function BuscarLoading() {
           Conectando al servidor oficial
         </span>
         <span className="opacity-80 font-medium">
-          Si es la primera consulta del día, el servidor gratuito de Render puede tardar hasta 40 segundos en activarse. Agradecemos su paciencia; no recargue la página.
+          Estableciendo conexión segura con el núcleo del ERP. Esta sincronización inicial puede tomar algunos segundos. Agradecemos su paciencia; por favor, no recargue la página.
         </span>
       </div>
 

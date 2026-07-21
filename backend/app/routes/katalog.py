@@ -3,6 +3,7 @@ from typing import List, Dict
 from pydantic import BaseModel
 from app.models.inventory import Product, ProductBrand, VehicleBrand, ProductCategory
 from beanie.operators import In, And, Or
+from app.services.cloudinary_service import CloudinaryService
 
 router = APIRouter(prefix="/katalog", tags=["Katalog Premium"])
 
@@ -23,6 +24,24 @@ async def get_katalog_brands():
     brands = await ProductBrand.find(ProductBrand.show_in_catalog == True).sort(+ProductBrand.name).to_list()
     # We just need the names to display and filter
     return [b.name for b in brands]
+
+@router.get("/brand-metadata")
+async def get_katalog_brand_metadata():
+    """Returns rich metadata for brands (logos, banners, taglines) using Cloudinary Service."""
+    brands = await ProductBrand.find(ProductBrand.show_in_catalog == True).to_list()
+    
+    metadata = {}
+    for b in brands:
+        metadata[b.name] = {
+            "name": b.name,
+            "description": b.description,
+            "tagline": getattr(b, "tagline", None),
+            "marketing_bullets": getattr(b, "marketing_bullets", []),
+            "logo_url": CloudinaryService.build_secure_url(getattr(b, "logo_public_id", None)),
+            "hero_image": CloudinaryService.build_secure_url(getattr(b, "banner_public_id", None)),
+            "theme_color": b.theme_color
+        }
+    return metadata
 
 @router.get("/vehicle-brands")
 async def get_katalog_vehicle_brands():

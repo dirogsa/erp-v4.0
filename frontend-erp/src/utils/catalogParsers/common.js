@@ -3,56 +3,35 @@
  */
 
 /**
- * Diccionario maestro de dimensiones técnicas industriales.
- * Mapea etiquetas crudas y códigos a un esquema estandarizado.
+ * Diccionario maestro de dimensiones técnicas industriales por categoría.
+ * Normaliza etiquetas de distintos proveedores hacia claves estándar (A, B, C, H, OD, etc.)
  */
-export const TECHNICAL_MAP = {
-    // Diámetros
-    'OUTER DIAMETER': { label: 'Diámetro Exterior', code: 'A', key: 'spec_d' },
-    'DIAMETRO EXTERIOR': { label: 'Diámetro Exterior', code: 'A', key: 'spec_d' },
-    'INNER DIAMETER 1': { label: 'Diámetro Interior 1', code: 'B', key: 'spec_id1' },
-    'INNER DIAMETER 2': { label: 'Diámetro Interior 2', code: 'C', key: 'spec_id2' },
-    'DIAMETRO INTERIOR 1': { label: 'Diámetro Interior 1', code: 'B', key: 'spec_id1' },
-    'DIAMETRO INTERIOR 2': { label: 'Diámetro Interior 2', code: 'C', key: 'spec_id2' },
-    
-    // Altura
-    'HEIGHT': { label: 'Altura', code: 'H', key: 'spec_h' },
-    'ALTURA': { label: 'Altura', code: 'H', key: 'spec_h' },
-    
-    // Rosca
-    'THREAD': { label: 'Rosca', code: 'G', key: 'spec_t' },
-    'ROSCA': { label: 'Rosca', code: 'G', key: 'spec_t' },
-    
-    // Códigos Directos (Wix/Filtron/Mann)
-    'A': { label: 'A', code: 'A', key: 'spec_d' },
-    'B': { label: 'B', code: 'B', key: 'spec_id1' },
-    'C': { label: 'C', code: 'C', key: 'spec_id2' },
-    'D': { label: 'D', code: 'D', key: 'spec_d' }, // A veces D es Diámetro en otras marcas
-    'H': { label: 'H', code: 'H', key: 'spec_h' },
-    'G': { label: 'G', code: 'G', key: 'spec_t' },
-    'T': { label: 'T', code: 'T', key: 'spec_t' },
-};
-
-/**
- * Intenta extraer el código técnico entre paréntesis ej: "Altura (H)" -> { label: "Altura", code: "H" }
- */
-export const extractTechnicalInfo = (rawLabel) => {
-    const codeMatch = rawLabel.match(/\((.+?)\)/);
-    const code = codeMatch ? codeMatch[1].trim().toUpperCase() : null;
-    let cleanLabel = rawLabel.replace(/\(.+?\)/, '').trim().toUpperCase();
-    
-    // Buscar en el mapa maestro
-    const mapEntry = TECHNICAL_MAP[cleanLabel] || (code ? TECHNICAL_MAP[code] : null) || TECHNICAL_MAP[rawLabel.toUpperCase()];
-    
-    if (mapEntry) {
-        return {
-            label: mapEntry.label,
-            code: mapEntry.code || code,
-            key: mapEntry.key
-        };
+export const SPEC_MAPS = {
+    "FILTRO DE AIRE": {
+        "A": { labels: ["A", "Longitud", "Largo", "Length", "OD", "Outer Diameter", "Diámetro exterior"], display: "Diámetro exterior / Longitud (A)" },
+        "B": { labels: ["B", "Ancho", "Width", "Diámetro interior superior", "Inner Diameter Top"], display: "Diámetro interior superior / Ancho (B)" },
+        "C": { labels: ["C", "Diámetro interior inferior", "Inner Diameter Bottom"], display: "Diámetro interior inferior (C)" },
+        "D": { labels: ["D", "Diámetro interior", "Inner Diameter", "ID"], display: "Diámetro interior (D)" },
+        "H": { labels: ["H", "Altura", "Alto", "Height"], display: "Altura (H)" },
+    },
+    "FILTRO DE ACEITE": {
+        "OD": { labels: ["OD", "Diámetro exterior", "Outer Diameter", "D", "A"], display: "Diámetro exterior (OD)" },
+        "ID": { labels: ["ID", "Diámetro interior", "Inner Diameter", "B", "C"], display: "Diámetro interior (ID)" },
+        "H":  { labels: ["H", "Altura", "Alto", "Height"], display: "Altura (H)" },
+        "G":  { labels: ["G", "Rosca", "Thread", "Rosca interior", "Thread Pitch"], display: "Rosca (G)" },
+    },
+    "FILTRO DE CABINA": {
+        "A": { labels: ["A", "Largo", "Longitud", "Length"], display: "Largo (A)" },
+        "B": { labels: ["B", "Ancho", "Width"], display: "Ancho (B)" },
+        "H": { labels: ["H", "Espesor", "Grosor", "Thickness", "Alto", "Altura", "Height"], display: "Espesor (H)" },
+    },
+    "FILTRO DE COMBUSTIBLE": {
+        "OD": { labels: ["OD", "Diámetro exterior", "Outer Diameter", "D", "A"], display: "Diámetro exterior (OD)" },
+        "IN": { labels: ["IN", "Entrada", "Inlet"], display: "Entrada" },
+        "OUT": { labels: ["OUT", "Salida", "Outlet"], display: "Salida" },
+        "H":  { labels: ["H", "Altura", "Alto", "Height"], display: "Altura (H)" },
+        "G":  { labels: ["G", "Rosca", "Thread", "Rosca interior"], display: "Rosca (G)" },
     }
-    
-    return { label: rawLabel, code: code, key: null };
 };
 
 /**
@@ -82,44 +61,57 @@ export const resolveCategoryName = (rawCategoryName, dbCategories = []) => {
 };
 
 /**
- * Normaliza las especificaciones técnicas crudas al esquema definido
+ * Normaliza las especificaciones técnicas crudas al esquema definido (Estandarización Enterprise)
  */
 export const normalizeSpecs = (rawSpecs = [], categoryName, dbCategories = []) => {
-    const category = dbCategories.find(c => c.name === categoryName);
+    const catMap = SPEC_MAPS[categoryName] || {};
     
-    return rawSpecs.map(spec => {
-        const techInfo = extractTechnicalInfo(spec.label);
-        const rawLabel = spec.label.trim().toUpperCase();
+    let normalizedSpecs = rawSpecs.map(spec => {
+        const rawLabelUpper = spec.label.trim().toUpperCase();
         
-        // Limpiar y convertir a número para búsquedas con tolerancia (Plan Maestro)
-        const numericValue = parseFloat(spec.value.toString().replace(/,/g, '.').replace(/[^0-9.]/g, ''));
-        
-        let normalized = {
-            ...spec,
-            label: techInfo.label,
-            code: techInfo.code,
-            key: techInfo.key,
-            value_num: isNaN(numericValue) ? null : numericValue
-        };
+        let foundKey = spec.label; // Por defecto
+        let foundDisplay = spec.label;
 
-        // 1. Intentar normalizar vía atributos_schema de la DB (Prioridad Máxima)
-        if (category && category.attributes_schema) {
-            const matchedAttr = category.attributes_schema.find(attr => {
-                const mappings = (attr.import_mapping || []).map(m => m.trim().toUpperCase());
-                return attr.label.toUpperCase() === rawLabel || 
-                       mappings.includes(rawLabel) || 
-                       (techInfo.code && mappings.includes(techInfo.code));
+        // Buscar en el mapeo de la categoría
+        for (const [stdKey, config] of Object.entries(catMap)) {
+            const match = config.labels.some(l => {
+                const lUp = l.toUpperCase();
+                return rawLabelUpper === lUp || rawLabelUpper.includes(`(${lUp})`) || rawLabelUpper.includes(`${lUp} `) || rawLabelUpper === `${lUp}:`;
             });
-
-            if (matchedAttr) {
-                normalized.label = matchedAttr.label;
-                normalized.key = matchedAttr.key || techInfo.key;
-                normalized.unit = matchedAttr.unit || spec.measure_type;
+            if (match) {
+                foundKey = stdKey;
+                foundDisplay = config.display;
+                break;
             }
         }
 
-        return normalized;
+        return {
+            ...spec,
+            label: foundKey,             // Clave interna técnica (ej: "A", "H", "OD")
+            display_label: foundDisplay, // Clave legible para catálogo (ej: "Diámetro exterior / Longitud (A)")
+        };
     });
+
+    // --- SWAP LOGIC: Normalización para filtros Rectangulares/Llanos ---
+    // Asegurar que el lado mayor siempre sea A y el menor B
+    if (categoryName === "FILTRO DE AIRE" || categoryName === "FILTRO DE CABINA") {
+        const specA = normalizedSpecs.find(s => s.label === "A");
+        const specB = normalizedSpecs.find(s => s.label === "B");
+        
+        if (specA && specB) {
+            const valA = parseFloat(specA.value.toString().replace(/,/g, '.').replace(/[^0-9.]/g, ''));
+            const valB = parseFloat(specB.value.toString().replace(/,/g, '.').replace(/[^0-9.]/g, ''));
+            
+            if (!isNaN(valA) && !isNaN(valB) && valB > valA) {
+                // Intercambiar valores
+                const tempVal = specA.value;
+                specA.value = specB.value;
+                specB.value = tempVal;
+            }
+        }
+    }
+
+    return normalizedSpecs;
 };
 
 /**
