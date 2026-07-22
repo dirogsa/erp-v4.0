@@ -1,4 +1,4 @@
-import { resolveCategoryName, normalizeSku, normalizeSpecs } from './common';
+import { resolveCategoryName, normalizeSku } from './common';
 
 /**
  * Parser especializado para el nuevo formato Global de WIX Filters (wixfilters.com)
@@ -133,35 +133,57 @@ const parseWixModern = (doc, domain, dbCategories = []) => {
         }
     }
 
-    // 6. Medidas / Especificaciones (Tabla Dinámica en el acordeón #dimensions)
-    const dimensionsPanel = doc.querySelector('#dimensions .cmp-table table');
-    if (dimensionsPanel) {
-        dimensionsPanel.querySelectorAll('tr').forEach(row => {
-            const tds = row.querySelectorAll('td');
-            if (tds.length >= 2) {
-                const label = tds[0].textContent.trim();
-                const value = tds[1].textContent.trim();
-                
-                // Mapeo específico para Peso y Forma en Wix
-                if (/Weight|Peso|Mass/i.test(label)) {
-                    // Extract number and convert to grams if it's in lb
-                    const numMatch = value.match(/[\d.]+/);
-                    if (numMatch) {
-                        let val = parseFloat(numMatch[0]);
-                        if (value.toLowerCase().includes('lb')) val = val * 453.592;
-                        data.weight_g = Math.round(val * 10) / 10;
-                    }
-                } else if (/Shape|Forma|Style/i.test(label)) {
-                    data.shape = value;
-                }
+    // 6. Medidas / Especificaciones
+    // Fuente Dorada (Prioritaria): Summary con formato "Término (LETRA) = VALOR mm"
+    const summaryEl = doc.querySelector('.cmp-product__summary .cmp-text');
+    let specsFromSummary = false;
+    if (summaryEl) {
+        const summaryText = summaryEl.textContent || '';
+        // Regex: captura "Cualquier texto (LETRA) = VALOR mm" o "LETRA = VALOR mm"
+        const specRegex = /([^;=\n]+?)\(([A-Z]{1,3})\)\s*=\s*([\d.,]+)\s*mm/gi;
+        let match;
+        while ((match = specRegex.exec(summaryText)) !== null) {
+            const wordLabel = match[1].trim();
+            const letterLabel = match[2].toUpperCase();
+            const value = match[3].replace(',', '.');
+            data.specs.push({
+                label: letterLabel,
+                display_label: `${wordLabel} (${letterLabel})`,
+                measure_type: 'mm',
+                value
+            });
+            specsFromSummary = true;
+        }
+    }
 
-                data.specs.push({
-                    label,
-                    measure_type: value.includes('mm') ? 'mm' : (value.includes('x') ? 'thread' : 'other'),
-                    value: value.replace(' mm', '')
-                });
-            }
-        });
+    // Fuente Secundaria (Fallback): Tabla #dimensions — solo si el summary no dio resultados
+    if (!specsFromSummary) {
+        const dimensionsPanel = doc.querySelector('#dimensions .cmp-table table');
+        if (dimensionsPanel) {
+            dimensionsPanel.querySelectorAll('tr').forEach(row => {
+                const tds = row.querySelectorAll('td');
+                if (tds.length >= 2) {
+                    const label = tds[0].textContent.trim();
+                    const value = tds[1].textContent.trim();
+                    if (/Weight|Peso|Mass/i.test(label)) {
+                        const numMatch = value.match(/[\d.]+/);
+                        if (numMatch) {
+                            let val = parseFloat(numMatch[0]);
+                            if (value.toLowerCase().includes('lb')) val = val * 453.592;
+                            data.weight_g = Math.round(val * 10) / 10;
+                        }
+                    } else if (/Shape|Forma|Style/i.test(label)) {
+                        data.shape = value;
+                    }
+                    data.specs.push({
+                        label,
+                        display_label: label,
+                        measure_type: value.includes('mm') ? 'mm' : (value.includes('x') ? 'thread' : 'other'),
+                        value: value.replace(' mm', '')
+                    });
+                }
+            });
+        }
     }
 
     // 7. Aplicaciones Vehiculares (Estructura de Acordeones Anidados)
@@ -345,7 +367,7 @@ const parseWixModern = (doc, domain, dbCategories = []) => {
 
     // 10. Normalización Final (Inteligencia Enterprise)
     // Traducimos los labels crudos al estándar definido en la BD
-    data.specs = normalizeSpecs(data.specs, data.category_name, dbCategories);
+
 
     return data;
 };
@@ -460,7 +482,7 @@ const parseWixUSA = (doc, domain, dbCategories = []) => {
     }
 
     // 5. Normalización de Specs
-    data.specs = normalizeSpecs(data.specs, data.category_name, dbCategories);
+
 
     return data;
 };

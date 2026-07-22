@@ -1,4 +1,4 @@
-import { resolveCategoryName, normalizeSpecs } from './common';
+import { resolveCategoryName } from './common';
 
 /**
  * Parser específico para catálogos de AZUMI

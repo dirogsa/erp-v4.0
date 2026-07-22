@@ -7,6 +7,7 @@ import {
     Search, Info, Upload, FileText, X, Activity,
     CheckCircle2, AlertCircle, Eye, Image, Link2, Car
 } from 'lucide-react';
+import ProductSpecsViewer from './ProductSpecsViewer';
 
 /**
  * IndustrialIngestor: A standardized framework for bulk data ingestion.
@@ -437,14 +438,7 @@ const IndustrialIngestor = forwardRef(({
                                     <div style={{ fontSize: '0.7rem', fontWeight: '900', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <Activity size={14} /> Especificaciones ({selectedItem.specs.length})
                                     </div>
-                                    <div style={{ background: '#1e293b', borderRadius: '1rem', border: '1px solid #334155', overflow: 'hidden' }}>
-                                        {selectedItem.specs.map((spec, i) => (
-                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.65rem 1rem', borderBottom: i < selectedItem.specs.length - 1 ? '1px solid #33415555' : 'none', fontSize: '0.85rem' }}>
-                                                <span style={{ color: '#94a3b8' }}>{spec.label}</span>
-                                                <span style={{ color: 'white', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>{spec.value} {spec.measure_type === 'mm' ? 'mm' : ''}</span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                    <ProductSpecsViewer specs={selectedItem.specs} variant="list" />
                                 </div>
                             )}
 

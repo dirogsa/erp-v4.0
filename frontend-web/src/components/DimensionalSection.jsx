@@ -96,14 +96,12 @@ function DimensionalProductCard({ product }) {
           </svg>
         )}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
-          <span className="text-[7px] md:text-[9px] font-black uppercase px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg bg-green-500 text-[#0A0A0B]">
-            {product.similarity_score}% SIMILAR
+          <span className="text-[7px] md:text-[9px] font-black uppercase px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg bg-brand-primary text-[#0A0A0B]">
+            {product.ranking_score}% RANKING
           </span>
-          {product.confidence_score && (
-            <span className="text-[7px] md:text-[9px] font-bold uppercase px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/20 backdrop-blur-sm">
-              Conf: {product.confidence_score}%
-            </span>
-          )}
+          <span className="text-[7px] md:text-[8px] font-bold uppercase px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg bg-white/10 text-white backdrop-blur-sm">
+            Sim: {product.similarity_score}% | Conf: {product.confidence_score}%
+          </span>
         </div>
       </div>
       <div className="flex-1 min-w-0 flex flex-col justify-between w-full h-full">
@@ -124,22 +122,33 @@ function DimensionalProductCard({ product }) {
           )}
         </div>
         
-        <div className="mt-2 pt-2 border-t border-white/5 space-y-2">
-          {product.warnings && product.warnings.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-white/5 space-y-2 flex-grow">
+          {product.evidence?.matches && product.evidence.matches.length > 0 && (
+            <div className="flex flex-col gap-0.5 mb-1">
+              {product.evidence.matches.map((m, idx) => (
+                <span key={idx} className="text-[8px] text-green-400 flex items-center gap-1">
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                  {m}
+                </span>
+              ))}
+            </div>
+          )}
+          {product.evidence?.warnings && product.evidence.warnings.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {product.warnings.map((w, idx) => (
+              {product.evidence.warnings.map((w, idx) => (
                 <span key={idx} className="text-[8px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20">
                   {w}
                 </span>
               ))}
             </div>
           )}
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] font-bold text-brand-text-dim">Compatibilidad: {product.compatibility_score}%</span>
-            <span className="hidden md:inline-flex text-[9px] font-bold px-2 py-1 rounded-lg bg-brand-primary-dim text-brand-primary border border-brand-primary/20">
-              Detalle
-            </span>
-          </div>
+        </div>
+        
+        <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between mt-auto">
+          <span className="text-[9px] font-bold text-brand-text-dim">Comparabilidad: {product.comparability}%</span>
+          <span className="hidden md:inline-flex text-[9px] font-bold px-2 py-1 rounded-lg bg-brand-primary-dim text-brand-primary border border-brand-primary/20">
+            Detalle
+          </span>
         </div>
       </div>
     </Link>

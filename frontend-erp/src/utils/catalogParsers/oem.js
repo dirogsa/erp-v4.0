@@ -1,4 +1,4 @@
-import { resolveCategoryName, normalizeSku, normalizeSpecs } from './common';
+import { resolveCategoryName, normalizeSku } from './common';
 
 /**
  * Parser especializado para productos OEM (Original Equipment Manufacturer)

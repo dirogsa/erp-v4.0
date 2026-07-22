@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { analyticsService } from '../../../services/api';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
+import ProductSpecsViewer from '../../common/ProductSpecsViewer';
 
 const ProductDetailsView = ({ product, onClose }) => {
     const [activeTab, setActiveTab] = useState('specs');
@@ -288,22 +289,7 @@ const ProductDetailsView = ({ product, onClose }) => {
                             {/* Medidas */}
                             <div>
                                 <h3 style={{ color: '#fff', fontSize: '1.1rem', marginBottom: '1.5rem' }}>Dimensiones</h3>
-                                {(product.specs && product.specs.length > 0) ? (
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <tbody>
-                                            {product.specs.map((spec, i) => (
-                                                <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
-                                                    <td style={{ padding: '12px 0', color: '#94a3b8', width: '40%' }}>{spec.label}</td>
-                                                    <td style={{ padding: '12px 0', color: '#e2e8f0', fontWeight: '500' }}>
-                                                        {spec.value} <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{spec.measure_type}</span>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                ) : (
-                                    <p style={{ color: '#64748b', fontStyle: 'italic' }}>No hay medidas registradas.</p>
-                                )}
+                                <ProductSpecsViewer specs={product.specs} variant="table" />
                             </div>
 
                             {/* Atributos Extra */}

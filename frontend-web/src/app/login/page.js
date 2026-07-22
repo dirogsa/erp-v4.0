@@ -82,7 +82,7 @@ export default function LoginPage() {
         <div className="text-center pt-4" style={{ borderTop: '1px solid var(--brand-border)' }}>
           <p className="text-xs" style={{ color: 'var(--brand-text-dim)' }}>
             ¿Aún no eres cliente?{' '}
-            <Link href="/" className="font-bold hover:underline" style={{ color: 'var(--brand-primary)' }}>
+            <Link href="/solicitar-acceso" className="font-bold hover:underline" style={{ color: 'var(--brand-primary)' }}>
               Solicita acceso
             </Link>
           </p>

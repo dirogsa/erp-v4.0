@@ -3,6 +3,7 @@ import Table from '../../common/Table';
 import Button from '../../common/Button';
 import { formatCurrency } from '../../../utils/formatters';
 import { salesPolicyService } from '../../../services/api';
+import { calculateDataQuality } from '../../../utils/dataQuality';
 
 // ─── Switch Toggle Component ─────────────────────────────────────────────────
 const VisibilitySwitch = ({ value, onChange, loading, color = '#10b981', label, productKey }) => {
@@ -134,6 +135,48 @@ const ProductsTable = ({
                 const cat = categories.find(c => c._id === val);
                 if (cat) return cat.name;
                 return row.category_name || '-';
+            }
+        },
+        {
+            label: 'Calidad',
+            key: 'data_quality',
+            align: 'center',
+            render: (_, row) => {
+                const { score, missing, color, isFilter } = calculateDataQuality(row, categories);
+                const titleText = score === 100 
+                    ? '100% Perfecto (Listo para DIMS)' 
+                    : `⚠️ Falta:\n- ${missing.join('\n- ')}`;
+                
+                return (
+                    <div 
+                        title={titleText}
+                        style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center', 
+                            gap: '4px',
+                            cursor: 'help'
+                        }}
+                    >
+                        <div style={{
+                            width: '40px',
+                            height: '6px',
+                            background: '#334155',
+                            borderRadius: '3px',
+                            overflow: 'hidden'
+                        }}>
+                            <div style={{
+                                width: `${score}%`,
+                                height: '100%',
+                                background: color,
+                                transition: 'width 0.5s ease-out'
+                            }} />
+                        </div>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 'bold', color: color }}>
+                            {score}% {isFilter ? 'DIMS' : ''}
+                        </span>
+                    </div>
+                );
             }
         },
         {
