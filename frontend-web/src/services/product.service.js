@@ -9,8 +9,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 // Revalidation strategy: 1 hour cache for product data.
 // Protects the free-tier DB: 1,000 concurrent users = 1 DB query per hour.
 const CACHE_OPTS = { next: { revalidate: 3600 } };
-// Short cache for search/catalogue listing (5 min)
-const SEARCH_CACHE_OPTS = { next: { revalidate: 300 } };
+// Short cache for search/catalogue listing (5 min in prod, 0 in dev)
+const SEARCH_CACHE_OPTS = { next: { revalidate: process.env.NODE_ENV === 'development' ? 0 : 300 } };
 
 // Simple Semaphore to prevent Next.js SSG workers from hammering the API and triggering 429
 const MAX_CONCURRENT_REQUESTS = 5;

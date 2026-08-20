@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NotificationProvider } from './context/NotificationContext';
+import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
+import { NotificationProvider, globalNotification } from './context/NotificationContext';
 import { CompanyProvider } from './context/CompanyContext';
 import { AuthProvider } from './context/AuthContext';
 import { LoadingProvider } from './context/LoadingContext';
@@ -75,6 +75,39 @@ const queryClient = new QueryClient({
       gcTime: 10 * 60 * 1000, // v5: cacheTime → gcTime
     },
   },
+  mutationCache: new MutationCache({
+    onSuccess: (data, variables, context, mutation) => {
+      if (mutation.meta?.silent) return;
+
+      const message = data?.message;
+      const method = mutation.meta?.method?.toLowerCase();
+      
+      let defaultMessage = 'Operación realizada con éxito';
+      if (method === 'post') defaultMessage = 'Registro creado exitosamente';
+      if (method === 'put' || method === 'patch') defaultMessage = 'Registro actualizado exitosamente';
+      if (method === 'delete') defaultMessage = 'Registro eliminado exitosamente';
+
+      const requireAck = mutation.meta?.requireAcknowledgment === true;
+      
+      globalNotification.show(message || defaultMessage, 'success', {
+        mode: requireAck ? 'dialog' : 'toast',
+        sticky: requireAck // Un toast normal desaparece, el dialog nunca desaparece solo
+      });
+    },
+    onError: (error, variables, context, mutation) => {
+      if (mutation.meta?.silentError) return;
+      
+      const errorMsg = error.response?.data?.detail || error.response?.data?.message || 'Error en la operación';
+      
+      // Los errores por defecto requieren acknowledgment (serán Modals) para máxima seguridad en el ERP
+      const requireAck = mutation.meta?.requireAcknowledgment !== false; 
+
+      globalNotification.show(errorMsg, 'error', {
+        mode: requireAck ? 'dialog' : 'toast',
+        sticky: true // Los errores siempre deben requerir cierre manual
+      });
+    }
+  })
 });
 
 // ─── Fallback de carga ───────────────────────────────────────────────────────

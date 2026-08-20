@@ -1,6 +1,7 @@
 import { ProductService } from '@/services/product.service';
 import SearchModule from '@/components/SearchModule';
 import DimensionalSection from '@/components/DimensionalSection';
+import ProductCard from '@/components/ProductCard';
 import Link from 'next/link';
 import { Suspense } from 'react';
 
@@ -176,52 +177,6 @@ function Section({ title, count, color, results }) {
   );
 }
 
-
-function ProductCard({ product }) {
-  return (
-    <Link href={`/product/${product.sku}`} className="card-premium flex items-center md:flex-col md:items-start gap-4 hover:border-brand-primary/30 transition-all group h-full">
-      {/* Imagen */}
-      <div className="h-20 w-20 md:w-full md:h-40 flex-shrink-0 rounded-2xl overflow-hidden flex items-center justify-center p-2 bg-brand-surface-2 relative">
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name}
-               className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500" />
-        ) : (
-          <svg className="h-8 w-8 md:h-12 md:w-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        )}
-        {product.isNew && (
-          <span className="absolute top-2 left-2 text-[7px] md:text-[9px] font-black uppercase px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg animate-pulse bg-brand-primary text-[#0A0A0B]">NEW</span>
-        )}
-      </div>
-      {/* Info */}
-      <div className="flex-1 min-w-0 flex flex-col justify-between w-full">
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-brand-text-dim">
-              {product.brand || 'DIROGSA'}
-            </span>
-          </div>
-          <h3 className="text-white font-black text-xs md:text-sm uppercase tracking-tight leading-tight line-clamp-2 md:line-clamp-3">
-            {product.name}
-          </h3>
-        </div>
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
-          <span className="text-[10px] md:text-xs font-black tracking-widest text-brand-orange">
-            {product.sku}
-          </span>
-          <span className="hidden md:inline-flex text-[9px] font-bold px-2 py-1 rounded-lg bg-brand-primary-dim text-brand-primary border border-brand-primary/20">
-            Detalle
-          </span>
-        </div>
-      </div>
-      {/* Arrow (Mobile only) */}
-      <div className="md:hidden flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center transition-all group-hover:bg-brand-primary group-hover:text-black bg-brand-surface-2 text-brand-text-dim">
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-      </div>
-    </Link>
-  );
-}
 
 function EmptyState() {
   return (

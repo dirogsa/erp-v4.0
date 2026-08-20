@@ -1,100 +1,85 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { salesService } from '../services/api';
-import { useNotification } from './useNotification';
 
 export const useCustomers = () => {
-    const [customers, setCustomers] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const { showNotification } = useNotification();
+    const queryClient = useQueryClient();
 
-    const fetchCustomers = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
+    // 1. Fetch de clientes (Query)
+    const { 
+        data: customers = [], 
+        isLoading: loading, 
+        error,
+        refetch: fetchCustomers 
+    } = useQuery({
+        queryKey: ['customers'],
+        queryFn: async () => {
             const response = await salesService.getCustomers();
-            setCustomers(response.data);
-        } catch (err) {
-            setError(err);
-            showNotification('Error al cargar clientes', 'error');
-        } finally {
-            setLoading(false);
+            return response.data;
         }
-    }, [showNotification]);
+    });
 
-    const getCustomerByRuc = useCallback(async (ruc) => {
-        setLoading(true);
+    // Búsqueda por RUC (suele ser al vuelo, no siempre cacheable globalmente)
+    const getCustomerByRuc = async (ruc) => {
         try {
             const response = await salesService.getCustomerByRuc(ruc);
             return response.data;
         } catch (err) {
-            if (err.response?.status !== 404) {
-                showNotification('Error al buscar cliente', 'error');
+            // El error 404 es esperado cuando el RUC es nuevo
+            if (err.response?.status === 404) {
+                 return null;
             }
             throw err;
-        } finally {
-            setLoading(false);
         }
-    }, [showNotification]);
+    };
 
-    const createCustomer = useCallback(async (customerData) => {
-        setLoading(true);
-        try {
-            const response = await salesService.createCustomer(customerData);
-            await fetchCustomers();
-            showNotification('Cliente creado exitosamente', 'success');
-            return response.data;
-        } catch (err) {
-            const errorMessage = err.response?.data?.detail || 'Error al crear cliente';
-            showNotification(errorMessage, 'error');
-            throw err;
-        } finally {
-            setLoading(false);
+    // 2. Mutaciones con caché global de notificaciones
+    const createMutation = useMutation({
+        mutationFn: salesService.createCustomer,
+        meta: { method: 'POST' }, // El MutationCache leerá esto
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['customers'] });
         }
-    }, [fetchCustomers, showNotification]);
+    });
 
-    const updateCustomer = useCallback(async (id, customerData) => {
-        setLoading(true);
-        try {
-            await salesService.updateCustomer(id, customerData);
-            await fetchCustomers();
-            showNotification('Cliente actualizado exitosamente', 'success');
-        } catch (err) {
-            const errorMessage = err.response?.data?.detail || 'Error al actualizar cliente';
-            showNotification(errorMessage, 'error');
-            throw err;
-        } finally {
-            setLoading(false);
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data }) => salesService.updateCustomer(id, data),
+        meta: { method: 'PUT' },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['customers'] });
         }
-    }, [fetchCustomers, showNotification]);
+    });
 
-    const deleteCustomer = useCallback(async (id) => {
-        setLoading(true);
-        try {
-            await salesService.deleteCustomer(id);
-            await fetchCustomers();
-            showNotification('Cliente eliminado exitosamente', 'success');
-        } catch (err) {
-            const errorMessage = err.response?.data?.detail || 'Error al eliminar cliente';
-            showNotification(errorMessage, 'error');
-            throw err;
-        } finally {
-            setLoading(false);
+    const deleteMutation = useMutation({
+        mutationFn: salesService.deleteCustomer,
+        meta: { 
+            method: 'DELETE',
+            requireAcknowledgment: true // Exige Modal Bloqueante según el Enfoque Híbrido
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['customers'] });
         }
-    }, [fetchCustomers, showNotification]);
+    });
 
-    useEffect(() => {
-        fetchCustomers();
-    }, [fetchCustomers]);
+    const isCreating = createMutation.isPending;
+    const isUpdating = updateMutation.isPending;
+    const isDeleting = deleteMutation.isPending;
+    
+    // Combinar estados de carga para mantener retrocompatibilidad con el UI actual
+    const isWorking = loading || isCreating || isUpdating || isDeleting;
 
     return {
         customers,
-        loading,
+        loading: isWorking,
         error,
         fetchCustomers,
         getCustomerByRuc,
-        createCustomer,
-        updateCustomer,
-        deleteCustomer
+        
+        createCustomer: createMutation.mutateAsync,
+        updateCustomer: updateMutation.mutateAsync,
+        deleteCustomer: deleteMutation.mutateAsync,
+
+        isCreating,
+        isUpdating,
+        isDeleting
     };
 };

@@ -186,6 +186,7 @@ class ShopProductResponse(BaseModel):
     loyalty_points: int
     points_cost: int
     stock_current: int
+    specs: List[TechnicalSpec] = []
 
     category_id: Optional[str] = None
     is_new: bool = False
@@ -204,7 +205,6 @@ class ProductReviewResponse(BaseModel):
     created_at: datetime
 
 class ShopProductDetailResponse(ShopProductResponse):
-    specs: List[TechnicalSpec] = []
     equivalences: List[CrossReference] = []
     applications: List[Application] = []
     weight_g: float = 0.0
@@ -246,6 +246,7 @@ async def get_redeemable_prizes(
             loyalty_points=0,
             points_cost=p.points_cost,
             stock_current=p.stock_current,
+            specs=p.specs,
             category_id=p.category_id,
             is_new=p.is_new,
             type=p.type
@@ -589,6 +590,7 @@ async def get_shop_products(
             loyalty_points=p.loyalty_points,
             points_cost=p.points_cost,
             stock_current=p.stock_current,
+            specs=p.specs,
 
             category_id=p.category_id,
             is_new=p.is_new,

@@ -89,7 +89,8 @@ async def perform_full_product_brand_sync():
             new_brand = ProductBrand(
                 name=brand_name,
                 origin=profile.get("origin", "Importado"),
-                description=profile.get("description", f"Línea de repuestos y filtros de calidad superior marca {brand_name}.")
+                description=profile.get("description", f"Línea de repuestos y filtros de calidad superior marca {brand_name}."),
+                show_in_catalog=brand_name.upper() in DEFAULT_BRAND_PROFILES
             )
             await new_brand.save()
         else:

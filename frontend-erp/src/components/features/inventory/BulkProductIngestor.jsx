@@ -76,20 +76,20 @@ const BulkProductIngestor = ({ onComplete, onCancel }) => {
             // Esto delega la lógica de existencia al backend (MongoDB) y evita los "falsos errores 409" en la consola del navegador.
             const response = await inventoryService.bulkCreateProducts(payloads, updateExisting);
             
-            // response.data es típicamente { imported: X, updated: Y, errors: Z }
+            // response.data es típicamente { created: X, updated: Y, errors: Z } según BulkImportResponse del backend
             const resData = response.data || {};
-            const created = resData.imported || resData.created_count || 0;
+            const created = resData.created || resData.imported || resData.created_count || 0;
             const updated = resData.updated || resData.updated_count || 0;
             
             if (updateExisting) {
-                showNotification(`Proceso exitoso: Se crearon ${created} nuevos y se actualizaron/sobrescribieron ${updated} productos.`, 'success');
+                showNotification(`Proceso exitoso: Se crearon ${created} nuevos y se actualizaron/sobrescribieron ${updated} productos.`, 'success', { mode: 'dialog' });
             } else {
-                showNotification(`Proceso exitoso: Se inyectaron ${created} productos nuevos (ignorando existentes).`, 'success');
+                showNotification(`Proceso exitoso: Se inyectaron ${created} productos nuevos (ignorando existentes).`, 'success', { mode: 'dialog' });
             }
             
         } catch (error) {
             console.error("Error crítico durante la inyección masiva:", error);
-            showNotification("Hubo un error al inyectar el lote de productos al maestro.", "error");
+            showNotification("Hubo un error al inyectar el lote de productos al maestro.", "error", { mode: 'dialog' });
         }
         
         if (onComplete) onComplete();
