@@ -1,7 +1,7 @@
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 from enum import Enum
-from beanie import Document, Indexed, PydanticObjectId
+from beanie import Document, Indexed, PydanticObjectId, Insert, Replace, SaveChanges, Update, after_event
 from pydantic import BaseModel, field_validator, Field, model_validator
 import pymongo
 
@@ -289,6 +289,12 @@ class Product(Document):
     def round_amounts(cls, v):
         """Redondear a 3 decimales"""
         return round(v, 3) if v is not None else v
+
+    @after_event(Insert, Replace, SaveChanges, Update)
+    async def trigger_revalidation(self):
+        """Dispara la revalidación de Next.js de forma asíncrona tras cualquier cambio"""
+        from app.services.revalidate_service import dispatch_revalidate
+        await dispatch_revalidate(tag="products")
 
     class Settings:
         name = "products"
