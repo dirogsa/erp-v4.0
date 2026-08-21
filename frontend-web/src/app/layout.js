@@ -35,6 +35,22 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es" data-scroll-behavior="smooth">
       <head>
+        {/* ── LIMPIEZA DE SERVICE WORKER ZOMBIE ── */}
+        <Script
+          id="sw-cleanup"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for(let registration of registrations) {
+                    registration.unregister();
+                  }
+                });
+              }
+            `,
+          }}
+        />
         {/* ── META PIXEL (Base Code) ── */}
         <Script
           id="meta-pixel"

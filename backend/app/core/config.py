@@ -26,6 +26,10 @@ class Settings:
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
     
+    # Next.js Frontend Integration
+    NEXTJS_FRONTEND_URL: str = os.getenv("NEXTJS_FRONTEND_URL", "https://www.dirogsa.com")
+    REVALIDATE_SECRET: str = os.getenv("REVALIDATE_SECRET", "dirogsa-super-secret-revalidate-token")
+    
     # Validation
     @classmethod
     def validate(cls):

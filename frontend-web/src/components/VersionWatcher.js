@@ -32,15 +32,37 @@ export default function VersionWatcher() {
     // Revisar al montar
     checkVersion();
 
-    // Revisar cada 2 minutos
-    intervalId = setInterval(checkVersion, 120000);
+    // Revisar cada 30 segundos
+    intervalId = setInterval(checkVersion, 30000);
 
     return () => clearInterval(intervalId);
   }, []);
 
-  const handleUpdate = () => {
-    // Hard reload sin caché
-    window.location.reload(true);
+  const handleUpdate = async () => {
+    // 1. Limpiar Service Workers zombies
+    if ('serviceWorker' in navigator) {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (let registration of registrations) {
+          await registration.unregister();
+        }
+      } catch (e) {
+        console.error('Error unregistering service workers', e);
+      }
+    }
+
+    // 2. Limpiar Storage API caches
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      } catch (e) {
+        console.error('Error clearing caches', e);
+      }
+    }
+
+    // 3. Navegación limpia rompiendo SPA
+    window.location.href = window.location.pathname + window.location.search;
   };
 
   if (!hasUpdate) return null;

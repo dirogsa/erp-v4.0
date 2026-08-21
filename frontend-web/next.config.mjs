@@ -111,6 +111,16 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Fuerza al navegador y CDN a no cachear version.json jamás
+        source: '/version.json',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          },
+        ],
+      },
+      {
         // Fuerza al navegador a no cachear rutas privadas
         source: '/(cart|orders|login|thank-you)(/.*)?',
         headers: [

@@ -15,6 +15,8 @@ from app.exceptions.business_exceptions import NotFoundException, ValidationExce
 from app.services.pricing_service import PricingService
 from app.models.auth import User
 from app.schemas.inventory_schemas import ProductWithPrice
+from app.utils.next_revalidator import trigger_nextjs_revalidation
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -347,6 +349,8 @@ async def create_product(product_data: Product, initial_stock: int = 0, user: Op
             entity_name=product_data.sku
         )
 
+    asyncio.create_task(trigger_nextjs_revalidation("products"))
+
     return populate_company_data(product_data, company_id)
 
 async def bulk_create_products(products: List[Product], update_existing: bool = True, user: Optional[User] = None, company_id: Optional[str] = None):
@@ -552,6 +556,8 @@ async def update_product(sku: str, update_data: Product, new_stock: int = None, 
     if new_stock is not None and new_stock != product.stock_current:
         product = await adjust_stock(sku, new_stock, "Ajuste desde edición de producto", company_id=company_id)
         
+    asyncio.create_task(trigger_nextjs_revalidation("products"))
+        
     return product
 
 async def delete_product(sku: str, user: Optional[User] = None) -> bool:
@@ -569,6 +575,7 @@ async def delete_product(sku: str, user: Optional[User] = None) -> bool:
         )
 
     await product.delete()
+    asyncio.create_task(trigger_nextjs_revalidation("products"))
     return True
 
 async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: Any = None, company_id: Optional[str] = None) -> Any:
