@@ -578,11 +578,14 @@ async def get_shop_products(
         shop_company = await Company.find_one({})
     shop_company_ruc = shop_company.ruc if shop_company else None
 
+    # Resolve all prices in bulk (Solves N+1 problem causing Vercel timeouts)
+    product_dicts = [{"sku": p.sku, "brand": p.brand} for p in products]
+    bulk_prices = await PricingService.get_bulk_prices(product_dicts)
+
     response_items = []
     for p in products:
-        # For list, we show base price (quantity=1) using the new Dynamic Engine
-        price_info = await PricingService.get_product_price(p.sku, brand=p.brand, quantity=1)
-        price = price_info.get("price", 0.0)
+        # Fetch base price from our bulk resolution map
+        price = bulk_prices.get((p.sku, p.brand), 0.0)
         
         response_items.append(ShopProductResponse(
             sku=p.sku,
