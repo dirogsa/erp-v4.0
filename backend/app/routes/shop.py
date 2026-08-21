@@ -264,22 +264,26 @@ async def get_redeemable_prizes(
 @router.get("/seo/products")
 async def get_seo_products():
     """Ultra-fast endpoint for Sitemap generation. Avoids N+1 pricing queries."""
-    products = await Product.find({"is_active_in_shop": True}).project({"sku": 1, "updated_at": 1}).to_list()
-    return [{"sku": p.sku, "updated_at": p.updated_at.isoformat() if p.updated_at else None} for p in products]
+    cursor = Product.get_motor_collection().find({"is_active_in_shop": True}, {"sku": 1, "updated_at": 1})
+    products = await cursor.to_list(length=None)
+    return [{"sku": p.get("sku"), "updated_at": p.get("updated_at").isoformat() if p.get("updated_at") else None} for p in products]
 
 @router.get("/seo/brands")
 async def get_seo_brands():
     """Ultra-fast endpoint for ISR and Sitemap. Uses canonical slug_utils for URL coherence."""
     from app.models.inventory import ProductBrand
     from app.utils.slug_utils import to_slug
-    brands = await ProductBrand.find({"is_active": True}).project({"name": 1, "created_at": 1}).to_list()
+    
+    cursor = ProductBrand.get_motor_collection().find({"is_active": True}, {"name": 1, "created_at": 1})
+    brands = await cursor.to_list(length=None)
+    
     return [
         {
-            "slug": to_slug(b.name),
-            "name": b.name,
-            "updated_at": b.created_at.isoformat() if b.created_at else None
+            "slug": to_slug(b.get("name")),
+            "name": b.get("name"),
+            "updated_at": b.get("created_at").isoformat() if b.get("created_at") else None
         }
-        for b in brands
+        for b in brands if b.get("name")
     ]
 
 @router.get("/seo/categories")
