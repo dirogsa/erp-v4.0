@@ -105,7 +105,7 @@ async def perform_full_product_brand_sync():
             if dirty:
                 await existing.save()
 
-@router.get("/", response_model=List[ProductBrand])
+@router.get("", response_model=List[ProductBrand])
 async def get_product_brands():
     return await ProductBrand.find({}).sort([("name", 1)]).to_list()
 

@@ -298,6 +298,7 @@ class Product(Document):
 
     class Settings:
         name = "products"
+
         indexes = [
             # Índice Compuesto Único: SKU + Marca (Un solo registro global)
             pymongo.IndexModel(
@@ -313,8 +314,10 @@ class Product(Document):
                 ("sku", pymongo.TEXT),
                 ("ean", pymongo.TEXT),
                 ("equivalences.code", pymongo.TEXT),
-                ("applications.model", pymongo.TEXT)
-            ], weights={"name": 10, "sku": 5, "brand": 3})
+                ("applications.model", pymongo.TEXT),
+                ("applications.make", pymongo.TEXT),
+                ("specs.value", pymongo.TEXT)
+            ], weights={"sku": 10, "equivalences.code": 8, "name": 5, "brand": 3})
         ]
 
 class PriceListType(str, Enum):

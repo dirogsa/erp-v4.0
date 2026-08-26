@@ -28,6 +28,8 @@ const BrandManagement      = lazy(() => import('./pages/BrandManagement'));
 const ProductBrandManagement = lazy(() => import('./pages/ProductBrandManagement'));
 const Losses               = lazy(() => import('./pages/Losses'));
 const Transfers            = lazy(() => import('./pages/Transfers'));
+const EquivalencyLaboratory = lazy(() => import('./pages/EquivalencyLaboratory'));
+
 
 // Compras / Proveedores
 const Suppliers            = lazy(() => import('./pages/Suppliers'));
@@ -165,6 +167,7 @@ function App() {
                             <Route path="/import-planning"         element={<ImportPlanning />} />
                             <Route path="/losses"                  element={<Losses />} />
                             <Route path="/transfers"               element={<Transfers />} />
+                            <Route path="/equivalency-lab"         element={<EquivalencyLaboratory />} />
                             <Route path="/brands"                  element={<BrandManagement />} />
                             <Route path="/product-brands"          element={<ProductBrandManagement />} />
                             <Route path="/b2b"                     element={<B2BManagement />} />

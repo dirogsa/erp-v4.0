@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
+import logging
+logger = logging.getLogger("dirogsa.api")
 from typing import List, Optional, Dict
 from ..models.inventory import Product, TechnicalSpec, CrossReference, Application, VehicleBrand, SearchLog, Notification
 from app.models.auth import User, UserRole
@@ -446,6 +448,7 @@ class CheckoutRequest(BaseModel):
 
 @router.get("/products", response_model=PaginatedResponse[ShopProductResponse])
 async def get_shop_products(
+    request: Request,
     skip: int = 0,
     limit: int = 20,
     search: Optional[str] = None,
@@ -460,7 +463,7 @@ async def get_shop_products(
     is_new: Optional[bool] = None,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
-    print(f"[SHOP] GET /products called - search: '{search}', make: {vehicle_brand}, model: {vehicle_model}")
+    req_id = getattr(request.state, "request_id", "N/A")
     
     # Base query for commercial products, now highly tolerant of CSV import variations
     # Consulta profesional: Booleano estricto
@@ -476,19 +479,12 @@ async def get_shop_products(
         elif mode == "specs":
             query["specs.value"] = {"$regex": s, "$options": "i"}
         elif mode == "equivalence":
-            query["equivalences.code"] = {"$regex": s, "$options": "i"}
+            query["equivalences.code"] = {"$regex": f"^{s}", "$options": "i"}
         else:
-            # Smart Search: Try direct SKU match first, then regex broad search
-            query["$or"] = [
-                {"sku": s}, # Match exacto (prioridad)
-                {"sku": {"$regex": s, "$options": "i"}},
-                {"name": {"$regex": s, "$options": "i"}},
-                {"brand": {"$regex": s, "$options": "i"}},
-                {"equivalences.code": {"$regex": s, "$options": "i"}},
-                {"applications.make": {"$regex": s, "$options": "i"}},
-                {"applications.model": {"$regex": s, "$options": "i"}},
-                {"specs.value": {"$regex": s, "$options": "i"}}
-            ]
+            # Smart Search: Phase 1 Text Index implementation.
+            # O(1) Instant Text Search matching (Massive Performance Boost)
+            # Replaces expensive $or regex COLLSCAN
+            query["$text"] = {"$search": f'"{s}"' if len(s) < 4 else s}
     
     if category:
         # Dual filter: try by category_id (ERP internal), fallback to category_name regex (SEO Hub slugs)
@@ -555,18 +551,15 @@ async def get_shop_products(
     if not (search and len(search) > 4):
         query["type"] = {"$in": ["COMMERCIAL", "", None]}
 
-    print(f"[SHOP] Final MongoDB Query: {query}")
-
-    print(f"[SHOP] Query: {query}")
+    logger.debug(f"[req={req_id}] MongoDB Query: {query}")
     
     total = await Product.find(query).count()
     products = await Product.find(query).skip(skip).limit(limit).to_list()
     
-    print(f"[SHOP] Found {total} products, returning {len(products)} items")
+    logger.info(f"[req={req_id}] GET /shop/products search='{search}' | found={total} returned={len(products)}")
 
     # Resolve pricing based on user role
     role = current_user.role if current_user else UserRole.CUSTOMER_B2C
-    print(f"[SHOP] User role: {role}")
     
     # Obtener políticas globales para fallback
     from app.models.config import SystemConfig
@@ -608,7 +601,6 @@ async def get_shop_products(
             matched_equivalence=next((eq.code for eq in p.equivalences if search and search.strip().upper() in eq.code.upper()), None) if search else None
         ))
 
-    print(f"[SHOP] Returning {len(response_items)} items to frontend")
     
     # Record search analytics (Async/Background-like)
     if search:
@@ -679,7 +671,7 @@ async def get_shop_product_detail(
                     for tpl in category.seo_maintenance_templates:
                         maintenance_tips.append(render_template(tpl))
         except Exception as e:
-            print(f"[SEO ENGINE] Error parsing category templates: {e}")
+            logger.error(f"Error parsing category templates: {e}")
 
     # Fetch reviews
     from app.models.inventory import ProductReview

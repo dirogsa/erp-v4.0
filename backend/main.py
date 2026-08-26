@@ -40,7 +40,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal Server Error", "message": "Ha ocurrido un error inesperado en el servidor."}
     )
 
+from app.middleware.logging_middleware import RequestLoggingMiddleware
+
 # --- MIDDLEWARES ---
+app.add_middleware(RequestLoggingMiddleware)
+
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     start_time = time.time()

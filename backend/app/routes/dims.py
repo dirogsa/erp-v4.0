@@ -1,8 +1,20 @@
 from fastapi import APIRouter, HTTPException, Path, Query
-from typing import Any, Dict
+from typing import Any, Dict, List
 from app.engines.dims_engine import DIMSEngine
+from app.services.dims_service import DIMSService
 
 router = APIRouter(prefix="/api/v1/dims", tags=["DIMS Engine"])
+
+@router.post("/import/batch", response_model=Dict[str, Any])
+async def import_dims_batch(products_data: List[Dict[str, Any]]):
+    """
+    Importa un lote de archivos JSON de productos al sistema para el Laboratorio de Equivalencias.
+    """
+    try:
+        result = await DIMSService.import_batch(products_data)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en importación batch: {str(e)}")
 
 @router.get("/{sku}/alternatives", response_model=Dict[str, Any])
 async def get_dimensional_alternatives(
@@ -10,7 +22,7 @@ async def get_dimensional_alternatives(
     flexibility: str = Query("high", description="Nivel de flexibilidad (high, medium, low)"),
 ):
     """
-    Motor DIMS: Encuentra alternativas dimensionales para un filtro dado.
+    Motor DIMS (Algoritmo 2): Encuentra alternativas dimensionales para un filtro dado.
     """
     try:
         results = await DIMSEngine.find_alternatives(sku, flexibility)
@@ -19,3 +31,18 @@ async def get_dimensional_alternatives(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en el motor DIMS: {str(e)}")
+
+@router.get("/{sku}/equivalencies", response_model=Dict[str, Any])
+async def get_direct_equivalencies(
+    sku: str = Path(..., description="El SKU del producto para buscar equivalencias directas"),
+):
+    """
+    Motor de Equivalencias (Algoritmo 3): Encuentra cruces directos basados en códigos OEM y Aftermarket.
+    """
+    try:
+        results = await DIMSService.get_direct_equivalencies(sku)
+        return results
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en algoritmo de equivalencias: {str(e)}")
