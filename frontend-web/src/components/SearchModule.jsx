@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { trackSearch } from '@/lib/tracking';
+import VehicleAutocomplete from './VehicleAutocomplete';
 
 export const TABS = [
   { id: 'CODES', label: 'CÓDIGO', iconPath: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" },
@@ -135,24 +136,12 @@ export default function SearchModule({
             <label htmlFor="vehicleMake" className="block text-[10px] md:text-xs font-black text-[#38BDF8] uppercase tracking-widest mb-3 md:mb-4">
               SELECCIONA TU VEHÍCULO
             </label>
-            <div className="space-y-3 mb-4 md:mb-6">
-              <input 
-                id="vehicleMake"
-                type="text"
-                value={vehicleMake}
-                onChange={(e) => setVehicleMake(e.target.value.toUpperCase())}
-                placeholder="EJ: TOYOTA, NISSAN..."
-                className="w-full bg-[#1A1C21] border border-white/10 rounded-xl md:rounded-2xl py-4 md:py-5 px-4 text-sm md:text-base font-bold text-white placeholder-white/30 focus:outline-none focus:border-[#38BDF8]/50 focus:ring-1 focus:ring-[#38BDF8]/50 transition-all uppercase"
-                aria-label="Marca de vehículo"
-              />
-              <input 
-                id="vehicleModel"
-                type="text"
-                value={vehicleModel}
-                onChange={(e) => setVehicleModel(e.target.value.toUpperCase())}
-                placeholder="MODELO (OPCIONAL)"
-                className="w-full bg-[#1A1C21] border border-white/10 rounded-xl md:rounded-2xl py-4 md:py-5 px-4 text-sm md:text-base font-bold text-white placeholder-white/30 focus:outline-none focus:border-[#38BDF8]/50 focus:ring-1 focus:ring-[#38BDF8]/50 transition-all uppercase"
-                aria-label="Modelo de vehículo"
+            <div className="mb-4 md:mb-6">
+              <VehicleAutocomplete 
+                vehicleMake={vehicleMake}
+                setVehicleMake={setVehicleMake}
+                vehicleModel={vehicleModel}
+                setVehicleModel={setVehicleModel}
               />
             </div>
           </>

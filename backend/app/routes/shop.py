@@ -497,21 +497,23 @@ async def get_shop_products(
             ]
         })
 
-    if is_new:
-        query["is_new"] = True
-        
-    # Precise Vehicle Filtering
+    import re
+    # Case-insensitive Regex Matching with Escaped special characters
     if vehicle_brand and vehicle_model:
+        safe_brand = re.escape(vehicle_brand)
+        safe_model = re.escape(vehicle_model)
         query["applications"] = {
             "$elemMatch": {
-                "make": {"$regex": f"^{vehicle_brand}$", "$options": "i"},
-                "model": {"$regex": f"^{vehicle_model}$", "$options": "i"}
+                "make": {"$regex": f"^{safe_brand}$", "$options": "i"},
+                "model": {"$regex": f"^{safe_model}$", "$options": "i"}
             }
         }
     elif vehicle_brand:
-        query["applications.make"] = {"$regex": f"^{vehicle_brand}$", "$options": "i"}
+        safe_brand = re.escape(vehicle_brand)
+        query["applications.make"] = {"$regex": f"^{safe_brand}$", "$options": "i"}
     elif vehicle_model:
-        query["applications.model"] = {"$regex": f"^{vehicle_model}$", "$options": "i"}
+        safe_model = re.escape(vehicle_model)
+        query["applications.model"] = {"$regex": f"^{safe_model}$", "$options": "i"}
 
     # Dimension (Specs) Filtering - World-Class precision (Numeric Tolerance Support)
     spec_filters = []
