@@ -40,16 +40,8 @@ export default function AddToCartModule({ product, isAuthenticated }) {
   const hasStock = product.stock > 0;
 
   return (
-    <div className="relative rounded-[2rem] p-6 overflow-hidden"
-         style={{ background: 'rgba(20,21,24,0.5)', border: '2px solid rgba(255,255,255,0.05)' }}>
+    <div className="relative pt-2">
       
-      {/* Icono de fondo decorativo */}
-      <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-        <svg className="h-20 w-20" style={{ color: 'var(--brand-primary)' }} fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-        </svg>
-      </div>
-
       <div className="relative z-10">
         {/* Lógica de Visualización B2B vs Guest */}
         {isAuthenticated ? (
@@ -110,8 +102,8 @@ export default function AddToCartModule({ product, isAuthenticated }) {
 
           <button 
             onClick={handleAddToCart}
-            className="flex-1 h-14 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 text-[#0A0A0B] flex items-center justify-center gap-2"
-            style={{ background: 'var(--brand-primary)', boxShadow: '0 0 20px rgba(16,185,129,0.3)' }}
+            className="flex-1 h-14 rounded-xl font-black text-sm uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 text-[#0A0A0B] flex items-center justify-center gap-2"
+            style={{ background: 'var(--brand-primary)', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}
           >
             {showToast ? '¡Agregado!' : 'Añadir a Cotización'}
             {!showToast && (

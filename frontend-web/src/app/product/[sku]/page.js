@@ -330,7 +330,7 @@ export default async function ProductPage({ params }) {
           </div>
 
           {/* ─── ZONA DE PRECIO Y ACCESO B2B (MÓDULO INTERACTIVO) ─── */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#0A0A0B]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:p-0 md:bg-transparent md:backdrop-blur-none md:border-none md:shadow-none">
+          <div className="pt-2">
             <AddToCartModule product={product} isAuthenticated={isAuthenticated} />
           </div>
 
