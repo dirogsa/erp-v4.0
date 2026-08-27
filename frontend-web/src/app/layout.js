@@ -211,7 +211,7 @@ export default function RootLayout({ children }) {
           eventName="click_whatsapp"
           payload={{ button_context: 'floating_bottom' }}
           href="https://wa.me/51991717240?text=Hola%20DIROGSA,%20necesito%20asistencia%20en%20l%C3%ADnea."
-          className="fixed bottom-24 right-4 md:right-8 z-[60] flex items-center gap-3.5 px-4 py-2.5 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
+          className="hidden md:flex fixed bottom-24 right-4 md:right-8 z-[60] items-center gap-3.5 px-4 py-2.5 rounded-full bg-[#0D0E12]/95 border border-[#25D366]/40 backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_20px_rgba(37,211,102,0.15)] hover:border-[#25D366]/80 transition-all duration-300 hover:scale-105 active:scale-95 group"
           aria-label="Asistencia por WhatsApp 991717240"
         >
           {/* Onda expansiva de atención */}

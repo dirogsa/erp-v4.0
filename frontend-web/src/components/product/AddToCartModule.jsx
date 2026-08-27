@@ -71,21 +71,21 @@ export default function AddToCartModule({ product, isAuthenticated }) {
             <p className="text-xs text-white/40 mb-6">Incl. IGV · Precio para clientes registrados</p>
           </>
         ) : (
-          <div className="mb-6 p-5 rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent backdrop-blur-sm text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-brand-primary/10 flex items-center justify-center mb-3">
-              <svg className="w-6 h-6 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="mb-6 flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-brand-primary">
+              <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
+              <span className="text-xl md:text-2xl font-black tracking-tight text-white/90">Precio Oculto</span>
             </div>
-            <h3 className="text-white font-black text-sm uppercase tracking-wider mb-2">Precios Exclusivos Ocultos</h3>
-            <p className="text-[13px] text-white/70 leading-relaxed">
-              Regístrate en nuestro portal para desbloquear precios mayoristas y descuentos. Si aún no tienes cuenta, añade repuestos a tu lista y envíanos tu cotización; te responderemos de inmediato.
+            <p className="text-xs text-white/50 font-bold uppercase tracking-widest">
+              Exclusivo para usuarios registrados
             </p>
           </div>
         )}
 
         {/* Controles de Cantidad y Botón */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 mb-4">
           <div className="flex items-center bg-[#0D0E12] rounded-xl border border-white/10 px-2 h-14">
             <button 
               onClick={() => setQuantity(q => Math.max(1, q - 1))}
@@ -122,6 +122,13 @@ export default function AddToCartModule({ product, isAuthenticated }) {
           </button>
         </div>
         
+        {/* Mensaje de ayuda post-botón (Solo para invitados) */}
+        {!isAuthenticated && (
+          <p className="text-[10px] md:text-xs text-white/40 text-center leading-tight">
+            ¿No tienes cuenta? Añade los repuestos a tu lista y envíanos tu cotización sin compromiso.
+          </p>
+        )}
+
         {/* Toast Notification Minimalista */}
         {showToast && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#0A0A0B] border border-brand-primary text-brand-primary text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-pulse z-50 whitespace-nowrap">
