@@ -1,9 +1,10 @@
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 from enum import Enum
-from beanie import Document, Indexed, PydanticObjectId, Insert, Replace, SaveChanges, Update, after_event
+from beanie import Document, Indexed, PydanticObjectId, Insert, Replace, SaveChanges, Update, before_event, after_event
 from pydantic import BaseModel, field_validator, Field, model_validator
 import pymongo
+from app.utils.normalization import clean_code
 
 class IssuerInfo(BaseModel):
     """Información de la empresa emisora al momento de la creación"""
@@ -126,7 +127,14 @@ class CrossReference(BaseModel):
     """Equivalencia / Cruce con otra marca"""
     brand: str # Mann Filter, Fram, etc.
     code: str  # W 811/80, PH3593A
+    clean_code: Optional[str] = None # Alfanumérico puro para búsquedas (Ej: W81180)
     is_original: bool = False # Si es código OEM
+
+    @model_validator(mode='after')
+    def compute_clean_code(self):
+        if self.code:
+            self.clean_code = clean_code(self.code)
+        return self
 
 class Application(BaseModel):
     """Aplicación / Compatibilidad vehicular"""
@@ -200,6 +208,7 @@ class ProductCategory(Document):
 
 class Product(Document):
     sku: Indexed(str)
+    clean_sku: Indexed(str) = None
     name: str 
     brand: str = "N/A"
     description: Optional[str] = None
@@ -253,13 +262,18 @@ class Product(Document):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    @model_validator(mode='after')
-    def set_canonical_sku(self):
-        """Automatically set sku_canonical when sku is set/updated"""
-        from app.utils.norm_utils import canonical_sku
+    @before_event([Insert, Replace, SaveChanges])
+    def pre_save(self):
+        """Pre-save hook para calcular campos derivados automáticamente"""
         if self.sku:
-            self.sku_canonical = canonical_sku(self.sku)
+            self.clean_sku = clean_code(self.sku)
+            self.sku_canonical = clean_code(self.sku)
             
+        if self.equivalences:
+            for eq in self.equivalences:
+                if eq.code and not eq.clean_code:
+                    eq.clean_code = clean_code(eq.code)
+
         if self.image_url:
             self.image_url = self.image_url.strip()
             if (

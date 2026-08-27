@@ -200,8 +200,7 @@ export default async function ProductPage({ params }) {
   const isAuthenticated = false;
 
   return (
-    <div className="max-w-7xl mx-auto px-5 py-8">
-
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10 pb-40 md:pb-10">
       {/* JSON-LD Schemas invisibles para Google */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
@@ -219,11 +218,11 @@ export default async function ProductPage({ params }) {
       </nav>
 
       {/* ─── MAIN GRID ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
 
-        {/* ── LEFT: IMAGE ── */}
-        <div className="space-y-4">
-          <div className="relative rounded-[2.5rem] overflow-hidden flex items-center justify-center p-10 group"
+        {/* ── LEFT: IMAGE (Sticky on Desktop) ── */}
+        <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-24 h-fit">
+          <div className="relative rounded-[2.5rem] overflow-hidden flex items-center justify-center p-6 md:p-10 group"
                style={{ background: 'var(--brand-surface)', border: '1px solid rgba(255,255,255,0.05)', minHeight: '380px' }}>
             {hasValidImage ? (
               <div className="relative w-full h-[320px] flex items-center justify-center">
@@ -304,10 +303,10 @@ export default async function ProductPage({ params }) {
         </div>
 
         {/* ── RIGHT: INFO ── */}
-        <div className="space-y-6">
+        <div className="lg:col-span-7 space-y-8">
 
           {/* Brand + Title */}
-          <div>
+          <div className="flex flex-col">
             <span className="text-[10px] font-black uppercase tracking-widest"
                   style={{ color: 'var(--brand-primary)' }}>
               {product.brand}
@@ -320,25 +319,20 @@ export default async function ProductPage({ params }) {
                     style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-primary)' }}>
                 {product.sku}
               </span>
-              {isAuthenticated ? (
+              {isAuthenticated && (
                 <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase border-2 ${hasStock
                   ? 'text-green-400 bg-green-400/10 border-green-400/20'
                   : 'text-red-400 bg-red-400/10 border-red-400/20'}`}>
                   {hasStock ? `${product.stock} En Stock` : 'Agotado'}
-                </span>
-              ) : (
-                <span className="px-3 py-1.5 rounded-xl text-[10px] font-black tracking-widest uppercase border-2 text-gray-400 bg-gray-500/10 border-gray-500/20 flex items-center gap-1.5">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Stock Oculto
                 </span>
               )}
             </div>
           </div>
 
           {/* ─── ZONA DE PRECIO Y ACCESO B2B (MÓDULO INTERACTIVO) ─── */}
-          <AddToCartModule product={product} isAuthenticated={isAuthenticated} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-[#0A0A0B]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:p-0 md:bg-transparent md:backdrop-blur-none md:border-none md:shadow-none">
+            <AddToCartModule product={product} isAuthenticated={isAuthenticated} />
+          </div>
 
         </div>
       </div>

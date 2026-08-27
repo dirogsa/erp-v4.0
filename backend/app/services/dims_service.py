@@ -1,5 +1,6 @@
 from typing import List, Dict, Any
 from app.models.inventory import Product, TechnicalSpec, MeasureType, CrossReference, Application, ProductType
+from app.utils.normalization import clean_code
 from fastapi import HTTPException
 import logging
 
@@ -125,15 +126,23 @@ class DIMSService:
     async def get_direct_equivalencies(sku: str) -> Dict[str, Any]:
         """
         Algoritmo 3: Encuentra equivalencias directas basadas puramente en cruces OEM y Aftermarket (refs).
-        No toma en cuenta las dimensiones.
+        Implementa búsqueda bidireccional de 360 grados usando clean_code.
         """
         source_product = await Product.find_one({"sku": sku})
         if not source_product:
             raise ValueError(f"Product {sku} not found")
 
-        # 1. Extraer los códigos de referencia del producto origen
-        ref_codes = [e.code for e in source_product.equivalences if e.code]
-        if not ref_codes:
+        # 1. Normalizar el SKU origen
+        source_clean_sku = clean_code(sku)
+
+        # 2. Extraer los códigos limpios de referencia del producto origen
+        ref_codes = [e.clean_code for e in source_product.equivalences if e.clean_code]
+        
+        # Agregamos el propio SKU limpio a la lista de códigos a buscar
+        # para que si otro producto nos menciona en sus equivalencias, lo encontremos
+        search_codes = ref_codes + [source_clean_sku]
+        
+        if not search_codes:
             return {
                 "status": "success",
                 "source_sku": sku,
@@ -141,25 +150,32 @@ class DIMSService:
                 "equivalencies": []
             }
 
-        # 2. Buscar otros productos que contengan alguno de estos códigos en sus equivalencias
-        # o cuyo SKU coincida con uno de estos códigos
+        # 3. Buscar productos (excluyendo el origen) que:
+        # a) Compartan alguna equivalencia nuestra en sus propias equivalencias
+        # b) Su SKU sea uno de nuestros códigos de equivalencia
+        # c) Nos mencionen a nosotros (nuestro SKU) en sus equivalencias (Bidireccionalidad)
         query = {
             "sku": {"$ne": sku},
             "status": "AVAILABLE",
             "$or": [
-                {"equivalences.code": {"$in": ref_codes}},
+                {"equivalences.clean_code": {"$in": search_codes}},
+                {"clean_sku": {"$in": search_codes}},
+                # En caso de que no tengan clean_sku guardado todavía (compatibilidad retroactiva)
                 {"sku": {"$in": ref_codes}}
             ]
         }
 
         candidates = await Product.find(query).to_list()
         
-        # 3. Formatear la respuesta
+        # 4. Formatear la respuesta
         results = []
         for cand in candidates:
-            # Identificar por qué coinciden (qué códigos tienen en común)
-            cand_ref_codes = [e.code for e in cand.equivalences if e.code] + [cand.sku]
-            shared_codes = list(set(ref_codes) & set(cand_ref_codes))
+            # Identificar por qué coinciden
+            cand_ref_codes = [e.clean_code for e in cand.equivalences if e.clean_code]
+            cand_clean_sku = cand.clean_sku or clean_code(cand.sku)
+            cand_all_codes = cand_ref_codes + [cand_clean_sku]
+            
+            shared_codes = list(set(search_codes) & set(cand_all_codes))
             
             results.append({
                 "sku": cand.sku,
@@ -168,7 +184,7 @@ class DIMSService:
                 "category": cand.category_name,
                 "imageUrl": cand.image_url,
                 "shared_codes": shared_codes,
-                "match_type": "OEM/Direct Ref Match"
+                "match_type": "OEM/Direct Ref Match (Bidirectional)"
             })
 
         return {
