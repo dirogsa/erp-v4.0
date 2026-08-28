@@ -7,8 +7,8 @@ class StaffService:
     async def get_all_staff(
         skip: int = 0, 
         limit: int = 50, 
-        search: str = None, 
-        department: str = None,
+        search: Optional[str] = None, 
+        department: Optional[str] = None,
         active_only: bool = False
     ) -> List[Staff]:
         query = {}

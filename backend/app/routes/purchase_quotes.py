@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
 from app.models.purchasing import PurchaseQuote
 from app.services import purchasing_service
 from app.schemas.common import PaginatedResponse
@@ -10,10 +11,10 @@ router = APIRouter(prefix="/purchasing/quotes", tags=["Purchase Quotes"])
 async def get_quotes(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    search: str = None,
-    status: str = None,
-    date_from: str = None,
-    date_to: str = None
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
 ):
     return await purchasing_service.get_quotes(skip, limit, search, status, date_from, date_to)
 

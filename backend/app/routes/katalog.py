@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from typing import List, Dict
+from typing import List, Dict, Optional
 from pydantic import BaseModel
 from app.models.inventory import Product, ProductBrand, VehicleBrand, ProductCategory
 from beanie.operators import In, And, Or
@@ -13,7 +13,7 @@ class KatalogGenerateRequest(BaseModel):
     categories: List[str] = []  # category_ids
     vehicle_makes: List[str] = [] # filter by vehicle make
     skus: List[str] = []        # Si se provee, es el universo de datos. Ignora brands/categories/vehicle_makes.
-    strategy: str = None        # 'by_category' o 'by_vehicle'
+    strategy: Optional[str] = None        # 'by_category' o 'by_vehicle'
 
 class SkuValidationRequest(BaseModel):
     skus: List[str]

@@ -463,5 +463,10 @@ export const intercompanyService = {
   completeSettlement: (ids, sunatNumber) => api.post('/intercompany/complete', ids, { params: { sunat_number: sunatNumber } }),
 };
 
+export const dimsService = {
+  importBatch: (data) => api.post('/api/v1/dims/import/batch', data),
+  getEquivalencies: (sku) => api.get(`/api/v1/dims/${encodeURIComponent(sku)}/equivalencies`)
+};
+
 export default api;
 

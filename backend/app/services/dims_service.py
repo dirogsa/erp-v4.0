@@ -3,6 +3,7 @@ from app.models.inventory import Product, TechnicalSpec, MeasureType, CrossRefer
 from app.utils.normalization import clean_code
 from fastapi import HTTPException
 import logging
+from pymongo import UpdateOne
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class DIMSService:
         imported_count = 0
         updated_count = 0
         errors = []
+        bulk_ops = []
 
         for item_data in products_data:
             try:
@@ -85,35 +87,57 @@ class DIMSService:
                 # Categoría Inferida
                 category_name = "FILTRO DE AIRE" if data.get('is_filter') and 'air' in name.lower() else "OTROS"
 
-                # Upsert en Beanie (Product)
-                existing_product = await Product.find_one({"sku": sku})
-                if existing_product:
-                    existing_product.name = name
-                    existing_product.brand = brand
-                    existing_product.specs = specs
-                    existing_product.equivalences = equivalences
-                    existing_product.applications = applications
-                    existing_product.category_name = category_name
-                    await existing_product.save()
-                    updated_count += 1
-                else:
-                    new_product = Product(
-                        sku=sku,
-                        name=name,
-                        brand=brand,
-                        type=ProductType.COMMERCIAL,
-                        specs=specs,
-                        equivalences=equivalences,
-                        applications=applications,
-                        category_name=category_name,
-                        status="AVAILABLE"
+                # Crear la instancia del modelo para validación y auto-generación de defaults
+                p_data = Product(
+                    sku=sku,
+                    name=name,
+                    brand=brand,
+                    type=ProductType.COMMERCIAL,
+                    specs=specs,
+                    equivalences=equivalences,
+                    applications=applications,
+                    category_name=category_name,
+                    status="AVAILABLE"
+                )
+
+                # Forzar el hook de normalización manualmente ya que bulk_write lo ignora
+                p_data.pre_save()
+
+                product_dict = p_data.model_dump(exclude={"id"})
+
+                # ESTRATEGIA DE SOBERANÍA DE DATOS (Smart Merge)
+                protected_fields = {
+                    "stock_current", "stock_reserved", "cost", "company_data", 
+                    "loyalty_points", "points_cost", "is_temporary", "created_at"
+                }
+
+                update_data = {k: v for k, v in product_dict.items() if k not in protected_fields}
+                insert_only_data = {k: v for k, v in product_dict.items() if k in protected_fields}
+
+                bulk_ops.append(
+                    UpdateOne(
+                        {"sku": sku},
+                        {
+                            "$set": update_data,
+                            "$setOnInsert": insert_only_data
+                        },
+                        upsert=True
                     )
-                    await new_product.insert()
-                    imported_count += 1
+                )
 
             except Exception as e:
                 logger.error(f"Error procesando sku {data.get('item_code')}: {str(e)}")
                 errors.append(f"Error en {data.get('item_code')}: {str(e)}")
+
+        if bulk_ops:
+            try:
+                collection = Product.get_motor_collection()
+                result = await collection.bulk_write(bulk_ops, ordered=False)
+                imported_count = result.upserted_count
+                updated_count = result.modified_count
+            except Exception as e:
+                logger.error(f"Error en bulk_write: {str(e)}")
+                errors.append(f"Fallo catastrófico en inyección masiva: {str(e)}")
 
         return {
             "status": "success",

@@ -193,7 +193,9 @@ async def bulk_create_products(
 async def update_product(
     sku: str, 
     product_data: Product, 
-    new_stock: int = None,
+    new_stock: Optional[int] = None,
+    new_price: Optional[float] = None,
+    reason: Optional[str] = None,
     current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN])),
     company_id: str = Depends(get_current_company_id)
 ):

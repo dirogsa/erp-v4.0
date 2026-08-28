@@ -259,7 +259,7 @@ async def get_invoice(invoice_number: str) -> PurchaseInvoice:
 async def create_invoice(
     order_number: str, 
     sunat_number: Optional[str] = None, # Número del proveedor
-    invoice_date: str = None, 
+    invoice_date: Optional[str] = None, 
     payment_status: PaymentStatus = PaymentStatus.PENDING,
     amount_paid: float = 0.0,
     payment_date: Optional[str] = None,

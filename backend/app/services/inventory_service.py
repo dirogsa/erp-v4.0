@@ -401,6 +401,11 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
         if p_data.type == ProductType.COMMERCIAL:
             p_data.points_cost = 0
 
+        # Mantenibilidad y Alineación: Forzar ejecución del Motor de Normalización Global.
+        # Ya que usaremos un bulk_write crudo (PyMongo) y los @before_event de Beanie son ignorados,
+        # invocamos pre_save manualmente para inyectar clean_sku y canonical_sku.
+        p_data.pre_save()
+
         # En Beanie/Motor, convertimos el modelo a dict para pymongo
         product_dict = p_data.model_dump(exclude={"id"})
         

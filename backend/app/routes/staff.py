@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
-from typing import List
+from typing import List, Optional
 from ..models.staff import Staff, StaffCreate, StaffUpdate
 from ..services.staff_service import StaffService
 from ..routes.auth import check_role
@@ -11,8 +11,8 @@ router = APIRouter(prefix="/staff", tags=["Staff Management"])
 async def get_staff_list(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    search: str = None,
-    department: str = None,
+    search: Optional[str] = None,
+    department: Optional[str] = None,
     active_only: bool = False
 ):
     return await StaffService.get_all_staff(skip, limit, search, department, active_only)

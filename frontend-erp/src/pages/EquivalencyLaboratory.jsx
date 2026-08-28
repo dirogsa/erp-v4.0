@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { dimsService } from '../services/api';
+import { useNotification } from '../contexts/NotificationContext';
 
 const EquivalencyLaboratory = () => {
+  const { showNotification } = useNotification();
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -42,12 +42,13 @@ const EquivalencyLaboratory = () => {
 
     try {
       // Send to backend
-      const response = await axios.post(`${API_URL}/api/v1/dims/import/batch`, parsedData);
+      const response = await dimsService.importBatch(parsedData);
       setProgress(100);
       setResults(response.data);
+      showNotification('Importación masiva procesada exitosamente', 'success');
     } catch (error) {
       console.error('Error uploading batch:', error);
-      alert('Error en la importación batch');
+      showNotification(error.message || 'Error en la importación batch', 'error');
     } finally {
       setIsUploading(false);
     }
@@ -58,11 +59,12 @@ const EquivalencyLaboratory = () => {
     setIsSearching(true);
     setEquivResults(null);
     try {
-      const response = await axios.get(`${API_URL}/api/v1/dims/${encodeURIComponent(searchSku.trim())}/equivalencies`);
+      const response = await dimsService.getEquivalencies(searchSku.trim());
       setEquivResults(response.data);
+      showNotification('Búsqueda completada', 'success');
     } catch (error) {
       console.error('Error fetching equivalencies:', error);
-      alert('Error buscando equivalencias. Asegúrate de que el SKU exista.');
+      showNotification(error.message || 'Error buscando equivalencias. Asegúrate de que el SKU exista.', 'error');
     } finally {
       setIsSearching(false);
     }

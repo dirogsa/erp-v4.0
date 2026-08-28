@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
 from app.models.sales import SalesQuote
 from app.services import sales_quotes_service
 from app.schemas.common import PaginatedResponse
@@ -10,11 +11,11 @@ router = APIRouter(prefix="/sales/quotes", tags=["Sales Quotes"])
 async def get_quotes(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    search: str = None,
-    status: str = None,
-    source: str = None,
-    date_from: str = None,
-    date_to: str = None
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    source: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
 ):
     return await sales_quotes_service.get_quotes(skip, limit, search, status, source, date_from, date_to)
 

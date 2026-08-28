@@ -208,7 +208,7 @@ class ProductCategory(Document):
 
 class Product(Document):
     sku: Indexed(str)
-    clean_sku: Indexed(str) = None
+    clean_sku: Optional[Indexed(str)] = None
     name: str 
     brand: str = "N/A"
     description: Optional[str] = None
