@@ -1,13 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
 import { trackEvent } from '@/lib/tracking';
 
-export default function AddToCartModule({ product, isAuthenticated }) {
+export default function AddToCartModule({ product }) {
+  const { isAuthenticated, user } = useAuthStore();
+  const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const addItem = useCartStore((state) => state.addItem);
   const [showToast, setShowToast] = useState(false);
+
+  // Evitar hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleAddToCart = () => {
     // 1. Añadir al Store global
@@ -38,13 +46,14 @@ export default function AddToCartModule({ product, isAuthenticated }) {
   };
 
   const hasStock = product.stock > 0;
+  const isUser = mounted && isAuthenticated;
 
   return (
     <div className="relative pt-2">
       
       <div className="relative z-10">
         {/* Lógica de Visualización B2B vs Guest */}
-        {isAuthenticated ? (
+        {isUser ? (
           <>
             <div className="flex items-center gap-3 mb-3">
               <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Precio Unitario</span>
@@ -55,11 +64,16 @@ export default function AddToCartModule({ product, isAuthenticated }) {
                 </span>
               )}
             </div>
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-5xl font-black text-white">
-                {product.currency === 'PEN' ? 'S/' : '$'} {Number(product.price).toFixed(2)}
-              </span>
-            </div>
+            <p className="text-3xl font-black text-white tracking-tighter">
+              {product.price > 0 ? (
+                <>
+                  <span className="text-xl text-white/50 font-medium mr-1">{product.currency || 'S/'}</span>
+                  {product.price.toFixed(2)}
+                </>
+              ) : (
+                'Consultar Precio'
+              )}
+            </p>
             <p className="text-xs text-white/40 mb-6">Incl. IGV · Precio para clientes registrados</p>
           </>
         ) : (

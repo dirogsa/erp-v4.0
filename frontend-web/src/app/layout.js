@@ -7,6 +7,7 @@ import DiroWidget from '@/components/DiroWidget';
 import TrackingLink from '@/components/TrackingLink';
 import Script from 'next/script';
 import { GoogleTagManager, GoogleAnalytics } from '@next/third-parties/google';
+import HeaderAuth from '@/components/HeaderAuth';
 
 const inter = Inter({ subsets: ['latin'], weight: ['400','500','600','700','800','900'] });
 
@@ -143,17 +144,12 @@ export default function RootLayout({ children }) {
               <Link href="/catalog" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Catálogo</Link>
               <Link href="/brand" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Marcas</Link>
               <div className="h-6 w-px bg-white/10" />
-              <Link href="/login" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition-colors" aria-label="Acceso Mayorista">
-                <UserIcon className="h-5 w-5" />
-                <span className="text-sm font-bold">Portal Mayorista</span>
-              </Link>
+              <HeaderAuth />
             </nav>
 
             {/* Acciones Rápidas Móvil (Visibles solo en móvil) */}
             <div className="flex md:hidden items-center gap-2">
-              <Link href="/login" className="h-10 w-10 rounded-full bg-white/5 border border-brand-primary/30 flex items-center justify-center text-brand-primary active:bg-brand-primary/10 transition-colors" aria-label="Portal Mayorista">
-                <UserIcon className="h-5 w-5" />
-              </Link>
+              <HeaderAuth />
             </div>
           </div>
         </header>
