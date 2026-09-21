@@ -27,9 +27,18 @@ const Table = ({
         );
     }
 
+    const getRowKey = (row, index) => {
+        if (typeof keyField === 'function') {
+            const key = keyField(row);
+            if (key !== undefined && key !== null) return key;
+        }
+        const key = row?.[keyField] ?? row?.id ?? row?._id ?? row?.code ?? row?.sku;
+        return (key !== undefined && key !== null) ? key : `row-fallback-${index}`;
+    };
+
     const handleSelectAll = (e) => {
         if (!onSelectionChange) return;
-        const pageIds = data.map(row => row[keyField] || row._id);
+        const pageIds = data.map((row, idx) => getRowKey(row, idx));
         if (e.target.checked) {
             // Add all items from current page to the selection (avoiding duplicates)
             const newSelection = [...new Set([...selectedKeys, ...pageIds])];
@@ -41,16 +50,26 @@ const Table = ({
         }
     };
 
-    const handleSelectRow = (e, row) => {
+    const handleSelectRow = (e, row, rowIndex) => {
         e.stopPropagation();
         if (!onSelectionChange) return;
-        const key = row[keyField] || row._id;
+        const key = getRowKey(row, rowIndex);
         if (e.target.checked) {
-            onSelectionChange([...selectedKeys, key]);
+            const nextKeys = Array.from(new Set([...selectedKeys, key]));
+            onSelectionChange(nextKeys);
         } else {
             onSelectionChange(selectedKeys.filter(k => k !== key));
         }
     };
+
+    const allInPage = data.length > 0 && data.every((row, idx) => {
+        const key = getRowKey(row, idx);
+        return key && selectedKeys.includes(key);
+    });
+    const someInPage = data.some((row, idx) => {
+        const key = getRowKey(row, idx);
+        return key && selectedKeys.includes(key);
+    });
 
     return (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -63,12 +82,10 @@ const Table = ({
                                 onChange={handleSelectAll}
                                 ref={(el) => {
                                     if (el) {
-                                        const allInPage = data.every(row => selectedKeys.includes(row[keyField] || row._id));
-                                        const someInPage = data.some(row => selectedKeys.includes(row[keyField] || row._id));
                                         el.indeterminate = someInPage && !allInPage;
                                     }
                                 }}
-                                checked={data.length > 0 && data.every(row => selectedKeys.includes(row[keyField] || row._id))}
+                                checked={allInPage}
                                 style={{ cursor: 'pointer' }}
                             />
                         </th>
@@ -94,8 +111,8 @@ const Table = ({
             </thead>
             <tbody>
                 {data.map((row, rowIndex) => {
-                    const rowKey = row[keyField] || row._id;
-                    const isSelected = selectedKeys.includes(rowKey);
+                    const rowKey = getRowKey(row, rowIndex);
+                    const isSelected = !!rowKey && selectedKeys.includes(rowKey);
                     
                     return (
                         <tr
@@ -118,17 +135,23 @@ const Table = ({
                             }}
                         >
                             {enableSelection && (
-                                <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155', width: '40px' }}>
+                                <td 
+                                    style={{ padding: '0.75rem', borderBottom: '1px solid #334155', width: '40px', verticalAlign: 'middle', textAlign: 'center' }}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     <input 
                                         type="checkbox" 
                                         className="row-checkbox"
                                         checked={isSelected}
-                                        onChange={(e) => handleSelectRow(e, row)}
                                         onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) => handleSelectRow(e, row, rowIndex)}
                                         style={{ 
                                             cursor: 'pointer',
-                                            opacity: isSelected ? '1' : '0',
-                                            transition: 'opacity 0.2s ease-in-out'
+                                            width: '16px',
+                                            height: '16px',
+                                            accentColor: '#3b82f6',
+                                            transition: 'all 0.2s ease-in-out',
+                                            opacity: isSelected ? '1' : '0.4'
                                         }}
                                     />
                                 </td>

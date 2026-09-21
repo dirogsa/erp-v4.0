@@ -321,15 +321,12 @@ const ProductsTable = ({
             key: 'actions',
             align: 'center',
             render: (_, product) => (
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                     <Button size="small" variant="secondary" onClick={(e) => { e.stopPropagation(); onView(product); }}>
                         Ver
                     </Button>
                     <Button size="small" variant="warning" onClick={(e) => { e.stopPropagation(); onEdit(product); }}>
                         Editar
-                    </Button>
-                    <Button size="small" variant="danger" onClick={(e) => { e.stopPropagation(); onDelete(product); }}>
-                        ✕
                     </Button>
                 </div>
             )
@@ -346,7 +343,7 @@ const ProductsTable = ({
             enableSelection={true}
             selectedKeys={selectedIds}
             onSelectionChange={onSelectionChange}
-            keyField="_id"
+            keyField={(p) => p.id || p._id || p.sku}
         />
     );
 };

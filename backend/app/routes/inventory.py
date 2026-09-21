@@ -209,6 +209,38 @@ async def delete_product(
     await inventory_service.delete_product(sku, user=current_user)
     return {"message": "Product deleted successfully"}
 
+class BulkDeletePayload(BaseModel):
+    product_ids: List[str]
+
+@router.post("/products/bulk-delete")
+async def bulk_delete_products(
+    payload: BulkDeletePayload,
+    current_user: User = Depends(check_role([UserRole.ADMIN, UserRole.SUPERADMIN]))
+):
+    count = await inventory_service.bulk_delete_products(payload.product_ids, user=current_user)
+    return {"message": f"{count} products deleted successfully", "deleted": count}
+
+class PromoteProductPayload(BaseModel):
+    initial_price: Optional[float] = 0.0
+
+@router.post("/products/{sku}/promote", response_model=Product)
+async def promote_product(
+    sku: str,
+    payload: Optional[PromoteProductPayload] = None,
+    current_user: User = Depends(check_role([UserRole.STOCK_MANAGER, UserRole.ADMIN, UserRole.SUPERADMIN])),
+    company_id: str = Depends(get_current_company_id)
+):
+    """
+    Promueve un nodo de referencia técnica (REFERENCE) a producto comercial oficial (COMMERCIAL).
+    """
+    price = payload.initial_price if payload else 0.0
+    return await inventory_service.promote_product_to_commercial(
+        sku=sku, 
+        initial_price=price, 
+        user=current_user, 
+        company_id=company_id
+    )
+
 from app.services.tecdoc_merge import enrich_product_with_tecdoc, sync_product_brands_from_product
 
 @router.post("/products/{sku}/enrich")
@@ -383,8 +415,22 @@ async def bulk_set_visibility(
     
     # Construir filtro de MongoDB
     if payload.product_ids:
-        # Si se pasan IDs específicos, ignoramos los filtros generales de tipo/precio
-        mongo_filter = {"_id": {"$in": [PydanticObjectId(pid) for pid in payload.product_ids]}}
+        # Soporta tanto IDs de MongoDB como SKUs de forma segura
+        obj_ids = []
+        sku_ids = []
+        for pid in payload.product_ids:
+            try:
+                obj_ids.append(PydanticObjectId(pid))
+            except Exception:
+                sku_ids.append(pid)
+        
+        filter_conditions = []
+        if obj_ids:
+            filter_conditions.append({"_id": {"$in": obj_ids}})
+        if sku_ids:
+            filter_conditions.append({"sku": {"$in": sku_ids}})
+        
+        mongo_filter = {"$or": filter_conditions} if len(filter_conditions) > 1 else (filter_conditions[0] if filter_conditions else {"_id": {"$in": []}})
     else:
         # Filtro general por criterios
         mongo_filter: dict = {

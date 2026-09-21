@@ -41,6 +41,7 @@ export const MENU_CONFIG = [
         children: [
             { id: 'sales', label: 'Ventas y Facturación', path: '/sales', icon: '🛍️' },
             { id: 'customers', label: 'Cartera de Clientes (CRM)', path: '/customers', icon: '👥' },
+            { id: 'pricing-strategy', label: 'Estrategia y Listas de Precios', path: '/pricing-strategy', icon: '🏷️' },
             { id: 'catalog', label: 'Catálogo Industrial', path: '/catalog', icon: '📖' },
             { id: 'b2b-apps', label: 'Solicitudes B2B', path: '/b2b', icon: '📩' }
         ]

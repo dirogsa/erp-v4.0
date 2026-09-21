@@ -5,6 +5,8 @@ import { useNotification } from '../hooks/useNotification';
 import { useQuery } from '@tanstack/react-query';
 import Button from '../components/common/Button';
 import Table from '../components/common/Table';
+import CrudPageTemplate from '../components/common/Crud/CrudPageTemplate';
+import CrudToolbar from '../components/common/Crud/CrudToolbar';
 
 const Companies = () => {
     const { companies, activeCompany, switchCompany, refreshCompanies } = useCompany();
@@ -12,6 +14,7 @@ const Companies = () => {
     const [loading, setLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCompany, setEditingCompany] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
     
     const [formData, setFormData] = useState({
         name: '', ruc: '', address: '', phone: '', email: '',
@@ -134,20 +137,38 @@ const Companies = () => {
         }
     ];
 
+    const filteredCompanies = companies.filter(c => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (
+            c.name?.toLowerCase().includes(term) ||
+            c.ruc?.includes(term) ||
+            c.email?.toLowerCase().includes(term)
+        );
+    });
+
+    const headerActions = (
+        <Button onClick={() => handleOpenModal()} variant="primary">+ Nueva Empresa</Button>
+    );
+
     return (
-        <div className="companies-container">
-            <header className="page-header">
-                <div>
-                    <h1>Gestión de Empresas</h1>
-                    <p className="subtitle">Administra las entidades legales y configuraciones corporativas</p>
-                </div>
-                <Button onClick={() => handleOpenModal()} variant="primary">+ Nueva Empresa</Button>
-            </header>
+        <CrudPageTemplate
+            title="Gestión de Empresas"
+            subtitle="Administra las entidades legales, soberanía corporativa y configuraciones fiscales"
+            headerActions={headerActions}
+        >
+            <CrudToolbar
+                selectedIds={[]}
+                totalItems={filteredCompanies.length}
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
+                searchPlaceholder="🔍 Buscar empresa por Razón Social o RUC..."
+            />
 
             <div className="table-wrapper">
                 <Table
                     columns={columns}
-                    data={companies}
+                    data={filteredCompanies}
                     emptyMessage="No hay empresas registradas"
                 />
             </div>
@@ -370,7 +391,7 @@ const Companies = () => {
                     100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
                 }
             `}} />
-        </div>
+        </CrudPageTemplate>
     );
 };
 

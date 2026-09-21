@@ -153,6 +153,7 @@ export const inventoryService = {
     api.post(`/inventory/products/bulk?update_existing=${updateExisting}`, products, { timeout: 120000 }),
   generateMarketingSku: () => api.get('/inventory/generate-marketing-sku'),
   deleteProduct: (sku) => api.delete(`/inventory/products/${sku}`),
+  bulkDeleteProducts: (product_ids) => api.post('/inventory/products/bulk-delete', { product_ids }),
   updateProduct: (sku, product, new_stock = null) => {
     const params = new_stock !== null ? `?new_stock=${new_stock}` : '';
     return api.put(`/inventory/products/${sku}${params}`, product);
@@ -465,7 +466,9 @@ export const intercompanyService = {
 
 export const dimsService = {
   importBatch: (data) => api.post('/api/v1/dims/import/batch', data),
-  getEquivalencies: (sku) => api.get(`/api/v1/dims/${encodeURIComponent(sku)}/equivalencies`)
+  getEquivalencies: (sku) => api.get(`/api/v1/dims/${encodeURIComponent(sku)}/equivalencies`),
+  getReferenceProducts: (page = 1, limit = 50, search = '', brand = '') => 
+    api.get('/api/v1/dims/products', { params: { page, limit, search, brand } })
 };
 
 export default api;

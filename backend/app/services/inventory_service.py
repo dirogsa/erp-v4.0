@@ -113,6 +113,9 @@ async def get_products(
 
     if product_type:
         query["type"] = product_type
+    else:
+        # Aislamiento Arquitectónico: Ocultar referencias puras de la UI comercial
+        query["type"] = {"$ne": ProductType.REFERENCE}
 
     # Filtros Especiales de Depuración (Clase Mundial)
     if filter_unrecognized:
@@ -141,8 +144,10 @@ async def get_products(
     
     items = []
     for db_item in db_items:
-        # Pydantic doesn't serialize ObjectId natively easily in **kwargs, pop it.
-        db_item.pop("_id", None)
+        # Convertir ObjectId a string 'id' para serialización limpia y selección unívoca en UI
+        raw_id = db_item.pop("_id", None)
+        if raw_id:
+            db_item["id"] = str(raw_id)
         
         # Inyectar Stock/Costo Soberano si aplica
         if inventory_mode == "SOVEREIGN" and company_id and company_id in db_item.get("company_data", {}):
@@ -444,13 +449,14 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
         
         # Nota: p_data.id podría no estar disponible hasta el bulk_write
 
-    # 4. Ejecución Masiva en un solo Round-trip
+    # 4. Ejecución Masiva en Chunks Protectores (1,000 operaciones por lote)
+    CHUNK_SIZE = 1000
     if bulk_ops:
-        result = await collection.bulk_write(bulk_ops, ordered=False)
-        created_count = result.upserted_count
-        updated_count = result.modified_count
-        # Nota: En ReplaceOne con upsert, si no existe cuenta como upserted. Si existe y cambia, como modified.
-        # Si existe y es IDÉNTICO, modified_count será 0.
+        for i in range(0, len(bulk_ops), CHUNK_SIZE):
+            chunk = bulk_ops[i:i + CHUNK_SIZE]
+            result = await collection.bulk_write(chunk, ordered=False)
+            created_count += result.upserted_count
+            updated_count += result.modified_count
 
     if user:
         action_desc = f"Procesamiento Masivo ERP: {len(products)} ítems (BulkWrite OK)"
@@ -493,7 +499,9 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
                     )
                 )
         if price_ops:
-            await price_collection.bulk_write(price_ops, ordered=False)
+            for i in range(0, len(price_ops), CHUNK_SIZE):
+                price_chunk = price_ops[i:i + CHUNK_SIZE]
+                await price_collection.bulk_write(price_chunk, ordered=False)
 
     return {
         "created": created_count,
@@ -582,6 +590,87 @@ async def delete_product(sku: str, user: Optional[User] = None) -> bool:
     await product.delete()
     asyncio.create_task(trigger_nextjs_revalidation("products"))
     return True
+
+async def bulk_delete_products(product_ids: List[str], user: Optional[User] = None) -> int:
+    obj_ids = []
+    sku_ids = []
+    for pid in product_ids:
+        try:
+            obj_ids.append(PydanticObjectId(pid))
+        except Exception:
+            sku_ids.append(pid)
+
+    filter_conditions = []
+    if obj_ids:
+        filter_conditions.append({"_id": {"$in": obj_ids}})
+    if sku_ids:
+        filter_conditions.append({"sku": {"$in": sku_ids}})
+
+    if not filter_conditions:
+        return 0
+
+    mongo_filter = {"$or": filter_conditions} if len(filter_conditions) > 1 else filter_conditions[0]
+    products = await Product.find(mongo_filter).to_list()
+    if not products:
+        return 0
+    
+    skus = [p.sku for p in products]
+    
+    if user:
+        for product in products:
+            await AuditService.log_action(
+                user=user,
+                action="DELETE",
+                module="INVENTORY",
+                description=f"Se eliminó permanentemente el producto {product.sku} (Borrado Masivo)",
+                entity_id=str(product.id),
+                entity_name=product.sku
+            )
+            
+    await Product.find(mongo_filter).delete()
+    
+    # Eliminar precios asociados a los SKUs
+    from app.models.pricing import PriceEntry
+    await PriceEntry.find({"sku": {"$in": skus}}).delete()
+    
+    asyncio.create_task(trigger_nextjs_revalidation("products"))
+    return len(products)
+
+async def promote_product_to_commercial(
+    sku: str, 
+    initial_price: float = 0.0, 
+    user: Optional[User] = None, 
+    company_id: Optional[str] = None
+) -> Product:
+    """
+    Promueve un registro puramente relacional (ProductType.REFERENCE) a producto vendible (ProductType.COMMERCIAL).
+    Inicializa precio en Matrix y activa visibilidad en tienda sin duplicar registros.
+    """
+    product = await Product.find_one({"sku": sku})
+    if not product:
+        raise NotFoundException("Product", sku)
+    
+    product.type = ProductType.COMMERCIAL
+    product.is_active_in_shop = True
+    product.status = ProductStatus.AVAILABLE
+    await product.save()
+
+    # Guardar precio inicial si se provee
+    if initial_price > 0:
+        await save_price_to_matrix(product.id, product.sku, initial_price)
+
+    if user:
+        await AuditService.log_action(
+            user=user,
+            action="PROMOTE",
+            module="INVENTORY",
+            description=f"Se promovió el producto {sku} de REFERENCE a COMMERCIAL",
+            entity_id=str(product.id),
+            entity_name=sku
+        )
+
+    asyncio.create_task(trigger_nextjs_revalidation("products"))
+    return product
 
 async def adjust_stock(sku: str, new_quantity: int, notes: str, movement_type: Any = None, company_id: Optional[str] = None) -> Any:
     if movement_type is None:

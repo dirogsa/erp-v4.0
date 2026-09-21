@@ -32,6 +32,21 @@ async def get_dimensional_alternatives(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en el motor DIMS: {str(e)}")
 
+@router.get("/products", response_model=Dict[str, Any])
+async def get_dims_products(
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=500),
+    search: str = Query("", description="Término de búsqueda"),
+    brand: str = Query("", description="Filtro por marca")
+):
+    """
+    Retorna la lista de productos relacionales / referencias técnicas cargadas en el motor DIMS.
+    """
+    try:
+        return await DIMSService.get_reference_products(page=page, limit=limit, search=search, brand=brand)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listando referencias DIMS: {str(e)}")
+
 @router.get("/{sku}/equivalencies", response_model=Dict[str, Any])
 async def get_direct_equivalencies(
     sku: str = Path(..., description="El SKU del producto para buscar equivalencias directas"),
@@ -40,9 +55,6 @@ async def get_direct_equivalencies(
     Motor de Equivalencias (Algoritmo 3): Encuentra cruces directos basados en códigos OEM y Aftermarket.
     """
     try:
-        results = await DIMSService.get_direct_equivalencies(sku)
-        return results
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        return await DIMSService.get_direct_equivalencies(sku)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en algoritmo de equivalencias: {str(e)}")

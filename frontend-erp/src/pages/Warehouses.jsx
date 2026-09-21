@@ -4,6 +4,8 @@ import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import Table from '../components/common/Table';
 import Modal from '../components/Modal';
+import CrudPageTemplate from '../components/common/Crud/CrudPageTemplate';
+import CrudToolbar from '../components/common/Crud/CrudToolbar';
 import { useNotification } from '../hooks/useNotification';
 import { Trash2, Edit, Plus } from 'lucide-react';
 
@@ -13,6 +15,8 @@ const Warehouses = () => {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingWarehouse, setEditingWarehouse] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCodes, setSelectedCodes] = useState([]);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -39,6 +43,16 @@ const Warehouses = () => {
             setLoading(false);
         }
     };
+
+    const filteredWarehouses = warehouses.filter(w => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (
+            w.name?.toLowerCase().includes(term) ||
+            w.code?.toLowerCase().includes(term) ||
+            w.address?.toLowerCase().includes(term)
+        );
+    });
 
     const handleOpenModal = (warehouse = null) => {
         if (warehouse) {
@@ -138,51 +152,69 @@ const Warehouses = () => {
             key: 'actions',
             align: 'right',
             render: (_, wh) => (
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
                     <button
                         onClick={(e) => { e.stopPropagation(); handleOpenModal(wh); }}
-                        style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #334155', cursor: 'pointer', backgroundColor: '#1e293b' }}
+                        style={{ padding: '0.5rem 0.75rem', borderRadius: '0.35rem', border: '1px solid #334155', cursor: 'pointer', backgroundColor: '#1e293b', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#cbd5e1', fontSize: '0.8rem' }}
                     >
-                        <Edit size={16} color="#94a3b8" />
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(wh.code); }}
-                        style={{ padding: '0.5rem', borderRadius: '0.25rem', border: '1px solid #991b1b33', cursor: 'pointer', backgroundColor: '#991b1b33' }}
-                    >
-                        <Trash2 size={16} color="#ef4444" />
+                        <Edit size={14} color="#94a3b8" />
+                        Editar
                     </button>
                 </div>
             )
         }
     ];
 
-    return (
-        <div style={{ padding: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', color: 'white' }}>Almacenes</h1>
-                    <p style={{ color: '#94a3b8' }}>Gestión de ubicaciones de inventario</p>
-                </div>
-                <Button onClick={() => handleOpenModal()}>
-                    <Plus size={20} style={{ marginRight: '0.5rem' }} />
-                    Nuevo Almacén
-                </Button>
-            </div>
+    const headerActions = (
+        <Button onClick={() => handleOpenModal()}>
+            <Plus size={20} style={{ marginRight: '0.5rem' }} />
+            Nuevo Almacén
+        </Button>
+    );
 
-            <div style={{
-                backgroundColor: '#1e293b',
-                borderRadius: '0.5rem',
-                border: '1px solid #334155',
-                overflow: 'hidden',
-                padding: '1rem'
-            }}>
-                <Table
-                    columns={columns}
-                    data={warehouses}
-                    loading={loading}
-                    emptyMessage="No hay almacenes registrados"
-                />
-            </div>
+    return (
+        <CrudPageTemplate
+            title="Almacenes"
+            subtitle="Gestión y control de ubicaciones de inventario y sucursales"
+            headerActions={headerActions}
+        >
+            <CrudToolbar
+                selectedIds={selectedCodes}
+                onClearSelection={() => setSelectedCodes([])}
+                totalItems={filteredWarehouses.length}
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
+                searchPlaceholder="🔍 Buscar almacén por código, nombre o dirección..."
+                bulkActions={[
+                    {
+                        label: 'Eliminar',
+                        icon: '🗑️',
+                        variant: 'danger',
+                        onClick: async (codes) => {
+                            if (window.confirm(`¿Estás seguro de eliminar los ${codes.length} almacenes seleccionados?`)) {
+                                for (const code of codes) {
+                                    try {
+                                        await inventoryService.deleteWarehouse(code);
+                                    } catch (err) {}
+                                }
+                                setSelectedCodes([]);
+                                loadWarehouses();
+                            }
+                        }
+                    }
+                ]}
+            />
+
+            <Table
+                columns={columns}
+                data={filteredWarehouses}
+                loading={loading}
+                emptyMessage="No hay almacenes registrados"
+                enableSelection={true}
+                selectedKeys={selectedCodes}
+                onSelectionChange={setSelectedCodes}
+                keyField="code"
+            />
 
             <Modal
                 isOpen={showModal}
@@ -245,7 +277,7 @@ const Warehouses = () => {
                     </div>
                 </form>
             </Modal>
-        </div>
+        </CrudPageTemplate>
     );
 };
 

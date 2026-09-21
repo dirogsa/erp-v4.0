@@ -21,7 +21,7 @@ export const useCustomers = () => {
     // Búsqueda por RUC (suele ser al vuelo, no siempre cacheable globalmente)
     const getCustomerByRuc = async (ruc) => {
         try {
-            const response = await salesService.getCustomerByRuc(ruc);
+            const response = await salesService.getCustomerByNumber(ruc);
             return response.data;
         } catch (err) {
             // El error 404 es esperado cuando el RUC es nuevo

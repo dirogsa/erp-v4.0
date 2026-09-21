@@ -31,7 +31,8 @@ export const parseSunatHTML = (text) => {
 
     // 2. Extracción de Identidad (RUC y Nombre)
     // Patrón A: "RUC: 2060... - NOMBRE"
-    const rucNameMatch = normalizedText.match(/(\d{11})\s*-\s*([^<]+?)(?=\s{2,}|<|$)/i);
+    // Stop capturing name at double space, HTML tags, or known next fields like "Tipo Contribuyente"
+    const rucNameMatch = normalizedText.match(/(\d{11})\s*-\s*(.+?)(?=\s{2,}|<|Tipo Contribuyente|$)/i);
     if (rucNameMatch) {
         data.document_number = rucNameMatch[1];
         data.name = cleanValue(rucNameMatch[2]);
@@ -42,7 +43,7 @@ export const parseSunatHTML = (text) => {
         
         // Patrón C: Nombre aislado (después de RUC)
         if (data.document_number) {
-            const nameMatch = normalizedText.match(new RegExp(`${data.document_number}\\s*-\\s*([^<]+)`, 'i'));
+            const nameMatch = normalizedText.match(new RegExp(`${data.document_number}\\s*-\\s*(.+?)(?=\\s{2,}|<|Tipo Contribuyente|$)`, 'i'));
             if (nameMatch) data.name = cleanValue(nameMatch[1]);
         }
     }

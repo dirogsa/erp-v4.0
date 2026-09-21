@@ -81,10 +81,9 @@ const ReceiptHeader = ({
                 </div>
             </div>
 
-            {/* Fila compacta: Datos del Cliente / Proveedor (Alineación SUNAT) */}
             <div className="receipt-details-grid">
                 <div className="receipt-customer-col">
-                    <div className="customer-row">
+                    <div className="customer-row-left">
                         <span className="label">
                             <Calendar size={10} style={{ marginRight: '6px', color: '#64748b' }} />
                             Fecha de Emisión
@@ -92,7 +91,7 @@ const ReceiptHeader = ({
                         <span className="label-colon">:</span>
                         <span className="value">{formatDate(documentDate)}</span>
                     </div>
-                    <div className="customer-row">
+                    <div className="customer-row-left">
                         <span className="label">
                             <User size={10} style={{ marginRight: '6px', color: '#64748b' }} />
                             {partyType}(es)
@@ -100,7 +99,7 @@ const ReceiptHeader = ({
                         <span className="label-colon">:</span>
                         <span className="value" style={{ fontWeight: '600' }}>{customerName || '-'}</span>
                     </div>
-                    <div className="customer-row">
+                    <div className="customer-row-left">
                         <span className="label">
                             <Building2 size={10} style={{ marginRight: '6px', color: '#64748b' }} />
                             RUC / DNI
@@ -108,7 +107,7 @@ const ReceiptHeader = ({
                         <span className="label-colon">:</span>
                         <span className="value">{customerRuc || '-'}</span>
                     </div>
-                    <div className="customer-row">
+                    <div className="customer-row-left">
                         <span className="label">
                             <MapPin size={10} style={{ marginRight: '6px', color: '#64748b' }} />
                             Dirección
@@ -117,7 +116,7 @@ const ReceiptHeader = ({
                         <span className="value">{customerAddress || '-'}</span>
                     </div>
                     {requestedBy?.name && (
-                        <div className="customer-row">
+                        <div className="customer-row-left">
                             <span className="label">
                                 <Phone size={10} style={{ marginRight: '6px', color: '#64748b' }} />
                                 Contacto / Ref.
@@ -132,7 +131,7 @@ const ReceiptHeader = ({
 
                 {/* Columna Derecha: Metadatos adicionales */}
                 <div className="receipt-meta-col" style={{ minWidth: '45mm' }}>
-                    <div className="customer-row">
+                    <div className="customer-row-right">
                         <span className="label">
                             <DollarSign size={10} style={{ marginRight: '6px', color: '#64748b' }} />
                             Moneda
@@ -140,7 +139,7 @@ const ReceiptHeader = ({
                         <span className="label-colon">:</span>
                         <span className="value">{currency}</span>
                     </div>
-                    <div className="customer-row">
+                    <div className="customer-row-right">
                         <span className="label">
                             <Wallet size={10} style={{ marginRight: '6px', color: '#64748b' }} />
                             Pago

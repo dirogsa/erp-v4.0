@@ -36,3 +36,15 @@ Todos los portales (Web B2B y ERP Interno) se autentican contra el mismo backend
 1. **Lógica Aislada:** La UI nunca hace peticiones HTTP directas. Todo formulario llama a su `auth.service.js` (o AuthContext), encargado de validar roles, errores de red y persistir tokens.
 2. **Prevención de Sobrecarga (Loading State):** La UI es responsable de manejar un estado local `loading` (booleano) que deshabilita los botones de acción (Ej. `disabled={loading}`) e indica visualmente el proceso ("Verificando..."). Esto previene el doble-click accidental y la sobrecarga de peticiones al backend.
 
+---
+
+## Estándares de Diseño UI / Frontend (ERP)
+
+Para asegurar uniformidad, profesionalismo y escalabilidad en el sistema ERP, cualquier nueva interfaz de gestión de datos (Inventario, Clientes, Empleados, etc.) DEBE construirse utilizando el Motor Gráfico CRUD Reutilizable.
+
+### Componentes de Nivel Empresarial:
+1. **`CrudPageTemplate`**: (Ubicado en `src/components/common/Crud/CrudPageTemplate.jsx`). Es la plantilla (Layout) base de cualquier módulo. Estandariza el Título, Subtítulo, las pestañas de navegación (`tabs`) y los botones de acción principales (`headerActions`).
+2. **`CrudToolbar`**: (Ubicado en `src/components/common/Crud/CrudToolbar.jsx`). Es la barra inteligente de búsqueda y gestión masiva. Alterna automáticamente entre el cuadro de búsqueda (estado de reposo) y un panel flotante de comandos masivos (cuando se seleccionan 1 o más filas).
+3. **`Table`**: (Ubicado en `src/components/common/Table.jsx`). Es el componente estándar para el pintado de grillas, con soporte nativo para `selectedKeys` y detención inteligente de eventos (`stopPropagation`) para evitar colisiones entre el "Check" y el "Click de Fila". Integra un resolvedor universal `getRowKey` que extrae `id`, `_id`, `sku` o `code` de forma transparente y previene selecciones cruzadas o falsos positivos con claves no definidas.
+
+**Regla de Oro:** **Jamás** se debe construir una barra de acciones masivas flotante, o una cabecera de página de forma manual dentro de los archivos de página (`src/pages/*.jsx`). Toda nueva vista debe importar e implementar el `CrudPageTemplate` con su `CrudToolbar` respectivo.

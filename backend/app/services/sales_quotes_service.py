@@ -16,10 +16,13 @@ async def get_quotes(
     status: Optional[str] = None,
     source: Optional[str] = None,
     date_from: Optional[str] = None,
-    date_to: Optional[str] = None
+    date_to: Optional[str] = None,
+    company_id: Optional[str] = None
 ) -> PaginatedResponse[SalesQuote]:
 
     query = {}
+    if company_id:
+        query["company_id"] = company_id
     
     if search:
         query["$or"] = [
@@ -52,8 +55,11 @@ async def get_quotes(
         size=limit
     )
 
-async def get_quote(quote_number: str) -> SalesQuote:
-    quote = await SalesQuote.find_one(SalesQuote.quote_number == quote_number)
+async def get_quote(quote_number: str, company_id: Optional[str] = None) -> SalesQuote:
+    query = {"quote_number": quote_number}
+    if company_id:
+        query["company_id"] = company_id
+    quote = await SalesQuote.find_one(query)
     if not quote:
         raise NotFoundException("Quote", quote_number)
     return quote
@@ -67,7 +73,11 @@ async def create_quote(quote: SalesQuote) -> SalesQuote:
     year_prefix = datetime.now().strftime('%y')
     prefix = f"CV-{year_prefix}"
     
-    last_quote = await SalesQuote.find({"quote_number": {"$regex": f"^{prefix}"}}).sort("-quote_number").limit(1).to_list()
+    query = {"quote_number": {"$regex": f"^{prefix}"}}
+    if quote.company_id:
+        query["company_id"] = quote.company_id
+        
+    last_quote = await SalesQuote.find(query).sort("-quote_number").limit(1).to_list()
     
     if last_quote and last_quote[0].quote_number:
         try:
@@ -106,8 +116,8 @@ async def create_quote(quote: SalesQuote) -> SalesQuote:
     await quote.insert()
     return quote
 
-async def update_quote(quote_number: str, quote_data: SalesQuote) -> SalesQuote:
-    quote = await get_quote(quote_number)
+async def update_quote(quote_number: str, quote_data: SalesQuote, company_id: Optional[str] = None) -> SalesQuote:
+    quote = await get_quote(quote_number, company_id)
     
     if quote.status in [QuoteStatus.ACCEPTED, QuoteStatus.CONVERTED, QuoteStatus.REJECTED]:
         raise ValidationException("No se puede actualizar una cotización finalizada")
@@ -145,8 +155,8 @@ async def update_quote(quote_number: str, quote_data: SalesQuote) -> SalesQuote:
     await quote.save()
     return quote
 
-async def delete_quote(quote_number: str) -> bool:
-    quote = await get_quote(quote_number)
+async def delete_quote(quote_number: str, company_id: Optional[str] = None) -> bool:
+    quote = await get_quote(quote_number, company_id)
     
     if quote.status == QuoteStatus.CONVERTED:
         linked_orders = await SalesOrder.find(
@@ -161,8 +171,8 @@ async def delete_quote(quote_number: str) -> bool:
     await quote.delete()
     return True
 
-async def convert_quote_to_order(quote_number: str, preview: bool = False) -> Dict[str, Any]:
-    quote = await get_quote(quote_number)
+async def convert_quote_to_order(quote_number: str, preview: bool = False, company_id: Optional[str] = None) -> Dict[str, Any]:
+    quote = await get_quote(quote_number, company_id)
     
     if quote.status == QuoteStatus.CONVERTED and not preview:
         raise ValidationException("Cotización ya convertida")

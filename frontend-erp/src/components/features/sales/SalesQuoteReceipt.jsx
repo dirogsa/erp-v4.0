@@ -28,7 +28,7 @@ const SalesQuoteReceipt = ({
                 <div className="receipt-content">
                     <ReceiptTemplate
                         documentType="COTIZACIÓN"
-                        documentNumber={quote.quote_number}
+                        documentNumber=""
                         documentDate={quote.date}
                         partyInfo={partyInfo}
                         partyType="Cliente"
@@ -38,6 +38,7 @@ const SalesQuoteReceipt = ({
                         })) || []}
                         totalAmount={quote.total_amount}
                         showPaymentDetails={false}
+                        showBankAccounts={false}
                         paymentTerms={quote.payment_terms}
                         requestedBy={quote.requested_by}
                         notes={quote.notes}

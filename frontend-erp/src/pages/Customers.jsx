@@ -6,6 +6,8 @@ import Input from '../components/common/Input';
 import CustomerForm from '../components/features/customers/CustomerForm';
 import CustomerFinancialStatus from '../components/features/customers/CustomerFinancialStatus';
 import BulkCustomerIngestor from '../components/features/customers/BulkCustomerIngestor';
+import CrudPageTemplate from '../components/common/Crud/CrudPageTemplate';
+import CrudToolbar from '../components/common/Crud/CrudToolbar';
 import { useCustomers } from '../hooks/useCustomers';
 import { auditService, companyService, marketingService } from '../services/api';
 
@@ -26,6 +28,8 @@ const Customers = () => {
     const [converting, setConverting] = useState(false);
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [pointsToConvert, setPointsToConvert] = useState(0);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedIds, setSelectedIds] = useState([]);
 
     const [companies, setCompanies] = useState([]);
 
@@ -71,6 +75,17 @@ const Customers = () => {
             setIsModalOpen(false);
         } catch (error) { }
     };
+
+    const filteredCustomers = customers.filter(c => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (
+            c.name?.toLowerCase().includes(term) ||
+            c.document_number?.includes(term) ||
+            c.ruc?.includes(term) ||
+            c.phone?.includes(term)
+        );
+    });
 
     const columns = [
         { label: 'Razón Social', key: 'name' },
@@ -158,7 +173,7 @@ const Customers = () => {
             key: 'actions',
             align: 'center',
             render: (_, customer) => (
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
                     <Button
                         size="small"
                         variant="secondary"
@@ -183,49 +198,67 @@ const Customers = () => {
                     >
                         Editar
                     </Button>
-                    <Button
-                        size="small"
-                        variant="danger"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm('¿Estás seguro de eliminar este cliente?')) {
-                                deleteCustomer(customer._id);
-                            }
-                        }}
-                    >
-                        ✕
-                    </Button>
                 </div>
             )
         }
     ];
 
+    const headerActions = (
+        <>
+            <Button variant="secondary" onClick={() => setIsBulkModalOpen(true)}>
+                🏭 Ingesta Masiva
+            </Button>
+            <Button onClick={() => {
+                setSelectedCustomer(null);
+                setIsViewMode(false);
+                setIsModalOpen(true);
+            }}>
+                + Nuevo Cliente
+            </Button>
+        </>
+    );
+
     return (
-        <div style={{ padding: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <div>
-                    <h1 style={{ color: 'white', marginBottom: '0.5rem' }}>Gestión de Clientes</h1>
-                    <p style={{ color: '#94a3b8' }}>Administración de clientes y sucursales</p>
-                </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <Button variant="secondary" onClick={() => setIsBulkModalOpen(true)}>
-                        🏭 Ingesta Masiva
-                    </Button>
-                    <Button onClick={() => {
-                        setSelectedCustomer(null);
-                        setIsViewMode(false);
-                        setIsModalOpen(true);
-                    }}>
-                        + Nuevo Cliente
-                    </Button>
-                </div>
-            </div>
+        <CrudPageTemplate
+            title="Gestión de Clientes"
+            subtitle="Administración centralizada de clientes, sucursales y fidelización"
+            headerActions={headerActions}
+        >
+            <CrudToolbar
+                selectedIds={selectedIds}
+                onClearSelection={() => setSelectedIds([])}
+                totalItems={filteredCustomers.length}
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
+                searchPlaceholder="🔍 Buscar por RUC, DNI, Razón Social o Teléfono..."
+                bulkActions={[
+                    {
+                        label: 'Eliminar',
+                        icon: '🗑️',
+                        variant: 'danger',
+                        onClick: async (ids) => {
+                            if (window.confirm(`¿Estás seguro de eliminar los ${ids.length} clientes seleccionados?`)) {
+                                for (const id of ids) {
+                                    try {
+                                        await deleteCustomer(id);
+                                    } catch (err) {}
+                                }
+                                setSelectedIds([]);
+                            }
+                        }
+                    }
+                ]}
+            />
 
             <Table
                 columns={columns}
-                data={customers}
+                data={filteredCustomers}
                 loading={loading}
                 emptyMessage="No hay clientes registrados"
+                enableSelection={true}
+                selectedKeys={selectedIds}
+                onSelectionChange={setSelectedIds}
+                keyField="_id"
             />
 
             {isModalOpen && (
@@ -391,7 +424,7 @@ const Customers = () => {
                         ) : (
                             <CustomerForm
                                 initialData={selectedCustomer}
-                                onSubmit={selectedCustomer ? handleUpdate : handleCreate}
+                                onSubmit={(data) => selectedCustomer?._id ? handleUpdate(data) : handleCreate(data)}
                                 onCancel={() => setIsModalOpen(false)}
                                 loading={loading}
                             />
@@ -418,7 +451,7 @@ const Customers = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </CrudPageTemplate>
     );
 };
 

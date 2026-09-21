@@ -1,4 +1,5 @@
 from typing import List, Dict, Any
+import re
 from app.models.inventory import Product, TechnicalSpec, MeasureType, CrossReference, Application, ProductType
 from app.utils.normalization import clean_code
 from fastapi import HTTPException
@@ -17,6 +18,7 @@ class DIMSService:
         updated_count = 0
         errors = []
         bulk_ops = []
+        processed_items = []
 
         for item_data in products_data:
             try:
@@ -92,7 +94,7 @@ class DIMSService:
                     sku=sku,
                     name=name,
                     brand=brand,
-                    type=ProductType.COMMERCIAL,
+                    type=ProductType.REFERENCE,
                     specs=specs,
                     equivalences=equivalences,
                     applications=applications,
@@ -108,7 +110,8 @@ class DIMSService:
                 # ESTRATEGIA DE SOBERANÍA DE DATOS (Smart Merge)
                 protected_fields = {
                     "stock_current", "stock_reserved", "cost", "company_data", 
-                    "loyalty_points", "points_cost", "is_temporary", "created_at"
+                    "loyalty_points", "points_cost", "is_temporary", "created_at",
+                    "type"
                 }
 
                 update_data = {k: v for k, v in product_dict.items() if k not in protected_fields}
@@ -125,24 +128,39 @@ class DIMSService:
                     )
                 )
 
+                # Registro para feedback de auditoría y trazabilidad visual en el cliente
+                processed_items.append({
+                    "sku": sku,
+                    "brand": brand,
+                    "name": name,
+                    "equivalences_count": len(equivalences),
+                    "specs_count": len(specs),
+                    "applications_count": len(applications)
+                })
+
             except Exception as e:
                 logger.error(f"Error procesando sku {data.get('item_code')}: {str(e)}")
                 errors.append(f"Error en {data.get('item_code')}: {str(e)}")
 
+        CHUNK_SIZE = 1000
         if bulk_ops:
-            try:
-                collection = Product.get_motor_collection()
-                result = await collection.bulk_write(bulk_ops, ordered=False)
-                imported_count = result.upserted_count
-                updated_count = result.modified_count
-            except Exception as e:
-                logger.error(f"Error en bulk_write: {str(e)}")
-                errors.append(f"Fallo catastrófico en inyección masiva: {str(e)}")
+            collection = Product.get_motor_collection()
+            for i in range(0, len(bulk_ops), CHUNK_SIZE):
+                chunk = bulk_ops[i:i + CHUNK_SIZE]
+                try:
+                    result = await collection.bulk_write(chunk, ordered=False)
+                    imported_count += result.upserted_count
+                    updated_count += result.modified_count
+                except Exception as e:
+                    logger.error(f"Error en bulk_write chunk {i//CHUNK_SIZE}: {str(e)}")
+                    errors.append(f"Fallo en lote {i//CHUNK_SIZE + 1}: {str(e)}")
 
         return {
             "status": "success",
             "imported": imported_count,
             "updated": updated_count,
+            "total_processed": len(processed_items),
+            "items": processed_items,
             "errors": errors
         }
 
@@ -152,18 +170,59 @@ class DIMSService:
         Algoritmo 3: Encuentra equivalencias directas basadas puramente en cruces OEM y Aftermarket (refs).
         Implementa búsqueda bidireccional de 360 grados usando clean_code.
         """
-        source_product = await Product.find_one({"sku": sku})
-        if not source_product:
-            raise ValueError(f"Product {sku} not found")
-
         # 1. Normalizar el SKU origen
         source_clean_sku = clean_code(sku)
+        
+        # Búsqueda robusta del producto origen (insensible a mayúsculas o separadores)
+        source_product = await Product.find_one({
+            "$or": [
+                {"clean_sku": source_clean_sku},
+                {"sku": {"$regex": f"^{re.escape(sku.strip())}$", "$options": "i"}},
+                {"sku_canonical": source_clean_sku}
+            ]
+        })
+        
+        if not source_product:
+            # Si no existe como producto cabecera, buscamos si este código aparece como equivalencia en algún producto
+            referencing_products = await Product.find({
+                "$or": [
+                    {"equivalences.clean_code": source_clean_sku},
+                    {"equivalences.code": {"$regex": f"^{re.escape(sku.strip())}$", "$options": "i"}}
+                ]
+            }).to_list()
+            
+            if not referencing_products:
+                return {
+                    "status": "success",
+                    "source_sku": sku,
+                    "total_matches": 0,
+                    "message": f"El código '{sku}' no existe en el catálogo ni está referenciado en ninguna equivalencia.",
+                    "equivalencies": []
+                }
+            
+            # Formatear resultados encontrados a partir del código referenciado
+            results = []
+            for cand in referencing_products:
+                results.append({
+                    "sku": cand.sku,
+                    "brand": cand.brand,
+                    "name": cand.name,
+                    "category": cand.category_name,
+                    "imageUrl": cand.image_url,
+                    "shared_codes": [sku.strip().upper()],
+                    "match_type": "Direct Reference Match (Found in Equivalences)"
+                })
+            return {
+                "status": "success",
+                "source_sku": sku,
+                "total_matches": len(results),
+                "equivalencies": results
+            }
 
         # 2. Extraer los códigos limpios de referencia del producto origen
         ref_codes = [e.clean_code for e in source_product.equivalences if e.clean_code]
         
         # Agregamos el propio SKU limpio a la lista de códigos a buscar
-        # para que si otro producto nos menciona en sus equivalencias, lo encontremos
         search_codes = ref_codes + [source_clean_sku]
         
         if not search_codes:
@@ -216,4 +275,63 @@ class DIMSService:
             "source_sku": sku,
             "total_matches": len(results),
             "equivalencies": results
+        }
+
+    @staticmethod
+    async def get_reference_products(
+        page: int = 1,
+        limit: int = 50,
+        search: str = "",
+        brand: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Retorna la lista paginada de productos de referencia / catálogo relacional (DIMS).
+        """
+        query: Dict[str, Any] = {"type": ProductType.REFERENCE}
+        
+        if brand:
+            query["brand"] = brand.strip().upper()
+            
+        if search and search.strip():
+            s = search.strip()
+            clean_s = clean_code(s)
+            query["$or"] = [
+                {"sku": {"$regex": re.escape(s), "$options": "i"}},
+                {"clean_sku": {"$regex": re.escape(clean_s), "$options": "i"}},
+                {"name": {"$regex": re.escape(s), "$options": "i"}},
+                {"equivalences.clean_code": {"$regex": re.escape(clean_s), "$options": "i"}},
+                {"equivalences.code": {"$regex": re.escape(s), "$options": "i"}}
+            ]
+            
+        total = await Product.find(query).count()
+        skip = (page - 1) * limit
+        
+        cursor = Product.get_motor_collection().find(query, {
+            "sku": 1, "brand": 1, "name": 1, "category_name": 1,
+            "specs": 1, "equivalences": 1, "applications": 1, "created_at": 1
+        }).sort([("created_at", -1), ("sku", 1)]).skip(skip).limit(limit)
+        
+        db_items = await cursor.to_list(length=limit)
+        
+        items = []
+        for item in db_items:
+            items.append({
+                "id": str(item.get("_id")),
+                "sku": item.get("sku"),
+                "brand": item.get("brand", "GENERIC"),
+                "name": item.get("name", ""),
+                "category_name": item.get("category_name", "OTROS"),
+                "equivalences_count": len(item.get("equivalences", [])),
+                "specs_count": len(item.get("specs", [])),
+                "applications_count": len(item.get("applications", [])),
+                "equivalences_sample": [e.get("code") for e in item.get("equivalences", [])[:5] if isinstance(e, dict)],
+                "created_at": item.get("created_at")
+            })
+            
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "pages": (total // limit) + (1 if total % limit > 0 else 0),
+            "size": limit
         }

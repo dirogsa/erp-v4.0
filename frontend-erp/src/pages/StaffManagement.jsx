@@ -5,6 +5,8 @@ import { useNotification } from '../hooks/useNotification';
 import Button from '../components/common/Button';
 import Table from '../components/common/Table';
 import StaffForm from '../components/features/admin/StaffForm';
+import CrudPageTemplate from '../components/common/Crud/CrudPageTemplate';
+import CrudToolbar from '../components/common/Crud/CrudToolbar';
 import { UserCog, Users, Filter, Search } from 'lucide-react';
 
 const StaffManagement = () => {
@@ -14,6 +16,7 @@ const StaffManagement = () => {
     const [editingStaff, setEditingStaff] = useState(null);
     const [search, setSearch] = useState('');
     const [deptFilter, setDeptFilter] = useState('');
+    const [selectedIds, setSelectedIds] = useState([]);
 
     // Queries
     const { data: staffList = [], isLoading } = useQuery({
@@ -150,89 +153,84 @@ const StaffManagement = () => {
             label: 'Acciones',
             key: 'actions',
             render: (_, row) => (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
                     <Button variant="info" size="small" onClick={() => handleEdit(row)}>Editar</Button>
-                    <Button variant="danger" size="small" onClick={() => handleDelete(row._id)}>✕</Button>
                 </div>
             )
         }
     ];
 
-    return (
-        <div style={{ padding: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <div>
-                    <h1 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <Users size={32} color="#3b82f6" />
-                        Gestión de Colaboradores
-                    </h1>
-                    <p style={{ color: '#94a3b8', marginTop: '0.5rem' }}>Maestro centralizado de empleados, vendedores y personal operativo.</p>
-                </div>
-                <Button variant="primary" onClick={() => { setEditingStaff(null); setIsModalOpen(true); }}>
-                    + Nuevo Colaborador
-                </Button>
+    const headerActions = (
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#1e293b', padding: '0.35rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #334155' }}>
+                <Filter size={16} color="#94a3b8" />
+                <select
+                    value={deptFilter}
+                    onChange={(e) => setDeptFilter(e.target.value)}
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'white',
+                        outline: 'none',
+                        fontSize: '0.875rem'
+                    }}
+                >
+                    <option value="" style={{ background: '#0f172a' }}>Todas las Áreas</option>
+                    <option value="VENTAS" style={{ background: '#0f172a' }}>Ventas</option>
+                    <option value="ALMACEN" style={{ background: '#0f172a' }}>Almacén</option>
+                    <option value="FINANZAS" style={{ background: '#0f172a' }}>Finanzas</option>
+                    <option value="CONTABILIDAD" style={{ background: '#0f172a' }}>Contabilidad</option>
+                    <option value="ADMINISTRACION" style={{ background: '#0f172a' }}>Administración</option>
+                    <option value="DESPACHO" style={{ background: '#0f172a' }}>Despacho</option>
+                </select>
             </div>
+            <Button variant="primary" onClick={() => { setEditingStaff(null); setIsModalOpen(true); }}>
+                + Nuevo Colaborador
+            </Button>
+        </div>
+    );
 
-            {/* Filters */}
-            <div style={{
-                backgroundColor: '#1e293b',
-                padding: '1.25rem',
-                borderRadius: '0.75rem',
-                marginBottom: '1.5rem',
-                border: '1px solid #334155',
-                display: 'flex',
-                gap: '1.5rem',
-                alignItems: 'center'
-            }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                    <Search style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} size={18} />
-                    <input
-                        type="text"
-                        placeholder="Buscar por nombre o documento..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '0.625rem 0.625rem 0.625rem 2.5rem',
-                            backgroundColor: '#0f172a',
-                            border: '1px solid #334155',
-                            borderRadius: '0.5rem',
-                            color: 'white',
-                            outline: 'none'
-                        }}
-                    />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Filter size={18} color="#94a3b8" />
-                    <select
-                        value={deptFilter}
-                        onChange={(e) => setDeptFilter(e.target.value)}
-                        style={{
-                            padding: '0.625rem',
-                            backgroundColor: '#0f172a',
-                            border: '1px solid #334155',
-                            borderRadius: '0.5rem',
-                            color: 'white',
-                            outline: 'none',
-                            minWidth: '200px'
-                        }}
-                    >
-                        <option value="">Todas las Áreas</option>
-                        <option value="VENTAS">Ventas</option>
-                        <option value="ALMACEN">Almacén</option>
-                        <option value="FINANZAS">Finanzas</option>
-                        <option value="CONTABILIDAD">Contabilidad</option>
-                        <option value="ADMINISTRACION">Administración</option>
-                        <option value="DESPACHO">Despacho</option>
-                    </select>
-                </div>
-            </div>
+    return (
+        <CrudPageTemplate
+            title="Gestión de Colaboradores"
+            subtitle="Maestro centralizado de empleados, vendedores y personal operativo"
+            headerActions={headerActions}
+        >
+            <CrudToolbar
+                selectedIds={selectedIds}
+                onClearSelection={() => setSelectedIds([])}
+                totalItems={staffList.length}
+                searchValue={search}
+                onSearchChange={setSearch}
+                searchPlaceholder="🔍 Buscar colaborador por nombre o documento..."
+                bulkActions={[
+                    {
+                        label: 'Eliminar',
+                        icon: '🗑️',
+                        variant: 'danger',
+                        onClick: async (ids) => {
+                            if (window.confirm(`¿Estás seguro de eliminar los ${ids.length} colaboradores seleccionados?`)) {
+                                for (const id of ids) {
+                                    try {
+                                        await deleteMutation.mutateAsync(id);
+                                    } catch (err) {}
+                                }
+                                setSelectedIds([]);
+                            }
+                        }
+                    }
+                ]}
+            />
 
             <Table
                 columns={columns}
                 data={staffList}
                 loading={isLoading}
                 emptyMessage="No se encontraron colaboradores registrados."
+                enableSelection={true}
+                selectedKeys={selectedIds}
+                onSelectionChange={setSelectedIds}
+                keyField="_id"
             />
 
             {/* Modal */}
@@ -271,7 +269,7 @@ const StaffManagement = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </CrudPageTemplate>
     );
 };
 

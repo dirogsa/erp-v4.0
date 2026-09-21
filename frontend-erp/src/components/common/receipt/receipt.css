@@ -69,8 +69,7 @@
     min-height: 297mm;
     margin: 0 auto;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-    display: flex;
-    flex-direction: column;
+    display: block; /* Fixes pagination duplication in Chrome */
     position: relative;
     box-sizing: border-box;
     padding: 15mm 18mm;
@@ -79,7 +78,8 @@
 /* Common half-page logic */
 .receipt-half {
     width: 147.5mm;
-    height: 100%;
+    height: auto;
+    min-height: max-content;
     padding: 6mm 8mm; /* Reduced vertical padding from 8mm to 6mm */
     box-sizing: border-box;
     position: relative;
@@ -100,47 +100,88 @@
 }
 
 /* UI/UX Upgrades for Full A4 */
+.full-receipt-container .receipt-half,
+.full-receipt-container .receipt-content-wrapper,
+.format-a4-full .receipt-content,
+.format-a4-full .receipt-container,
+.format-a4-full .receipt-body {
+    display: block !important;
+    height: auto !important;
+}
+
 .format-a4-full .receipt-content {
-    font-size: 11px;
-    /* Larger base font for A4 */
+    font-size: 11.5px;
+}
+
+.format-a4-full .receipt-header-container {
+    background-color: #f8fafc;
+    padding: 10mm;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 8mm;
 }
 
 .format-a4-full .company-name {
-    font-size: 16px;
+    font-size: 18px;
+    color: #0f172a;
+    margin-bottom: 3mm;
 }
 
 .format-a4-full .company-details {
-    font-size: 10px;
+    font-size: 11px;
+    color: #475569;
 }
 
 .format-a4-full .invoice-type {
-    font-size: 12px;
+    font-size: 14px;
+    color: #0f172a;
 }
 
 .format-a4-full .invoice-number {
-    font-size: 14px;
+    font-size: 16px;
+    color: #2563eb;
+    margin-top: 3mm;
+}
+
+.format-a4-full .invoice-ruc {
+    background-color: #0f172a;
+    color: white;
+    padding: 3mm;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.format-a4-full .receipt-invoice-col {
+    background: transparent;
+    padding: 0;
 }
 
 .format-a4-full .customer-row {
-    font-size: 12px;
+    font-size: 11.5px;
+    line-height: 1.6;
 }
 
 .format-a4-full .receipt-items-table {
     font-size: 11px;
-    margin-top: 8mm;
+    margin-top: 5mm;
 }
 
 .format-a4-full .receipt-items-table th {
     padding: 4mm 3mm;
-    font-size: 10px;
+    font-size: 10.5px;
+    background-color: #0f172a;
+    color: white;
 }
 
 .format-a4-full .receipt-items-table td {
-    padding: 5mm 3mm;
+    padding: 4mm 3mm;
+    border-bottom: 1px solid #f1f5f9;
 }
 
 .format-a4-full .receipt-product-name {
     font-size: 11.5px;
+    color: #1e293b;
 }
 
 .format-a4-full .receipt-totals {
@@ -335,8 +376,8 @@
 .receipt-container {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    min-height: inherit;
+    height: auto;
+    min-height: max-content;
 }
 
 /* Header Sections */
@@ -499,11 +540,19 @@
     gap: 0.5mm;
 }
 
-.customer-row, .customer-sub-row {
+.customer-row-left {
     font-size: 9px;
     line-height: 1.4;
     display: grid;
-    grid-template-columns: 35mm 5mm 1fr; /* SUNAT Style Alignment */
+    grid-template-columns: 32mm 5mm 1fr;
+    color: #000;
+}
+
+.customer-row-right {
+    font-size: 9px;
+    line-height: 1.4;
+    display: grid;
+    grid-template-columns: 18mm 5mm 1fr;
     color: #000;
 }
 
@@ -610,6 +659,10 @@
     background-color: #f1f5f9; /* Subtle hover in preview */
 }
 
+.receipt-items-table tr {
+    page-break-inside: avoid;
+}
+
 .item-quantity {
     font-weight: 700;
 }
@@ -640,6 +693,8 @@
     margin-top: 4mm;
     display: flex;
     justify-content: flex-end;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .receipt-totals-box {
@@ -705,6 +760,8 @@
     display: flex;
     gap: 4mm;
     align-items: center;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .amount-words-label {
@@ -767,6 +824,8 @@
     font-size: 9px;
     line-height: 1.4;
     color: #000;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .text-right {
@@ -779,11 +838,6 @@
 
 /* Print Styles - ENFORCED LANDSCAPE */
 @media print {
-    @page {
-        size: landscape !important;
-        margin: 0 !important;
-    }
-
     html,
     body {
         margin: 0 !important;
@@ -901,9 +955,11 @@
     /* Content Optimization for Print */
     .receipt-content {
         font-size: 9px !important;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
+    }
+    
+    .format-a4-full .receipt-content {
+        display: block !important;
+        font-size: 11.5px !important;
     }
 
     .receipt-items-table th,
@@ -928,5 +984,38 @@
         text-shadow: none !important;
         position: absolute !important;
         z-index: 0 !important;
+    }
+
+    /* === CHATGPT AGGRESSIVE PRINT RESET === */
+    html, body, #root, [data-reactroot] {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .full-receipt-container,
+    .receipt-container,
+    .receipt-content,
+    .receipt-content-wrapper,
+    .receipt-preview {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        position: static !important;
+        transform: none !important;
+        display: block !important;
+    }
+
+    .receipt-footer,
+    .receipt-totals,
+    .receipt-notes,
+    .receipt-amount-words-footer {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        break-inside: auto !important;
+        page-break-inside: auto !important;
     }
 }

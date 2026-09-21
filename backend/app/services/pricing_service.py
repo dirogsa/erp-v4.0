@@ -411,7 +411,7 @@ class PricingService:
             PriceEntry.price_list_id == master_list.id,
             PriceEntry.min_quantity == 1
         ).to_list()
-        entry_map = {e.sku: e for e in existing_entries}
+        entry_map = {f"{e.sku}_{e.brand}": e for e in existing_entries}
         
         all_products = await Product.find(In(Product.sku, skus)).to_list()
         # Map by SKU + Brand for exact match, and also just SKU for simple lookup
@@ -443,24 +443,26 @@ class PricingService:
 
                 # B. Update/Create Master Price
                 if price is not None:
-                    entry = entry_map.get(sku)
-                    if entry:
-                        await PriceEntry.find_one({"_id": entry.id}).update({
-                            "$set": {"price": price, "last_updated": now}
-                        })
-                    else:
-                        product = product_map.get(f"{sku}_{brand}") if brand else product_map.get(sku)
-                        if product:
+                    product = product_map.get(f"{sku}_{brand}") if brand else product_map.get(sku)
+                    if product:
+                        resolved_brand = product.brand
+                        entry = entry_map.get(f"{sku}_{resolved_brand}")
+                        if entry:
+                            await PriceEntry.find_one({"_id": entry.id}).update({
+                                "$set": {"price": price, "last_updated": now}
+                            })
+                        else:
                             new_entry = PriceEntry(
                                 product_id=product.id,
                                 sku=sku,
+                                brand=resolved_brand,
                                 price_list_id=master_list.id,
                                 price=price,
                                 currency="PEN"
                             )
                             await new_entry.insert()
-                        else:
-                            return {"sku": sku, "error": "Producto no encontrado (Precio)"}
+                    else:
+                        return {"sku": sku, "error": "Producto no encontrado (Precio)"}
                 
                 return None # Success
             except Exception as e:

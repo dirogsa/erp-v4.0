@@ -14,6 +14,8 @@ import { useProducts } from '../hooks/useProducts';
 import { categoryService, inventoryService, companyService } from '../services/api';
 import ProductDetailsView from '../components/features/inventory/ProductDetailsView';
 import SmartSearch from '../components/features/inventory/SmartSearch';
+import CrudPageTemplate from '../components/common/Crud/CrudPageTemplate';
+import CrudToolbar from '../components/common/Crud/CrudToolbar';
 import { useNotification } from '../hooks/useNotification';
 import { useLoading } from '../context/LoadingContext';
 
@@ -73,6 +75,7 @@ const Inventory = ({ forcedType = null }) => {
         createProduct,
         updateProduct,
         deleteProduct,
+        bulkDeleteProducts,
         error,
         refetch
     } = useProducts({
@@ -143,9 +146,8 @@ const Inventory = ({ forcedType = null }) => {
     const handleSelectAllFiltered = async () => {
         setIsBulkLoading(true);
         try {
-            // Obtenemos todos los IDs que coinciden con la búsqueda actual sin paginación
             const res = await inventoryService.getProducts(1, 10000, search, '', forcedType || (activeTab === 'products' ? 'COMMERCIAL' : ''));
-            const allIds = res.data.items.map(p => p._id);
+            const allIds = res.data.items.map(p => p.id || p._id || p.sku).filter(Boolean);
             setSelectedIds(allIds);
             showNotification(`Seleccionados ${allIds.length} productos (total de la búsqueda)`, 'info');
         } catch (err) {
@@ -183,214 +185,97 @@ const Inventory = ({ forcedType = null }) => {
         }
     };
 
-    return (
-        <div style={{ padding: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <div>
-                    <h1 style={{ color: 'white', marginBottom: '0.5rem' }}>
-                        {forcedType === 'MARKETING' ? 'Gestión de Publicidad' : 'Gestión de Inventario'}
-                    </h1>
-                    <p style={{ color: '#94a3b8' }}>
-                        {forcedType === 'MARKETING' ? 'Control de artículos y premios publicitarios' : 'Consulta proactiva de productos y depuración de catálogo'}
-                    </p>
-                </div>
-                {(activeTab === 'products' || activeTab === 'marketing') && (
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        {!forcedType && activeTab === 'products' && (
-                            <Button
-                                variant="success"
-                                onClick={() => handleBulkVisibility({ is_active_in_shop: true, only_with_price: true, label: 'Activar en Tienda (Con Precio)' })}
-                                disabled={isBulkLoading}
-                                style={{
-                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
-                                    fontWeight: 'bold',
-                                }}
-                            >
-                                🛒 Activar en Tienda (Con Precio)
-                            </Button>
-                        )}
-                        <Button onClick={() => {
-                            setSelectedProduct(null);
-                            setIsViewMode(false);
-                            setShowProductModal(true);
-                        }}>
-                            {forcedType === 'MARKETING' || activeTab === 'marketing' ? '+ Nuevo Artículo Publicitario' : '+ Nuevo Producto'}
-                        </Button>
-                    </div>
-                )}
-            </div>
+    const tabs = forcedType ? [] : [
+        { key: 'products', label: '📦 Inventario Maestro' },
+        { key: 'loyalty', label: '⭐ Fidelización' },
+        { key: 'smart-search', label: '🔎 Búsqueda Inteligente', color: '#ffc107' },
+        { key: 'bulk-ingest', label: '🚀 Ingesta HTML', color: '#a855f7' },
+        { key: 'transfers', label: '🚚 Transferencias' },
+        { key: 'losses', label: '⚖️ Ajustes' }
+    ];
 
-            {!forcedType && (
-                <div style={{ marginBottom: '2rem', borderBottom: '1px solid #334155' }}>
-                    <button
-                        onClick={() => { setActiveTab('products'); setPage(1); setFilterUnrecognized(false); setFilterOthers(false); }}
-                        style={{
-                            padding: '1rem 2rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'products' ? '2px solid #3b82f6' : 'none',
-                            color: activeTab === 'products' ? '#3b82f6' : '#94a3b8',
-                            cursor: 'pointer',
-                            fontWeight: '500'
-                        }}
-                    >
-                        📦 Inventario Maestro
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab('loyalty'); setSelectedIds([]); }}
-                        style={{
-                            padding: '1rem 2rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'loyalty' ? '2px solid #3b82f6' : 'none',
-                            color: activeTab === 'loyalty' ? '#3b82f6' : '#94a3b8',
-                            cursor: 'pointer',
-                            fontWeight: '500'
-                        }}
-                    >
-                        ⭐ Fidelización
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('smart-search')}
-                        style={{
-                            padding: '1rem 2rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'smart-search' ? '2px solid #ffc107' : 'none',
-                            color: activeTab === 'smart-search' ? '#ffc107' : '#94a3b8',
-                            cursor: 'pointer',
-                            fontWeight: 'bold'
-                        }}
-                    >
-                        🔎 Búsqueda Inteligente
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab('bulk-ingest'); setSelectedIds([]); }}
-                        style={{
-                            padding: '1rem 2rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'bulk-ingest' ? '2px solid #a855f7' : 'none',
-                            color: activeTab === 'bulk-ingest' ? '#a855f7' : '#94a3b8',
-                            cursor: 'pointer',
-                            fontWeight: 'bold'
-                        }}
-                    >
-                        🚀 Ingesta HTML
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('transfers')}
-                        style={{
-                            padding: '1rem 2rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'transfers' ? '2px solid #3b82f6' : 'none',
-                            color: activeTab === 'transfers' ? '#3b82f6' : '#94a3b8',
-                            cursor: 'pointer',
-                            fontWeight: '500'
-                        }}
-                    >
-                        🚚 Transferencias
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab('losses'); setSelectedIds([]); }}
-                        style={{
-                            padding: '1rem 2rem',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'losses' ? '2px solid #3b82f6' : 'none',
-                            color: activeTab === 'losses' ? '#3b82f6' : '#94a3b8',
-                            cursor: 'pointer',
-                            fontWeight: '500'
-                        }}
-                    >
-                        ⚖️ Ajustes
-                    </button>
-                </div>
+    const headerActions = (activeTab === 'products' || activeTab === 'marketing') ? (
+        <>
+            {!forcedType && activeTab === 'products' && (
+                <Button
+                    variant="success"
+                    onClick={() => handleBulkVisibility({ is_active_in_shop: true, only_with_price: true, label: 'Activar en Tienda (Con Precio)' })}
+                    disabled={isBulkLoading}
+                    style={{
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
+                        fontWeight: 'bold',
+                    }}
+                >
+                    🛒 Activar en Tienda (Con Precio)
+                </Button>
             )}
+            <Button onClick={() => {
+                setSelectedProduct(null);
+                setIsViewMode(false);
+                setShowProductModal(true);
+            }}>
+                {forcedType === 'MARKETING' || activeTab === 'marketing' ? '+ Nuevo Artículo Publicitario' : '+ Nuevo Producto'}
+            </Button>
+        </>
+    ) : null;
 
+    return (
+        <CrudPageTemplate
+            title={forcedType === 'MARKETING' ? 'Gestión de Publicidad' : 'Gestión de Inventario'}
+            subtitle={forcedType === 'MARKETING' ? 'Control de artículos y premios publicitarios' : 'Consulta proactiva de productos y depuración de catálogo'}
+            headerActions={headerActions}
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabChange={(tabKey) => {
+                setActiveTab(tabKey);
+                if (['products', 'loyalty', 'losses', 'bulk-ingest'].includes(tabKey)) {
+                    setSelectedIds([]);
+                }
+                if (tabKey === 'products') {
+                    setPage(1);
+                    setFilterUnrecognized(false);
+                    setFilterOthers(false);
+                }
+            }}
+        >
             {(activeTab === 'products' || activeTab === 'marketing') && (
                 <>
-                    {/* ── Barra de Acciones Masivas para Selección (FLOTANTE) ── */}
-                    {selectedIds.length > 0 && (
-                        <div style={{
-                            position: 'fixed',
-                            bottom: '2rem',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: '#0f172a',
-                            border: '1px solid #3b82f6',
-                            borderRadius: '1rem',
-                            padding: '1rem 1.5rem',
-                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '1.5rem',
-                            zIndex: 100,
-                            animation: 'slideUp 0.3s ease-out'
-                        }}>
-                             <style>{`@keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }`}</style>
-                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                 <span style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{selectedIds.length} ítems seleccionados</span>
-                                 <div style={{ display: 'flex', gap: '0.8rem' }}>
-                                     <button 
-                                        onClick={() => setSelectedIds([])}
-                                        style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.75rem', padding: 0, textAlign: 'left', cursor: 'pointer', textDecoration: 'underline' }}
-                                     >
-                                        Limpiar selección
-                                     </button>
-                                     {selectedIds.length < (pagination.totalItems || 0) && (
-                                         <button 
-                                            onClick={handleSelectAllFiltered}
-                                            style={{ background: 'none', border: 'none', color: '#60a5fa', fontSize: '0.75rem', padding: 0, textAlign: 'left', cursor: 'pointer', fontWeight: '700' }}
-                                         >
-                                            Seleccionar los {pagination.totalItems} productos
-                                         </button>
-                                     )}
-                                 </div>
-                             </div>
-                             
-                             <div style={{ width: '1px', height: '30px', background: '#334155' }} />
-
-                             <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                <button
-                                    onClick={() => handleBulkVisibility({ is_active_in_shop: true, ids: selectedIds, label: 'Activar en Tienda' })}
-                                    style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: '#10b981', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}
-                                >
-                                    🛒 Activar en Tienda
-                                </button>
-                                <button
-                                    onClick={() => handleBulkVisibility({ is_active_in_shop: false, ids: selectedIds, label: 'Ocultar de Tienda' })}
-                                    style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: '#ef4444', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}
-                                >
-                                    🚫 Ocultar
-                                </button>
-                                <button
-                                    onClick={() => handleBulkVisibility({ is_new: true, ids: selectedIds, label: 'Marcar Novedad' })}
-                                    style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', background: '#f59e0b', color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}
-                                >
-                                    ✨ Novedad
-                                </button>
-                             </div>
-                        </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                         <div style={{ flex: 1 }}>
-                            <Input
-                                placeholder="🔍 Ingrese SKU o Nombre del filtro para buscar..."
-                                value={search}
-                                onChange={(e) => {
-                                    setSearch(e.target.value);
-                                    setPage(1);
-                                    if (e.target.value) {
-                                        setFilterUnrecognized(false);
-                                        setFilterOthers(false);
-                                    }
-                                }}
-                            />
-                         </div>
-                    </div>
+                    <CrudToolbar
+                        selectedIds={selectedIds}
+                        onClearSelection={() => setSelectedIds([])}
+                        onSelectAllFiltered={handleSelectAllFiltered}
+                        totalItems={pagination.totalItems}
+                        searchValue={search}
+                        onSearchChange={(val) => {
+                            setSearch(val);
+                            setPage(1);
+                            if (val) {
+                                setFilterUnrecognized(false);
+                                setFilterOthers(false);
+                            }
+                        }}
+                        activeFilterLabel={filterUnrecognized ? 'No Reconocidos' : (filterOthers ? 'Otros / Varios' : (search ? search.trim() : ''))}
+                        onClearFilters={() => {
+                            setSearch('');
+                            setFilterUnrecognized(false);
+                            setFilterOthers(false);
+                            setPage(1);
+                        }}
+                        bulkActions={[
+                            { label: 'Activar', icon: '🛒', variant: 'success', onClick: (ids) => handleBulkVisibility({ is_active_in_shop: true, ids, label: 'Activar en Tienda' }) },
+                            { label: 'Ocultar', icon: '🚫', variant: 'default', onClick: (ids) => handleBulkVisibility({ is_active_in_shop: false, ids, label: 'Ocultar de Tienda' }) },
+                            { label: 'Novedad', icon: '✨', variant: 'warning', onClick: (ids) => handleBulkVisibility({ is_new: true, ids, label: 'Marcar Novedad' }) },
+                            { label: 'Eliminar', icon: '🗑️', variant: 'danger', onClick: async (ids) => {
+                                if (window.confirm(`¿Estás seguro de ELIMINAR permanentemente ${ids.length} producto(s) seleccionado(s)?`)) {
+                                    try {
+                                        await bulkDeleteProducts(ids);
+                                        setSelectedIds([]);
+                                    } catch(err) {}
+                                }
+                            }}
+                        ]}
+                    />
 
                     {isInitialEmptyState ? (
                         <div style={{ 
@@ -442,18 +327,6 @@ const Inventory = ({ forcedType = null }) => {
                         </div>
                     ) : (
                         <>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                    <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Resultados para: <b>{search || (filterUnrecognized ? 'No Reconocidos' : 'Otros')}</b></span>
-                                    <button 
-                                        onClick={() => { setSearch(''); setFilterUnrecognized(false); setFilterOthers(false); }}
-                                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '0.3rem 0.8rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}
-                                    >
-                                        Limpiar Filtros
-                                    </button>
-                                </div>
-                            </div>
-
                             <ProductsTable
                                 products={products}
                                 loading={loading}
@@ -571,8 +444,12 @@ const Inventory = ({ forcedType = null }) => {
                                             type: forcedType || (activeTab === 'marketing' ? 'MARKETING' : 'COMMERCIAL'),
                                             category_id: '',
                                         }}
-                                        onSubmit={selectedProduct ? handleUpdate : handleCreate}
-                                        onCancel={() => setShowProductModal(false)}
+                                        onSubmit={selectedProduct && !isViewMode ? handleUpdate : handleCreate}
+                                        onCancel={() => {
+                                            setShowProductModal(false);
+                                            setSelectedProduct(null);
+                                            setIsViewMode(false);
+                                        }}
                                         loading={loading || isSubmitting}
                                         isViewMode={isViewMode}
                                         fixedType={forcedType || (activeTab === 'products' ? 'COMMERCIAL' : 'MARKETING')}
@@ -583,7 +460,7 @@ const Inventory = ({ forcedType = null }) => {
                     </div>
                 </div>
             )}
-        </div>
+        </CrudPageTemplate>
     );
 };
 

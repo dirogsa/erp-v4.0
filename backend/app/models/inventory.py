@@ -4,7 +4,7 @@ from enum import Enum
 from beanie import Document, Indexed, PydanticObjectId, Insert, Replace, SaveChanges, Update, before_event, after_event
 from pydantic import BaseModel, field_validator, Field, model_validator
 import pymongo
-from app.utils.normalization import clean_code
+from app.utils.normalization import clean_code, extract_numeric_value
 
 class IssuerInfo(BaseModel):
     """Información de la empresa emisora al momento de la creación"""
@@ -62,6 +62,7 @@ class ProductType(str, Enum):
     BATTERY = "BATTERY"       # Baterías
     COOLANT = "COOLANT"       # Refrigerantes
     MISC = "MISC"             # Otros productos varios
+    REFERENCE = "REFERENCE"   # Sólo para inteligencia DIMS (No inventariable)
 
 class ProductStatus(str, Enum):
     AVAILABLE = "AVAILABLE"
@@ -122,6 +123,13 @@ class TechnicalSpec(BaseModel):
     display_label: Optional[str] = None # Nombre legible para el frontend: "Diámetro exterior / Longitud"
     measure_type: MeasureType
     value: str  # "120", "3/4-16", "M20x1.5"
+    value_num: Optional[float] = None # Valor numérico normalizado en mm para búsquedas de rango ($gte / $lte)
+
+    @model_validator(mode='after')
+    def compute_value_num(self):
+        if self.value_num is None and self.value:
+            self.value_num = extract_numeric_value(self.value)
+        return self
 
 class CrossReference(BaseModel):
     """Equivalencia / Cruce con otra marca"""
@@ -320,6 +328,13 @@ class Product(Document):
                 unique=True
             ),
             pymongo.IndexModel([("sku_canonical", pymongo.ASCENDING)], unique=False),
+            pymongo.IndexModel([("clean_sku", pymongo.ASCENDING)], unique=False),
+            # Índice Multikey de Alto Rendimiento para Cruces Directos y Bidireccionales (Laboratorio de Equivalencias)
+            pymongo.IndexModel([("equivalences.clean_code", pymongo.ASCENDING)], unique=False),
+            # Aislamiento rápido de catálogos comerciales vs referencias DIMS
+            pymongo.IndexModel([("type", pymongo.ASCENDING)], unique=False),
+            # Búsquedas dimensionales por rango numérico
+            pymongo.IndexModel([("specs.label", pymongo.ASCENDING), ("specs.value_num", pymongo.ASCENDING)], unique=False),
             # Texto completo para búsqueda potente
             pymongo.IndexModel([
                 ("name", pymongo.TEXT),

@@ -1,4 +1,5 @@
 import re
+from typing import Optional, Any
 
 def clean_code(code: str) -> str:
     """
@@ -23,3 +24,32 @@ def clean_code(code: str) -> str:
     cleaned = re.sub(r'[^A-Z0-9]', '', upper_code)
     
     return cleaned
+
+def extract_numeric_value(val: Any) -> Optional[float]:
+    """
+    Extrae el valor numérico (float) de un valor o string técnico.
+    Ejemplos:
+      '85 mm' -> 85.0
+      '120.5' -> 120.5
+      '14.5mm' -> 14.5
+      '3/4-16' -> None (rosca no es medida lineal directa)
+      85 -> 85.0
+    """
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    val_str = str(val).strip().replace(',', '.')
+    # Busca un patrón de número flotante o entero al inicio o aislado
+    match = re.search(r'^\s*([0-9]+(?:\.[0-9]+)?)\s*(?:mm|inch|"|\'|cm)?\b', val_str, re.IGNORECASE)
+    if match:
+        try:
+            return float(match.group(1))
+        except (ValueError, TypeError):
+            pass
+    # Intento de parseo directo completo
+    try:
+        return float(val_str)
+    except (ValueError, TypeError):
+        return None
+

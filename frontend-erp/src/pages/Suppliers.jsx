@@ -4,6 +4,8 @@ import Table from '../components/common/Table';
 import Input from '../components/common/Input';
 import SupplierForm from '../components/features/suppliers/SupplierForm';
 import BulkSupplierIngestor from '../components/features/suppliers/BulkSupplierIngestor';
+import CrudPageTemplate from '../components/common/Crud/CrudPageTemplate';
+import CrudToolbar from '../components/common/Crud/CrudToolbar';
 import { companyService } from '../services/api';
 import { useSuppliers } from '../hooks/useSuppliers';
 
@@ -21,6 +23,7 @@ const Suppliers = () => {
     const [isViewMode, setIsViewMode] = useState(false);
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedIds, setSelectedIds] = useState([]);
     const [companies, setCompanies] = useState([]);
 
     React.useEffect(() => {
@@ -158,60 +161,67 @@ const Suppliers = () => {
                     >
                         Editar
                     </Button>
-                    <Button
-                        size="small"
-                        variant="danger"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm('¿Estás seguro de eliminar este proveedor del directorio?')) {
-                                deleteSupplier(supplier._id);
-                            }
-                        }}
-                    >
-                        ✕
-                    </Button>
                 </div>
             )
         }
     ];
 
+    const headerActions = (
+        <>
+            <Button variant="secondary" onClick={() => setIsBulkModalOpen(true)}>
+                🏭 Ingesta Masiva
+            </Button>
+            <Button onClick={() => {
+                setSelectedSupplier(null);
+                setIsViewMode(false);
+                setIsModalOpen(true);
+            }}>
+                + Nuevo Proveedor
+            </Button>
+        </>
+    );
+
     return (
-        <div style={{ padding: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <div>
-                    <h1 style={{ color: 'white', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        Directorio de Proveedores
-                        <span style={{ fontSize: '0.9rem', background: '#1e293b', color: '#94a3b8', padding: '4px 12px', borderRadius: '20px' }}>
-                            {suppliers.length} Registrados
-                        </span>
-                    </h1>
-                    <p style={{ color: '#94a3b8' }}>Maestro centralizado para abastecimiento y logística</p>
-                </div>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <Input 
-                        placeholder="Buscar por RUC o Nombre..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{ width: '300px', marginBottom: 0 }}
-                    />
-                    <Button variant="secondary" onClick={() => setIsBulkModalOpen(true)}>
-                        🏭 Ingesta Masiva
-                    </Button>
-                    <Button onClick={() => {
-                        setSelectedSupplier(null);
-                        setIsViewMode(false);
-                        setIsModalOpen(true);
-                    }}>
-                        + Nuevo Proveedor
-                    </Button>
-                </div>
-            </div>
+        <CrudPageTemplate
+            title="Directorio de Proveedores"
+            subtitle="Maestro centralizado para abastecimiento, logística y control fiscal"
+            headerActions={headerActions}
+        >
+            <CrudToolbar
+                selectedIds={selectedIds}
+                onClearSelection={() => setSelectedIds([])}
+                totalItems={filteredSuppliers.length}
+                searchValue={searchTerm}
+                onSearchChange={setSearchTerm}
+                searchPlaceholder="🔍 Buscar proveedor por RUC, Razón Social o Contacto..."
+                bulkActions={[
+                    {
+                        label: 'Eliminar',
+                        icon: '🗑️',
+                        variant: 'danger',
+                        onClick: async (ids) => {
+                            if (window.confirm(`¿Estás seguro de eliminar los ${ids.length} proveedores seleccionados?`)) {
+                                for (const id of ids) {
+                                    try {
+                                        await deleteSupplier(id);
+                                    } catch (err) {}
+                                }
+                                setSelectedIds([]);
+                            }
+                        }
+                    }
+                ]}
+            />
 
             <Table
                 columns={columns}
                 data={filteredSuppliers}
                 loading={loading}
                 emptyMessage="No se encontraron proveedores en el directorio"
+                enableSelection={true}
+                selectedKeys={selectedIds}
+                onSelectionChange={setSelectedIds}
+                keyField="_id"
             />
 
             {isModalOpen && (
@@ -312,7 +322,7 @@ const Suppliers = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </CrudPageTemplate>
     );
 };
 

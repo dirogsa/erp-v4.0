@@ -30,6 +30,7 @@ class BulkImportResponse(BaseModel):
 from typing import Any
 
 class ProductLean(BaseModel):
+    id: Optional[str] = None
     sku: str
     name: str
     brand: Optional[str] = "N/A"

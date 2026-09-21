@@ -77,6 +77,20 @@ export const useProducts = ({
         }
     });
 
+    const bulkDeleteMutation = useMutation({
+        mutationFn: (skus) => inventoryService.bulkDeleteProducts(skus),
+        onSuccess: (res) => {
+            queryClient.invalidateQueries(['products']);
+            showNotification(res?.data?.message || 'Productos eliminados exitosamente', 'success');
+        },
+        onError: (err) => {
+            console.error('Error in bulk delete:', err);
+            const errorMessage = err.response?.data?.detail || 'Error al eliminar productos en bloque';
+            showNotification(errorMessage, 'error');
+        }
+    });
+
+
     return {
         products: data?.items || [],
         pagination: {
@@ -89,6 +103,7 @@ export const useProducts = ({
         refetch,
         createProduct: (data, initialStock) => createMutation.mutateAsync({ productData: data, initialStock }),
         updateProduct: (sku, data, newStock) => updateMutation.mutateAsync({ sku, productData: data, newStock }),
-        deleteProduct: (sku) => deleteMutation.mutateAsync(sku)
+        deleteProduct: (sku) => deleteMutation.mutateAsync(sku),
+        bulkDeleteProducts: (skus) => bulkDeleteMutation.mutateAsync(skus)
     };
 };
