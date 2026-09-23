@@ -15,8 +15,8 @@ const ReceiptBody = ({
                 <thead>
                     <tr>
                         <th className="text-center" style={{ width: '10mm' }}>CANT</th>
-                        <th className="text-center" style={{ width: '6mm' }}>UM</th>
                         <th className="text-center" style={{ width: '16mm' }}>CÓDIGO</th>
+                        <th className="text-center" style={{ width: '16mm' }}>MARCA</th>
                         <th className="text-left">DESCRIPCIÓN</th>
                         {showPrices && (
                             <>
@@ -32,11 +32,11 @@ const ReceiptBody = ({
                         <td className="text-center item-quantity" style={{ width: '10mm' }}>
                             {Number(item.quantity).toFixed(2)}
                         </td>
-                        <td className="text-center" style={{ width: '6mm' }}>
-                            U
-                        </td>
                         <td className="text-center receipt-product-sku" style={{ width: '16mm' }}>
                             {item.product_sku || '-'}
+                        </td>
+                        <td className="text-center receipt-product-brand" style={{ width: '16mm', fontSize: '0.85em', fontWeight: 'bold' }}>
+                            {item.brand && item.brand !== 'OEM' && item.brand !== 'N/A' ? item.brand : '-'}
                         </td>
                             <td className="item-description-cell">
                                 <div className="receipt-product-name">

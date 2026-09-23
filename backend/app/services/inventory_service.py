@@ -4,7 +4,7 @@ import asyncio
 import logging
 from datetime import datetime
 from app.models.inventory import Product, MovementType, ProductType, StockMovement, Warehouse, DeliveryGuide, GuideItem, GuideType, GuideStatus, CompanyProductData, ProductCategory
-from app.utils.norm_utils import normalize_sku
+from app.utils.normalization import aesthetic_code, clean_code
 from beanie import PydanticObjectId
 from pymongo.operations import ReplaceOne, UpdateOne
 from app.models.pricing import PriceList, PriceEntry
@@ -97,11 +97,14 @@ async def get_products(
     if search and search.strip():
         # Búsqueda multi-campo inteligente
         search_term = search.strip()
+        clean_term = clean_code(search_term)
         query["$or"] = [
             {"name": {"$regex": search_term, "$options": "i"}},
             {"sku": {"$regex": search_term, "$options": "i"}},
+            {"clean_sku": {"$regex": clean_term, "$options": "i"}},
             {"brand": {"$regex": search_term, "$options": "i"}},
             {"equivalences.code": {"$regex": search_term, "$options": "i"}},
+            {"equivalences.clean_code": {"$regex": clean_term, "$options": "i"}},
             {"applications.model": {"$regex": search_term, "$options": "i"}},
             {"applications.make": {"$regex": search_term, "$options": "i"}}
         ]
@@ -113,9 +116,6 @@ async def get_products(
 
     if product_type:
         query["type"] = product_type
-    else:
-        # Aislamiento Arquitectónico: Ocultar referencias puras de la UI comercial
-        query["type"] = {"$ne": ProductType.REFERENCE}
 
     # Filtros Especiales de Depuración (Clase Mundial)
     if filter_unrecognized:
@@ -189,7 +189,7 @@ async def find_product_robustly(
     """
     if not sku: return None
     
-    sku_clean = normalize_sku(sku)
+    sku_clean = clean_code(sku)
     brand_upper = brand.upper().strip() if brand else "GENERIC"
 
     # 1. Búsqueda Directa (SKU + Marca)
@@ -301,13 +301,13 @@ async def save_price_to_matrix(product_id: PydanticObjectId, sku: str, price: fl
 
 async def create_product(product_data: Product, initial_stock: int = 0, user: Optional[User] = None, company_id: Optional[str] = None):
     # Normalizar SKU y Marca antes de operar
-    product_data.sku = normalize_sku(product_data.sku)
+    product_data.sku = aesthetic_code(product_data.sku)
     product_data.brand = product_data.brand.upper().strip()
 
     # Normalizar códigos de equivalencia
     if product_data.equivalences:
         for eq in product_data.equivalences:
-            eq.code = normalize_sku(eq.code)
+            eq.code = aesthetic_code(eq.code)
 
     # Verificar si el SKU y la Marca ya existen globalmente
     existing = await Product.find_one(Product.sku == product_data.sku, Product.brand == product_data.brand)
@@ -387,12 +387,12 @@ async def bulk_create_products(products: List[Product], update_existing: bool = 
     
     for p_data in products:
         # Normalización "Libro de Texto"
-        p_data.sku = normalize_sku(p_data.sku)
+        p_data.sku = aesthetic_code(p_data.sku)
         p_data.brand = p_data.brand.upper().strip() if p_data.brand else "GENERICO"
         
         if p_data.equivalences:
             for eq in p_data.equivalences:
-                eq.code = normalize_sku(eq.code)
+                eq.code = aesthetic_code(eq.code)
         
         # Resolver categoría (Smart Mapping Analytics)
         if p_data.category_name and not p_data.category_id:
@@ -1348,4 +1348,41 @@ async def check_products_existence(items: List[Dict[str, str]]) -> List[Dict[str
                 "brand": brand,
                 "exists": False
             })
+    return results
+
+async def bulk_fetch_products(skus: List[str], company_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    World-class bulk fetch endpoint.
+    Retrieves all products matching the provided SKUs in a single O(1) batch query.
+    """
+    from app.utils.normalization import clean_code
+    from app.services.pricing_service import PricingService
+    
+    clean_skus = [clean_code(sku) for sku in skus if clean_code(sku)]
+    if not clean_skus:
+        return []
+        
+    query = {
+        "$or": [
+            {"clean_sku": {"$in": clean_skus}},
+            {"sku": {"$in": clean_skus}},
+            {"sku": {"$in": skus}}
+        ]
+    }
+        
+    products = await Product.find(query).to_list()
+    
+    if not products:
+        return []
+        
+    price_requests = [{"sku": p.sku, "brand": p.brand} for p in products]
+    bulk_prices = await PricingService.get_bulk_prices(price_requests)
+    
+    results = []
+    for p in products:
+        p_dict = p.model_dump()
+        p_dict["price_list"] = bulk_prices.get((p.sku, p.brand), 0.0)
+        # Inyectamos populate_company_data de ser necesario (opcional)
+        results.append(p_dict)
+        
     return results

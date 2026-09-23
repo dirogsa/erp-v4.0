@@ -86,16 +86,15 @@ const ProductItemsSection = ({
         updateParent(newRows);
     };
 
-    const handleProductSearch = async (rowIndex, query) => {
-        // Perform update in one go to avoid stale state closures from multiple setters
+    const handleProductSearch = async (rowIndex, query, keepName = false) => {
         const newRows = [...rows];
         newRows[rowIndex] = {
             ...newRows[rowIndex],
             product_sku: query,
-            product_name: '' // Clear name while searching
+            product_name: keepName ? newRows[rowIndex].product_name : ''
         };
         setRows(newRows);
-        updateParent(newRows);
+        if (!keepName) updateParent(newRows);
 
         if (query.length >= 3) {
             setActiveSearchRow(rowIndex);
@@ -115,32 +114,50 @@ const ProductItemsSection = ({
         }
     };
 
-    const selectProduct = (rowIndex, product) => {
+    const selectProduct = (rowIndex, product, skipAddRow = false) => {
         const newRows = [...rows];
         const row = newRows[rowIndex];
 
         row.product_sku = product.sku;
         row.product_name = product.name;
+        row.brand = product.brand;
         row.unit_price = product.price_list || 0;
         row.price_list = product.price_list || 0;
         row.promo_discount_pct = product.promo_discount_pct || 0;
         row.stock = product.stock_current || 0;
-        row.quantity = 1;
-        row.subtotal = product.price_list || 0;
+        row.quantity = row.quantity || 1;
+        row.subtotal = parseFloat(row.quantity) * parseFloat(row.unit_price);
+
+        // Fetch or store variations
+        if (searchResults.length > 0 && searchResults.some(p => p.sku === product.sku)) {
+            row.sku_variations = searchResults.filter(p => p.sku === product.sku);
+        } else if (!row.sku_variations) {
+            row.sku_variations = [product];
+            inventoryService.getProducts(1, 50, product.sku).then(res => {
+                const vars = res.data.items.filter(p => p.sku === product.sku);
+                if (vars.length > 0) {
+                    setRows(current => {
+                        const copy = [...current];
+                        if (copy[rowIndex] && copy[rowIndex].product_sku === product.sku) {
+                            copy[rowIndex].sku_variations = vars;
+                        }
+                        return copy;
+                    });
+                }
+            }).catch(() => {});
+        }
 
         setRows(newRows);
         setActiveSearchRow(null);
 
-        // If last row, add new
-        if (rowIndex === rows.length - 1) {
+        if (!skipAddRow && rowIndex === rows.length - 1) {
             addRow();
         }
 
         updateParent(newRows);
 
-        // Move focus to Quantity
         setTimeout(() => {
-            if (gridRef.current[rowIndex]?.quantity) {
+            if (!skipAddRow && gridRef.current[rowIndex]?.quantity) {
                 gridRef.current[rowIndex].quantity.focus();
             }
         }, 50);
@@ -160,11 +177,9 @@ const ProductItemsSection = ({
         updateParent(newRows);
     };
 
-    const handleImport = (importedItems) => {
-        // Filter out existing blank rows
+    const handleImport = async (importedItems) => {
         const currentValidRows = rows.filter(r => r.product_sku);
 
-        // Add current timestamp to imported items to ensure unique IDs
         const itemsWithId = importedItems.map((item, idx) => ({
             ...item,
             _id: Date.now() + idx
@@ -172,13 +187,14 @@ const ProductItemsSection = ({
 
         const newRows = [...currentValidRows, ...itemsWithId];
 
-        // Add a backoff empty row for UX
         if (!readOnly) {
             newRows.push({ _id: Date.now() + 9999, product_sku: '', product_name: '', quantity: 1, unit_price: 0, subtotal: 0, stock: 0 });
         }
 
         setRows(newRows);
         updateParent(newRows);
+
+        // No more background loop! QuickImportModal provides variations instantaneously via O(1) bulk fetch.
     };
 
     const handleExportCopy = () => {
@@ -286,7 +302,12 @@ const ProductItemsSection = ({
                             <td style={{ padding: '0.5rem', position: 'relative', verticalAlign: 'top' }}>
                                 {readOnly ? (
                                     <div style={{ color: 'white' }}>
-                                        <div style={{ fontWeight: 500 }}>{row.product_name}</div>
+                                        <div style={{ fontWeight: 500 }}>
+                                            {row.product_name}
+                                            {row.brand && row.brand !== 'OEM' && row.brand !== 'N/A' && (
+                                                <span style={{ marginLeft: '4px', color: '#38bdf8', fontWeight: 'bold', fontSize: '0.85em' }}>[{row.brand}]</span>
+                                            )}
+                                        </div>
                                         <div style={{ fontSize: '0.75em', color: '#64748b' }}>{row.product_sku}</div>
                                     </div>
                                 ) : (
@@ -299,7 +320,16 @@ const ProductItemsSection = ({
                                             type="text"
                                             value={row.product_sku}
                                             onChange={(e) => handleProductSearch(index, e.target.value)}
-                                            onFocus={() => row.product_sku.length >= 3 && setActiveSearchRow(index)}
+                                            onFocus={() => {
+                                                if (row.product_sku.length >= 3) {
+                                                    setActiveSearchRow(index);
+                                                    if (!row.sku_variations) {
+                                                        handleProductSearch(index, row.product_sku, true);
+                                                    } else {
+                                                        setSearchResults(row.sku_variations);
+                                                    }
+                                                }
+                                            }}
                                             onKeyDown={(e) => handleKeyDown(e, index, 'sku')}
                                             placeholder="Buscar producto..."
                                             style={{
@@ -315,6 +345,38 @@ const ProductItemsSection = ({
                                         {row.product_name && (
                                             <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                 {row.product_name}
+                                                {row.brand && (
+                                                    <span style={{ marginLeft: '4px', color: (row.brand === 'OEM' || row.brand === 'N/A') ? '#94a3b8' : '#38bdf8', fontWeight: 'bold' }}>
+                                                        {!readOnly && row.sku_variations && row.sku_variations.length > 1 ? (
+                                                            <select
+                                                                value={row.brand}
+                                                                onChange={(e) => {
+                                                                    const selectedProduct = row.sku_variations.find(p => p.brand === e.target.value);
+                                                                    if (selectedProduct) selectProduct(index, selectedProduct, true);
+                                                                }}
+                                                                style={{
+                                                                    background: 'transparent',
+                                                                    border: `1px dashed ${(row.brand === 'OEM' || row.brand === 'N/A') ? '#94a3b8' : '#38bdf8'}`,
+                                                                    color: (row.brand === 'OEM' || row.brand === 'N/A') ? '#94a3b8' : '#38bdf8',
+                                                                    fontWeight: 'bold',
+                                                                    outline: 'none',
+                                                                    cursor: 'pointer',
+                                                                    appearance: 'none',
+                                                                    paddingRight: '12px'
+                                                                }}
+                                                            >
+                                                                {row.sku_variations.map(v => (
+                                                                    <option key={v.brand} value={v.brand} style={{ color: 'black' }}>
+                                                                        [{v.brand}] - S/ {v.price_list}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        ) : (
+                                                            (row.brand !== 'OEM' && row.brand !== 'N/A') ? `[${row.brand}]` : ''
+                                                        )}
+                                                        {!readOnly && row.sku_variations && row.sku_variations.length > 1 && <span style={{ marginLeft: '-10px', pointerEvents: 'none' }}>▾</span>}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
                                         {/* DROPDOWN - Custom Styled without Tailwind */}
@@ -350,7 +412,12 @@ const ProductItemsSection = ({
                                                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#334155'}
                                                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                                         >
-                                                            <div style={{ fontWeight: 'bold' }}>{p.sku}</div>
+                                                            <div style={{ fontWeight: 'bold', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                                <span>{p.sku}</span>
+                                                                {p.brand && p.brand !== 'OEM' && p.brand !== 'N/A' && (
+                                                                    <span style={{ color: '#60a5fa', fontSize: '0.85em' }}>[{p.brand}]</span>
+                                                                )}
+                                                            </div>
                                                             <div style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>{p.name}</div>
                                                             <div style={{ fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
                                                                 <span style={{ color: p.stock_current > 0 ? '#34d399' : '#f87171' }}>Stock: {p.stock_current}</span>

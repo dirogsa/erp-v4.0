@@ -59,7 +59,7 @@ export const parseFiltron = (doc, domain, dbCategories = []) => {
         data.category_name = resolveCategoryName(rawCat, dbCategories);
 
         // Construimos el nombre estándar
-        data.name = `${data.category_name} ${data.brand} ${data.sku}`.trim();
+        data.name = `${data.category_name} ${data.sku}`.trim();
     }
 
     // 3. EAN / GTIN

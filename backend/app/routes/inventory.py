@@ -498,3 +498,17 @@ async def check_existence(items: List[Dict[str, str]]):
     Verifica existencia de SKUs y Marcas de forma masiva.
     """
     return await inventory_service.check_products_existence(items)
+
+class BulkFetchPayload(BaseModel):
+    skus: List[str]
+
+@router.post("/bulk-fetch", response_model=List[ProductWithPrice])
+async def bulk_fetch(
+    payload: BulkFetchPayload,
+    company_id: str = Depends(get_current_company_id)
+):
+    """
+    World-class bulk fetch endpoint.
+    Returns a list of complete products matching any of the requested SKUs in O(1).
+    """
+    return await inventory_service.bulk_fetch_products(payload.skus, company_id)

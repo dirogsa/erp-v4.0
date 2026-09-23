@@ -53,6 +53,7 @@ const ProductItemsSection = ({
         const newItem = {
             product_sku: selectedProduct.sku,
             product_name: selectedProduct.name,
+            brand: selectedProduct.brand,
             quantity: parseInt(quantity),
             unit_price: parseFloat(price),
             subtotal: parseInt(quantity) * parseFloat(price)
@@ -87,7 +88,14 @@ const ProductItemsSection = ({
 
     const columns = [
         { label: 'SKU', key: 'product_sku' },
-        { label: 'Producto', key: 'product_name' },
+        { label: 'Producto', key: 'product_name', render: (val, row) => (
+            <div>
+                {val}
+                {row.brand && row.brand !== 'OEM' && row.brand !== 'N/A' && (
+                    <span style={{ marginLeft: '4px', color: '#38bdf8', fontWeight: 'bold', fontSize: '0.85em' }}>[{row.brand}]</span>
+                )}
+            </div>
+        )},
         { label: 'Cantidad', key: 'quantity', align: 'center' },
         {
             label: 'Precio Unit.',

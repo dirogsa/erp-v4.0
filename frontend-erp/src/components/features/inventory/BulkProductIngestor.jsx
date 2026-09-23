@@ -9,6 +9,7 @@ const BulkProductIngestor = ({ onComplete, onCancel }) => {
     const ingestorRef = useRef();
     const { showNotification } = useNotification();
     const [categories, setCategories] = useState([]);
+    const [ingestMode, setIngestMode] = useState('JSON');
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -22,19 +23,94 @@ const BulkProductIngestor = ({ onComplete, onCancel }) => {
         fetchCategories();
     }, []);
 
-    // Motor de Parsing para Productos (HTML Texto pegado)
-    const handleParse = (text) => {
-        const parsed = parseCatalogHtml(text, '', categories);
-        return parsed ? [parsed] : [];
+    // Motor de Parsing Universal JSON
+    const parseJsonProduct = (text, fileName) => {
+        try {
+            const json = JSON.parse(text);
+            const data = json.product || json;
+            
+            let overrideSku = data.item_code || data.sku || data.code;
+            let overrideBrand = data.pref || data.brand;
+            
+            // Priorizar extracción del nombre de archivo (SKU_MARCA.json)
+            if (fileName && fileName.includes('_')) {
+                const nameWithoutExt = fileName.split('.').slice(0, -1).join('.');
+                const parts = nameWithoutExt.split('_');
+                if (parts.length >= 2) {
+                    overrideBrand = parts.pop().toUpperCase();
+                    overrideSku = parts.join('_').toUpperCase();
+                }
+            }
+            
+            const equivalences = [];
+            if (data.oems) {
+                data.oems.forEach(oem => equivalences.push({ brand: oem.brand || 'OEM', code: oem.code, is_original: true }));
+            }
+            if (data.refs) {
+                data.refs.forEach(ref => equivalences.push({ brand: ref.brand || 'REF', code: ref.code, is_original: false }));
+            }
+            
+            const applications = [];
+            if (data.car_model_types) {
+                data.car_model_types.forEach(car => {
+                    const make = car.brand?.title || car.brand || '';
+                    const model = car.model?.name || car.model || '';
+                    const yearStart = car.date_start ? car.date_start.split('-')[0] : '';
+                    const yearEnd = car.date_end ? car.date_end.split('-')[0] : '';
+                    const year = car.year || (yearStart || yearEnd ? `${yearStart} - ${yearEnd}` : '');
+
+                    applications.push({
+                        make: make,
+                        model: model,
+                        engine: car.name || car.engine || car.motor || '',
+                        year: year
+                    });
+                });
+            }
+            
+            return {
+                sku: overrideSku || 'SIN_SKU',
+                brand: overrideBrand || 'SIN_MARCA',
+                name: data.name || `${overrideBrand} ${overrideSku}`,
+                equivalences: equivalences,
+                applications: applications,
+                image_url: data.image_url || '',
+                specs: data.info ? data.info.map(i => ({ 
+                    label: i.name || 'Spec', 
+                    value: String(i.code || i.value || ''), 
+                    measure_type: (i.name && (i.name.toLowerCase().includes('mm') || /height|width|length|diameter/i.test(i.name))) ? 'mm' : 'other'
+                })) : []
+            };
+        } catch (e) {
+            console.error("Error parsing JSON:", e);
+            return null;
+        }
     };
 
-    // Motor de Procesamiento de Archivos HTML
+    // Motor de Parsing para Productos (HTML Texto pegado)
+    const handleParse = (text) => {
+        if (ingestMode === 'JSON') {
+            const parsed = parseJsonProduct(text, '');
+            return parsed ? [parsed] : [];
+        } else {
+            const parsed = parseCatalogHtml(text, '', categories);
+            return parsed ? [parsed] : [];
+        }
+    };
+
+    // Motor de Procesamiento de Archivos HTML / JSON
     const handleFiles = async (files) => {
         const allDetected = [];
         for (const file of files) {
             try {
                 const text = await file.text();
-                const parsed = parseCatalogHtml(text, file.name, categories);
+                let parsed = null;
+                if (ingestMode === 'JSON' && file.name.toLowerCase().endsWith('.json')) {
+                    parsed = parseJsonProduct(text, file.name);
+                } else if (ingestMode === 'HTML' && file.name.toLowerCase().endsWith('.html')) {
+                    parsed = parseCatalogHtml(text, file.name, categories);
+                }
+                
                 if (parsed) {
                     allDetected.push({ ...parsed, id: parsed.sku });
                 }
@@ -73,10 +149,8 @@ const BulkProductIngestor = ({ onComplete, onCancel }) => {
             const updateExisting = strategy === 'OVERWRITE';
             
             // Inyección Masiva (Bulk Upsert)
-            // Esto delega la lógica de existencia al backend (MongoDB) y evita los "falsos errores 409" en la consola del navegador.
             const response = await inventoryService.bulkCreateProducts(payloads, updateExisting);
             
-            // response.data es típicamente { created: X, updated: Y, errors: Z } según BulkImportResponse del backend
             const resData = response.data || {};
             const created = resData.created || resData.imported || resData.created_count || 0;
             const updated = resData.updated || resData.updated_count || 0;
@@ -141,12 +215,39 @@ const BulkProductIngestor = ({ onComplete, onCancel }) => {
 
     return (
         <div style={{ padding: '1rem 0' }}>
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                <button 
+                    onClick={() => { setIngestMode('JSON'); if (ingestorRef.current) ingestorRef.current.clear(); }}
+                    style={{ 
+                        flex: 1, padding: '1rem', borderRadius: '1rem', fontWeight: 'bold', fontSize: '1.1rem',
+                        background: ingestMode === 'JSON' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${ingestMode === 'JSON' ? '#3b82f6' : 'rgba(255,255,255,0.1)'}`,
+                        color: ingestMode === 'JSON' ? '#60a5fa' : '#94a3b8',
+                        cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                >
+                    📦 Modo JSON (Universal Estructurado)
+                </button>
+                <button 
+                    onClick={() => { setIngestMode('HTML'); if (ingestorRef.current) ingestorRef.current.clear(); }}
+                    style={{ 
+                        flex: 1, padding: '1rem', borderRadius: '1rem', fontWeight: 'bold', fontSize: '1.1rem',
+                        background: ingestMode === 'HTML' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${ingestMode === 'HTML' ? '#f59e0b' : 'rgba(255,255,255,0.1)'}`,
+                        color: ingestMode === 'HTML' ? '#fbbf24' : '#94a3b8',
+                        cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                >
+                    🌐 Modo HTML (Wix / Filtron / Azumi)
+                </button>
+            </div>
+            
             <IndustrialIngestor
                 ref={ingestorRef}
-                title="Laboratorio de Ingesta de Catálogos (HTML)"
-                subtitle="Procesa masivamente páginas de catálogos web de fabricantes (Wix, Filtron, LYS, etc.)"
+                title={`Laboratorio de Ingesta de Catálogos (${ingestMode})`}
+                subtitle={ingestMode === 'JSON' ? "Procesa catálogos universales en formato JSON de manera estructurada." : "Procesa masivamente páginas de catálogos web legacy (Wix, Filtron, Azumi)."}
                 icon={Package}
-                iconColor="#3b82f6"
+                iconColor={ingestMode === 'JSON' ? "#3b82f6" : "#f59e0b"}
                 onParse={handleParse}
                 onFilesDetected={handleFiles}
                 onPersist={handlePersist}
@@ -156,10 +257,11 @@ const BulkProductIngestor = ({ onComplete, onCancel }) => {
                 previewTitle="Productos Listos para Inyectar al Maestro"
                 processButtonText="Inyectar al Maestro"
                 allowText={false}
-                accept=".html"
+                accept={ingestMode === 'JSON' ? ".json" : ".html"}
             />
         </div>
     );
 };
 
 export default BulkProductIngestor;
+

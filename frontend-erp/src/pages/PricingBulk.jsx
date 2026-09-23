@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { pricingService } from '../services/api';
 import Button from '../components/common/Button';
 import { useNotification } from '../hooks/useNotification';
+import ExcelImportModal from '../components/common/ExcelImportModal';
 
 const PricingBulk = () => {
     const [importMode, setImportMode] = useState('text'); 
@@ -19,73 +20,51 @@ const PricingBulk = () => {
     const [dangerArmed, setDangerArmed] = useState(false);
     const [isPurging, setIsPurging] = useState(false);
 
-    const handleParseText = async () => {
+    const [showImportModal, setShowImportModal] = useState(false);
+
+    const handleOpenImport = () => {
         if (!adjustMode) {
-            showNotification('Por favor selecciona un modo (Precios, Costos o Ambos) antes de analizar.', 'warning');
+            showNotification('Por favor selecciona un modo (Precios, Costos o Ambos) antes de importar.', 'warning');
             return;
         }
-        if (!pasteText.trim()) return;
-        setIsAnalyzing(true);
-        setFormatErrors([]);
-        setUnrecognizedItems([]);
-        setParsedData([]);
+        setShowImportModal(true);
+    };
 
-        const lines = pasteText.split(/\r?\n/);
+    const handleValidate = async (rawRows, mapping) => {
         const detected = [];
         const badLines = [];
         
-        lines.forEach((line, index) => {
-            const rawLine = line.trim();
-            if (!rawLine) return;
+        rawRows.forEach((row, index) => {
+            const sku = row[mapping.sku]?.trim();
+            const brand = row[mapping.brand]?.trim() || null;
+            if (!sku) return;
 
-            const lowerLine = rawLine.toLowerCase();
-            if (lowerLine.includes('codigo') || lowerLine.includes('precio') || lowerLine.includes('sku') || lowerLine.includes('costo')) return;
-
-            let parts = rawLine.split('\t');
-            if (parts.length < 2) {
-                parts = rawLine.split(/[\s]{2,}/); 
-                if (parts.length < 2) parts = rawLine.split(' '); 
-            }
-            parts = parts.map(p => p.trim()).filter(p => p !== "");
-            if (parts.length < 2) return;
-
-            const fullSku = parts[0].toUpperCase();
-            const sku = fullSku.split(' ')[0]; 
-            
             if (adjustMode === 'price') {
-                const price = parseFloat(parts[parts.length - 1].replace(/[^\d.]/g, ''));
-                if (sku && !isNaN(price)) detected.push({ sku, price });
-                else badLines.push({ line, index: index + 1, reason: 'Formato inválido' });
+                const price = parseFloat(row[mapping.price]?.replace(/[^\d.]/g, ''));
+                if (!isNaN(price)) detected.push({ sku, brand, price });
+                else badLines.push(`Fila ${index + 1}: Precio inválido para ${sku}`);
             } 
             else if (adjustMode === 'cost') {
-                const cost = parseFloat(parts[parts.length - 1].replace(/[^\d.]/g, ''));
-                if (sku && !isNaN(cost)) detected.push({ sku, cost });
-                else badLines.push({ line, index: index + 1, reason: 'Formato inválido' });
+                const cost = parseFloat(row[mapping.cost]?.replace(/[^\d.]/g, ''));
+                if (!isNaN(cost)) detected.push({ sku, brand, cost });
+                else badLines.push(`Fila ${index + 1}: Costo inválido para ${sku}`);
             }
             else if (adjustMode === 'both') {
-                const cost = parseFloat(parts[parts.length - 2]?.replace(/[^\d.]/g, ''));
-                const price = parseFloat(parts[parts.length - 1]?.replace(/[^\d.]/g, ''));
-                if (sku && !isNaN(cost) && !isNaN(price)) detected.push({ sku, cost, price });
-                else {
-                    const lastNum = parseFloat(parts[parts.length - 1]?.replace(/[^\d.]/g, ''));
-                    if (sku && !isNaN(lastNum)) detected.push({ sku, price: lastNum });
-                    else badLines.push({ line, index: index + 1, reason: 'Formato inválido' });
-                }
+                const cost = parseFloat(row[mapping.cost]?.replace(/[^\d.]/g, ''));
+                const price = parseFloat(row[mapping.price]?.replace(/[^\d.]/g, ''));
+                if (!isNaN(cost) && !isNaN(price)) detected.push({ sku, brand, cost, price });
+                else badLines.push(`Fila ${index + 1}: Costo o Precio inválido para ${sku}`);
             }
         });
 
-        if (detected.length > 0) {
-            try {
-                const res = await pricingService.analyzeBulk({ items: detected, list_name: "General", mode: adjustMode });
-                setParsedData(res.data.valid);
-                setUnrecognizedItems(res.data.unrecognized);
-                showNotification(`Análisis completado: ${res.data.valid.length} válidos.`, 'success');
-            } catch (error) {
-                showNotification('Error al validar productos', 'error');
-            }
+        if (detected.length === 0) return { valid: [], ambiguous: [], errors: badLines };
+
+        try {
+            const res = await pricingService.analyzeBulk({ items: detected, list_name: "General", mode: adjustMode });
+            return { valid: res.data.valid, ambiguous: res.data.unrecognized, errors: badLines };
+        } catch (error) {
+            return { valid: [], ambiguous: [], errors: [...badLines, 'Error al validar productos con el servidor'] };
         }
-        setFormatErrors(badLines);
-        setIsAnalyzing(false);
     };
 
     const handleExecuteUpdate = async () => {
@@ -104,6 +83,25 @@ const PricingBulk = () => {
             showNotification('Error en la actualización', 'error');
         } finally {
             setIsProcessing(false);
+        }
+    };
+
+    const handleResolveAmbiguous = async (item, selectedBrand) => {
+        try {
+            const payload = { 
+                sku: item.sku, 
+                brand: selectedBrand, 
+                price: item.proposed_price, 
+                cost: item.proposed_cost 
+            };
+            const res = await pricingService.analyzeBulk({ items: [payload], list_name: "General", mode: adjustMode });
+            
+            if (res.data.valid.length > 0) {
+                return { valid: true, item: res.data.valid[0] };
+            }
+            return { valid: false };
+        } catch (err) {
+            return { valid: false };
         }
     };
 
@@ -159,26 +157,9 @@ const PricingBulk = () => {
                     </div>
                 </div>
                 
-                <textarea
-                    value={pasteText}
-                    onChange={(e) => setPasteText(e.target.value)}
-                    placeholder={
-                        !adjustMode ? "1. Selecciona un modo arriba ↑\n2. Pega aquí tus datos de Excel..." :
-                        adjustMode === 'price' ? "Modo Solo Precios: SKU [Tab] PRECIO" :
-                        adjustMode === 'cost' ? "Modo Solo Costos: SKU [Tab] COSTO" :
-                        "Modo Costos + Precios: SKU [Tab] COSTO [Tab] PRECIO"
-                    }
-                    style={{
-                        width: '100%', height: '220px', background: '#0f172a', border: adjustMode ? '1px solid #334155' : '1px dashed #3b82f6',
-                        borderRadius: '1rem', padding: '1.5rem', color: 'white', fontFamily: 'monospace',
-                        fontSize: '0.9rem', resize: 'none', outline: 'none'
-                    }}
-                />
-                
-                <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <p style={{ color: '#64748b', fontSize: '0.8rem' }}>💡 Pega SKU, Costo y Precio. El sistema calculará los márgenes.</p>
-                    <Button onClick={handleParseText} variant="primary" loading={isAnalyzing} disabled={!pasteText.trim()}>
-                        🔍 Analizar Impacto en Márgenes
+                <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+                    <Button onClick={handleOpenImport} variant="primary" style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}>
+                        📊 Importar desde Excel
                     </Button>
                 </div>
 
@@ -253,6 +234,35 @@ const PricingBulk = () => {
                     </div>
                 )}
             </div>
+            <ExcelImportModal
+                visible={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                onImport={(validItems) => setParsedData(validItems)}
+                title={`Importar ${adjustMode === 'price' ? 'Precios' : adjustMode === 'cost' ? 'Costos' : 'Costos y Precios'}`}
+                columns={[
+                    { key: 'sku', label: '📍 SKU / Código' },
+                    { key: 'brand', label: '🏷️ Marca (Opcional)' },
+                    ...(adjustMode === 'cost' || adjustMode === 'both' ? [{ key: 'cost', label: '💸 Costo' }] : []),
+                    ...(adjustMode === 'price' || adjustMode === 'both' ? [{ key: 'price', label: '💰 Precio' }] : [])
+                ]}
+                onValidate={handleValidate}
+                onResolveAmbiguous={handleResolveAmbiguous}
+                allowAmbiguityResolution={true}
+                validTableHeaders={['Producto', 'Costo Prop', 'Precio Prop', 'Margen']}
+                renderValidRow={(item, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                        <td style={{ padding: '0.75rem' }}>
+                            <div style={{ color: 'white', fontWeight: 'bold' }}>{item.sku}</div>
+                            <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{item.brand} | {item.name}</div>
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right', color: '#f59e0b', fontWeight: 'bold' }}>S/ {item.proposed_cost?.toFixed(2) || '---'}</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right', color: '#10b981', fontWeight: 'bold' }}>S/ {item.proposed_price?.toFixed(2) || '---'}</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                            <div style={{ padding: '0.2rem 0.4rem', borderRadius: '0.5rem', background: item.margin > 25 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: item.margin > 25 ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>{item.margin?.toFixed(1)}%</div>
+                        </td>
+                    </tr>
+                )}
+            />
         </div>
     );
 };

@@ -27,7 +27,13 @@ class AuditService:
         """
         try:
             from datetime import timedelta
+            from ..models.config import SystemConfig
             
+            # 0. Global Check
+            config = await SystemConfig.find_one({})
+            if config and not getattr(config, 'enable_activity_logs', True):
+                return None
+
             # 1. Classification
             is_vital = (module in AuditService.VITAL_MODULES) or (action in AuditService.VITAL_ACTIONS)
             

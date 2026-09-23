@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Button from '../../common/Button';
 import { inventoryService, salesPolicyService } from '../../../services/api';
+import { cleanSku } from '../../../utils/formatters';
 
 const PriceImportModal = ({ visible, onClose, onImported }) => {
     const [pastedData, setPastedData] = useState('');
@@ -42,14 +43,27 @@ const PriceImportModal = ({ visible, onClose, onImported }) => {
         const finalItems = [];
         const errors = [];
 
-        for (let i = 0; i < parsedItems.length; i++) {
-            const row = parsedItems[i];
-            const sku = row[mapping.sku]?.trim();
-            const priceInput = parseFloat(row[mapping.price]) || 0;
-            if (!sku) continue;
-            try {
-                const res = await inventoryService.getProducts(1, 1, sku);
-                const product = res.data.items.find(p => p.sku.toLowerCase() === sku.toLowerCase());
+        const allSkus = parsedItems.map(row => row[mapping.sku]?.trim()).filter(Boolean);
+        if (allSkus.length === 0) {
+            setValidationStatus({ loading: false, errors: ['No se encontraron SKUs válidos.'] });
+            return;
+        }
+
+        try {
+            const res = await inventoryService.bulkFetchProducts(allSkus);
+            const productsList = res.data;
+            const productsMap = {};
+            productsList.forEach(p => {
+                productsMap[cleanSku(p.sku)] = p;
+            });
+
+            for (let i = 0; i < parsedItems.length; i++) {
+                const row = parsedItems[i];
+                const sku = row[mapping.sku]?.trim();
+                const priceInput = parseFloat(row[mapping.price]) || 0;
+                if (!sku) continue;
+                
+                const product = productsMap[cleanSku(sku)];
                 if (product) {
                     const finalPrice = priceInput > 0 ? priceInput : product.price_list;
                     finalItems.push({
@@ -62,9 +76,10 @@ const PriceImportModal = ({ visible, onClose, onImported }) => {
                 } else {
                     errors.push(`Fila ${i + 1}: SKU "${sku}" no encontrado.`);
                 }
-            } catch (err) {
-                errors.push(`Fila ${i + 1}: Error validando SKU "${sku}".`);
             }
+        } catch (err) {
+            errors.push('Error crítico conectando al servidor para validación masiva.');
+            console.error(err);
         }
 
         setValidationStatus({ loading: false, errors });

@@ -97,3 +97,9 @@ export const formatRUC = (ruc) => {
     }
     return ruc;
 };
+
+// Normalización de SKU (Equivalente al clean_code del backend)
+export const cleanSku = (sku) => {
+    if (!sku) return '';
+    return String(sku).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+};

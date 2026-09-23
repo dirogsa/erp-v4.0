@@ -69,7 +69,7 @@ export const parseSunatHTML = (text) => {
     data.sunat_condition = findSemanticValue('Condici', CONDITIONS);
 
     // 4. Domicilio Fiscal
-    const addressMatch = normalizedText.match(/Domicilio Fiscal:?\s*([^<]+?)(?=\s{2,}|<|Actividad|$)/i);
+    const addressMatch = normalizedText.match(/Domicilio Fiscal:?\s*([^<]+?)(?=\s{2,}|<|Actividad|Sistema\s+Emisi[óo]n|$)/i);
     if (addressMatch) {
         data.address = cleanValue(addressMatch[1]).replace(/^-+/, '');
     }

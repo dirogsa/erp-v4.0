@@ -55,7 +55,7 @@ export const parseMillard = (doc, domain = 'http://www.millardcatalog.com', dbCa
         }
     }
 
-    data.name = `${data.category_name || 'FILTRO'} MILLARD ${data.sku}`.trim();
+    data.name = `${data.category_name || 'FILTRO'} ${data.sku}`.trim();
 
     // 2. Extraer Imágenes
     const mainImgEl = doc.querySelector('span[itemprop="image"]');

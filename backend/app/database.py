@@ -42,6 +42,7 @@ async def init_db():
                 "app.models.inventory.Notification",
                 "app.models.inventory.IntercompanyTransaction",
                 "app.models.inventory.ProductReview",
+                "app.models.dims_reference.DimsReferenceProduct",
                 "app.models.purchasing.PurchaseOrder",
                 "app.models.purchasing.PurchaseInvoice",
                 "app.models.purchasing.Supplier",

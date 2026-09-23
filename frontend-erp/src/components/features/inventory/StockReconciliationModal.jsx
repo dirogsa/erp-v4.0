@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Button from '../../common/Button';
 import { inventoryService } from '../../../services/api';
-import { formatCurrency } from '../../../utils/formatters';
+import { formatCurrency, cleanSku } from '../../../utils/formatters';
 
 const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
     const [pastedData, setPastedData] = useState('');
@@ -37,20 +37,31 @@ const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
         const validatedItems = [];
         const validationErrors = [];
 
-        for (let i = 0; i < parsedItems.length; i++) {
-            const row = parsedItems[i];
-            const sku = row[mapping.sku]?.trim();
-            const physical = parseInt(row[mapping.physical_stock]) || 0;
-            const unitCostRaw = mapping.unit_cost !== -1 ? row[mapping.unit_cost]?.replace(/[^\d.]/g, '') : null;
-            const parsedUnitCost = unitCostRaw ? parseFloat(unitCostRaw) : null;
+        const allSkus = parsedItems.map(row => row[mapping.sku]?.trim()).filter(Boolean);
+        if (allSkus.length === 0) {
+            setErrors(['No se encontraron SKUs válidos.']);
+            setIsLoading(false);
+            return;
+        }
 
-            if (!sku) continue;
+        try {
+            const res = await inventoryService.bulkFetchProducts(allSkus);
+            const productsList = res.data;
+            const productsMap = {};
+            productsList.forEach(p => {
+                productsMap[cleanSku(p.sku)] = p;
+            });
 
-            try {
-                // Fetch product details for matching
-                const res = await inventoryService.getProducts(1, 1, sku);
-                const product = res.data.items.find(p => p.sku.toLowerCase() === sku.toLowerCase());
+            for (let i = 0; i < parsedItems.length; i++) {
+                const row = parsedItems[i];
+                const sku = row[mapping.sku]?.trim();
+                const physical = parseInt(row[mapping.physical_stock]) || 0;
+                const unitCostRaw = mapping.unit_cost !== -1 ? row[mapping.unit_cost]?.replace(/[^\d.]/g, '') : null;
+                const parsedUnitCost = unitCostRaw ? parseFloat(unitCostRaw) : null;
 
+                if (!sku) continue;
+
+                const product = productsMap[cleanSku(sku)];
                 if (product) {
                     const systemStock = product.stock_current;
                     const delta = physical - systemStock;
@@ -69,9 +80,10 @@ const StockReconciliationModal = ({ visible, onClose, onRefresh }) => {
                 } else {
                     validationErrors.push(`Fila ${i + 1}: SKU "${sku}" no existe.`);
                 }
-            } catch (err) {
-                validationErrors.push(`Fila ${i + 1}: Error al validar "${sku}".`);
             }
+        } catch (err) {
+            validationErrors.push('Error crítico al conectar con el servidor para la validación masiva.');
+            console.error(err);
         }
 
         setParsedItems(validatedItems);

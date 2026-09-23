@@ -52,7 +52,7 @@ export const parseOEM = (doc, filename, dbCategories = []) => {
             data.sku = internalCode;
         }
 
-        data.name = `FILTRO OEM ${data.sku}`.trim();
+        data.name = `${data.category_name || 'FILTRO'} ${data.sku}`.trim();
         
         // Agregar el código interno de Asakashi como equivalencia si es diferente del SKU
         if (internalCode && internalCode !== data.sku) {
@@ -67,7 +67,7 @@ export const parseOEM = (doc, filename, dbCategories = []) => {
         data.category_name = resolveCategoryName(categoryPart, dbCategories);
     } else {
         // Si no es Asakashi, el nombre se basa en el SKU del archivo
-        data.name = `FILTRO OEM ${data.sku}`;
+        data.name = `${data.category_name || 'FILTRO'} ${data.sku}`.trim();
     }
 
     // 2. Imágenes (Específico JS Asakashi)

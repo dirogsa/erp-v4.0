@@ -469,6 +469,9 @@ async def get_shop_products(
     # Consulta profesional: Booleano estricto
     query = {"is_active_in_shop": True}
     
+    use_atlas_search = False
+    pipeline = []
+
     if search:
         s = search.strip()
         if mode == "vehicle":
@@ -479,12 +482,81 @@ async def get_shop_products(
         elif mode == "specs":
             query["specs.value"] = {"$regex": s, "$options": "i"}
         elif mode == "equivalence":
-            query["equivalences.code"] = {"$regex": f"^{s}", "$options": "i"}
+            # Dedicated equivalence search — Atlas Search on equivalences.code via NGram index
+            use_atlas_search = True
+            pipeline.append({
+                "$search": {
+                    "index": "default",
+                    "text": {
+                        "query": s,
+                        "path": ["equivalences.code"],
+                        "score": {"boost": {"value": 1}}
+                    }
+                }
+            })
         else:
-            # Smart Search: Phase 1 Text Index implementation.
-            # O(1) Instant Text Search matching (Massive Performance Boost)
-            # Replaces expensive $or regex COLLSCAN
-            query["$text"] = {"$search": f'"{s}"' if len(s) < 4 else s}
+            # ── Atlas Search (NGram Analyzer) ─────────────────────────────────────
+            # The NGram index decomposes every code at indexing time:
+            #   "WA6004" → ["wa","wa6","wa60","wa600","wa6004","a6","a60",...,"6004","004"]
+            # Searching "6004" finds "WA6004" via a standard text match — no wildcards needed.
+            # Scores: SKU match (x10) > equivalences.code (x5) > name/brand/category (x1)
+            use_atlas_search = True
+            pipeline.append({
+                "$search": {
+                    "index": "default",
+                    "compound": {
+                        "should": [
+                            # Product codes (SKU) — NGram enables substring matching
+                            {
+                                "text": {
+                                    "query": s,
+                                    "path": ["sku", "clean_sku", "sku_canonical"],
+                                    "score": {"boost": {"value": 10}}
+                                }
+                            },
+                            # OEM / cross-reference equivalences
+                            {
+                                "text": {
+                                    "query": s,
+                                    "path": ["equivalences.code"],
+                                    "score": {"boost": {"value": 5}}
+                                }
+                            },
+                            # Free-text: product name, brand, category
+                            {
+                                "text": {
+                                    "query": s,
+                                    "path": ["name", "brand", "category_name"],
+                                    "score": {"boost": {"value": 1}}
+                                }
+                            }
+                        ],
+                        "minimumShouldMatch": 1
+                    }
+                }
+            })
+            # Server-side: compute matched_equivalence field inside the pipeline (zero Python overhead)
+            pipeline.append({
+                "$addFields": {
+                    "matched_equivalence": {
+                        "$reduce": {
+                            "input": "$equivalences",
+                            "initialValue": None,
+                            "in": {
+                                "$cond": [
+                                    {"$and": [
+                                        {"$eq": ["$$value", None]},
+                                        {"$regexMatch": {"input": "$$this.code", "regex": s, "options": "i"}}
+                                    ]},
+                                    "$$this.code",
+                                    "$$value"
+                                ]
+                            }
+                        }
+                    }
+                }
+            })
+
     
     if category:
         # Dual filter: try by category_id (ERP internal), fallback to category_name regex (SEO Hub slugs)
@@ -553,10 +625,19 @@ async def get_shop_products(
     if not (search and len(search) > 4):
         query["type"] = {"$in": ["COMMERCIAL", "", None]}
 
-    logger.debug(f"[req={req_id}] MongoDB Query: {query}")
+    logger.debug(f"[req={req_id}] MongoDB Query Match: {query}")
     
-    total = await Product.find(query).count()
-    products = await Product.find(query).skip(skip).limit(limit).to_list()
+    if use_atlas_search:
+        pipeline.append({"$match": query})
+        count_pipeline = pipeline + [{"$count": "total"}]
+        count_res = await Product.aggregate(count_pipeline).to_list()
+        total = count_res[0]["total"] if count_res else 0
+        
+        data_pipeline = pipeline + [{"$skip": skip}, {"$limit": limit}]
+        products = await Product.aggregate(data_pipeline, projection_model=Product).to_list()
+    else:
+        total = await Product.find(query).count()
+        products = await Product.find(query).skip(skip).limit(limit).to_list()
     
     logger.info(f"[req={req_id}] GET /shop/products search='{search}' | found={total} returned={len(products)}")
 
@@ -600,12 +681,14 @@ async def get_shop_products(
             discount_6_pct=policy.vol_6_discount_pct if policy else 0.0,
             discount_12_pct=policy.vol_12_discount_pct if policy else 0.0,
             promo_discount_pct=p.promo_discount_pct,
-            matched_equivalence=next((eq.code for eq in p.equivalences if search and search.strip().upper() in eq.code.upper()), None) if search else None
+            # matched_equivalence is injected by the Atlas pipeline for "all" mode;
+            # for legacy modes (vehicle, specs), compute it server-side as a simple None.
+            matched_equivalence=getattr(p, 'matched_equivalence', None)
         ))
 
     
     # Record search analytics (Async/Background-like)
-    if search:
+    if search and getattr(_config, 'enable_search_logs', True):
         try:
             log = SearchLog(
                 query=search,
@@ -630,12 +713,11 @@ async def get_shop_product_detail(
     sku: str,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
-    import re
-    # Hacemos que la búsqueda del SKU sea insensible a mayúsculas y minúsculas (case-insensitive)
-    p = await Product.find_one({
-        "sku": {"$regex": f"^{re.escape(sku)}$", "$options": "i"},
-        "is_active_in_shop": True,
-    })
+    from app.utils.normalization import clean_code
+    # Use the pre-computed sku_canonical index — O(1) indexed lookup, zero COLLSCAN.
+    # sku_canonical is computed on every save via the pre_save hook in inventory.py.
+    canonical = clean_code(sku)
+    p = await Product.find_one({"sku_canonical": canonical, "is_active_in_shop": True})
     if not p:
         raise HTTPException(status_code=404, detail="Product not found or not available in shop")
     price_info = await PricingService.get_product_price(p.sku, brand=p.brand, quantity=1)
@@ -976,17 +1058,30 @@ async def get_predictive_order(current_user: User = Depends(get_current_user)):
     _config = await SystemConfig.find_one({})
     policy = _config.sales_policy if _config else None
     
-    # Resolve pricing
-    role = current_user.role
+    # Resolve pricing via PricingService (same pattern as the main products endpoint)
+    product_dicts = [{"sku": p.sku, "brand": p.brand} for p in products]
+    bulk_prices = await PricingService.get_bulk_prices(product_dicts)
+
     response_items = []
     for p in products:
-        price = p.price_list
+        price = bulk_prices.get((p.sku, p.brand), 0.0)
         response_items.append(ShopProductResponse(
-            **p.model_dump(exclude={"id", "discount_3_pct", "discount_6_pct", "discount_12_pct"}),
+            sku=p.sku,
+            name=p.name,
+            brand=p.brand,
+            description=p.description,
+            image_url=p.image_url,
             price=price,
-            discount_3_pct=p.discount_3_pct if p.discount_3_pct > 0 else (policy.vol_3_discount_pct if policy else 0),
-            discount_6_pct=p.discount_6_pct if p.discount_6_pct > 0 else (policy.vol_6_discount_pct if policy else 0),
-            discount_12_pct=p.discount_12_pct if p.discount_12_pct > 0 else (policy.vol_12_discount_pct if policy else 0)
+            loyalty_points=p.loyalty_points,
+            points_cost=p.points_cost,
+            stock_current=p.stock_current,
+            specs=p.specs,
+            category_id=p.category_id,
+            is_new=p.is_new,
+            discount_3_pct=policy.vol_3_discount_pct if policy else 0.0,
+            discount_6_pct=policy.vol_6_discount_pct if policy else 0.0,
+            discount_12_pct=policy.vol_12_discount_pct if policy else 0.0,
+            promo_discount_pct=p.promo_discount_pct,
         ))
         
     return response_items

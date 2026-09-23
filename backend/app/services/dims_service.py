@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 import re
-from app.models.inventory import Product, TechnicalSpec, MeasureType, CrossReference, Application, ProductType
+from app.models.inventory import Product, TechnicalSpec, MeasureType, CrossReference, Application
+from app.models.dims_reference import DimsReferenceProduct
 from app.utils.normalization import clean_code
 from fastapi import HTTPException
 import logging
@@ -90,16 +91,15 @@ class DIMSService:
                 category_name = "FILTRO DE AIRE" if data.get('is_filter') and 'air' in name.lower() else "OTROS"
 
                 # Crear la instancia del modelo para validación y auto-generación de defaults
-                p_data = Product(
+                p_data = DimsReferenceProduct(
                     sku=sku,
                     name=name,
                     brand=brand,
-                    type=ProductType.REFERENCE,
                     specs=specs,
                     equivalences=equivalences,
                     applications=applications,
                     category_name=category_name,
-                    status="AVAILABLE"
+                    source="BATCH_IMPORT"
                 )
 
                 # Forzar el hook de normalización manualmente ya que bulk_write lo ignora
@@ -107,19 +107,13 @@ class DIMSService:
 
                 product_dict = p_data.model_dump(exclude={"id"})
 
-                # ESTRATEGIA DE SOBERANÍA DE DATOS (Smart Merge)
-                protected_fields = {
-                    "stock_current", "stock_reserved", "cost", "company_data", 
-                    "loyalty_points", "points_cost", "is_temporary", "created_at",
-                    "type"
-                }
-
-                update_data = {k: v for k, v in product_dict.items() if k not in protected_fields}
-                insert_only_data = {k: v for k, v in product_dict.items() if k in protected_fields}
+                # Para DimsReferenceProduct no necesitamos proteger campos de inventario
+                update_data = {k: v for k, v in product_dict.items() if k != "created_at"}
+                insert_only_data = {"created_at": product_dict.get("created_at")}
 
                 bulk_ops.append(
                     UpdateOne(
-                        {"sku": sku},
+                        {"sku": sku, "brand": brand},
                         {
                             "$set": update_data,
                             "$setOnInsert": insert_only_data
@@ -174,17 +168,16 @@ class DIMSService:
         source_clean_sku = clean_code(sku)
         
         # Búsqueda robusta del producto origen (insensible a mayúsculas o separadores)
-        source_product = await Product.find_one({
+        source_product = await DimsReferenceProduct.find_one({
             "$or": [
                 {"clean_sku": source_clean_sku},
-                {"sku": {"$regex": f"^{re.escape(sku.strip())}$", "$options": "i"}},
-                {"sku_canonical": source_clean_sku}
+                {"sku": {"$regex": f"^{re.escape(sku.strip())}$", "$options": "i"}}
             ]
         })
         
         if not source_product:
             # Si no existe como producto cabecera, buscamos si este código aparece como equivalencia en algún producto
-            referencing_products = await Product.find({
+            referencing_products = await DimsReferenceProduct.find({
                 "$or": [
                     {"equivalences.clean_code": source_clean_sku},
                     {"equivalences.code": {"$regex": f"^{re.escape(sku.strip())}$", "$options": "i"}}
@@ -208,7 +201,7 @@ class DIMSService:
                     "brand": cand.brand,
                     "name": cand.name,
                     "category": cand.category_name,
-                    "imageUrl": cand.image_url,
+                    "imageUrl": None,
                     "shared_codes": [sku.strip().upper()],
                     "match_type": "Direct Reference Match (Found in Equivalences)"
                 })
@@ -239,7 +232,6 @@ class DIMSService:
         # c) Nos mencionen a nosotros (nuestro SKU) en sus equivalencias (Bidireccionalidad)
         query = {
             "sku": {"$ne": sku},
-            "status": "AVAILABLE",
             "$or": [
                 {"equivalences.clean_code": {"$in": search_codes}},
                 {"clean_sku": {"$in": search_codes}},
@@ -248,7 +240,7 @@ class DIMSService:
             ]
         }
 
-        candidates = await Product.find(query).to_list()
+        candidates = await DimsReferenceProduct.find(query).to_list()
         
         # 4. Formatear la respuesta
         results = []
@@ -287,7 +279,7 @@ class DIMSService:
         """
         Retorna la lista paginada de productos de referencia / catálogo relacional (DIMS).
         """
-        query: Dict[str, Any] = {"type": ProductType.REFERENCE}
+        query: Dict[str, Any] = {}
         
         if brand:
             query["brand"] = brand.strip().upper()
@@ -303,10 +295,10 @@ class DIMSService:
                 {"equivalences.code": {"$regex": re.escape(s), "$options": "i"}}
             ]
             
-        total = await Product.find(query).count()
+        total = await DimsReferenceProduct.find(query).count()
         skip = (page - 1) * limit
         
-        cursor = Product.get_motor_collection().find(query, {
+        cursor = DimsReferenceProduct.get_motor_collection().find(query, {
             "sku": 1, "brand": 1, "name": 1, "category_name": 1,
             "specs": 1, "equivalences": 1, "applications": 1, "created_at": 1
         }).sort([("created_at", -1), ("sku", 1)]).skip(skip).limit(limit)

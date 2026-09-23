@@ -119,7 +119,7 @@ export const parseFiltrow = (doc, baseUrl = 'https://www.jsfilter.jp', dbCategor
         });
 
         // 6. Nombre descriptivo y Normalización
-        product.name = `FILTROW ${product.category_name} ${product.sku}`;
+        product.name = `${product.category_name} ${product.sku}`;
         product.specs = normalizeSpecs(product.specs, product.category_name, dbCategories);
 
         return product;

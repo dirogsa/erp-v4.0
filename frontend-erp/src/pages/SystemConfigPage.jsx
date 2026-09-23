@@ -169,6 +169,36 @@ const SystemConfigPage = () => {
                                 </div>
                             </div>
                         </section>
+                        <section className="hub-card">
+                            <div className="hub-card-header">
+                                <h3>Entorno y Desarrollo</h3>
+                                <Info size={16} color="#64748b" />
+                            </div>
+                            <div className="hub-card-body">
+                                <div className="hub-field-toggle">
+                                    <div className="toggle-text">
+                                        <label>Registrar Historial de Búsquedas</label>
+                                        <span className="hub-hint">Desactivar para no saturar los logs de búsquedas durante el desarrollo.</span>
+                                    </div>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={config.enable_search_logs !== false}
+                                        onChange={(e) => setConfig({...config, enable_search_logs: e.target.checked})}
+                                    />
+                                </div>
+                                <div className="hub-field-toggle" style={{ marginTop: '1rem' }}>
+                                    <div className="toggle-text">
+                                        <label>Registrar Actividad del Sistema (Auditoría)</label>
+                                        <span className="hub-hint">Desactivar para pausar la recolección de logs de actividad y creación.</span>
+                                    </div>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={config.enable_activity_logs !== false}
+                                        onChange={(e) => setConfig({...config, enable_activity_logs: e.target.checked})}
+                                    />
+                                </div>
+                            </div>
+                        </section>
                     </div>
                 )}
 

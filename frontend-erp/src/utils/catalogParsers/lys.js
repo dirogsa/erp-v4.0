@@ -57,7 +57,7 @@ export const parseLys = (doc, domain = 'http://www.millardcatalog.com', dbCatego
         }
     }
 
-    data.name = `${data.category_name || 'FILTRO'} LYS ${data.sku}`.trim();
+    data.name = `${data.category_name || 'FILTRO'} ${data.sku}`.trim();
 
     // 2. Extraer Imágenes
     const mainImgEl = doc.querySelector('span[itemprop="image"]');

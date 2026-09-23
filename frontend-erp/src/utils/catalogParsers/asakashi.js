@@ -119,8 +119,7 @@ export const parseAsakashi = (doc, baseUrl = 'https://www.jsfilter.jp', dbCatego
         });
 
         // 6. Nombre descriptivo y Normalización
-        product.name = `JS ${product.category_name} ${product.sku}`;
-        product.specs = normalizeSpecs(product.specs, product.category_name, dbCategories);
+        product.name = `${product.category_name} ${product.sku}`;
 
         return product;
     } catch (error) {

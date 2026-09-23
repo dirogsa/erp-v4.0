@@ -16,8 +16,12 @@ Esta sección documenta la lógica de negocio propia del sistema, sus algoritmos
 
 ### 3. Motor de Normalización Global (Backend)
 - **Ubicación:** `backend/app/utils/normalization.py`. Se activa mediante eventos `pre_save` de Beanie en los modelos de Inventario.
-- **Funcionamiento:** Estandariza números de parte y marcas vehiculares *antes* de persistirlos en MongoDB. Elimina espacios, guiones, barras, puntos y paréntesis, transformando el texto a mayúsculas puras (`clean_code`). Garantiza búsquedas exactas de velocidad O(1) e invulnerabilidad sintáctica ante variaciones de formato en cruces de catálogo.
-
+- **Funcionamiento (Estándar DIMS):** Mantiene la arquitectura limpia separando presentación y búsqueda:
+  1. **Estética (`aesthetic_code`)**: Conserva el código original (`sku`) con guiones y espacios para visualización en UI y reportes formales (Ej: `KD45-61-J6X`).
+  2. **Búsqueda Sombra (`clean_code`)**: Genera de forma oculta un `clean_sku` alfanumérico puro (`KD4561J6X`). 
+  3. **Motor de Ingesta**: Las búsquedas del ERP (frontend) o subida masiva pasan sus términos por `clean_code` y cruzan contra `clean_sku`, logrando invulnerabilidad (O(1)) a variaciones de escritura sin destruir el formato estético original.
+   4. **Frontend (Consistencia)**: Para las comparaciones locales en React (ej. Validar importación vs API), **siempre** importar e invocar la utilidad equivalente `cleanSku(sku)` (ubicada en `src/utils/formatters.js`) para evitar falsos negativos por diferencias de caracteres no alfanuméricos.
+   5. **Bulk Fetch (Vectorización)**: Para validar lotes desde Excel (Importaciones, Precios, Reconciliación), **jamás** iterar peticiones HTTP individuales. Agrupar todos los SKUs, enviarlos al endpoint `POST /inventory/bulk-fetch` (vía `inventoryService.bulkFetchProducts`), y construir un Hash Map local usando `cleanSku` para resolver las coincidencias en Memoria RAM con latencia cero (O(1)).
 ---
 
 ## Utilidades Compartidas

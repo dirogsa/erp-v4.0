@@ -360,7 +360,10 @@ const Sales = () => {
                 <div>
                     {/* Always show New Quote as it's the primary entry point */}
                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                        <Button onClick={() => setShowCreateQuote(true)}>
+                        <Button onClick={() => {
+                            setSelectedQuote(null);
+                            setShowCreateQuote(true);
+                        }}>
                             + Nueva Cotización
                         </Button>
 
@@ -368,7 +371,10 @@ const Sales = () => {
                         {activeTab === 'orders' && (
                             <Button
                                 variant="secondary"
-                                onClick={() => setShowCreateOrder(true)}
+                                onClick={() => {
+                                    setSelectedOrder(null);
+                                    setShowCreateOrder(true);
+                                }}
                             >
                                 + Nueva Orden
                             </Button>

@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Tuple
-from app.models.inventory import Product
+from app.models.dims_reference import DimsReferenceProduct
 
 class DIMSEngine:
     """
@@ -192,7 +192,7 @@ class DIMSEngine:
         if flexibility == "medium": flex_multiplier = 2.5
         elif flexibility == "low": flex_multiplier = 4.0
 
-        source_product = await Product.find_one({"sku": sku})
+        source_product = await DimsReferenceProduct.find_one({"sku": sku})
         if not source_product: raise ValueError(f"Product {sku} not found")
 
         cat_name = source_product.category_name
@@ -227,7 +227,7 @@ class DIMSEngine:
                 and_conditions.append({"specs": {"$elemMatch": {"label": label, "value": val}}})
         if and_conditions: query["$and"] = and_conditions
 
-        candidates = await Product.find(query).to_list()
+        candidates = await DimsReferenceProduct.find(query).to_list()
         results = []
 
         for cand in candidates:

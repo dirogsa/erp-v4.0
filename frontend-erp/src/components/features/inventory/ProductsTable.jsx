@@ -99,6 +99,19 @@ const ProductsTable = ({
 
     const columns = [
         { label: 'SKU', key: 'sku' },
+        { 
+            label: 'Marca', 
+            key: 'brand',
+            render: (val) => (
+                <span style={{ 
+                    fontWeight: 'bold', 
+                    color: '#e2e8f0', 
+                    fontSize: '0.85rem' 
+                }}>
+                    {val || '-'}
+                </span>
+            )
+        },
         {
             label: 'Soberanía',
             key: 'company_data',

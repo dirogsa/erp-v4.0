@@ -148,6 +148,7 @@ export const inventoryService = {
       } 
     }),
   getProduct: (sku) => api.get(`/inventory/products/${encodeURIComponent(sku)}`),
+  bulkFetchProducts: (skus) => api.post('/inventory/bulk-fetch', { skus }, { timeout: 120000 }),
   createProduct: (product, initial_stock = 0) => api.post(`/inventory/products?initial_stock=${initial_stock}`, product),
   bulkCreateProducts: (products, updateExisting = true) => 
     api.post(`/inventory/products/bulk?update_existing=${updateExisting}`, products, { timeout: 120000 }),

@@ -1,27 +1,16 @@
 import re
 from typing import Optional, Tuple
 
-def normalize_sku(sku: str) -> str:
-    """
-    Normalización de SKUs Automotrices estándar ERP.
-    Elimina caracteres especiales y espacios para búsqueda técnica pura.
-    Ej: "97133-F2000" -> "97133F2000"
-    """
-    if not sku: return ""
-    # Mantenemos letras, números, guiones y barras. Eliminamos espacios y otros símbolos.
-    # Es vital para la identidad de marcas como FILTRON/WIX (Ej: AP129-3).
-    clean_sku = str(sku).replace(' ', '')
-    return re.sub(r'[^a-zA-Z0-9\-\/]', '', clean_sku).upper().strip()
 
-def canonical_sku(sku: str) -> str:
-    """Versión canónica sin guiones/espacios para matching interno.
-    """
-    if not sku: return ""
-    # Sólo alfanuméricos, todo mayúscula, sin separadores.
-    return re.sub(r'[^a-zA-Z0-9]', '', str(sku)).upper().strip()
 
 import os
 import json
+from app.utils.normalization import clean_code
+
+def canonical_sku(sku_raw: str) -> str:
+    """Retorna un SKU canónico limpio para búsquedas exactas."""
+    return clean_code(sku_raw)
+
 
 # Ruta persistente del caché local de marcas
 CACHE_FILE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "cache", "product_brands.json")
@@ -117,6 +106,7 @@ async def smart_parse_item(sku_raw: str, description_raw: str) -> Tuple[str, str
     """
     Procesador unificado de items nivel Enterprise.
     """
-    sku = normalize_sku(sku_raw)
+    from app.utils.normalization import aesthetic_code
+    sku = aesthetic_code(sku_raw)
     brand = await detect_brand_from_text(description_raw)
     return sku, brand

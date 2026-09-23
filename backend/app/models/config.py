@@ -27,6 +27,10 @@ class SystemConfig(Document):
     timezone: str = "America/Lima"
     allow_negative_stock: bool = False
     
+    # Entorno y Desarrollo
+    enable_search_logs: bool = True
+    enable_activity_logs: bool = True
+    
     # Consolidación de Soberanía
     loyalty: LoyaltySettings = LoyaltySettings()
     sales_policy: SalesPolicySettings = SalesPolicySettings()

@@ -77,8 +77,11 @@ export default async function BuscarPage({ searchParams }) {
   
   if (type === 'CODES' && query && results.length > 0) {
     const qUpper = query.trim().toUpperCase();
-    exactMatches = results.filter(p => p.sku === qUpper);
-    equivalentMatches = results.filter(p => p.sku !== qUpper);
+    // exactMatches   → SKU matches the query directly
+    // equivMatches   → Server confirmed match was in equivalences.code (OEM/cross-ref)
+    // relatedMatches → Fuzzy match on name/brand/category (not a real equivalence)
+    exactMatches = results.filter(p => !p.matchedEquivalence && p.sku === qUpper);
+    equivalentMatches = results.filter(p => p.matchedEquivalence || (!p.matchedEquivalence && p.sku !== qUpper));
   }
 
   return (

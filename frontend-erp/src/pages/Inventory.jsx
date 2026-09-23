@@ -18,9 +18,11 @@ import CrudPageTemplate from '../components/common/Crud/CrudPageTemplate';
 import CrudToolbar from '../components/common/Crud/CrudToolbar';
 import { useNotification } from '../hooks/useNotification';
 import { useLoading } from '../context/LoadingContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Inventory = ({ forcedType = null }) => {
     const { showLoading, hideLoading } = useLoading();
+    const queryClient = useQueryClient();
     const defaultTab = forcedType === 'MARKETING' ? 'marketing' : 'products';
     const [activeTab, setActiveTab] = useState(defaultTab);
     const [showProductModal, setShowProductModal] = useState(false);
@@ -390,7 +392,14 @@ const Inventory = ({ forcedType = null }) => {
 
             {activeTab === 'losses' && <LossesSection />}
 
-            {activeTab === 'bulk-ingest' && <BulkProductIngestor onComplete={() => refetch && refetch()} />}
+            {activeTab === 'bulk-ingest' && (
+                <BulkProductIngestor 
+                    onComplete={() => {
+                        queryClient.invalidateQueries(['products']);
+                        if (refetch) refetch();
+                    }} 
+                />
+            )}
 
             {activeTab === 'loyalty' && <LoyaltyManagement />}
 
@@ -427,8 +436,8 @@ const Inventory = ({ forcedType = null }) => {
                                     <h2 style={{ color: 'white', margin: 0 }}>
                                         {selectedProduct ? 'Editar Producto' : 'Nuevo Producto'}
                                         {!selectedProduct && (
-                                            <span style={{ fontSize: '0.7rem', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 10px', borderRadius: '10px', marginLeft: '1rem', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                                                Contexto: {activeCompany ? activeCompany.name : 'GLOBAL / HOLDING'}
+                                            <span style={{ fontSize: '0.7rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 10px', borderRadius: '10px', marginLeft: '1rem', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                                Alcance: GLOBAL
                                             </span>
                                         )}
                                     </h2>

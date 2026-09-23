@@ -22,7 +22,7 @@ cd d:\Projects\erp_system\backend
 # Activar el entorno virtual (si no está activado)
 venv\Scripts\activate
 
-# Iniciar el servidor de desarrollo
+# Iniciar el servidor de desarrollo backend
 venv\Scripts\python -m uvicorn main:app --reload
 ```
 

@@ -62,7 +62,6 @@ class ProductType(str, Enum):
     BATTERY = "BATTERY"       # Baterías
     COOLANT = "COOLANT"       # Refrigerantes
     MISC = "MISC"             # Otros productos varios
-    REFERENCE = "REFERENCE"   # Sólo para inteligencia DIMS (No inventariable)
 
 class ProductStatus(str, Enum):
     AVAILABLE = "AVAILABLE"

@@ -58,7 +58,7 @@ const parseWixModern = (doc, domain, dbCategories = []) => {
         // Sincronizar con categorías de la BD usando utilidad común
         data.category_name = resolveCategoryName(rawCat, dbCategories);
         // Construimos el nombre estándar: [Categoría] WIX [SKU]
-        data.name = `${data.category_name} ${data.brand} ${data.sku}`.trim();
+        data.name = `${data.category_name} ${data.sku}`.trim();
     }
 
     // 3. EAN / GTIN
@@ -478,7 +478,7 @@ const parseWixUSA = (doc, domain, dbCategories = []) => {
 
     // 4. Nombre Final Estándar
     if (data.sku) {
-        data.name = `${data.category_name || 'FILTRO'} ${data.brand} ${data.sku}`.trim();
+        data.name = `${data.category_name || 'FILTRO'} ${data.sku}`.trim();
     }
 
     // 5. Normalización de Specs

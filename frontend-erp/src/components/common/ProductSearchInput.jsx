@@ -106,7 +106,12 @@ const ProductSearchInput = ({ onSelect, label = "Producto", placeholder = "Busca
                                     {product.name}
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: '#94a3b8' }}>
-                                    <span>SKU: {product.sku}</span>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <span>SKU: {product.sku}</span>
+                                        {product.brand && product.brand !== 'OEM' && product.brand !== 'N/A' && (
+                                            <span style={{ color: '#60a5fa', fontWeight: 'bold' }}>[{product.brand}]</span>
+                                        )}
+                                    </div>
                                     <span>Stock: {product.stock_current}</span>
                                 </div>
                             </div>

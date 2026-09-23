@@ -347,7 +347,15 @@ class PricingService:
             
             # Ambiguity check
             if not brand and sku_counts.get(sku, 0) > 1:
-                unrecognized.append({"sku": sku, "brand": "AMBIGUO", "reason": "Múltiples marcas"})
+                available_brands = [p.brand for p in all_products if p.sku == sku]
+                unrecognized.append({
+                    "sku": sku, 
+                    "brand": "AMBIGUO", 
+                    "reason": "Múltiples marcas",
+                    "available_brands": available_brands,
+                    "proposed_price": proposed_price,
+                    "proposed_cost": proposed_cost
+                })
                 continue
 
             # Resolve Price (Optimized version of get_product_price logic)

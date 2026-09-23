@@ -107,6 +107,7 @@ export const ProductService = {
   async searchProducts(params = {}) {
     const qs = new URLSearchParams();
     if (params.search)         qs.set('search', params.search);
+    if (params.mode)           qs.set('mode', params.mode);
     if (params.vehicle_brand)  qs.set('vehicle_brand', params.vehicle_brand);
     if (params.vehicle_model)  qs.set('vehicle_model', params.vehicle_model);
     if (params.spec_h)         qs.set('spec_h', params.spec_h);
@@ -265,5 +266,7 @@ function normalizeProduct(p) {
     applications:    p.applications || [],
     features:        p.features || [],
     weightG:         p.weight_g || 0,
+    // Atlas Search: backend sets this when match is via an equivalence code, null for direct SKU matches
+    matchedEquivalence: p.matched_equivalence || null,
   };
 }

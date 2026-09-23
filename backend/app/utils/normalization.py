@@ -1,6 +1,17 @@
 import re
 from typing import Optional, Any
 
+
+def aesthetic_code(code: str) -> str:
+    """
+    Standard: Aesthetic / Display formatting.
+    Keeps hyphens, slashes, and internal spaces, but trims leading/trailing spaces
+    and capitalizes the string. This is what the user sees.
+    """
+    if not code:
+        return ""
+    return str(code).strip().upper()
+
 def clean_code(code: str) -> str:
     """
     Algoritmo 4: Motor de Normalización Global
