@@ -8,6 +8,10 @@ class LoyaltySettings(BaseModel):
     only_web_accumulation: bool = False
     local_to_web_rate: float = 1.0
 
+class ECommerceSettings(BaseModel):
+    default_company_id: Optional[str] = None
+    default_warehouse_id: Optional[str] = None
+
 class SalesPolicySettings(BaseModel):
     cash_discount_pct: float = 0.0
     credit_30_days_pct: float = 3.0
@@ -34,6 +38,7 @@ class SystemConfig(Document):
     # Consolidación de Soberanía
     loyalty: LoyaltySettings = LoyaltySettings()
     sales_policy: SalesPolicySettings = SalesPolicySettings()
+    ecommerce: ECommerceSettings = ECommerceSettings()
 
     class Settings:
         name = "system_config"

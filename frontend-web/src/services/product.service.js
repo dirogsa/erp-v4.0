@@ -102,11 +102,13 @@ export const ProductService = {
   },
 
   /**
-   * Search products — 5min cache
+   * Fetch products with filters — 5min cache.
+   * Used by brand hub pages (brand=), catalog pages (category=), and search (search=).
    */
   async searchProducts(params = {}) {
     const qs = new URLSearchParams();
     if (params.search)         qs.set('search', params.search);
+    if (params.brand)          qs.set('brand', params.brand);       // Exact brand filter (B-Tree)
     if (params.mode)           qs.set('mode', params.mode);
     if (params.vehicle_brand)  qs.set('vehicle_brand', params.vehicle_brand);
     if (params.vehicle_model)  qs.set('vehicle_model', params.vehicle_model);
@@ -124,6 +126,12 @@ export const ProductService = {
     const items = Array.isArray(data) ? data : (data.items || []);
     return { items: items.map(normalizeProduct), total: data.total || items.length, api_status: "online" };
   },
+
+  /** Alias of searchProducts — semantically clearer for non-search use cases (brand pages, catalog). */
+  async getProducts(params = {}) {
+    return ProductService.searchProducts(params);
+  },
+
 
   /**
    * Get vehicle brands for the search dropdowns

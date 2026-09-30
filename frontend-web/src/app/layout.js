@@ -1,7 +1,7 @@
 import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
-import { HomeIcon, MagnifyingGlassIcon, ShoppingCartIcon, ClipboardDocumentListIcon, UserIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, MagnifyingGlassIcon, ClipboardIcon, ClipboardDocumentListIcon, UserIcon } from '@heroicons/react/24/outline';
 import VersionWatcher from '@/components/VersionWatcher';
 import DiroWidget from '@/components/DiroWidget';
 import TrackingLink from '@/components/TrackingLink';
@@ -9,6 +9,9 @@ import Script from 'next/script';
 import { GoogleTagManager, GoogleAnalytics } from '@next/third-parties/google';
 import HeaderAuth from '@/components/HeaderAuth';
 import WhatsAppWidget from '@/components/WhatsAppWidget';
+import HeaderQuoteLink from '@/components/HeaderQuoteLink';
+import MobileQuoteBar from '@/components/MobileQuoteBar';
+import MobileBottomCartLink from '@/components/MobileBottomCartLink';
 
 const inter = Inter({ subsets: ['latin'], weight: ['400','500','600','700','800','900'] });
 
@@ -145,11 +148,13 @@ export default function RootLayout({ children }) {
               <Link href="/catalog" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Catálogo</Link>
               <Link href="/brand" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Marcas</Link>
               <div className="h-6 w-px bg-white/10" />
+              <HeaderQuoteLink />
               <HeaderAuth />
             </nav>
 
             {/* Acciones Rápidas Móvil (Visibles solo en móvil) */}
             <div className="flex md:hidden items-center gap-2">
+              <HeaderQuoteLink />
               <HeaderAuth />
             </div>
           </div>
@@ -207,6 +212,9 @@ export default function RootLayout({ children }) {
 
         {/* ── WIDGET INTERACTIVO DE DIRO ASISTENTE (Desactivado para CRO) ── */}
         {/* <DiroWidget /> */}
+        
+        {/* ── BARRA FLOTANTE MÓVIL DE COTIZACIÓN ── */}
+        <MobileQuoteBar />
 
         {/* ── BOTTOM NAV MÓVIL Y DESKTOP ── */}
         <nav className="fixed bottom-0 w-full bg-[#0D0E12]/95 backdrop-blur-xl border-t border-white/10 px-6 py-2 flex items-center justify-between md:justify-center md:gap-32 z-50 pb-safe" aria-label="Navegación principal inferior">
@@ -221,10 +229,7 @@ export default function RootLayout({ children }) {
             <MagnifyingGlassIcon className="h-6 w-6 transition-transform group-active:scale-90" />
           </Link>
         {/* ── NAVEGACIÓN MÓVIL GLOBAL (Bottom Nav) ── */}
-          <TrackingLink href="/cart" eventName="view_cart" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Cotización">
-            <span className="sr-only">Mi lista de cotización</span>
-            <ShoppingCartIcon className="h-6 w-6 transition-transform group-active:scale-90 text-brand-primary" />
-          </TrackingLink>
+          <MobileBottomCartLink />
           
           <Link href="/orders" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Pedidos">
             <span className="sr-only">Mis pedidos e historial</span>

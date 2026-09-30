@@ -4,25 +4,30 @@ import { useState, useEffect } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
 import { trackEvent } from '@/lib/tracking';
+import Link from 'next/link';
 
 export default function AddToCartModule({ product }) {
   const { isAuthenticated, user } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const addItem = useCartStore((state) => state.addItem);
-  const [showToast, setShowToast] = useState(false);
+  const { items, addItem } = useCartStore();
+  const [isAdded, setIsAdded] = useState(false);
 
   // Evitar hydration mismatch
   useEffect(() => {
     setMounted(true);
-  }, []);
+    // Verificar si ya está en la cotización
+    if (items.find(item => item.sku === product.sku)) {
+      setIsAdded(true);
+    }
+  }, [items, product.sku]);
 
   const handleAddToCart = () => {
     // 1. Añadir al Store global
     addItem(product, quantity);
 
-    // 2. Disparar Tracking Quirúrgico (Paso 11 de la Estrategia)
-    trackEvent('add_to_cart', {
+    // 2. Disparar Tracking Quirúrgico
+    trackEvent('add_to_quote', {
       product_sku: product.sku,
       product_brand: product.brand,
       quantity: quantity,
@@ -40,9 +45,8 @@ export default function AddToCartModule({ product }) {
       });
     }
 
-    // 3. Feedback visual (Toast temporal)
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    // 3. Feedback visual persistente en esta sesión de vista
+    setIsAdded(true);
   };
 
   const hasStock = product.stock > 0;
@@ -50,13 +54,12 @@ export default function AddToCartModule({ product }) {
 
   return (
     <div className="relative pt-2">
-      
       <div className="relative z-10">
-        {/* Lógica de Visualización B2B vs Guest */}
+        {/* Lógica de Visualización B2B vs Invitado */}
         {isUser ? (
           <>
             <div className="flex items-center gap-3 mb-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Precio Unitario</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Precio Exclusivo para tu empresa</span>
               {product.promoDiscountPct > 0 && (
                 <span className="text-[10px] font-black px-3 py-1 rounded-full animate-pulse"
                       style={{ background: 'rgba(245,158,11,0.2)', color: 'var(--brand-orange)', border: '1px solid rgba(245,158,11,0.3)' }}>
@@ -74,74 +77,92 @@ export default function AddToCartModule({ product }) {
                 'Consultar Precio'
               )}
             </p>
-            <p className="text-xs text-white/40 mb-6">Incl. IGV · Precio para clientes registrados</p>
+            <p className="text-xs text-white/40 mb-6">Incl. IGV</p>
           </>
         ) : (
-          <div className="mb-6 flex flex-col gap-1">
-            <div className="flex items-center gap-2 text-brand-primary">
-              <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <span className="text-xl md:text-2xl font-black tracking-tight text-white/90">Precio Oculto</span>
-            </div>
-            <p className="text-xs text-white/50 font-bold uppercase tracking-widest">
-              Exclusivo para usuarios registrados
+          <div className="mb-6 flex flex-col gap-2 p-4 rounded-xl bg-white/5 border border-white/10">
+            <p className="text-sm font-bold text-white/90">
+              Precio exclusivo para clientes registrados
+            </p>
+            <p className="text-xs text-white/60 leading-relaxed">
+              ¿Aún no eres cliente? Puedes solicitar una cotización indicando los productos y cantidades que necesitas. Revisaremos tu solicitud y te contactaremos con nuestros precios.
             </p>
           </div>
         )}
 
         {/* Controles de Cantidad y Botón */}
-        <div className="flex gap-3 mb-4">
-          <div className="flex items-center bg-[#0D0E12] rounded-xl border border-white/10 px-2 h-14">
+        <div className="flex flex-col gap-3 mb-4">
+          <div className="flex gap-3">
+            <div className="flex items-center bg-[#0D0E12] rounded-xl border border-white/10 px-2 h-14">
+              <button 
+                onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                className="w-10 h-10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                disabled={isAdded}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+              </button>
+              <input 
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-12 text-center bg-transparent text-white font-black text-lg focus:outline-none"
+                min="1"
+                disabled={isAdded}
+              />
+              <button 
+                onClick={() => setQuantity(q => q + 1)}
+                className="w-10 h-10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                disabled={isAdded}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              </button>
+            </div>
+
             <button 
-              onClick={() => setQuantity(q => Math.max(1, q - 1))}
-              className="w-10 h-10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+              onClick={handleAddToCart}
+              disabled={isAdded}
+              className={`flex-1 h-14 rounded-xl font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                isAdded 
+                  ? 'bg-brand-primary text-[#0A0A0B] cursor-default'
+                  : 'bg-white/10 text-white hover:bg-brand-primary hover:text-[#0A0A0B]'
+              }`}
+              style={isAdded ? { boxShadow: '0 0 15px rgba(16,185,129,0.2)' } : {}}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
-            </button>
-            <input 
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-12 text-center bg-transparent text-white font-black text-lg focus:outline-none"
-              min="1"
-            />
-            <button 
-              onClick={() => setQuantity(q => q + 1)}
-              className="w-10 h-10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              {isAdded ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Agregado a mi cotización
+                </>
+              ) : (
+                <>
+                  <span className="text-lg leading-none mb-0.5">＋</span> Agregar a mi cotización
+                </>
+              )}
             </button>
           </div>
 
-          <button 
-            onClick={handleAddToCart}
-            className="flex-1 h-14 rounded-xl font-black text-sm uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 text-[#0A0A0B] flex items-center justify-center gap-2"
-            style={{ background: 'var(--brand-primary)', boxShadow: '0 0 15px rgba(16,185,129,0.2)' }}
-          >
-            {showToast ? '¡Agregado!' : 'Añadir a Cotización'}
-            {!showToast && (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-            )}
-          </button>
+          {/* Confirmación Visual Discreta */}
+          {isAdded && (
+            <div className="flex flex-col gap-3 mt-2 p-4 rounded-xl bg-brand-primary/10 border border-brand-primary/20">
+              <div className="flex items-center gap-2 text-brand-primary">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm font-bold">{product.sku} agregado a tu cotización</span>
+              </div>
+              <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-wider">
+                <Link href="/cart" className="text-white hover:text-brand-primary transition-colors underline decoration-white/30 underline-offset-4">
+                  Ver mi cotización
+                </Link>
+                <button onClick={() => window.history.back()} className="text-white/50 hover:text-white transition-colors">
+                  Seguir buscando
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-        
-        {/* Mensaje de ayuda post-botón (Solo para invitados) */}
-        {!isAuthenticated && (
-          <p className="text-[10px] md:text-xs text-white/40 text-center leading-tight">
-            ¿No tienes cuenta? Añade los repuestos a tu lista y envíanos tu cotización sin compromiso.
-          </p>
-        )}
-
-        {/* Toast Notification Minimalista */}
-        {showToast && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#0A0A0B] border border-brand-primary text-brand-primary text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-pulse z-50 whitespace-nowrap">
-            Filtro agregado a cotización
-          </div>
-        )}
-
       </div>
     </div>
   );

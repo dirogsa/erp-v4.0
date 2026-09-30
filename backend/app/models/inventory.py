@@ -471,27 +471,33 @@ class DeliveryGuide(Document):
 class ProductBrand(Document):
     """
     Master Brand Catalog (Fabricantes de Autopartes/Marcas de Repuestos).
-    Enterprise-Grade Master Data Management (MDM) for Multinational Corporations.
+    Enterprise-Grade Master Data Management (MDM) — Single Source of Truth for brand metadata.
+
+    This model drives BOTH the ERP admin UI and the public-facing brand hub pages.
+    No metadata should live in frontend config files — everything lives here.
     """
-    name: Indexed(str, unique=True)  # Official name, normalized (e.g., "AZUMI")
-    aliases: List[str] = []         # Sunat/XML variations (e.g., ["AZUMI FILTERS", "AZUMI JAPAN"])
+    name: Indexed(str, unique=True)  # Official name, normalized (e.g., "WIX")
+    aliases: List[str] = []         # Sunat/XML variations (e.g., ["WIX FILTERS", "WIX AUTO"])
     is_active: bool = True
-    show_in_catalog: bool = True    # Control visibility in physical print Katalog ONLY
-    
-    # New commercial metadata fields
-    origin: Optional[str] = "Importado"
-    description: Optional[str] = None
-    
+    show_in_catalog: bool = True    # Visibility in physical print Katalog
+
+    # ── Web Storefront Metadata ────────────────────────────────────────────────
+    # Controls whether this brand gets a dedicated hub page at /brand/{slug}
+    is_featured: bool = False
+    # If true, appears in the brand listing carousel on the homepage and /brand index
+    show_in_brand_hub: bool = False
+
+    # Commercial metadata — editable from ERP
+    origin: Optional[str] = "Importado"       # "USA", "Japón", "Alemania"
+    description: Optional[str] = None          # Marketing paragraph for brand hub page
+    tagline: Optional[str] = None              # Short line (e.g., "La marca #1 en USA")
+    marketing_bullets: List[str] = []          # Feature bullets
+    theme_color: Optional[str] = None          # Hex color for UI theming (#F59E0B)
+
     # Cloudinary Integration (dirogsa/brands/...)
     logo_public_id: Optional[str] = None
-    banner_public_id: Optional[str] = None # Imagen Hero/Fondo para catálogos
-    
-    # Textos educativos / de venta
-    tagline: Optional[str] = None # Ej: "Protección de Grado OEM"
-    marketing_bullets: List[str] = [] # Viñetas informativas
-    
-    theme_color: Optional[str] = None
-    
+    banner_public_id: Optional[str] = None
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

@@ -4,18 +4,76 @@ logger = logging.getLogger("dirogsa.api")
 from typing import List, Optional, Dict
 from ..models.inventory import Product, TechnicalSpec, CrossReference, Application, VehicleBrand, SearchLog, Notification
 from app.models.auth import User, UserRole
-from app.models.sales import SalesOrder, OrderItem, IssuerInfo, SalesQuote, OrderStatus
+from app.models.sales import SalesOrder, OrderItem, IssuerInfo, SalesQuote, OrderStatus, CustomerContact, QuoteStatus
 from app.routes.auth import get_optional_user, get_current_user
 from ..schemas.common import PaginatedResponse
 from app.models.company import Company
+from app.models.config import SystemConfig
 from datetime import datetime
 
 from pydantic import BaseModel, Field
 from ..services.pricing_service import PricingService
 from ..services.risk_service import RiskService
 from ..models.sales import SalesInvoice
+from app.services import sales_quotes_service
 
 router = APIRouter(prefix="/shop", tags=["Shop"])
+
+class ShopQuoteRequest(BaseModel):
+    name: str
+    company: Optional[str] = None
+    ruc: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    city: Optional[str] = None
+    comments: Optional[str] = None
+    items: List[OrderItem]
+
+@router.post("/quotes", response_model=SalesQuote)
+async def submit_shop_quote(request: ShopQuoteRequest, current_user: Optional[User] = Depends(get_optional_user)):
+    # 1. Deterministic E-Commerce Context Resolution
+    company_id = None
+    if current_user and current_user.current_company_id:
+        company_id = current_user.current_company_id
+    else:
+        config = await SystemConfig.find_one()
+        if config and config.ecommerce.default_company_id:
+            company_id = config.ecommerce.default_company_id
+        else:
+            # Auto-heal / Initialize config for the first time
+            default_company = await Company.find_one({"is_active_web": True}) or await Company.find_one()
+            if default_company:
+                company_id = str(default_company.id)
+                if config:
+                    config.ecommerce.default_company_id = company_id
+                    await config.save()
+            else:
+                raise HTTPException(status_code=500, detail="E-Commerce Channel is not configured. No default company found.")
+
+    # 2. Lead (Prospect) Generation - Isolated from Customer Master
+    quote = SalesQuote(
+        customer_name=request.company or request.name,
+        customer_ruc=request.ruc or "00000000000",
+        customer_email=request.email,
+        items=request.items,
+        source="Tienda",
+        status=QuoteStatus.DRAFT,
+        requested_by=CustomerContact(
+            name=request.name,
+            phone=request.phone,
+            email=request.email,
+            position="Comprador Web"
+        ),
+        notes=f"Ciudad: {request.city}\nComentarios: {request.comments}" if (request.city or request.comments) else None,
+        company_id=company_id
+    )
+    if current_user:
+        quote.customer_username = current_user.username
+    else:
+        # Etiquetar explícitamente como prospecto web (pasajero)
+        quote.customer_username = "PROSPECTO_WEB"
+
+    return await sales_quotes_service.create_quote(quote)
 
 @router.get("/brands", response_model=List[VehicleBrand])
 async def get_shop_brands():
@@ -272,21 +330,59 @@ async def get_seo_products():
 
 @router.get("/seo/brands")
 async def get_seo_brands():
-    """Ultra-fast endpoint for ISR and Sitemap. Uses canonical slug_utils for URL coherence."""
+    """
+    Returns brands that have at least one active product in the shop.
+    Includes full visual metadata (theme_color, tagline, description) from ProductBrand —
+    the Single Source of Truth. Frontend brand pages use this exclusively.
+    """
     from app.models.inventory import ProductBrand
     from app.utils.slug_utils import to_slug
-    
-    cursor = ProductBrand.get_motor_collection().find({"is_active": True}, {"name": 1, "created_at": 1})
-    brands = await cursor.to_list(length=None)
-    
-    return [
-        {
-            "slug": to_slug(b.get("name")),
-            "name": b.get("name"),
-            "updated_at": b.get("created_at").isoformat() if b.get("created_at") else None
-        }
-        for b in brands if b.get("name")
+
+    # Step 1: Get brands that actually have active products (aggregation, single round-trip)
+    pipeline = [
+        {"$match": {"is_active_in_shop": True}},
+        {"$group": {"_id": "$brand", "product_count": {"$sum": 1}}},
+        {"$sort": {"product_count": -1}},
     ]
+    active_brand_counts = {}
+    async for doc in Product.get_motor_collection().aggregate(pipeline):
+        if doc.get("_id"):
+            active_brand_counts[doc["_id"]] = doc["product_count"]
+
+    if not active_brand_counts:
+        return []
+
+    # Step 2: Fetch ProductBrand metadata for all active brands (single query)
+    brand_docs = await ProductBrand.get_motor_collection().find(
+        {"name": {"$in": list(active_brand_counts.keys())}},
+        {"name": 1, "origin": 1, "description": 1, "tagline": 1,
+         "theme_color": 1, "logo_public_id": 1, "marketing_bullets": 1,
+         "is_featured": 1, "show_in_brand_hub": 1, "is_active": 1, "created_at": 1}
+    ).to_list(length=None)
+
+    brand_meta = {b["name"]: b for b in brand_docs if b.get("name")}
+
+    # Step 3: Build response merging product counts + metadata
+    result = []
+    for brand_name, count in active_brand_counts.items():
+        meta = brand_meta.get(brand_name, {})
+        result.append({
+            "slug":              to_slug(brand_name),
+            "name":              brand_name,
+            "product_count":     count,
+            "origin":            meta.get("origin") or "Importado",
+            "description":       meta.get("description"),
+            "tagline":           meta.get("tagline"),
+            "theme_color":       meta.get("theme_color"),
+            "logo_public_id":    meta.get("logo_public_id"),
+            "marketing_bullets": meta.get("marketing_bullets", []),
+            "is_featured":       meta.get("is_featured", False),
+            "show_in_brand_hub": meta.get("show_in_brand_hub", False),
+            "is_active":         meta.get("is_active", True),
+            "updated_at":        meta.get("created_at", "").isoformat() if meta.get("created_at") else None,
+        })
+
+    return result
 
 @router.get("/seo/categories")
 async def get_seo_categories():
@@ -452,23 +548,26 @@ async def get_shop_products(
     skip: int = 0,
     limit: int = 20,
     search: Optional[str] = None,
+    brand: Optional[str] = None,        # Exact brand filter (for brand hub pages)
     category: Optional[str] = None,
     mode: Optional[str] = "all",
     vehicle_brand: Optional[str] = None,
     vehicle_model: Optional[str] = None,
-    spec_h: Optional[str] = None, # Altura
-    spec_d: Optional[str] = None, # Diámetro
-    spec_t: Optional[str] = None, # Rosca
-    spec_id: Optional[str] = None, # Diámetro Interior
+    spec_h: Optional[str] = None,
+    spec_d: Optional[str] = None,
+    spec_t: Optional[str] = None,
+    spec_id: Optional[str] = None,
     is_new: Optional[bool] = None,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
     req_id = getattr(request.state, "request_id", "N/A")
-    
-    # Base query for commercial products, now highly tolerant of CSV import variations
-    # Consulta profesional: Booleano estricto
+
     query = {"is_active_in_shop": True}
-    
+
+    # Exact brand filter — uses B-Tree index on `brand` field (zero Atlas Search cost)
+    if brand:
+        query["brand"] = {"$regex": f"^{brand}$", "$options": "i"}
+
     use_atlas_search = False
     pipeline = []
 

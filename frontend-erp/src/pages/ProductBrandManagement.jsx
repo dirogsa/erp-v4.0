@@ -81,8 +81,15 @@ const ProductBrandManagement = () => {
     const handleEdit = (brand) => {
         setEditingBrand(brand);
         setFormData({
-            is_active: brand.is_active !== undefined ? brand.is_active : true,
-            show_in_catalog: brand.show_in_catalog !== undefined ? brand.show_in_catalog : true
+            is_active:          brand.is_active !== undefined ? brand.is_active : true,
+            show_in_catalog:    brand.show_in_catalog !== undefined ? brand.show_in_catalog : true,
+            is_featured:        brand.is_featured || false,
+            show_in_brand_hub:  brand.show_in_brand_hub || false,
+            origin:             brand.origin || '',
+            tagline:            brand.tagline || '',
+            description:        brand.description || '',
+            theme_color:        brand.theme_color || '#38BDF8',
+            marketing_bullets:  (brand.marketing_bullets || []).join('\n'),
         });
         setModalVisible(true);
     };
@@ -90,10 +97,16 @@ const ProductBrandManagement = () => {
     const handleSave = async (e) => {
         e.preventDefault();
         try {
-            await productBrandService.updateBrand(editingBrand.name, { ...editingBrand, ...formData });
+            const payload = {
+                ...formData,
+                marketing_bullets: formData.marketing_bullets
+                    ? formData.marketing_bullets.split('\n').map(s => s.trim()).filter(Boolean)
+                    : [],
+            };
+            await productBrandService.updateBrand(editingBrand.name, payload);
             showNotification('Marca actualizada', 'success');
             setModalVisible(false);
-            loadBrands(true); // Silent reload
+            loadBrands(true);
         } catch (error) {
             showNotification('Error al guardar', 'error');
         }
@@ -341,25 +354,67 @@ const ProductBrandManagement = () => {
             <Modal
                 isOpen={modalVisible}
                 onClose={() => setModalVisible(false)}
-                title={`Configurar Marca de Repuesto: ${editingBrand?.name}`}
+                title={`Configurar Marca: ${editingBrand?.name}`}
             >
-                <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', minWidth: '450px' }}>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#0f172a', padding: '1rem', borderRadius: '12px', border: '1px solid #38bdf844' }}>
-                        <input
-                            type="checkbox"
-                            id="show_in_catalog"
-                            checked={formData.show_in_catalog}
-                            onChange={(e) => setFormData({ ...formData, show_in_catalog: e.target.checked })}
-                            style={{ width: '22px', height: '22px' }}
-                        />
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <label htmlFor="show_in_catalog" style={{ color: '#38bdf8', fontWeight: '900', fontSize: '0.9rem' }}>Imprimir en Catálogo Físico</label>
-                            <span style={{color: '#94a3b8', fontSize: '0.75rem'}}>Si desmarcas esto, la marca no aparecerá en el PDF. La tienda web mostrará todo.</span>
+                <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', minWidth: '520px', maxHeight: '80vh', overflowY: 'auto', padding: '0.25rem' }}>
+
+                    {/* ─── WEB STOREFRONT ─── */}
+                    <div style={{ background: '#0f172a', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #6366f144' }}>
+                        <p style={{ color: '#6366f1', fontWeight: '900', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>🌐 Tienda Web (Brand Hub)</p>
+                        <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.75rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={formData.is_featured} onChange={e => setFormData({...formData, is_featured: e.target.checked})} style={{width:'18px',height:'18px'}} />
+                                <span style={{ color: '#e2e8f0', fontSize: '0.85rem', fontWeight: '700' }}>Marca Destacada (página propia /brand/slug)</span>
+                            </label>
+                        </div>
+                        <div style={{ display: 'flex', gap: '2rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={formData.show_in_brand_hub} onChange={e => setFormData({...formData, show_in_brand_hub: e.target.checked})} style={{width:'18px',height:'18px'}} />
+                                <span style={{ color: '#e2e8f0', fontSize: '0.85rem', fontWeight: '700' }}>Mostrar en índice /brand (carrusel)</span>
+                            </label>
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', borderTop: '1px solid #334155', paddingTop: '1.5rem' }}>
+                    {/* ─── VISUAL ─── */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', alignItems: 'end' }}>
+                        <div>
+                            <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>Tagline</label>
+                            <input value={formData.tagline} onChange={e => setFormData({...formData, tagline: e.target.value})} placeholder="Ej: La marca #1 en USA" style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.9rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+                        </div>
+                        <div>
+                            <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>Color</label>
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <input type="color" value={formData.theme_color} onChange={e => setFormData({...formData, theme_color: e.target.value})} style={{ width: '48px', height: '38px', borderRadius: '8px', border: '1px solid #334155', background: '#1e293b', cursor: 'pointer', padding: '2px' }} />
+                                <input value={formData.theme_color} onChange={e => setFormData({...formData, theme_color: e.target.value})} style={{ width: '100px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.5rem', color: 'white', fontSize: '0.8rem' }} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>Origen</label>
+                        <input value={formData.origin} onChange={e => setFormData({...formData, origin: e.target.value})} placeholder="Ej: USA 🇺🇸" style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.9rem', color: 'white', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+                    </div>
+
+                    <div>
+                        <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>Descripción</label>
+                        <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} placeholder="Párrafo de presentación para la página de marca en la tienda web..." style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.9rem', color: 'white', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }} />
+                    </div>
+
+                    <div>
+                        <label style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>Bullets de Marketing <span style={{color:'#475569',fontWeight:'400'}}>(uno por línea)</span></label>
+                        <textarea value={formData.marketing_bullets} onChange={e => setFormData({...formData, marketing_bullets: e.target.value})} rows={3} placeholder={"Ej:\nMás de 80 años de experiencia\nTecnología premium"} style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', padding: '0.6rem 0.9rem', color: 'white', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }} />
+                    </div>
+
+                    {/* ─── CATÁLOGO FÍSICO ─── */}
+                    <div style={{ background: '#0f172a', padding: '1rem 1.25rem', borderRadius: '12px', border: '1px solid #33415588' }}>
+                        <p style={{ color: '#64748b', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>📄 Catálogo Físico (PDF)</p>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}>
+                            <input type="checkbox" id="show_in_catalog" checked={formData.show_in_catalog} onChange={e => setFormData({...formData, show_in_catalog: e.target.checked})} style={{width:'18px',height:'18px'}} />
+                            <span style={{ color: '#e2e8f0', fontSize: '0.85rem', fontWeight: '700' }}>Incluir en catálogo impreso</span>
+                        </label>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', borderTop: '1px solid #334155', paddingTop: '1.25rem' }}>
                         <Button type="button" variant="secondary" onClick={() => setModalVisible(false)} style={{ borderRadius: '12px' }}>Cancelar</Button>
                         <Button type="submit" variant="primary" style={{ borderRadius: '12px', padding: '0.8rem 2rem' }}>Guardar Cambios</Button>
                     </div>
