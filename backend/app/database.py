@@ -63,7 +63,10 @@ async def init_db():
                 "app.models.pricing.PriceEntry",
                 "app.models.finance.ExchangeRate",
                 "app.models.config.SystemConfig",
-                "app.models.ingestion.PendingIngest"
+                "app.models.ingestion.PendingIngest",
+                "app.models.marketplace.MarketplaceProduct",
+                "app.models.marketplace.MarketplaceVendor",
+                "app.models.marketplace.MarketplaceCategory"
             ],
             allow_index_dropping=True
         )

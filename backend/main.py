@@ -95,14 +95,14 @@ def include_routers(app: FastAPI):
         auth, companies, categories, brands, product_brands, finance, analytics, 
         inventory, delivery, io, purchasing, purchase_quotes, 
         financial, sales, sales_quotes, pricing, 
-        marketing, audit, staff, shop, intercompany, config, intelligence, katalog, dims
+        marketing, audit, staff, shop, intercompany, config, intelligence, katalog, dims, marketplace
     )
     
     modules = [
         auth, companies, categories, brands, product_brands, finance, analytics, 
         inventory, delivery, io, purchasing, purchase_quotes, 
         financial, sales_quotes, sales, pricing, 
-        marketing, audit, staff, shop, intercompany, config, intelligence, katalog, dims
+        marketing, audit, staff, shop, intercompany, config, intelligence, katalog, dims, marketplace
     ]
     
     for module in modules:

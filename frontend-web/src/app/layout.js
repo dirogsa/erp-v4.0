@@ -12,6 +12,7 @@ import WhatsAppWidget from '@/components/WhatsAppWidget';
 import HeaderQuoteLink from '@/components/HeaderQuoteLink';
 import MobileQuoteBar from '@/components/MobileQuoteBar';
 import MobileBottomCartLink from '@/components/MobileBottomCartLink';
+import { BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 
 const inter = Inter({ subsets: ['latin'], weight: ['400','500','600','700','800','900'] });
 
@@ -147,6 +148,9 @@ export default function RootLayout({ children }) {
             <nav className="hidden md:flex items-center gap-6 lg:gap-8" aria-label="Navegación principal">
               <Link href="/catalog" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Catálogo</Link>
               <Link href="/brand" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors">Marcas</Link>
+              <Link href="/marketplace" className="text-sm font-bold text-white/70 hover:text-brand-primary transition-colors flex items-center gap-1.5">
+                Marketplace <span className="text-[9px] bg-orange-500/20 border border-orange-500/50 text-orange-400 px-1.5 py-0.5 rounded-sm font-black uppercase tracking-wider">Red</span>
+              </Link>
               <div className="h-6 w-px bg-white/10" />
               <HeaderQuoteLink />
               <HeaderAuth />
@@ -230,6 +234,12 @@ export default function RootLayout({ children }) {
           </Link>
         {/* ── NAVEGACIÓN MÓVIL GLOBAL (Bottom Nav) ── */}
           <MobileBottomCartLink />
+
+          <Link href="/marketplace" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group relative" aria-label="Marketplace">
+            <span className="sr-only">Marketplace</span>
+            <BuildingStorefrontIcon className="h-6 w-6 transition-transform group-active:scale-90" />
+            <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+          </Link>
           
           <Link href="/orders" className="flex flex-col items-center justify-center gap-1 w-14 h-12 text-white/40 active:text-white transition-colors group" aria-label="Pedidos">
             <span className="sr-only">Mis pedidos e historial</span>

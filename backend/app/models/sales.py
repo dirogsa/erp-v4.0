@@ -81,6 +81,10 @@ class OrderItem(BaseModel):
     original_xml_name: Optional[str] = None # Audit trail
     rejection_code: Optional[str] = None # Explainability: SKU_NOT_FOUND, BRAND_FIREWALL_BLOCK, etc.
     rejection_reason: Optional[str] = None # Explainability human-readable message
+    
+    # Integración con Marketplace B2B
+    is_marketplace: bool = False
+    vendor_name: Optional[str] = None
 
     @field_validator('unit_price', 'unit_value')
     @classmethod

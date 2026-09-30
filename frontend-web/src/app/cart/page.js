@@ -46,7 +46,9 @@ export default function QuotePage() {
           quantity: item.quantity,
           unit_price: item.price || 0,
           brand: item.brand || 'OEM',
-          product_name: item.name
+          product_name: item.name,
+          is_marketplace: item.is_marketplace || false,
+          vendor_name: item.vendor_name || null
         }))
       };
 

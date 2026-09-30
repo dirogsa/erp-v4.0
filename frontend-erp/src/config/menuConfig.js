@@ -126,6 +126,18 @@ export const MENU_CONFIG = [
         ]
     },
     {
+        id: 'marketplace',
+        label: 'MARKETPLACE B2B',
+        icon: '🌐',
+        roles: [ROLES.ADMIN],
+        isGroup: true,
+        children: [
+            { id: 'marketplace-vendors', label: 'Terceros (Proveedores)', path: '/marketplace/vendors', icon: '🤝' },
+            { id: 'marketplace-categories', label: 'Categorías (MDM)', path: '/marketplace/categories', icon: '🏷️' },
+            { id: 'marketplace-products', label: 'Catálogo de Terceros', path: '/marketplace/products', icon: '🛍️' }
+        ]
+    },
+    {
         id: 'otros',
         label: 'OTROS',
         icon: '📁',

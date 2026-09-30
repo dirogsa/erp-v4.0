@@ -52,3 +52,23 @@ Para asegurar uniformidad, profesionalismo y escalabilidad en el sistema ERP, cu
 3. **`Table`**: (Ubicado en `src/components/common/Table.jsx`). Es el componente estándar para el pintado de grillas, con soporte nativo para `selectedKeys` y detención inteligente de eventos (`stopPropagation`) para evitar colisiones entre el "Check" y el "Click de Fila". Integra un resolvedor universal `getRowKey` que extrae `id`, `_id`, `sku` o `code` de forma transparente y previene selecciones cruzadas o falsos positivos con claves no definidas.
 
 **Regla de Oro:** **Jamás** se debe construir una barra de acciones masivas flotante, o una cabecera de página de forma manual dentro de los archivos de página (`src/pages/*.jsx`). Toda nueva vista debe importar e implementar el `CrudPageTemplate` con su `CrudToolbar` respectivo.
+
+---
+
+## Módulo de Marketplace B2B (Terceros)
+
+Este módulo permite a terceros publicar productos en la tienda online sin que se mezclen con el inventario contable ni la base de clientes del ERP. Está diseñado bajo una arquitectura de aislamiento total.
+
+### Guía de Eliminación / Desinstalación Limpia
+Si en el futuro se desea eliminar este servicio, se deben borrar/modificar los siguientes archivos para que el ERP vuelva a su estado original sin afectar el núcleo:
+
+**1. En el Backend (`backend/`):**
+- Eliminar el archivo de modelos: `app/models/marketplace.py`.
+- Eliminar el archivo de rutas: `app/routes/marketplace.py`.
+- En `app/database.py`: Eliminar `"app.models.marketplace.MarketplaceProduct"`, `"app.models.marketplace.MarketplaceVendor"` y `"app.models.marketplace.MarketplaceCategory"` de la lista `document_models`.
+- En `main.py`: Eliminar `marketplace` de los imports de rutas y de la lista `modules`.
+- (Opcional) En `app/models/sales.py`: Se pueden mantener o eliminar los campos `is_marketplace` y `vendor_name` del modelo `OrderItem`.
+
+**2. En el Frontend Web (`frontend-web/`):**
+- Eliminar la carpeta y página de UI: `src/app/marketplace/`.
+- En `src/app/layout.js`: Quitar los dos enlaces (`<Link href="/marketplace">...`) ubicados en el menú de escritorio y en la navegación móvil inferior.

@@ -63,6 +63,11 @@ const StaffManagement      = lazy(() => import('./pages/StaffManagement'));
 const SystemConfigPage     = lazy(() => import('./pages/SystemConfigPage'));
 const SystemStatus         = lazy(() => import('./pages/SystemStatus'));
 
+// Marketplace B2B
+const MarketplaceVendors   = lazy(() => import('./pages/MarketplaceVendors'));
+const MarketplaceCategories = lazy(() => import('./pages/MarketplaceCategories'));
+const MarketplaceProducts  = lazy(() => import('./pages/MarketplaceProducts'));
+
 // Katalog (pantalla completa, fuera de Layout)
 const KatalogConfigPanel   = lazy(() => import('./pages/katalog/ConfigPanel'));
 const KatalogPrintEngine   = lazy(() => import('./pages/katalog/PrintEngine'));
@@ -184,6 +189,10 @@ function App() {
                             <Route path="/staff"                   element={<StaffManagement />} />
                             <Route path="/system-config"           element={<SystemConfigPage />} />
                             <Route path="/system-status"           element={<SystemStatus />} />
+                            
+                            <Route path="/marketplace/vendors"     element={<MarketplaceVendors />} />
+                            <Route path="/marketplace/categories"  element={<MarketplaceCategories />} />
+                            <Route path="/marketplace/products"    element={<MarketplaceProducts />} />
                           </Routes>
                         </Suspense>
                       </Layout>
