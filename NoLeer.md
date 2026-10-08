@@ -19,6 +19,7 @@ Espera confirmacion del plan para ejecutar y modificar el codigo
 # Navegar al directorio del backend
 cd d:\Projects\erp_system\backend
 
+
 # Activar el entorno virtual (si no está activado)
 venv\Scripts\activate
 

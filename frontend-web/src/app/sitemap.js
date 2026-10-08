@@ -42,7 +42,9 @@ export default async function sitemap() {
 
     // Tier 2C — Navegación principal (solo páginas indexables)
     { url: `${SITE_URL}/catalog`,  lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9 },
+    { url: `${SITE_URL}/marketplace`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.85 },
     { url: `${SITE_URL}/blog`,      lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.85 },
+    { url: `${SITE_URL}/solicitar-acceso`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
 
     // Tier 2D — Artículos del Blog (fuente: lib/blog-posts.js)
     ...BLOG_POSTS.map(post => ({
