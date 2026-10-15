@@ -30,6 +30,11 @@ const ReceiptTemplate = ({
     paymentTerms = null,
     requestedBy = null,
 
+    deliveryMethod = null,
+    shippingCost = 0,
+    shippingAgency = null,
+    shippingPaymentType = null,
+
     targetCurrency = 'PEN',
     exchangeRate = 1,
     showPrices = true,
@@ -48,6 +53,7 @@ const ReceiptTemplate = ({
     // 1. Recalculate Totals
     const displayTotalAmount = convert(totalAmount);
     const displayAmountPaid = convert(amountPaid);
+    const displayShippingCost = convert(shippingCost);
 
     // 2. Recalculate Items
     const displayItems = items.map(item => ({
@@ -109,6 +115,9 @@ const ReceiptTemplate = ({
                 paymentTerms={showPrices ? displayPaymentTerms : null}
                 showBankAccounts={showBankAccounts}
                 showPrices={showPrices}
+                deliveryMethod={deliveryMethod}
+                shippingAgency={shippingAgency}
+                shippingPaymentType={shippingPaymentType}
             />
 
             <ReceiptBody
@@ -123,6 +132,7 @@ const ReceiptTemplate = ({
                 <ReceiptFooter
                     totalAmount={displayTotalAmount}
                     amountPaid={displayAmountPaid}
+                    shippingCost={displayShippingCost}
                     payments={displayPayments}
                     notes={notes}
                     showPaymentDetails={showPaymentDetails}

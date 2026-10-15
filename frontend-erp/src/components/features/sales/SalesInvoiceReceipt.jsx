@@ -59,6 +59,10 @@ const SalesInvoiceReceipt = ({
                             subtotal: item.subtotal || (item.quantity * item.unit_price)
                         })) || []}
                         totalAmount={invoice.total_amount}
+                        deliveryMethod={invoice.delivery_method}
+                        shippingCost={invoice.shipping_cost}
+                        shippingAgency={invoice.shipping_agency}
+                        shippingPaymentType={invoice.shipping_payment_type}
                         currency={invoice.currency}
                         showPaymentDetails={false}
                         amountInWords={invoice.amount_in_words || ''}

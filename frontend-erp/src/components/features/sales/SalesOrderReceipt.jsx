@@ -37,6 +37,10 @@ const SalesOrderReceipt = ({
                             subtotal: item.subtotal || (item.quantity * item.unit_price)
                         })) || []}
                         totalAmount={order.total_amount}
+                        deliveryMethod={order.delivery_method}
+                        shippingCost={order.shipping_cost}
+                        shippingAgency={order.shipping_agency}
+                        shippingPaymentType={order.shipping_payment_type}
                         showPaymentDetails={false}
                         paymentTerms={order.payment_terms}
                         requestedBy={order.requested_by}

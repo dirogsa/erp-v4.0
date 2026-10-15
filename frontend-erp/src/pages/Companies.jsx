@@ -98,16 +98,19 @@ const Companies = () => {
         {
             label: 'Entorno Local',
             key: 'is_active_local',
-            render: (_, row) => row.is_active_local ? (
-                <div className="status-indicator active">
-                    <span className="dot pulse"></span>
-                    <span className="label">CONECTADO AL ERP</span>
-                </div>
-            ) : (
-                <button className="activate-btn" onClick={() => switchCompany(row._id, 'local')}>
-                    🔌 Conectar ERP
-                </button>
-            )
+            render: (_, row) => {
+                const isActive = row.is_active_local || (activeCompany && (activeCompany._id || activeCompany.id) === (row._id || row.id));
+                return isActive ? (
+                    <div className="status-indicator active">
+                        <span className="dot pulse"></span>
+                        <span className="label">CONECTADO AL ERP</span>
+                    </div>
+                ) : (
+                    <button className="activate-btn" onClick={() => switchCompany(row._id || row.id, 'local')}>
+                        🔌 Conectar ERP
+                    </button>
+                );
+            }
         },
         {
             label: 'Entorno Web (E-commerce)',
@@ -118,7 +121,7 @@ const Companies = () => {
                     <span className="label">TIENDA ONLINE EN VIVO</span>
                 </div>
             ) : (
-                <button className="activate-btn secondary" onClick={() => switchCompany(row._id, 'web')}>
+                <button className="activate-btn secondary" onClick={() => switchCompany(row._id || row.id, 'web')}>
                     🌐 Publicar en Web
                 </button>
             )

@@ -186,7 +186,9 @@ async def create_order(order: SalesOrder, user: Optional[User] = None) -> SalesO
     stock_res = await inventory_service.check_stock_availability(items_to_check)
     if order.status == OrderStatus.PENDING and not stock_res["can_fulfill_full"] and not stock_res["allow_negative_stock"]:
         order.status = OrderStatus.BACKORDER
-    order.total_amount = round(sum(item.quantity * item.unit_price for item in order.items), 3)
+    items_total = sum(item.quantity * item.unit_price for item in order.items)
+    shipping = order.shipping_cost if (order.shipping_payment_type != "DESTINATION" and order.shipping_cost) else 0.0
+    order.total_amount = round(items_total + shipping, 3)
     
     # Calculate Points Spent (Redemption)
     points_spent = 0
@@ -609,6 +611,7 @@ async def create_invoice(
         
     invoice_number = f"{prefix}-{new_num:04d}"
     
+    shipping = order.shipping_cost if (order.shipping_payment_type != "DESTINATION" and order.shipping_cost) else 0.0
     invoice = SalesInvoice(
         invoice_number=invoice_number,
         sunat_number=sunat_number,
@@ -618,9 +621,14 @@ async def create_invoice(
         invoice_date=datetime.fromisoformat(invoice_date),
         due_date=datetime.fromisoformat(due_date) if due_date else None,
         items=final_invoice_items,
-        total_amount=round(invoice_total, 3),
+        total_amount=round(invoice_total + shipping, 3),
         delivery_branch_name=order.delivery_branch_name,
         delivery_address=order.delivery_address,
+        delivery_method=order.delivery_method,
+        shipping_cost=order.shipping_cost,
+        shipping_agency=order.shipping_agency,
+        shipping_payment_type=order.shipping_payment_type,
+        shipping_notes=order.shipping_notes,
         payment_status=payment_status,
         amount_paid=round(amount_paid, 3),
         amount_in_words=amount_in_words,

@@ -203,8 +203,9 @@ class FinancialAuditService:
         """
         findings = []
         for doc in docs:
-            # Sumar items
-            calc_total = sum(item.quantity * item.unit_price for item in doc.items)
+            # Sumar items y flete/movilidad (si aplica)
+            shipping = getattr(doc, 'shipping_cost', 0.0) if getattr(doc, 'shipping_payment_type', 'PAID') != 'DESTINATION' else 0.0
+            calc_total = sum(item.quantity * item.unit_price for item in doc.items) + (shipping or 0.0)
             diff = abs(calc_total - doc.total_amount)
             
             if diff > 0.05: # Umbral de 5 céntimos por redondeo

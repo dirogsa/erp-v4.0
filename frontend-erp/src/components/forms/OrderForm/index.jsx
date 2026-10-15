@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CustomerSelector from './CustomerSelector';
+import DeliveryMethodSection from '../DeliveryMethodSection';
 import ProductItemsSection from './ProductItemsSection';
 import OrderSummary from './OrderSummary';
 import Button from '../../common/Button';
@@ -29,6 +30,11 @@ const OrderForm = ({
         items: [],
         delivery_address: '',
         delivery_branch_name: '',
+        delivery_method: 'STORE_PICKUP',
+        shipping_cost: 0,
+        shipping_agency: '',
+        shipping_payment_type: 'PAID',
+        shipping_notes: '',
         requested_by: null,
         payment_terms: { type: 'CASH', installments: [] }, // Default
         notes: '',
@@ -44,9 +50,13 @@ const OrderForm = ({
                 ...initialData,
                 requested_by: initialData.requested_by || null,
                 payment_terms: initialData.payment_terms || { type: 'CASH', installments: [] },
+                delivery_method: initialData.delivery_method || 'STORE_PICKUP',
+                shipping_cost: initialData.shipping_cost !== undefined ? initialData.shipping_cost : 0,
+                shipping_agency: initialData.shipping_agency || '',
+                shipping_payment_type: initialData.shipping_payment_type || 'PAID',
+                shipping_notes: initialData.shipping_notes || '',
                 // Asegurar que la dirección de entrega se extraiga si viene anidada en customer
                 delivery_address: initialData.delivery_address || initialData.customer?.delivery_address || initialData.customer?.address || '',
-                // Reconstruct customer object if it doesn't exist but we have flat fields
                 customer: initialData.customer || {
                     name: initialData.customer_name || '',
                     ruc: initialData.customer_ruc || '',
@@ -88,11 +98,9 @@ const OrderForm = ({
         }));
     };
 
-    const calculateTotal = () => {
-        return formData.items.reduce((sum, item) => sum + item.subtotal, 0);
-    };
-
-    const total = calculateTotal();
+    const itemsTotal = formData.items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+    const effectiveShipping = (formData.shipping_payment_type !== 'DESTINATION') ? (parseFloat(formData.shipping_cost) || 0) : 0;
+    const total = itemsTotal + effectiveShipping;
 
     // Auto-update amount in words
     useEffect(() => {
@@ -116,21 +124,22 @@ const OrderForm = ({
             return;
         }
 
-        if (!formData.delivery_address) {
-            showNotification('La dirección de entrega es obligatoria', 'error');
+        if (formData.delivery_method !== 'STORE_PICKUP' && !formData.delivery_address) {
+            showNotification('La dirección de entrega es obligatoria para envíos', 'error');
             return;
         }
 
-        // total is already calculated above
-        const subtotal = total / 1.18;
-        const tax = total - subtotal;
-
         const orderPayload = {
             ...formData,
+            items: formData.items,
             total_amount: total,
-            tax_amount: tax,
+            shipping_cost: effectiveShipping,
+            delivery_method: formData.delivery_method,
+            shipping_agency: formData.shipping_agency,
+            shipping_payment_type: formData.shipping_payment_type,
+            shipping_notes: formData.shipping_notes,
             requested_by: formData.requested_by,
-            issuer_info: activeCompany // Snapshot
+            issuer_info: activeCompany // Snapshot active company info at creation time
         };
 
         onSubmit(orderPayload);
@@ -145,6 +154,25 @@ const OrderForm = ({
                 onRequestedByChange={(requested_by) => setFormData({ ...formData, requested_by })}
                 readOnly={readOnly}
                 required
+            />
+
+            <DeliveryMethodSection
+                deliveryMethod={formData.delivery_method}
+                onDeliveryMethodChange={(delivery_method) => setFormData(prev => ({ ...prev, delivery_method }))}
+                shippingCost={formData.shipping_cost}
+                onShippingCostChange={(shipping_cost) => setFormData(prev => ({ ...prev, shipping_cost }))}
+                shippingAgency={formData.shipping_agency}
+                onShippingAgencyChange={(shipping_agency) => setFormData(prev => ({ ...prev, shipping_agency }))}
+                shippingPaymentType={formData.shipping_payment_type}
+                onShippingPaymentTypeChange={(shipping_payment_type) => setFormData(prev => ({ ...prev, shipping_payment_type }))}
+                shippingNotes={formData.shipping_notes}
+                onShippingNotesChange={(shipping_notes) => setFormData(prev => ({ ...prev, shipping_notes }))}
+                deliveryAddress={formData.delivery_address}
+                onDeliveryAddressChange={(delivery_address) => setFormData(prev => ({ ...prev, delivery_address }))}
+                deliveryBranchName={formData.delivery_branch_name}
+                itemsTotal={itemsTotal}
+                currency={formData.currency || 'PEN'}
+                readOnly={readOnly}
             />
 
             <ProductItemsSection
@@ -194,7 +222,14 @@ const OrderForm = ({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <OrderSummary items={formData.items} />
+                <OrderSummary
+                    items={formData.items}
+                    shippingCost={effectiveShipping}
+                    deliveryMethod={formData.delivery_method}
+                    shippingAgency={formData.shipping_agency}
+                    shippingPaymentType={formData.shipping_payment_type}
+                    currency={formData.currency || 'PEN'}
+                />
             </div>
 
             {!readOnly && (

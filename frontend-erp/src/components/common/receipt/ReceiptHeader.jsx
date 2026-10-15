@@ -1,7 +1,7 @@
 import React from 'react';
 import { formatDate } from '../../../utils/formatters';
 import { COMPANY_INFO } from '../../../config/company';
-import { MapPin, Phone, CreditCard, Calendar, User, Building2, DollarSign, Wallet } from 'lucide-react';
+import { MapPin, Phone, CreditCard, Calendar, User, Building2, DollarSign, Wallet, Truck } from 'lucide-react';
 
 const ReceiptHeader = ({
     documentType,
@@ -23,7 +23,10 @@ const ReceiptHeader = ({
     paymentTerms,
     showPrices = true,
     showBankAccounts = true,
-    partyType = "Cliente"
+    partyType = "Cliente",
+    deliveryMethod = null,
+    shippingAgency = null,
+    shippingPaymentType = null
 }) => {
     // Helper to format payment type
     const getPaymentType = () => {
@@ -147,6 +150,24 @@ const ReceiptHeader = ({
                         <span className="label-colon">:</span>
                         <span className="value">{getPaymentType()}</span>
                     </div>
+                    {deliveryMethod && (
+                        <div className="customer-row-right">
+                            <span className="label">
+                                <Truck size={10} style={{ marginRight: '6px', color: '#64748b' }} />
+                                Despacho
+                            </span>
+                            <span className="label-colon">:</span>
+                            <span className="value" style={{ fontWeight: '600', color: '#0369a1' }}>
+                                {deliveryMethod === 'STORE_PICKUP' && 'Recojo en Almacén'}
+                                {deliveryMethod === 'LOCAL_DELIVERY' && 'Movilidad Local'}
+                                {deliveryMethod === 'AGENCY_SHIPPING' && (
+                                    shippingAgency
+                                        ? `Agencia ${shippingAgency}${shippingPaymentType === 'DESTINATION' ? ' (Destino)' : ''}`
+                                        : 'Agencia Terrestre'
+                                )}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
 

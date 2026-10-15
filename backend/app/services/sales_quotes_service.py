@@ -93,7 +93,9 @@ async def create_quote(quote: SalesQuote) -> SalesQuote:
         new_num = 1
     
     quote.quote_number = f"{prefix}-{new_num:04d}"
-    quote.total_amount = round(sum(item.quantity * item.unit_price for item in quote.items), 3)
+    items_total = sum(item.quantity * item.unit_price for item in quote.items)
+    shipping = quote.shipping_cost if (quote.shipping_payment_type != "DESTINATION" and quote.shipping_cost) else 0.0
+    quote.total_amount = round(items_total + shipping, 3)
     quote.status = QuoteStatus.DRAFT
 
     # Snapshot loyalty points using Sovereignty Hub
@@ -128,11 +130,19 @@ async def update_quote(quote_number: str, quote_data: SalesQuote, company_id: Op
     quote.date = quote_data.date
     quote.valid_until = quote_data.valid_until
     quote.delivery_address = quote_data.delivery_address
+    quote.delivery_branch_name = quote_data.delivery_branch_name
+    quote.delivery_method = quote_data.delivery_method
+    quote.shipping_cost = quote_data.shipping_cost
+    quote.shipping_agency = quote_data.shipping_agency
+    quote.shipping_payment_type = quote_data.shipping_payment_type
+    quote.shipping_notes = quote_data.shipping_notes
     quote.payment_terms = quote_data.payment_terms
     quote.due_date = quote_data.due_date
     quote.notes = quote_data.notes
     quote.requested_by = quote_data.requested_by
-    quote.total_amount = round(sum(item.quantity * item.unit_price for item in quote_data.items), 3)
+    items_total = sum(item.quantity * item.unit_price for item in quote_data.items)
+    shipping = quote.shipping_cost if (quote.shipping_payment_type != "DESTINATION" and quote.shipping_cost) else 0.0
+    quote.total_amount = round(items_total + shipping, 3)
 
     # Recalculate/Ensure points for updated items using Sovereignty Hub
     system_config = await SystemConfig.find_one({})
@@ -212,6 +222,11 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False, compa
             status=OrderStatus.PENDING,
             delivery_address=quote.delivery_address or "TBD",
             delivery_branch_name=quote.delivery_branch_name,
+            delivery_method=quote.delivery_method,
+            shipping_cost=quote.shipping_cost,
+            shipping_agency=quote.shipping_agency,
+            shipping_payment_type=quote.shipping_payment_type,
+            shipping_notes=quote.shipping_notes,
             customer_email=quote.customer_email,
             customer_username=quote.customer_username,
             related_quote_number=quote.quote_number,
@@ -244,6 +259,11 @@ async def convert_quote_to_order(quote_number: str, preview: bool = False, compa
             status=OrderStatus.BACKORDER,
             delivery_address=quote.delivery_address or "TBD",
             delivery_branch_name=quote.delivery_branch_name,
+            delivery_method=quote.delivery_method,
+            shipping_cost=0.0, # Shipping already applied to primary order or TBD
+            shipping_agency=quote.shipping_agency,
+            shipping_payment_type=quote.shipping_payment_type,
+            shipping_notes=quote.shipping_notes,
             customer_email=quote.customer_email,
             customer_username=quote.customer_username,
             related_quote_number=quote.quote_number,

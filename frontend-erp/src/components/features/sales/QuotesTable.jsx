@@ -37,7 +37,16 @@ const QuotesTable = ({
             label: 'Total',
             key: 'total_amount',
             align: 'right',
-            render: (val) => formatCurrency(val)
+            render: (val, quote) => (
+                <div>
+                    <div style={{ fontWeight: '600' }}>{formatCurrency(val)}</div>
+                    {quote.shipping_cost > 0 && (
+                        <div style={{ fontSize: '0.65rem', color: '#38bdf8' }}>
+                            + Flete {formatCurrency(quote.shipping_cost)}
+                        </div>
+                    )}
+                </div>
+            )
         },
         {
             label: 'Estado',

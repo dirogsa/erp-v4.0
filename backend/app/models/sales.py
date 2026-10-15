@@ -39,6 +39,12 @@ class QuoteStatus(str, Enum):
     CONVERTED = "CONVERTED"
     REJECTED = "REJECTED"
 
+class DeliveryMethod(str, Enum):
+    STORE_PICKUP = "STORE_PICKUP"       # Recojo en Almacén / Tienda
+    LOCAL_DELIVERY = "LOCAL_DELIVERY"   # Delivery Local / Movilidad
+    AGENCY_SHIPPING = "AGENCY_SHIPPING" # Envío por Agencia (Provincias)
+
+
 
 class IssuerInfoDepartment(BaseModel):
     """Snapshot del encargado de área al momento de emitir el documento"""
@@ -131,9 +137,14 @@ class SalesOrder(Document):
     # Referencia a cotización origen
     related_quote_number: Optional[str] = None
     
-    # Dirección de entrega
+    # Dirección y logística de entrega
     delivery_branch_name: Optional[str] = None
     delivery_address: Optional[str] = "No especificada"
+    delivery_method: DeliveryMethod = DeliveryMethod.STORE_PICKUP
+    shipping_cost: float = 0.0
+    shipping_agency: Optional[str] = None
+    shipping_payment_type: Optional[str] = "PAID"
+    shipping_notes: Optional[str] = None
     buyer_identity: Optional[str] = None
     
     # Datos de la empresa emisora (Snapshot)
@@ -176,6 +187,11 @@ class SalesQuote(Document):
     
     delivery_branch_name: Optional[str] = None
     delivery_address: Optional[str] = None
+    delivery_method: DeliveryMethod = DeliveryMethod.STORE_PICKUP
+    shipping_cost: float = 0.0
+    shipping_agency: Optional[str] = None
+    shipping_payment_type: Optional[str] = "PAID"
+    shipping_notes: Optional[str] = None
     payment_terms: Optional[dict] = None
     due_date: Optional[datetime] = None
     currency: Currency = Currency.PEN
@@ -219,6 +235,11 @@ class SalesInvoice(Document):
     
     delivery_branch_name: Optional[str] = None
     delivery_address: Optional[str] = "No especificada"
+    delivery_method: DeliveryMethod = DeliveryMethod.STORE_PICKUP
+    shipping_cost: float = 0.0
+    shipping_agency: Optional[str] = None
+    shipping_payment_type: Optional[str] = "PAID"
+    shipping_notes: Optional[str] = None
     buyer_identity: Optional[str] = None
     
     payment_condition: str = "CONTADO"  # CONTADO | CREDITO (Financiero interno, modificable)

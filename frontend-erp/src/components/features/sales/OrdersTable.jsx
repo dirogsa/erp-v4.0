@@ -43,7 +43,16 @@ const OrdersTable = ({
             label: 'Total',
             key: 'total_amount',
             align: 'right',
-            render: (val) => formatCurrency(val)
+            render: (val, order) => (
+                <div>
+                    <div style={{ fontWeight: '600' }}>{formatCurrency(val)}</div>
+                    {order.shipping_cost > 0 && (
+                        <div style={{ fontSize: '0.65rem', color: '#38bdf8' }}>
+                            + Flete {formatCurrency(order.shipping_cost)}
+                        </div>
+                    )}
+                </div>
+            )
         },
         {
             label: 'Estado',

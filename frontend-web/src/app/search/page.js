@@ -52,7 +52,9 @@ export default async function BuscarPage({ searchParams }) {
   let hasSearched = false;
 
   // Ejecutar búsqueda en el SERVIDOR (Perfecto para SEO y velocidad)
-  if ((type === 'CODES' && query) || (type === 'APPS' && make)) {
+  const isDimsSearch = type === 'DIMENSIONS' && (sp.shape || sp.dim_a || sp.dim_h || sp.dim_b || sp.dim_f || sp.category);
+
+  if ((type === 'CODES' && query) || (type === 'APPS' && make) || isDimsSearch) {
     hasSearched = true;
     
     const apiParams = {};
@@ -60,6 +62,17 @@ export default async function BuscarPage({ searchParams }) {
     if (type === 'APPS') {
       apiParams.vehicle_brand = make;
       if (model) apiParams.vehicle_model = model;
+    }
+    if (type === 'DIMENSIONS') {
+      if (sp.category) apiParams.category = sp.category;
+      if (sp.shape) apiParams.shape = sp.shape;
+      if (sp.dim_a) { apiParams.dim_a = sp.dim_a; apiParams.tol_a = sp.tol_a || '0'; }
+      if (sp.dim_b) { apiParams.dim_b = sp.dim_b; apiParams.tol_b = sp.tol_b || '0'; }
+      if (sp.dim_c) { apiParams.dim_c = sp.dim_c; apiParams.tol_c = sp.tol_c || '0'; }
+      if (sp.dim_d) { apiParams.dim_d = sp.dim_d; apiParams.tol_d = sp.tol_d || '0'; }
+      if (sp.dim_e) { apiParams.dim_e = sp.dim_e; apiParams.tol_e = sp.tol_e || '0'; }
+      if (sp.dim_f) apiParams.dim_f = sp.dim_f;
+      if (sp.dim_h) { apiParams.dim_h = sp.dim_h; apiParams.tol_h = sp.tol_h || '0'; }
     }
 
     try {
@@ -105,10 +118,19 @@ export default async function BuscarPage({ searchParams }) {
           results.length > 0 ? (
             <div className="space-y-8">
               {/* Barra de Estadísticas */}
-              <div className="flex items-center justify-between px-1 border-b border-white/10 pb-4">
-                <h2 className="text-white font-black text-sm md:text-base uppercase tracking-tight">Resultados Encontrados</h2>
-                <span className="text-[10px] md:text-xs font-black px-3 py-1.5 rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-                  {total} PRODUCTOS
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1 border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-white font-black text-sm md:text-base uppercase tracking-tight">
+                    {type === 'DIMENSIONS' ? 'Filtros Compatibles por Medidas' : 'Resultados Encontrados'}
+                  </h2>
+                  {type === 'DIMENSIONS' && sp.shape && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-brand-primary/20 text-brand-primary border border-brand-primary/30 uppercase">
+                      Forma: {sp.shape}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] md:text-xs font-black px-3 py-1.5 rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20 self-start sm:self-auto">
+                  {total} PRODUCTOS ENCONTRADOS
                 </span>
               </div>
 
@@ -130,7 +152,7 @@ export default async function BuscarPage({ searchParams }) {
                   </div>
                 </div>
               ) : (
-                /* Vista para VEHÍCULOS / OTROS */
+                /* Vista para VEHÍCULOS / DIMENSIONES / OTROS */
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {results.map(p => <ProductCard key={p.sku} product={p} />)}
                 </div>
@@ -144,7 +166,9 @@ export default async function BuscarPage({ searchParams }) {
               </div>
               <h3 className="text-white font-black text-lg md:text-xl uppercase tracking-tight">Sin coincidencias</h3>
               <p className="text-sm max-w-sm mx-auto text-brand-text-dim">
-                No encontramos resultados para <span className="text-white font-bold">{query || make}</span>. Verifica el código o ajusta los filtros.
+                {type === 'DIMENSIONS' 
+                  ? 'No encontramos filtros con estas medidas exactas y tolerancias. Prueba aumentando la tolerancia (+/- 15mm o +/- 20mm).'
+                  : `No encontramos resultados para ${query || make}. Verifica el código o ajusta los filtros.`}
               </p>
             </div>
           )

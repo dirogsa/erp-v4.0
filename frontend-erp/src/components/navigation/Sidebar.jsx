@@ -47,19 +47,25 @@ const Sidebar = ({ isOpen, onClose }) => {
                 <label className="sidebar-company-label">🏢 EMPRESA ACTIVA:</label>
                 <select 
                     className="sidebar-company-select"
-                    value={activeCompany?._id || ''}
-                    onChange={(e) => {
-                        const comp = companies.find(c => c._id === e.target.value);
+                    value={activeCompany?._id || activeCompany?.id || ''}
+                    onChange={async (e) => {
+                        const comp = companies.find(c => (c._id || c.id) === e.target.value);
                         if (comp) {
-                            selectCompany(comp);
+                            await selectCompany(comp, true);
                             // Refresh page to clear all local states and force new company context
                             window.location.reload();
                         }
                     }}
                 >
-                    {companies.map(c => (
-                        <option key={c._id} value={c._id}>{c.name}</option>
-                    ))}
+                    {companies.length === 0 && (
+                        <option value="">Cargando empresas...</option>
+                    )}
+                    {companies.map(c => {
+                        const id = c._id || c.id;
+                        return (
+                            <option key={id} value={id}>{c.name}</option>
+                        );
+                    })}
                 </select>
                 {activeCompany && (
                     <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem', paddingLeft: '0.25rem' }}>

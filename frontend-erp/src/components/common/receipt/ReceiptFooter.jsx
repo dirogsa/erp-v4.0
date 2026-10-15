@@ -4,6 +4,7 @@ import { formatCurrency, formatDate } from '../../../utils/formatters';
 const ReceiptFooter = ({
     totalAmount,
     amountPaid = 0,
+    shippingCost = 0,
     payments = [],
     notes,
     showPaymentDetails = false,
@@ -48,8 +49,8 @@ const ReceiptFooter = ({
                         <span className="receipt-total-value">{formatCurrency(igv, currencySymbol)}</span>
                     </div>
                     <div className="receipt-total-row">
-                        <span className="receipt-total-label">Otros Cargos:</span>
-                        <span className="receipt-total-value">{formatCurrency(0, currencySymbol)}</span>
+                        <span className="receipt-total-label">{shippingCost > 0 ? "Flete / Movilidad:" : "Otros Cargos:"}</span>
+                        <span className="receipt-total-value">{formatCurrency(shippingCost || 0, currencySymbol)}</span>
                     </div>
                     <div className="receipt-total-row">
                         <span className="receipt-total-label">Otros Tributos:</span>

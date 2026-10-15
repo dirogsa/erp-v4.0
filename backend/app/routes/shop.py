@@ -557,6 +557,20 @@ async def get_shop_products(
     spec_d: Optional[str] = None,
     spec_t: Optional[str] = None,
     spec_id: Optional[str] = None,
+    shape: Optional[str] = None,
+    dim_a: Optional[str] = None,
+    tol_a: Optional[float] = 0.0,
+    dim_b: Optional[str] = None,
+    tol_b: Optional[float] = 0.0,
+    dim_c: Optional[str] = None,
+    tol_c: Optional[float] = 0.0,
+    dim_d: Optional[str] = None,
+    tol_d: Optional[float] = 0.0,
+    dim_e: Optional[str] = None,
+    tol_e: Optional[float] = 0.0,
+    dim_f: Optional[str] = None,
+    dim_h: Optional[str] = None,
+    tol_h: Optional[float] = 0.0,
     is_new: Optional[bool] = None,
     current_user: Optional[User] = Depends(get_optional_user)
 ):
@@ -686,36 +700,47 @@ async def get_shop_products(
         safe_model = re.escape(vehicle_model)
         query["applications.model"] = {"$regex": f"^{safe_model}$", "$options": "i"}
 
-    # Dimension (Specs) Filtering - World-Class precision (Numeric Tolerance Support)
+    # Shape Filtering (FLAT, ROUND, OVAL)
+    if shape:
+        query["shape"] = {"$regex": f"^{re.escape(shape.strip())}$", "$options": "i"}
+
+    # Dimension (Specs) Filtering - WIX Filters Parametric Tolerance Engine
     spec_filters = []
     
-    def add_spec_filter(val, regex_labels):
-        if not val: return
+    def add_parametric_spec_filter(val, tolerance, regex_labels):
+        if not val:
+            return
+        tol = float(tolerance or 0.0)
         try:
-            num_val = float(val.replace(',', '.'))
-            # Plan Maestro: Tolerancia de +/- 0.5mm
+            num_val = float(str(val).strip().replace(',', '.'))
+            min_val = num_val - tol
+            max_val = num_val + tol
             spec_filters.append({
                 "$elemMatch": {
                     "label": {"$regex": regex_labels, "$options": "i"},
                     "$or": [
-                        {"value_num": {"$gte": num_val - 0.5, "$lte": num_val + 0.5}},
-                        {"value": {"$regex": val}} # Fallback a texto
+                        {"value_num": {"$gte": min_val, "$lte": max_val}},
+                        {"value": {"$regex": f"^{re.escape(str(val).strip())}$", "$options": "i"}}
                     ]
                 }
             })
         except ValueError:
-            # Si no es número (ej: una rosca "3/4-16"), búsqueda por texto
+            # Texto directo (p. ej. roscas "3/4-16", "M20x1.5")
             spec_filters.append({
                 "$elemMatch": {
                     "label": {"$regex": regex_labels, "$options": "i"},
-                    "value": {"$regex": val, "$options": "i"}
+                    "value": {"$regex": re.escape(str(val).strip()), "$options": "i"}
                 }
             })
 
-    add_spec_filter(spec_h, "^H$|^Altura$|^Height$|^Alto$")
-    add_spec_filter(spec_d, "^A$|^D$|^Diámetro Exterior$|^Outer Diameter$|^Diámetro$|^Diám. Ext.$")
-    add_spec_filter(spec_t, "^G$|^T$|^Rosca$|^Thread$|^Paso de Rosca$")
-    add_spec_filter(spec_id, "^B$|^C$|^Diámetro Interior$|^Inner Diameter$")
+    # WIX Filters Standard Cotas
+    add_parametric_spec_filter(dim_a or spec_d, tol_a or 0.5, "^A$|^Diámetro Exterior$|^Outer Diameter$|^Length$|^Longitud$|^Largo$")
+    add_parametric_spec_filter(dim_b or spec_id, tol_b or 0.5, "^B$|^Diámetro Interior$|^Inner Diameter$|^Width$|^Ancho$")
+    add_parametric_spec_filter(dim_c, tol_c or 0.5, "^C$|^Inner Diameter Bottom$|^Diámetro Interior 2$|^Diámetro Interior Inferior$")
+    add_parametric_spec_filter(dim_d, tol_d or 0.5, "^D$|^Largest Diameter$|^Diámetro Exterior 2$|^Outer Diameter 2$")
+    add_parametric_spec_filter(dim_e, tol_e or 0.5, "^E$|^Inner Width$|^Ancho Interior$")
+    add_parametric_spec_filter(dim_f or spec_t, 0.0, "^F$|^G$|^T$|^Rosca$|^Thread$|^Paso de Rosca$|^Inlet$")
+    add_parametric_spec_filter(dim_h or spec_h, tol_h or 0.5, "^H$|^Altura$|^Height$|^Alto$")
     
     if spec_filters:
         query["specs"] = {"$all": spec_filters}

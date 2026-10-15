@@ -37,6 +37,10 @@ const SalesQuoteReceipt = ({
                             subtotal: item.subtotal || (item.quantity * item.unit_price)
                         })) || []}
                         totalAmount={quote.total_amount}
+                        deliveryMethod={quote.delivery_method}
+                        shippingCost={quote.shipping_cost}
+                        shippingAgency={quote.shipping_agency}
+                        shippingPaymentType={quote.shipping_payment_type}
                         showPaymentDetails={false}
                         showBankAccounts={false}
                         paymentTerms={quote.payment_terms}

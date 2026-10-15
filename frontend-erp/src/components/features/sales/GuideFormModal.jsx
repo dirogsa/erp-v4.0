@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Input from '../../common/Input';
 import Button from '../../common/Button';
 
@@ -15,6 +15,28 @@ const GuideFormModal = ({
         driver_name: '',
         notes: ''
     });
+
+    useEffect(() => {
+        if (invoice) {
+            let defaultNotes = invoice.shipping_notes || '';
+            let defaultDriver = '';
+            if (invoice.delivery_method === 'AGENCY_SHIPPING' && invoice.shipping_agency) {
+                defaultDriver = `Agencia ${invoice.shipping_agency}`;
+                if (!defaultNotes) {
+                    defaultNotes = `Despacho por Agencia ${invoice.shipping_agency} (${invoice.shipping_payment_type === 'DESTINATION' ? 'Pago en destino' : 'Flete pagado'})`;
+                }
+            } else if (invoice.delivery_method === 'LOCAL_DELIVERY') {
+                if (!defaultNotes && invoice.shipping_notes) {
+                    defaultNotes = invoice.shipping_notes;
+                }
+            }
+            setFormData(prev => ({
+                ...prev,
+                driver_name: defaultDriver || prev.driver_name,
+                notes: defaultNotes || prev.notes
+            }));
+        }
+    }, [invoice]);
 
     if (!visible || !invoice) return null;
 

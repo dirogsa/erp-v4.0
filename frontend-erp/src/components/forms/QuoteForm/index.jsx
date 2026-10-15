@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CustomerSelector from './CustomerSelector';
+import DeliveryMethodSection from '../DeliveryMethodSection';
 import ProductItemsSection from './ProductItemsSection';
 import QuoteSummary from './QuoteSummary';
 import PaymentInfoSection from '../OrderForm/PaymentInfoSection';
@@ -29,6 +30,11 @@ const QuoteForm = ({
         items: [],
         delivery_address: '',
         delivery_branch_name: '',
+        delivery_method: 'STORE_PICKUP',
+        shipping_cost: 0,
+        shipping_agency: '',
+        shipping_payment_type: 'PAID',
+        shipping_notes: '',
         requested_by: null,
         date: new Date().toISOString().split('T')[0],
         due_date: '',
@@ -49,6 +55,11 @@ const QuoteForm = ({
                 date: initialData.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0],
                 due_date: initialData.due_date ? initialData.due_date.split('T')[0] : '',
                 currency: initialData.currency || 'SOLES',
+                delivery_method: initialData.delivery_method || 'STORE_PICKUP',
+                shipping_cost: initialData.shipping_cost !== undefined ? initialData.shipping_cost : 0,
+                shipping_agency: initialData.shipping_agency || '',
+                shipping_payment_type: initialData.shipping_payment_type || 'PAID',
+                shipping_notes: initialData.shipping_notes || '',
                 // Asegurar que la dirección de entrega se extraiga si viene anidada en customer
                 delivery_address: initialData.delivery_address || initialData.customer?.delivery_address || initialData.customer?.address || '',
                 customer: initialData.customer || {
@@ -74,7 +85,6 @@ const QuoteForm = ({
             customer_name: customerData.name,
             delivery_address: customerData.delivery_address || customerData.address,
             delivery_branch_name: customerData.delivery_branch_name,
-            // Mantener solicitado por si ya estaba (o resetear si cambia de cliente drásticamente)
         }));
     };
 
@@ -85,7 +95,9 @@ const QuoteForm = ({
         }));
     };
 
-    const total = formData.items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+    const itemsTotal = formData.items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+    const effectiveShipping = (formData.shipping_payment_type !== 'DESTINATION') ? (parseFloat(formData.shipping_cost) || 0) : 0;
+    const total = itemsTotal + effectiveShipping;
 
     // Auto-update amount in words
     useEffect(() => {
@@ -109,17 +121,21 @@ const QuoteForm = ({
             return;
         }
 
-        if (!formData.delivery_address) {
-            showNotification('La dirección de entrega es obligatoria', 'error');
+        if (formData.delivery_method !== 'STORE_PICKUP' && !formData.delivery_address) {
+            showNotification('La dirección de entrega es obligatoria para envíos', 'error');
             return;
         }
 
-        // total is already calculated above
         const quotePayload = {
             ...formData,
             due_date: formData.due_date || null,
             items: formData.items,
             total_amount: total,
+            shipping_cost: effectiveShipping,
+            delivery_method: formData.delivery_method,
+            shipping_agency: formData.shipping_agency,
+            shipping_payment_type: formData.shipping_payment_type,
+            shipping_notes: formData.shipping_notes,
             requested_by: formData.requested_by,
             issuer_info: activeCompany // Snapshot active company info at creation time
         };
@@ -133,7 +149,8 @@ const QuoteForm = ({
                 padding: '1.5rem',
                 backgroundColor: '#1e293b',
                 borderRadius: '0.5rem',
-                marginBottom: '1.5rem'
+                marginBottom: '1.5rem',
+                border: '1px solid #334155'
             }}>
                 <h3 style={{ marginBottom: '1rem', color: '#e2e8f0', fontSize: '1.1rem' }}>
                     Información General
@@ -185,6 +202,25 @@ const QuoteForm = ({
                 required
             />
 
+            <DeliveryMethodSection
+                deliveryMethod={formData.delivery_method}
+                onDeliveryMethodChange={(delivery_method) => setFormData(prev => ({ ...prev, delivery_method }))}
+                shippingCost={formData.shipping_cost}
+                onShippingCostChange={(shipping_cost) => setFormData(prev => ({ ...prev, shipping_cost }))}
+                shippingAgency={formData.shipping_agency}
+                onShippingAgencyChange={(shipping_agency) => setFormData(prev => ({ ...prev, shipping_agency }))}
+                shippingPaymentType={formData.shipping_payment_type}
+                onShippingPaymentTypeChange={(shipping_payment_type) => setFormData(prev => ({ ...prev, shipping_payment_type }))}
+                shippingNotes={formData.shipping_notes}
+                onShippingNotesChange={(shipping_notes) => setFormData(prev => ({ ...prev, shipping_notes }))}
+                deliveryAddress={formData.delivery_address}
+                onDeliveryAddressChange={(delivery_address) => setFormData(prev => ({ ...prev, delivery_address }))}
+                deliveryBranchName={formData.delivery_branch_name}
+                itemsTotal={itemsTotal}
+                currency={formData.currency}
+                readOnly={readOnly}
+            />
+
             <ProductItemsSection
                 items={formData.items}
                 onItemsChange={handleItemsChange}
@@ -195,7 +231,7 @@ const QuoteForm = ({
             <PaymentInfoSection
                 value={formData.payment_terms}
                 onChange={(payment_terms) => setFormData({ ...formData, payment_terms })}
-                totalAmount={formData.items.reduce((sum, item) => sum + (item.subtotal || 0), 0)}
+                totalAmount={total}
                 readOnly={readOnly}
             />
 
@@ -232,7 +268,14 @@ const QuoteForm = ({
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <QuoteSummary items={formData.items} currency={formData.currency} />
+                <QuoteSummary
+                    items={formData.items}
+                    shippingCost={effectiveShipping}
+                    deliveryMethod={formData.delivery_method}
+                    shippingAgency={formData.shipping_agency}
+                    shippingPaymentType={formData.shipping_payment_type}
+                    currency={formData.currency}
+                />
             </div>
 
             {!readOnly && (
